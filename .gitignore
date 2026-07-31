@@ -1,0 +1,25 @@
+# ============================================================================
+#  zm_qol — .gitignore
+#
+#  NOTE: the big binaries ARE tracked on purpose. mod.ff, mod.all.sabl/.sabs and
+#  deathmachine_zm.all.sabl have no source in this project and cannot be
+#  regenerated from anything here — losing them loses the mod. Same for
+#  zone_source/base/mod.ff, the donor fastfile every rebuild links from.
+#  A checkpoint you can't actually restore from isn't a checkpoint.
+# ============================================================================
+
+# Runtime logs pulled off the game — noise, and regenerated every crash hunt.
+crashlogs/
+
+# Linker scratch output; build_ff.bat deletes it, but not if a build failed.
+zone_out/
+zone_source/_regen/
+
+# Ad-hoc backups made before risky edits.
+*.bak-*
+*.bak
+
+# Windows/editor cruft
+Thumbs.db
+desktop.ini
+*.swp

@@ -1,0 +1,260 @@
+#include maps\mp\zombies\_zm_game_module;
+#include maps\mp\zombies\_zm_utility;
+#include common_scripts\utility;
+#include maps\mp\_utility;
+#include maps\mp\zombies\_zm;
+
+struct_init()
+{
+	scripts\zm\replaced\utility::register_perk_struct("specialty_armorvest", "zombie_vending_jugg", (-3522, -7198, -59), (0, -45, 0));
+	scripts\zm\replaced\utility::register_perk_struct("specialty_quickrevive", "zombie_vending_quickrevive", (-6207, -6541, -46), (0, 60, 0));
+	scripts\zm\replaced\utility::register_perk_struct("specialty_fastreload", "zombie_vending_sleight", (-5470, -7859.5, 0), (0, 270, 0));
+	scripts\zm\replaced\utility::register_perk_struct("specialty_rof", "zombie_vending_doubletap2", (-4170, -7592, -63), (0, 270, 0));
+
+	structs = getstructarray("player_respawn_point", "targetname");
+	respawn_point = [];
+	zone = "zone_gas";
+
+	foreach (struct in structs)
+	{
+		if (isdefined(struct.script_noteworthy) && struct.script_noteworthy == zone)
+		{
+			respawn_point = struct;
+			break;
+		}
+	}
+
+	if (isdefined(respawn_point))
+	{
+		scripts\zm\replaced\utility::register_map_spawn_group(respawn_point.origin, zone, respawn_point.script_int);
+
+		respawn_array = getstructarray(respawn_point.target, "targetname");
+
+		foreach (respawn in respawn_array)
+		{
+			angles = respawn.angles;
+
+			if (respawn.script_int == 2)
+			{
+				angles += (0, 180, 0);
+			}
+
+			scripts\zm\replaced\utility::register_map_spawn(respawn.origin, angles, zone, respawn.script_int);
+		}
+	}
+
+	zone = "zone_roadside_east";
+	scripts\zm\replaced\utility::register_map_spawn_group((-4173, -7095, -35), zone, 6000);
+
+	scripts\zm\replaced\utility::register_map_spawn((-4031, -6830, -18), (0, 180, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-4106, -6830, -18), (0, 180, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-4181, -6830, -18), (0, 180, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-4256, -6830, -18), (0, 180, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-4031, -7326, -35), (0, 180, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-4106, -7326, -35), (0, 180, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-4181, -7326, -35), (0, 180, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-4256, -7326, -35), (0, 180, 0), zone);
+
+	zone = "zone_roadside_west";
+	scripts\zm\replaced\utility::register_map_spawn_group((-5799, -6839, -30), zone, 6000);
+
+	scripts\zm\replaced\utility::register_map_spawn((-6120, -6684, -30), (0, 0, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-6045, -6684, -30), (0, 0, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-5970, -6684, -30), (0, 0, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-5895, -6684, -30), (0, 0, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-6120, -6984, -30), (0, 0, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-6045, -6984, -30), (0, 0, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-5970, -6984, -30), (0, 0, 0), zone);
+	scripts\zm\replaced\utility::register_map_spawn((-5895, -6984, -30), (0, 0, 0), zone);
+
+	// zm_qol: the diner's own two wallbuys. Both are tagged "zclassic_transit"
+	// in the stock map, so without this Diner survival/grief spawns none at all.
+	// Origins verified against the zm_transit mapents dump - see the block
+	// comment on loc_common::enable_wallbuys.
+	a_wallbuys = [];
+	a_wallbuys[a_wallbuys.size] = ( -5489, -7982.7, 62 );        // mp5k_zm, inside the diner
+	a_wallbuys[a_wallbuys.size] = ( -6399.2, -7938.5, 207.25 );  // tazer_knuckles_zm (Galvaknuckles), diner roof
+	scripts\zm\locs\loc_common::enable_wallbuys( a_wallbuys );
+
+	gameObjects = getEntArray("script_model", "classname");
+
+	foreach (object in gameObjects)
+	{
+		if (isDefined(object.script_noteworthy) && object.script_noteworthy == getDvar("ui_zm_mapstartlocation"))
+		{
+			if (isDefined(object.script_gameobjectname) && object.script_gameobjectname == "zcleansed zturned")
+			{
+				object.script_gameobjectname = "zstandard zgrief";
+
+				if (object.origin == (-6460.7, -7115, 6.8))
+				{
+					object setModel("veh_t6_civ_microbus_dead");
+					object.origin += anglesToUp(object.angles) * -65;
+					object.origin += anglesToForward(object.angles) * 100;
+					object.angles += (0, 180, 0);
+				}
+				else if (object.origin == (-6550.5, -6901.7, 6.8))
+				{
+					object setModel("veh_t6_civ_smallwagon_dead");
+					object.origin += anglesToUp(object.angles) * -60;
+					object.origin += anglesToForward(object.angles) * 160;
+					object.origin += anglesToRight(object.angles) * 10;
+					object.angles += (0, -90, 0);
+				}
+				else if (object.origin == (-6251.1, -6449.4, 20.8))
+				{
+					object setModel("veh_t6_civ_60s_coupe_dead");
+					object.origin += anglesToUp(object.angles) * -60;
+					object.origin += anglesToForward(object.angles) * 90;
+					object.origin += anglesToRight(object.angles) * 25;
+				}
+				else if (object.origin == (-5822.9, -6434.6, 20.8))
+				{
+					object setModel("veh_t6_civ_smallwagon_dead");
+					object.origin += anglesToUp(object.angles) * -60;
+					object.origin += anglesToForward(object.angles) * 200;
+					object.angles += (0, 120, 0);
+				}
+				else if (object.origin == (-5589.5, -6310.3, 24.8))
+				{
+					object2 = spawn("script_model", object.origin);
+					object2.angles = object.angles;
+					object2 setModel("p6_zm_rocks_medium_05");
+					object2.origin += anglesToUp(object2.angles) * -80;
+					object2.origin += anglesToForward(object2.angles) * 215;
+					object2.origin += anglesToRight(object2.angles) * 215;
+					object2.angles += (0, 90, 0);
+
+					object setModel("p6_zm_rocks_medium_05");
+					object.origin += anglesToUp(object.angles) * -80;
+					object.origin += anglesToForward(object.angles) * 125;
+					object.origin += anglesToRight(object.angles) * 125;
+				}
+				else if (object.origin == (-4813, -6665.3, 0.8))
+				{
+					object setModel("veh_t6_civ_60s_coupe_dead");
+					object.origin += anglesToUp(object.angles) * -65;
+					object.origin += anglesToForward(object.angles) * 100;
+				}
+				else if (object.origin == (-3978.4, -6484.9, 0.8))
+				{
+					object setModel("veh_t6_civ_smallwagon_dead");
+					object.origin += anglesToUp(object.angles) * -60;
+					object.origin += anglesToForward(object.angles) * 125;
+				}
+				else if (object.origin == (-3902.4, -6884.9, 0.8))
+				{
+					object setModel("veh_t6_civ_microbus_dead");
+					object.origin += anglesToUp(object.angles) * -65;
+					object.origin += anglesToForward(object.angles) * 50;
+				}
+			}
+		}
+	}
+}
+
+// zm_qol: stock T6 always precaches before setmodel. Every model below was
+// checked against the xmodel inventory of all 191 fastfiles in zone/all - the
+// first six ship in zm_transit/common_zm, and the last two only in
+// so_zsurvival_zm_transit, so mod.ff now carries those two (see
+// zone_source/mod_locations.zone) and they are safe to precache in every mode.
+precache()
+{
+	precachemodel( "afr_barrel_biohazard_white_rust" );
+	precachemodel( "collision_wall_64x64x10_standard" );
+	precachemodel( "p6_zm_rocks_medium_05" );
+	precachemodel( "veh_t6_civ_60s_coupe_dead" );
+	precachemodel( "veh_t6_civ_microbus_dead" );
+	precachemodel( "veh_t6_civ_smallwagon_dead" );
+	precachemodel( "p6_zm_buildable_bench_tarp" );
+	precachemodel( "zm_collision_transit_diner_survival" );
+}
+
+main()
+{
+	// zm_qol: guarded. Writing a field on an undefined array entry is fatal in GSC and
+	// these two zone names are hardcoded rather than iterated. Everything else in this
+	// file is Reimagined's original - the props, barriers and re-modelling were briefly
+	// stripped while chasing a crash that turned out to be an unrelated duplicate
+	// #include in zm_transit.gsc, and have been restored in full.
+	if ( isdefined( level.zones ) && isdefined( level.zones["zone_diner_roof"] ) )
+		level.zones["zone_diner_roof"].is_enabled = 0;
+
+	if ( isdefined( level.zones ) && isdefined( level.zones["zone_trans_diner2"] ) )
+		level.zones["zone_trans_diner2"].is_enabled = 0;
+
+	treasure_chest_init();
+	init_barriers();
+	generatebuildabletarps();
+	disable_zombie_spawn_locations();
+	level thread scripts\zm\locs\loc_common::init();
+	println( "[zm_qol] diner main: DONE" );
+}
+
+treasure_chest_init()
+{
+	chest = getstruct("start_chest", "script_noteworthy");
+	level.chests = [];
+	level.chests[0] = chest;
+	maps\mp\zombies\_zm_magicbox::treasure_chest_init("start_chest");
+}
+
+init_barriers()
+{
+	collision = spawn("script_model", (-5000, -6700, 0), 1);
+	collision setmodel("zm_collision_transit_diner_survival");
+	collision disconnectpaths();
+
+	origin = (-6350, -7046, -60);
+	angles = (0, 165, 0);
+	scripts\zm\locs\loc_common::barrier("collision_wall_64x64x10_standard", origin + (anglesToUp(angles) * 32), angles, 1);
+	scripts\zm\locs\loc_common::barrier("collision_wall_64x64x10_standard", origin + (anglesToUp(angles) * 96), angles, 1);
+	scripts\zm\locs\loc_common::barrier("afr_barrel_biohazard_white_rust", origin + (anglesToForward(angles) * -24) + (anglesToRight(angles) * -16) + (anglesToUp(angles) * 14), angles + (0, 90, 90));
+}
+
+generatebuildabletarps()
+{
+	tarp = spawn("script_model", (-4688, -7974, -64));
+	tarp.angles = (0, 0, 0);
+	tarp setModel("p6_zm_buildable_bench_tarp");
+}
+
+disable_zombie_spawn_locations()
+{
+	for (z = 0; z < level.zone_keys.size; z++)
+	{
+		zone = level.zones[level.zone_keys[z]];
+
+		i = 0;
+
+		while (i < zone.spawn_locations.size)
+		{
+			if (zone.spawn_locations[i].targetname == "zone_trans_diner_spawners")
+			{
+				zone.spawn_locations[i].is_enabled = false;
+			}
+			else if (zone.spawn_locations[i].targetname == "zone_trans_diner2_spawners")
+			{
+				zone.spawn_locations[i].is_enabled = false;
+			}
+			else if (zone.spawn_locations[i].origin == (-3825, -6576, -52.7))
+			{
+				zone.spawn_locations[i].is_enabled = false;
+			}
+			else if (zone.spawn_locations[i].origin == (-5130, -6512, -35.4))
+			{
+				zone.spawn_locations[i].is_enabled = false;
+			}
+			else if (zone.spawn_locations[i].origin == (-6462, -7159, -64))
+			{
+				zone.spawn_locations[i].is_enabled = false;
+			}
+			else if (zone.spawn_locations[i].origin == (-6531, -6613, -54.4))
+			{
+				zone.spawn_locations[i].is_enabled = false;
+			}
+
+			i++;
+		}
+	}
+}

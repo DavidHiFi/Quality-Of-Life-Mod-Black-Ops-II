@@ -1,0 +1,364 @@
+-- ============================================================================
+--  selectmaplistzombie.lua  -  flat list menus for Zombies map / game mode
+-- ----------------------------------------------------------------------------
+--  Ported into zm_qol from BO2-Reimagined (ui_mp/t6/zombie/selectmaplistzombie.lua).
+--
+--  Replaces the globe-based map picker with two plain list popups reachable from
+--  the private game lobby:
+--      SelectMapListZM        - "Change Map"       -> flat list of every survival
+--                               start location across all 5 maps
+--      SelectGameModeListZM   - "Change Game Mode"
+--
+--  Selecting a location sets BOTH ui_mapname and ui_zm_mapstartlocation, so
+--  picking e.g. "DOCKS" switches to zm_prison and starts at Docks. The GSC side
+--  (scripts\zm\replaced\zm_*_gamemodes.gsc + scripts\zm\locs\) is what makes the
+--  non-stock locations actually playable.
+--
+--  🛑 DIFFERENCE FROM REIMAGINED - read before "fixing" this:
+--  Reimagined reads each location's display name out of the zm/gametypestable.csv
+--  stringtable, which it ships inside its own OAT-built mod.ff. zm_qol has no
+--  OpenAssetTools/linker and cannot rebuild mod.ff, so those stringtable rows do
+--  not exist here and that lookup would render every row blank. The names are
+--  therefore hardcoded in the `name` field below. Do NOT swap this back to
+--  UIExpression.TableLookup unless a real fastfile build is added to this project.
+-- ============================================================================
+
+require("T6.Lobby")
+require("T6.Menus.PopupMenus")
+require("T6.ListBox")
+
+CoD.SelectMapListZombie = {}
+CoD.SelectMapListZombie.GameModes = {}
+CoD.SelectMapListZombie.GameModes[1] = {
+	ui_zm_gamemodegroup = "zclassic",
+	ui_gametype = "zclassic",
+}
+CoD.SelectMapListZombie.GameModes[2] = {
+	ui_zm_gamemodegroup = "zsurvival",
+	ui_gametype = "zstandard",
+}
+CoD.SelectMapListZombie.GameModes[3] = {
+	ui_zm_gamemodegroup = "zencounter",
+	ui_gametype = "zgrief",
+}
+
+CoD.SelectMapListZombie.Maps = {}
+CoD.SelectMapListZombie.Maps[1] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "transit",
+}
+CoD.SelectMapListZombie.Maps[2] = {
+	ui_mapname = "zm_highrise",
+	ui_zm_mapstartlocation = "rooftop",
+}
+CoD.SelectMapListZombie.Maps[3] = {
+	ui_mapname = "zm_buried",
+	ui_zm_mapstartlocation = "processing",
+}
+CoD.SelectMapListZombie.Maps[4] = {
+	ui_mapname = "zm_prison",
+	ui_zm_mapstartlocation = "prison",
+}
+CoD.SelectMapListZombie.Maps[5] = {
+	ui_mapname = "zm_tomb",
+	ui_zm_mapstartlocation = "tomb",
+}
+
+-- Survival / Grief start locations. Entries marked (stock) already work in the
+-- base game; the rest are the ones the ported GSC adds.
+CoD.SelectMapListZombie.Locations = {}
+CoD.SelectMapListZombie.Locations[1] = {
+	ui_mapname = "zm_nuked",
+	ui_zm_mapstartlocation = "nuked",
+	name = "NUKETOWN",                         -- (stock)
+}
+CoD.SelectMapListZombie.Locations[2] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "transit",
+	name = "BUS DEPOT",                        -- (stock)
+}
+CoD.SelectMapListZombie.Locations[3] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "diner",
+	name = "DINER",
+}
+CoD.SelectMapListZombie.Locations[4] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "farm",
+	name = "FARM",                             -- (stock)
+}
+CoD.SelectMapListZombie.Locations[5] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "power",
+	name = "POWER STATION",
+}
+CoD.SelectMapListZombie.Locations[6] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "town",
+	name = "TOWN",                             -- (stock)
+}
+CoD.SelectMapListZombie.Locations[7] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "tunnel",
+	name = "TUNNEL",
+}
+CoD.SelectMapListZombie.Locations[8] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "cornfield",
+	name = "CORNFIELD",
+}
+CoD.SelectMapListZombie.Locations[9] = {
+	ui_mapname = "zm_highrise",
+	ui_zm_mapstartlocation = "shopping_mall",
+	name = "SHOPPING MALL",
+}
+CoD.SelectMapListZombie.Locations[10] = {
+	ui_mapname = "zm_highrise",
+	ui_zm_mapstartlocation = "dragon_rooftop",
+	name = "DRAGON ROOFTOP",
+}
+CoD.SelectMapListZombie.Locations[11] = {
+	ui_mapname = "zm_highrise",
+	ui_zm_mapstartlocation = "sweatshop",
+	name = "SWEATSHOP",
+}
+CoD.SelectMapListZombie.Locations[12] = {
+	ui_mapname = "zm_buried",
+	ui_zm_mapstartlocation = "street",
+	name = "BOROUGH",                          -- (stock)
+}
+CoD.SelectMapListZombie.Locations[13] = {
+	ui_mapname = "zm_buried",
+	ui_zm_mapstartlocation = "maze",
+	name = "MAZE",
+}
+CoD.SelectMapListZombie.Locations[14] = {
+	ui_mapname = "zm_prison",
+	ui_zm_mapstartlocation = "cellblock",
+	name = "CELL BLOCK",                       -- (stock)
+}
+CoD.SelectMapListZombie.Locations[15] = {
+	ui_mapname = "zm_prison",
+	ui_zm_mapstartlocation = "docks",
+	name = "DOCKS",
+}
+CoD.SelectMapListZombie.Locations[16] = {
+	ui_mapname = "zm_tomb",
+	ui_zm_mapstartlocation = "trenches",
+	name = "TRENCHES",
+}
+CoD.SelectMapListZombie.Locations[17] = {
+	ui_mapname = "zm_tomb",
+	ui_zm_mapstartlocation = "excavation_site",
+	name = "EXCAVATION SITE",
+}
+CoD.SelectMapListZombie.Locations[18] = {
+	ui_mapname = "zm_tomb",
+	ui_zm_mapstartlocation = "church",
+	name = "CHURCH",
+}
+CoD.SelectMapListZombie.Locations[19] = {
+	ui_mapname = "zm_tomb",
+	ui_zm_mapstartlocation = "crazy_place",
+	name = "THE CRAZY PLACE",
+}
+
+CoD.SelectMapListZombie.GetKeyValueIndex = function(table, key, value)
+	for i, v in ipairs(table) do
+		if v[key] == value then
+			return i
+		end
+	end
+
+	return 1
+end
+
+local function gameModeListSelectionClickedEventHandler(self, event)
+	local index = self.listBox:getFocussedIndex()
+
+	if index ~= nil then
+		local prevTeamCount = Engine.GetGametypeSetting("teamCount")
+
+		local gameTable = CoD.SelectMapListZombie.GameModes
+
+		Engine.SetDvar("ui_zm_gamemodegroup", gameTable[index].ui_zm_gamemodegroup)
+		Engine.SetGametype(gameTable[index].ui_gametype)
+
+		if gameTable[index].ui_zm_gamemodegroup ~= "zencounter" then
+			Engine.SetDvar("ui_gametype_pro", 0)
+		end
+
+		-- zm_qol: same nil-`controller` bug as in the map handler below. Read the current
+		-- map/location from the dvars, which are always set, instead of parsing a profile
+		-- string fetched with a nil controller. GetKeyValueIndex already falls back to 1.
+		local map = UIExpression.DvarString(nil, "ui_mapname")
+		local location = UIExpression.DvarString(nil, "ui_zm_mapstartlocation")
+		local mapTable = {}
+		local mapIndex = 1
+
+		if gameTable[index].ui_gametype == "zclassic" then
+			mapTable = CoD.SelectMapListZombie.Maps
+			mapIndex = CoD.SelectMapListZombie.GetKeyValueIndex(mapTable, "ui_mapname", map)
+		else
+			mapTable = CoD.SelectMapListZombie.Locations
+			mapIndex = CoD.SelectMapListZombie.GetKeyValueIndex(mapTable, "ui_zm_mapstartlocation", location)
+		end
+
+		Engine.SetDvar("ui_mapname", mapTable[mapIndex].ui_mapname)
+		Engine.SetDvar("ui_zm_mapstartlocation", mapTable[mapIndex].ui_zm_mapstartlocation)
+
+		-- zm_qol: keep the profile map/location pair in sync with the dvars we just set,
+		-- otherwise the match start re-reads a stale pair from the profile.
+		Engine.SetProfileVar(self.controller, CoD.profileKey_map,
+			mapTable[mapIndex].ui_mapname .. " " .. mapTable[mapIndex].ui_zm_mapstartlocation)
+
+		Engine.SetProfileVar(self.controller, CoD.profileKey_gametype, gameTable[index].ui_gametype)
+
+		Engine.CommitProfileChanges(self.controller)
+
+		local currTeamCount = Engine.GetGametypeSetting("teamCount")
+
+		if currTeamCount ~= prevTeamCount then
+			Engine.PartyHostReassignTeams()
+		end
+	end
+
+	Engine.PartyHostClearUIState()
+
+	self.occludedMenu:swapMenu("PrivateOnlineGameLobby", self.controller)
+	self:goBack(self.controller)
+end
+
+local function gameModeListCreateButtonMutables(controller, mutables)
+	local text = LUI.UIText.new()
+	text:setLeftRight(true, false, 2, 2)
+	text:setTopBottom(true, true, 0, 0)
+	text:setRGB(1, 1, 1)
+	text:setAlpha(1)
+	mutables:addElement(text)
+	mutables.text = text
+end
+
+local function gameModeListGetButtonData(controller, index, mutables, self)
+	if CoD.SelectMapListZombie.GameModes[index].ui_gametype == "zclassic" then
+		mutables.text:setText(UIExpression.ToUpper(nil, Engine.Localize("MPUI_ZCLASSIC")))
+	else
+		mutables.text:setText(Engine.Localize(UIExpression.TableLookup(nil, CoD.gametypesTable, 0, 0, 1, CoD.SelectMapListZombie.GameModes[index].ui_gametype, 2)))
+	end
+end
+
+function LUI.createMenu.SelectGameModeListZM(controller)
+	local self = CoD.Menu.New("SelectGameModeListZM")
+	self.controller = controller
+
+	self:addLargePopupBackground()
+	self:addSelectButton()
+	self:addBackButton()
+
+	self:addTitle(Engine.Localize("MPUI_CHANGE_GAME_MODE_CAPS"))
+
+	local listBox = CoD.ListBox.new(nil, controller, 15, CoD.CoD9Button.Height, 250, gameModeListCreateButtonMutables, gameModeListGetButtonData, 5, 0)
+	listBox:setLeftRight(true, false, 0, 250)
+	listBox:setTopBottom(true, false, 75, 75 + 530)
+	listBox:addScrollBar()
+
+	local index = CoD.SelectMapListZombie.GetKeyValueIndex(CoD.SelectMapListZombie.GameModes, "ui_gametype", UIExpression.DvarString(nil, "ui_gametype"))
+
+	if UIExpression.DvarBool(nil, "party_solo") == 1 then
+		listBox:setTotalItems(2, index)
+	else
+		listBox:setTotalItems(#CoD.SelectMapListZombie.GameModes, index)
+	end
+
+	self:addElement(listBox)
+	self.listBox = listBox
+
+	self:registerEventHandler("click", gameModeListSelectionClickedEventHandler)
+
+	return self
+end
+
+local function mapListSelectionClickedEventHandler(self, event)
+	local index = self.listBox:getFocussedIndex()
+
+	if index ~= nil then
+		local mapTable = CoD.SelectMapListZombie.Maps
+
+		if UIExpression.DvarString(nil, "ui_gametype") ~= "zclassic" then
+			mapTable = CoD.SelectMapListZombie.Locations
+		end
+
+		Engine.SetDvar("ui_mapname", mapTable[index].ui_mapname)
+		Engine.SetDvar("ui_zm_mapstartlocation", mapTable[index].ui_zm_mapstartlocation)
+
+		-- 🛑 zm_qol FIX. Reimagined's original wrote the profile as
+		--     <map parsed from the OLD profile value> .. " " .. <new location>
+		-- using a bare `controller`, which is not a local here and is nil - so
+		-- ProfileValueAsString returned nothing, string.match produced nil, and the
+		-- write either errored or stored a stale/mismatched pair. The game re-reads
+		-- ui_zm_mapstartlocation from this profile value at match start, which is why
+		-- picking Diner still loaded Town (console log: "location=town").
+		--
+		-- Both halves now come from the selected row, so map and location can never
+		-- disagree and the selection always survives to the match.
+		Engine.SetProfileVar(self.controller, CoD.profileKey_map,
+			mapTable[index].ui_mapname .. " " .. mapTable[index].ui_zm_mapstartlocation)
+
+		Engine.CommitProfileChanges(self.controller)
+	end
+
+	Engine.PartyHostClearUIState()
+
+	self.occludedMenu:swapMenu("PrivateOnlineGameLobby", self.controller)
+	self:goBack(self.controller)
+end
+
+local function mapListCreateButtonMutables(controller, mutables)
+	local text = LUI.UIText.new()
+	text:setLeftRight(true, false, 2, 2)
+	text:setTopBottom(true, true, 0, 0)
+	text:setRGB(1, 1, 1)
+	text:setAlpha(1)
+	mutables:addElement(text)
+	mutables.text = text
+end
+
+local function mapListGetButtonData(controller, index, mutables, self)
+	if UIExpression.DvarString(nil, "ui_gametype") == "zclassic" then
+		mutables.text:setText(CoD.GetZombieGameTypeDescription(CoD.Zombie.GAMETYPE_ZCLASSIC, CoD.SelectMapListZombie.Maps[index].ui_mapname))
+	else
+		-- Hardcoded name, not a stringtable lookup - see the header note.
+		mutables.text:setText(CoD.SelectMapListZombie.Locations[index].name)
+	end
+end
+
+function LUI.createMenu.SelectMapListZM(controller)
+	local self = CoD.Menu.New("SelectMapListZM")
+	self.controller = controller
+
+	self:addLargePopupBackground()
+	self:addSelectButton()
+	self:addBackButton()
+
+	self:addTitle(Engine.Localize("MPUI_CHANGE_MAP_CAPS"))
+
+	local listBox = CoD.ListBox.new(nil, controller, 15, CoD.CoD9Button.Height, 250, mapListCreateButtonMutables, mapListGetButtonData, 5, 0)
+	listBox:setLeftRight(true, false, 0, 250)
+	listBox:setTopBottom(true, false, 75, 75 + 530)
+	listBox:addScrollBar()
+
+	if UIExpression.DvarString(nil, "ui_gametype") == "zclassic" then
+		local index = CoD.SelectMapListZombie.GetKeyValueIndex(CoD.SelectMapListZombie.Maps, "ui_mapname", UIExpression.DvarString(nil, "ui_mapname"))
+		listBox:setTotalItems(#CoD.SelectMapListZombie.Maps, index)
+	else
+		local index = CoD.SelectMapListZombie.GetKeyValueIndex(CoD.SelectMapListZombie.Locations, "ui_zm_mapstartlocation", UIExpression.DvarString(nil, "ui_zm_mapstartlocation"))
+		listBox:setTotalItems(#CoD.SelectMapListZombie.Locations, index)
+	end
+
+	self:addElement(listBox)
+	self.listBox = listBox
+
+	self:registerEventHandler("click", mapListSelectionClickedEventHandler)
+
+	return self
+end

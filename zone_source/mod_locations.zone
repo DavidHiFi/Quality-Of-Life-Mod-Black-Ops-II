@@ -1,0 +1,87 @@
+// ============================================================================
+//  mod_locations.zone - menu preview + loading screen materials for every
+//  Zombies start location offered by ui_mp/t6/zombie/selectmaplistzombie.lua.
+//
+//  Stock BO2 only ships menu_/loadscreen_ materials for a handful of survival
+//  locations (transit, farm, town, nuked). Every other row in the list menu
+//  asked the engine for a material that does not exist, which is what drew the
+//  checkerboard. These 30 materials fill in the rest.
+//
+//  Sources: materials/*.json + images/*.iwi under zone_assets/, taken from
+//  BO2-Reimagined (user-approved import). Art is per-map, not per-location -
+//  Reimagined reuses the parent map's art the same way.
+// ============================================================================
+>game,T6
+
+// --- lobby preview images (menu_<map>_zsurvival_<location>) ---
+material,menu_zm_transit_zsurvival_diner
+material,menu_zm_transit_zsurvival_power
+material,menu_zm_transit_zsurvival_tunnel
+material,menu_zm_transit_zsurvival_cornfield
+material,menu_zm_highrise_zsurvival_shopping_mall
+material,menu_zm_highrise_zsurvival_dragon_rooftop
+material,menu_zm_highrise_zsurvival_sweatshop
+material,menu_zm_buried_zsurvival_street
+material,menu_zm_buried_zsurvival_maze
+material,menu_zm_prison_zsurvival_cellblock
+material,menu_zm_prison_zsurvival_docks
+material,menu_zm_tomb_zsurvival_trenches
+material,menu_zm_tomb_zsurvival_excavation_site
+material,menu_zm_tomb_zsurvival_church
+material,menu_zm_tomb_zsurvival_crazy_place
+
+// --- loading screens (loadscreen_<map>_zstandard_<location>) ---
+material,loadscreen_zm_transit_zstandard_diner
+material,loadscreen_zm_transit_zstandard_power
+material,loadscreen_zm_transit_zstandard_tunnel
+material,loadscreen_zm_transit_zstandard_cornfield
+material,loadscreen_zm_highrise_zstandard_shopping_mall
+material,loadscreen_zm_highrise_zstandard_dragon_rooftop
+material,loadscreen_zm_highrise_zstandard_sweatshop
+material,loadscreen_zm_buried_zstandard_street
+material,loadscreen_zm_buried_zstandard_maze
+material,loadscreen_zm_prison_zstandard_cellblock
+material,loadscreen_zm_prison_zstandard_docks
+material,loadscreen_zm_tomb_zstandard_trenches
+material,loadscreen_zm_tomb_zstandard_excavation_site
+material,loadscreen_zm_tomb_zstandard_church
+material,loadscreen_zm_tomb_zstandard_crazy_place
+
+// ============================================================================
+//  MODELS THE PORTED LOCATION SCRIPTS SPAWN THAT THEIR MAP DOES NOT SHIP
+// ----------------------------------------------------------------------------
+//  Established by dumping the xmodel list of all 191 fastfiles in zone/all and
+//  searching for every model the scripts/zm/locs/*.gsc setmodel or precache.
+//
+//  The first four DO exist in the stock game, but only inside the per-gametype
+//  "so_" fastfiles, which the engine loads according to the gametype being
+//  played:
+//      p6_zm_buildable_bench_tarp              so_zsurvival_zm_transit,
+//                                              so_zencounter_zm_{transit,prison}
+//      zm_collision_transit_cornfield_survival so_zsurvival_zm_transit
+//      zm_collision_transit_diner_survival     so_zsurvival_zm_transit,
+//                                              so_zencounter_zm_transit, zm_transit_dr
+//      p6_zm_al_shock_box_on                   so_zclassic_zm_prison,
+//                                              so_zencounter_zm_prison
+//
+//  There is NO so_zsurvival file for prison, buried, highrise or tomb - stock
+//  never had survival on those maps - so on Docks, Trenches, Church and
+//  Excavation Site these models are simply absent and precaching them is fatal.
+//  Pulling them into mod.ff registers them globally, for every map and mode.
+//
+//  🛑 This also corrects checkpoint 3, which recorded
+//  zm_collision_transit_cornfield_survival as "proven absent from the stock
+//  zm_transit fastfile" and had Cornfield's boundary wall deleted on that
+//  basis. It was never absent - it was in so_zsurvival_zm_transit all along,
+//  and the earlier search simply had not looked at the so_ files.
+//
+//  The last two exist in NO fastfile anywhere: they are models Reimagined
+//  authored (a cut-down plywood sheet and a taller fence post) for the Origins
+//  Excavation Site wallbuy hoardings. Built here from its GLB exports.
+// ============================================================================
+xmodel,p6_zm_buildable_bench_tarp
+xmodel,p6_zm_al_shock_box_on
+xmodel,zm_collision_transit_cornfield_survival
+xmodel,zm_collision_transit_diner_survival
+xmodel,p6_pak_old_plywood_small
+xmodel,p6_zm_tm_wood_post_thin_01_tall
