@@ -121,19 +121,22 @@ map, silently, regardless of runtime guards.
 
 ---
 
-## 5. Working practice — no git yet
+## 5. Working practice — git, as of 2026-07-31
 
-This project currently has **no version control**. The base kit's `WORKFLOW.md` (checkpoints, commit
-conventions, `dev`/`main` branch split) assumes git; most of it still applies in spirit:
+This project **is** a git repo now (local only, branch `main`, no remote). It was initialised at the
+user's request as a rollback point.
 
-- **Checkpoints** (`.agents/checkpoint_N.md`) work the same regardless of git — see `.agents/README.md`
-  in this project.
-- **Commit conventions** don't apply until/unless this becomes a git repo. If you want that, ask
-  first — initializing git here is a real decision (what to `.gitignore`, whether `build/` and the
-  Plutonium-copied files belong in history), not a default to reach for silently.
-- **"Deployed but unverified in game"** still needs explicit tracking even without commit hashes to
-  anchor it to — use file-level description ("edited `perk_bought()` in ridgelandproject.gsc,
-  rebuilt, not yet tested in-game") instead.
+- **The binaries are tracked on purpose.** `mod.ff`, `mod.all.sabl`, `mod.all.sabs`,
+  `deathmachine_zm.all.sabl` and `zone_source/base/mod.ff` have no source in this project and cannot
+  be regenerated from anything in it. A checkpoint you can't restore from isn't a checkpoint. `.git`
+  is ~86 MB as a result; that is the intended trade.
+- **`.gitattributes` sets `* -text`** — no line-ending translation, so any checkout is byte-exact.
+  Do not "fix" this: several tracked files are binary with no extension (`attachmentunique/au_*`).
+- **Ignored:** `crashlogs/`, `zone_out/`, `*.bak*`. Everything else is history.
+- **Checkpoints** (`.agents/checkpoint_N.md`) still carry live state and the next step — git records
+  *what changed*, the checkpoint records *what is untested and why*. Keep writing them.
+- **"Deployed but unverified in game"** is not something a commit proves. Say it explicitly, in the
+  commit message and the checkpoint both.
 
 ---
 
