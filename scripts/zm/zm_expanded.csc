@@ -16,7 +16,224 @@ main()
 	replaceFunc( clientscripts\mp\zombies\_zm_perks::perks_register_clientfield, ::perks_register_clientfield );
 	replaceFunc( clientscripts\mp\zombies\_zm::init_client_flag_callback_funcs, ::init_client_flag_callback_funcs);
 
+	// CLIENT HALF OF THE WALLBUY RE-TAG - see the block comment on
+	// zmqol_enable_wallbuys() below. Without this the client registers fewer
+	// world clientfields than the server and the connection is dropped with
+	// EXE_CLIENT_FIELD_MISMATCH before the map starts.
+	replaceFunc( clientscripts\mp\_utility_code::struct_class_init, ::struct_class_init );
+
 	perks();
+}
+
+// ============================================================================
+//  WALLBUY RE-TAG, CLIENT SIDE
+// ----------------------------------------------------------------------------
+//  _zm_weapons registers ONE "world" clientfield per wallbuy that matches the
+//  active <ui_gametype>_<location>, named "<weapon>_<origin>". It does this
+//  TWICE - once server-side in maps\mp\zombies\_zm_weapons::
+//  init_spawnable_weapon_upgrade(), once client-side in
+//  clientscripts\mp\zombies\_zm_weapons::init(). Both walk the same structs
+//  with the same match string, so stock they always agree.
+//
+//  scripts\zm\locs\loc_common::enable_wallbuys() re-tags structs so wallbuys
+//  standing in an added start location match. That is a .gsc, so it only ran
+//  on the SERVER: the server registered 15 world clientfields, the client 13,
+//  and the engine dropped the connection:
+//
+//      ERROR: Client and server clientfield registrations don't match.
+//      Clientfield mp5k_zm_(-5489, -7982.7, 62) in set [world]
+//          is not registered on the client
+//      Server Disconnected - EXE_CLIENT_FIELD_MISMATCH
+//
+//  So the re-tag has to happen identically on both sides. A .csc cannot
+//  #include a .gsc - they are separate script systems - so the origin lists
+//  below are a DUPLICATE of the ones in the .gsc location scripts.
+//
+//  🛑 KEEP THESE TWO LISTS IN SYNC. Any origin added to (or removed from) an
+//  enable_wallbuys() call in scripts\zm\locs\ or scripts\zm\replaced\ must be
+//  mirrored here, or the map stops loading with the error above. The .gsc side:
+//      scripts\zm\locs\zm_transit_loc_diner.gsc       (2 origins)
+//      scripts\zm\locs\zm_transit_loc_tunnel.gsc      (1 origin)
+//      scripts\zm\replaced\zm_buried_gamemodes.gsc    (3 origins)
+//
+//  ORDERING: this replaces _utility_code::struct_class_init, called from
+//  clientscripts\mp\zombies\_load::main(). _zm_weapons::init() runs later, from
+//  _zm::init(), so the tags are in place before the spawn list is built. This
+//  mirrors the server, where the same work happens in a struct_init() called
+//  from the replaced common_scripts\utility::struct_class_init.
+// ============================================================================
+struct_class_init()
+{
+	// Stock clientscripts\mp\_utility_code::struct_class_init body. NOTE this is
+	// the CLIENT's version - it indexes script_label and classname, where the
+	// server's indexes script_linkname and script_unitrigger_type. Copying the
+	// server's here would break client struct lookups in confusing ways.
+	level.struct_class_names = [];
+	level.struct_class_names["target"] = [];
+	level.struct_class_names["targetname"] = [];
+	level.struct_class_names["script_noteworthy"] = [];
+	level.struct_class_names["script_label"] = [];
+	level.struct_class_names["classname"] = [];
+
+	for ( i = 0; i < level.struct.size; i++ )
+	{
+		if ( isdefined( level.struct[i].targetname ) )
+		{
+			if ( !isdefined( level.struct_class_names["targetname"][level.struct[i].targetname] ) )
+				level.struct_class_names["targetname"][level.struct[i].targetname] = [];
+
+			size = level.struct_class_names["targetname"][level.struct[i].targetname].size;
+			level.struct_class_names["targetname"][level.struct[i].targetname][size] = level.struct[i];
+		}
+
+		if ( isdefined( level.struct[i].target ) )
+		{
+			if ( !isdefined( level.struct_class_names["target"][level.struct[i].target] ) )
+				level.struct_class_names["target"][level.struct[i].target] = [];
+
+			size = level.struct_class_names["target"][level.struct[i].target].size;
+			level.struct_class_names["target"][level.struct[i].target][size] = level.struct[i];
+		}
+
+		if ( isdefined( level.struct[i].script_noteworthy ) )
+		{
+			if ( !isdefined( level.struct_class_names["script_noteworthy"][level.struct[i].script_noteworthy] ) )
+				level.struct_class_names["script_noteworthy"][level.struct[i].script_noteworthy] = [];
+
+			size = level.struct_class_names["script_noteworthy"][level.struct[i].script_noteworthy].size;
+			level.struct_class_names["script_noteworthy"][level.struct[i].script_noteworthy][size] = level.struct[i];
+		}
+
+		if ( isdefined( level.struct[i].script_label ) )
+		{
+			if ( !isdefined( level.struct_class_names["script_label"][level.struct[i].script_label] ) )
+				level.struct_class_names["script_label"][level.struct[i].script_label] = [];
+
+			size = level.struct_class_names["script_label"][level.struct[i].script_label].size;
+			level.struct_class_names["script_label"][level.struct[i].script_label][size] = level.struct[i];
+		}
+
+		if ( isdefined( level.struct[i].classname ) )
+		{
+			if ( !isdefined( level.struct_class_names["classname"][level.struct[i].classname] ) )
+				level.struct_class_names["classname"][level.struct[i].classname] = [];
+
+			size = level.struct_class_names["classname"][level.struct[i].classname].size;
+			level.struct_class_names["classname"][level.struct[i].classname][size] = level.struct[i];
+		}
+	}
+
+	// The index has to exist before getstructarray() works, so the re-tag runs
+	// after the loop - exactly as the server's struct_init() does.
+	zmqol_enable_wallbuys();
+}
+
+zmqol_enable_wallbuys()
+{
+	str_map      = getdvar( "mapname" );
+	str_gametype = getdvar( "ui_gametype" );
+	str_location = getdvar( "ui_zm_mapstartlocation" );
+
+	// 🛑 GATE ON THE LOCATION, NOT THE MAP. On the server only the ACTIVE
+	// location's struct_init() runs, so only that location's wallbuys get
+	// re-tagged. An earlier version of this function keyed off the map and
+	// tagged every location on it, which on Diner tagged the Tunnel M16 as well
+	// - the client then had one clientfield MORE than the server and the
+	// connection was dropped just the same, only in the other direction:
+	//     Clientfield 'm16_zm_(-11839, -1695.1, 287)' in set [world]
+	//         is not registered on the server
+	// The two sides have to tag the SAME set, not merely overlapping sets.
+	a_origins = [];
+
+	if ( str_map == "zm_transit" && str_location == "diner" )
+	{
+		// zm_transit_loc_diner.gsc - registered for zstandard AND zgrief
+		a_origins[a_origins.size] = ( -5489, -7982.7, 62 );        // mp5k_zm
+		a_origins[a_origins.size] = ( -6399.2, -7938.5, 207.25 );  // tazer_knuckles_zm
+	}
+	else if ( str_map == "zm_transit" && str_location == "tunnel" )
+	{
+		// zm_transit_loc_tunnel.gsc - registered for zstandard AND zgrief
+		a_origins[a_origins.size] = ( -11839, -1695.1, 287 );      // m16_zm
+	}
+	else if ( str_map == "zm_buried" && str_location == "street" && str_gametype == "zstandard" )
+	{
+		// zm_buried_gamemodes.gsc - street_struct_init is registered for
+		// zstandard ONLY. Under zgrief the stock structs already carry
+		// "zgrief_street", so the server does not re-tag and neither may we.
+		a_origins[a_origins.size] = ( -926.25, 510.5, 68 );        // rottweil72_zm
+		a_origins[a_origins.size] = ( 609.5, 772.75, 54 );         // m14_zm
+		a_origins[a_origins.size] = ( 1.1, 1201.9, 68 );           // mp5k_zm
+	}
+	else
+		return;
+
+	str_match = zmqol_wallbuy_match_string();
+
+	// Same struct set init_spawnable_weapon_upgrade() gathers, walked one
+	// targetname at a time to avoid depending on the arraycombine builtin.
+	a_targetnames = [];
+	a_targetnames[a_targetnames.size] = "weapon_upgrade";
+	a_targetnames[a_targetnames.size] = "bowie_upgrade";
+	a_targetnames[a_targetnames.size] = "sickle_upgrade";
+	a_targetnames[a_targetnames.size] = "tazer_upgrade";
+	a_targetnames[a_targetnames.size] = "claymore_purchase";
+	a_targetnames[a_targetnames.size] = "buildable_wallbuy";
+
+	n_tagged = 0;
+
+	foreach ( str_targetname in a_targetnames )
+	{
+		a_structs = getstructarray( str_targetname, "targetname" );
+
+		if ( !isdefined( a_structs ) )
+			continue;
+
+		foreach ( s_struct in a_structs )
+		{
+			if ( !isdefined( s_struct.origin ) )
+				continue;
+
+			foreach ( v_origin in a_origins )
+			{
+				// 16 units - absorbs float printing error only, not guesswork.
+				if ( distancesquared( s_struct.origin, v_origin ) > 256 )
+					continue;
+
+				// No tag already means "spawns everywhere" - leave it alone.
+				if ( isdefined( s_struct.script_noteworthy ) && s_struct.script_noteworthy != "" )
+				{
+					s_struct.script_noteworthy = s_struct.script_noteworthy + "," + str_match;
+					n_tagged++;
+				}
+
+				break;
+			}
+		}
+	}
+
+	// Print the same shape as the server's line so the two counts can be compared
+	// at a glance - they MUST be equal or the map will not load.
+	println( "[zm_qol] CLIENT enable_wallbuys - " + str_match + ": tagged " + n_tagged + " of " + a_origins.size + " requested" );
+}
+
+// Mirror of scripts\zm\locs\loc_common::wallbuy_match_string(). Reads the dvars
+// rather than level.scr_zm_ui_gametype / level.scr_zm_map_start_location because
+// _zm::init() has not assigned those yet at struct_class_init time - it reads
+// the very same two dvars later (clientscripts\mp\zombies\_zm.csc:32-33), so
+// both sides always agree on the string.
+zmqol_wallbuy_match_string()
+{
+	str_gametype = getdvar( "ui_gametype" );
+	str_location = getdvar( "ui_zm_mapstartlocation" );
+
+	if ( ( str_location == "default" || str_location == "" ) && isdefined( level.default_start_location ) )
+		str_location = level.default_start_location;
+
+	if ( str_location == "" )
+		return str_gametype;
+
+	return str_gametype + "_" + str_location;
 }
 
 perks()

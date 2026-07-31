@@ -196,6 +196,33 @@ The build always links from the donor, never from the live `mod.ff`, so repeat r
 and cannot compound. A round-trip with no additions was verified asset-for-asset identical to the
 original (3,511 assets in, 3,511 out).
 
+### 🛑 A fastfile does NOT contain image pixels, and its scripts go stale
+
+Two traps that cost a full round of in-game testing each (checkpoint 5 §2, §4):
+
+- **An image asset in `mod.ff` is only a header.** T6 loads the actual pixels at runtime from a
+  loose `.iwi`. Adding a material + image to `zone_source\`/`zone_assets\` gets you a material that
+  resolves and an image that **draws black**. The `.iwi` must ALSO be in `images\`, which
+  `pack_iwd.ps1` packs into `mod.iwd`. `build.bat` step [1/6] now copies
+  `zone_assets\images\*.iwi` → `images\` so the two cannot drift. The tell:
+  `Unlinker --include-assets image` reports `Could not find data for image` for **every** image,
+  stock ones included.
+- **`mod.ff` silently re-ships the donor's original scripts.** T6 stores scripts in a fastfile as
+  **raw text**, and `mod_base.zone` declares `scripts/zm/zm_expanded.csc` + the six per-map `.csc`.
+  The Linker resolves a declared asset from the asset search path first and falls back to a
+  `--load`ed fastfile — so with nothing staged it copied the donor's day-one copies back in every
+  time. `build_ff.bat` now stages `scripts\**\*.csc` into `zone_assets\` before linking; confirm
+  with `Loaded script "..." (src: disk)` (not `(src: mod)`) in the link output.
+  Note `.gsc` is unaffected in practice — Plutonium's Mods menu runs raw `.gsc` straight out of
+  `mod.iwd` (§3), which is how `ridgelandproject.gsc` works while being declared in no zone file.
+
+### Where the stock LUI actually lives
+
+`ui_zm.ff` contains **no** `.lua` at all. **`patch_ui_zm.ff` holds all 48 LUI files** —
+`Unlinker --include-assets rawfile -o <dir> patch_ui_zm.ff`. They are compiled **LuaJIT bytecode**,
+not source: grep only matches their constant tables, and editing them needs a decompiler. Treat
+stock LUI layout as read-only and adjust from the mod's own `ui_mp\` overrides instead.
+
 ### Traps, all of them found the hard way
 
 - **🛑 A T6 fastfile's filename must match its internal zone name.** Copy `mod.ff` to `mod_base.ff`

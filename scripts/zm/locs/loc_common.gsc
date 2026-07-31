@@ -84,6 +84,15 @@ enemy_location_override(zombie, enemy)
 //  inside struct_class_init() in _load::main(). _zm_weapons::init() runs later,
 //  from _zm::main(). Re-tagging any later than struct_init is too late - the
 //  spawn list has already been built and level._spawned_wallbuys is fixed.
+//
+//  🛑 THIS HAS A CLIENT-SIDE TWIN THAT MUST BE KEPT IN SYNC.
+//  _zm_weapons registers a "world" clientfield per matching wallbuy on BOTH the
+//  server (_zm_weapons.gsc) and the client (_zm_weapons.csc). Re-tagging here
+//  only changes the server's count, so the two disagree and the engine drops
+//  the connection with EXE_CLIENT_FIELD_MISMATCH before the map starts. Every
+//  origin passed to this function must also appear in
+//  scripts\zm\zm_expanded.csc::zmqol_enable_wallbuys(). A .csc cannot #include
+//  a .gsc, so that list is necessarily a duplicate of the ones here.
 // ============================================================================
 enable_wallbuys( a_origins )
 {

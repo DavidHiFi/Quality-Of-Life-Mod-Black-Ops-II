@@ -16,11 +16,16 @@
 --
 --  🛑 DIFFERENCE FROM REIMAGINED - read before "fixing" this:
 --  Reimagined reads each location's display name out of the zm/gametypestable.csv
---  stringtable, which it ships inside its own OAT-built mod.ff. zm_qol has no
---  OpenAssetTools/linker and cannot rebuild mod.ff, so those stringtable rows do
---  not exist here and that lookup would render every row blank. The names are
---  therefore hardcoded in the `name` field below. Do NOT swap this back to
---  UIExpression.TableLookup unless a real fastfile build is added to this project.
+--  stringtable, which it ships inside its own OAT-built mod.ff. zm_qol does not
+--  ship those stringtable rows, so that lookup would render every row blank. The
+--  names are therefore hardcoded in the `name` field below. Do NOT swap this back
+--  to UIExpression.TableLookup without also adding the stringtable rows.
+--
+--  (This note used to say the reason was that zm_qol "has no OpenAssetTools/
+--  linker and cannot rebuild mod.ff". That is no longer true - OAT is installed
+--  and build_ff.bat relinks mod.ff, see CLAUDE.md section 8. The hardcoded names
+--  stay because the stringtable rows still do not exist, not because they cannot
+--  be added.)
 -- ============================================================================
 
 require("T6.Lobby")

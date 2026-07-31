@@ -66,6 +66,24 @@ if /i "%~1"=="regen" (
     exit /b 0
 )
 
+REM --- stage current .csc sources so mod.ff does not keep a stale copy ---------
+REM  mod_base.zone (the donor's inventory) declares scripts/zm/zm_expanded.csc and
+REM  the six per-map .csc files. T6 stores scripts in a fastfile as RAW TEXT, and
+REM  the Linker resolves each declared asset from the asset search path FIRST and
+REM  only falls back to a --load'ed fastfile. With nothing staged, every relink
+REM  copied the donor's original .csc back in - so mod.ff kept shipping whatever
+REM  those files looked like the day the mod was first built, no matter how much
+REM  the working copies changed.
+REM
+REM  Unlike .gsc - which Plutonium's Mods menu happily runs raw out of mod.iwd
+REM  (that is how ridgelandproject.gsc works, and it is declared in no zone file)
+REM  - client scripts are conventionally only loaded from the fastfile. Staging
+REM  them here means the copy in mod.ff is always the current source, so it does
+REM  not matter which of the two the engine ends up preferring.
+echo   Staging current .csc sources into zone_assets ...
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$proj='%PROJ%'; $n=0; Get-ChildItem -LiteralPath (Join-Path $proj 'scripts') -Recurse -Filter *.csc | ForEach-Object { $rel=$_.FullName.Substring($proj.Length+1); $dst=Join-Path (Join-Path $proj 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [stage] ' + $rel); $n++ }; Write-Host ('    ' + $n + ' client script(s) staged')"
+if errorlevel 1 ( echo   ERROR: could not stage .csc sources. & exit /b 1 )
+
 REM --- link -------------------------------------------------------------------
 echo   Linking mod.ff ...
 if exist "%PROJ%\zone_out" rmdir /s /q "%PROJ%\zone_out"

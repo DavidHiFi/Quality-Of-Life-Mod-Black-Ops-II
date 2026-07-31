@@ -5,11 +5,20 @@
 //  Stock BO2 only ships menu_/loadscreen_ materials for a handful of survival
 //  locations (transit, farm, town, nuked). Every other row in the list menu
 //  asked the engine for a material that does not exist, which is what drew the
-//  checkerboard. These 30 materials fill in the rest.
+//  checkerboard. These 31 materials fill in the rest.
 //
 //  Sources: materials/*.json + images/*.iwi under zone_assets/, taken from
 //  BO2-Reimagined (user-approved import). Art is per-map, not per-location -
 //  Reimagined reuses the parent map's art the same way.
+//
+//  🛑 A MATERIAL HERE IS ONLY HALF THE ASSET. Declaring it gives mod.ff the
+//  material and an image *header*. T6 does NOT store pixel data in the
+//  fastfile - it loads that from a loose .iwi at runtime. So every image these
+//  materials reference must ALSO exist in the project's images\ folder, which
+//  pack_iwd.ps1 packs into mod.iwd. Ship only half and the material resolves,
+//  the image asset exists, and it draws BLACK - which is exactly what the first
+//  attempt at this did (black Diner loading screen, dark/blank previews).
+//  build.bat now syncs zone_assets\images\ -> images\ so the two cannot drift.
 // ============================================================================
 >game,T6
 
@@ -46,6 +55,12 @@ material,loadscreen_zm_tomb_zstandard_trenches
 material,loadscreen_zm_tomb_zstandard_excavation_site
 material,loadscreen_zm_tomb_zstandard_church
 material,loadscreen_zm_tomb_zstandard_crazy_place
+
+// Mob of the Dead played as CLASSIC (not a survival location) derives
+// loadscreen_zm_prison_zclassic_prison, which stock never shipped either - the
+// same gap as the 30 above, just on a stock game mode rather than an added
+// location. Reimagined ships it; without it MOTD classic has no loading screen.
+material,loadscreen_zm_prison_zclassic_prison
 
 // ============================================================================
 //  MODELS THE PORTED LOCATION SCRIPTS SPAWN THAT THEIR MAP DOES NOT SHIP

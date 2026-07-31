@@ -31,30 +31,44 @@ for %%I in ("%~dp0..") do set "ROOT=%%~fI"
 set "BUILD_DIR=%ROOT%\build\%MOD_NAME%"
 set "PLUTO_DIR=%LOCALAPPDATA%\Plutonium\storage\t6\mods\%MOD_NAME%"
 
-echo [1/5] Repacking mod.iwd from raw folders...
+echo [1/6] Syncing zone_assets\images -^> images (runtime pixel data)...
+REM  T6 keeps image PIXEL DATA in a loose .iwi, not in the fastfile. mod.ff only
+REM  carries the material and an image header. An image that is linked but whose
+REM  .iwi never reaches mod.iwd draws BLACK - that was the black Diner loading
+REM  screen. zone_assets\images\ is the link-time source; images\ is what
+REM  pack_iwd.ps1 packs. Copying one to the other here keeps them from drifting.
+set "PROJ_DIR=%~dp0"
+REM  Keep to PowerShell 2.0-era cmdlets here - build.bat falls back to the system
+REM  WindowsPowerShell, which on this machine has no Get-FileHash (that is 4.0+).
+REM  These are a handful of small files, so copy unconditionally rather than diff.
+"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$proj=$env:PROJ_DIR; $src=Join-Path $proj 'zone_assets\images'; $dst=Join-Path $proj 'images'; if(-not (Test-Path -LiteralPath $src)){ Write-Host '    [skip] no zone_assets\images folder'; exit 0 }; if(-not (Test-Path -LiteralPath $dst)){ New-Item -ItemType Directory -Path $dst | Out-Null }; $n=0; Get-ChildItem -LiteralPath $src -Filter *.iwi | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $dst $_.Name) -Force; $n++ }; Write-Host ('    [ok] ' + $n + ' .iwi copied to images\')"
+if errorlevel 1 goto packfail
+
+echo.
+echo [2/6] Repacking mod.iwd from raw folders...
 "%PS%" -NoProfile -ExecutionPolicy Bypass -File "%~dp0pack_iwd.ps1"
 if errorlevel 1 goto packfail
 
 echo.
-echo [2/5] Verifying all 6 source files are present...
+echo [3/6] Verifying all 6 source files are present...
 for %%F in (%FILES%) do (
     if exist "%~dp0%%F" ( echo    [ok] %%F ) else ( echo    [MISSING] %%F & goto missing )
 )
 
 echo.
-echo [3/5] Writing send-ready copy to:
+echo [4/6] Writing send-ready copy to:
 echo        %BUILD_DIR%
 call :deploy "%BUILD_DIR%"
 if errorlevel 1 goto copyfail
 
 echo.
-echo [4/5] Installing to Plutonium (skipped if not installed):
+echo [5/6] Installing to Plutonium (skipped if not installed):
 echo        %PLUTO_DIR%
 call :deploy "%PLUTO_DIR%"
 if errorlevel 1 echo    [skip] couldn't write to Plutonium - the send-ready copy above is still good.
 
 echo.
-echo [5/5] Refreshing LUI copies in Plutonium's raw\ folder...
+echo [6/6] Refreshing LUI copies in Plutonium's raw\ folder...
 REM  Plutonium searches raw\ BEFORE mod.iwd, so a stale .lua sitting in raw\
 REM  silently shadows the one you just packed and your edit appears to do
 REM  nothing. Any .lua that exists in BOTH this project and raw\ is refreshed

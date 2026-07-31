@@ -404,7 +404,14 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 		PrivateGameLobbyButtonPane.body.changeGameModeButton.hintText = Engine.Localize("MPUI_CHANGE_GAME_MODE_DESC")
 		PrivateGameLobbyButtonPane.body.changeGameModeButton:setActionEventName("open_change_game_mode")
 		PrivateGameLobbyButtonPane.body.changeGameModeButton:registerEventHandler("button_update", CoD.PrivateGameLobby.Button_UpdateHostButton)
-		PrivateGameLobbyButtonPane.body.buttonList:addSpacer(CoD.CoD9Button.Height * 1)
+		-- zm_qol: was CoD.CoD9Button.Height * 1. The hint text sits directly under the
+		-- last settings row and follows the list's height, and this mod's Dvars table
+		-- has one row more than the layout allows for (see the hintText note below),
+		-- so the hint was landing on the top edge of the map preview panel.
+		-- Halving the spacer lifts everything below it by half a row, which clears the
+		-- panel while keeping a visible gap between the nav buttons and the settings.
+		-- Do NOT take this to 0: a full row up puts the hint into the CHEATS row.
+		PrivateGameLobbyButtonPane.body.buttonList:addSpacer(CoD.CoD9Button.Height * 0.5)
 		-- local SetupGameText = Engine.Localize("MPUI_SETUP_GAME_CAPS")
 		-- local f9_local1_1, f9_local1_2, f9_local1_3, f9_local1_4 = GetTextDimensions(SetupGameText, CoD.CoD9Button.Font, CoD.CoD9Button.TextHeight)
 		-- PrivateGameLobbyButtonPane.body.setupGameButton = PrivateGameLobbyButtonPane.body.buttonList:addButton(SetupGameText)
@@ -419,6 +426,25 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 		PrivateGameLobbyButtonPane:registerEventHandler("enable_sliding_zm", CoD.PrivateGameLobby.EnableSlidingZombie)
 		PrivateGameLobbyButtonPane.defaultFocusButton = PrivateGameLobbyButtonPane.body.startMatchButton
 		PrivateGameLobbyButtonPane.body.buttonList.hintText:setAlpha(1)
+		-- zm_qol: stop the hint wrapping onto a second line, which collides with the
+		-- map preview panel below it.
+		--
+		-- The hint sits under the settings list, so its Y follows the row count. This
+		-- mod's Dvars table has TWO rows (TARGET ASSIST, CHEATS) where Reimagined's has
+		-- one (ui_gametype_pro), so the hint starts one row lower than the stock layout
+		-- allows for. At that position line 1 still clears the top of the preview panel
+		-- but line 2 is drawn inside it - e.g. "Change the game mode to a traditional or
+		-- / custom rule set.", where only "custom rule set." overlaps.
+		--
+		-- Widening the element so the text fits on one line removes the overlapping line
+		-- rather than fighting the vertical layout. Same fix and same 800 width that
+		-- Reimagined uses on its options hint (BO2-Reimagined/ui/t6/options.lua:431).
+		-- The hint is above the panel, so extending it rightward is free.
+		--
+		-- If a longer hint ever wraps again, widen further or drop a Dvars row - do NOT
+		-- reposition the panel, which is stock LUI compiled into patch_ui_zm.ff and not
+		-- editable from here.
+		PrivateGameLobbyButtonPane.body.buttonList.hintText:setLeftRight(true, false, 0, 800)
 		if CoD.useController == true and not PrivateGameLobbyButtonPane:restoreState() then
 			PrivateGameLobbyButtonPane.body.buttonList:selectElementIndex(1)
 		end

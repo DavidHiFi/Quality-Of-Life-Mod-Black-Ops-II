@@ -15,6 +15,11 @@ crashlogs/
 zone_out/
 zone_source/_regen/
 
+# Staged copies of the .csc sources, written by build_ff.bat step "Staging current
+# .csc sources" so the Linker picks them up instead of the donor's stale originals.
+# Pure build artifacts — the real files are scripts/zm/**/*.csc.
+zone_assets/scripts/
+
 # Ad-hoc backups made before risky edits.
 *.bak-*
 *.bak
