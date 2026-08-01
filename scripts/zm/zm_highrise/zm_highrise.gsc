@@ -12,6 +12,55 @@ main()
 
     // --- custom survival start locations: adds Shopping Mall, Dragon Rooftop, Sweatshop ---
     replaceFunc( maps\mp\zm_highrise_gamemodes::init, scripts\zm\replaced\zm_highrise_gamemodes::init );
+
+    zmqol_register_survival_clientfields();
+}
+
+// ============================================================================
+//  zmqol_register_survival_clientfields
+//
+//  🛑 Fixes part of: DIE RISE SURVIVAL DISCONNECTS WITH EXE_CLIENT_FIELD_MISMATCH
+//     on every location (dragon_rooftop, shopping_mall, rooftop).
+//
+//  maps\mp\zm_highrise::zclassic_preinit (zm_highrise.gsc:70-82) registers these
+//  seven clientfields and then calls zm_highrise_sq::sq_highrise_clientfield_init
+//  for an eighth. That function runs ONLY for zclassic. A zstandard game runs
+//  zstandard_preinit instead and registers none of them - but the CLIENT
+//  registers them unconditionally, so the two sets disagree and the engine drops
+//  the player. Exactly the same shape as the MotD visionset_lerp bug fixed in
+//  v1.1.4, just a different set of fields.
+//
+//  registerclientfield is a bare engine builtin with no state behind it, so
+//  main() is a legal place for it (see the note in zm_tomb.gsc). Guarded on
+//  !is_classic() so classic Die Rise still registers them exactly once via
+//  zclassic_preinit and we do not double-register.
+//
+//  Versions/bit counts/types copied verbatim from the stock registrations -
+//  they MUST match the client exactly or the mismatch simply changes shape.
+//
+//  🛑 KNOWN INCOMPLETE: the log also reports
+//      Clientfield buildable in set [toplayer] is not registered on the client
+//  which is the opposite direction (server has it, client does not) and is NOT
+//  fixed here. Server and client both pick between a per-slot registration and a
+//  single "buildable" field based on level.buildable_slot_count
+//  (_zm_buildables.gsc:170-180 vs _zm_buildables.csc:40-50); on Die Rise survival
+//  those two counts disagree. Until that is resolved Die Rise may still mismatch.
+// ============================================================================
+zmqol_register_survival_clientfields()
+{
+    if ( is_classic() )
+        return;
+
+    registerclientfield( "scriptmover", "clientfield_escape_pod_tell_fx", 5000, 1, "int" );
+    registerclientfield( "scriptmover", "clientfield_escape_pod_sparks_fx", 5000, 1, "int" );
+    registerclientfield( "scriptmover", "clientfield_escape_pod_impact_fx", 5000, 1, "int" );
+    registerclientfield( "scriptmover", "clientfield_escape_pod_light_fx", 5000, 1, "int" );
+    registerclientfield( "actor", "clientfield_whos_who_clone_glow_shader", 5000, 1, "int" );
+    registerclientfield( "toplayer", "clientfield_whos_who_audio", 5000, 1, "int" );
+    registerclientfield( "toplayer", "clientfield_whos_who_filter", 5000, 1, "int" );
+
+    // The eighth one, plus the VO index table it drives.
+    maps\mp\zm_highrise_sq::sq_highrise_clientfield_init();
 }
 
 init()
