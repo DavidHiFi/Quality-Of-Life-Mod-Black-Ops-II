@@ -28,6 +28,12 @@ main()
     // --- custom survival start locations: adds Maze (alongside stock Borough/street) ---
     replaceFunc( maps\mp\zm_buried_gamemodes::init, scripts\zm\replaced\zm_buried_gamemodes::init );
 
+    // 🛑 Maze survival had no zombies at all - zone_maze is not in Buried's
+    // init_zones and is the SOURCE of both its adjacency edges, so on the
+    // standalone location nothing ever enables it and its spawn locations never
+    // activate. See scripts\zm\replaced\zm_buried.gsc.
+    replaceFunc( maps\mp\zm_buried::buried_zone_init, scripts\zm\replaced\zm_buried::buried_zone_init );
+
     println( "[zm_qol] MAZE marker B - zm_buried_gamemodes::init replaceFunc done" );
 }
 
