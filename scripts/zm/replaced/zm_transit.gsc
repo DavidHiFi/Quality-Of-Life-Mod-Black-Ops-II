@@ -175,6 +175,26 @@ transit_zone_init()
         // enabling zones also opens them to zombie spawning.
         if ( getdvar( "ui_zm_mapstartlocation" ) == "power" )
         {
+            // The power station arena is FIVE zones, not the three the loc
+            // script happens to register spawn groups for. Enabling only those
+            // three stopped the instant death at spawn but left the rest of the
+            // arena outside the enabled playable area, so walking into the back
+            // corner by the power station building - which is zone_pcr - tripped
+            // the out-of-area monitor and killed the player on the spot.
+            //
+            // The full set is not a guess: BO2-Reimagined's Containment mode
+            // enumerates exactly this area as
+            //   containment_zones = array( "zone_pow", "zone_trans_8", "zone_prr",
+            //                              "zone_pcr", "zone_pow_warehouse" );
+            // (scripts\zm\zencounter\zencounter_reimagined.gsc:2742).
+            //
+            // zone_trans_8 belongs to the arena as walkable ground but must NOT
+            // spawn zombies - it is the bus route. zm_transit_loc_power::
+            // disable_zombie_spawn_locations already sets
+            // level.zones["zone_trans_8"].is_spawning_allowed = 0, and that runs
+            // from main() AFTER manage_zones, so enabling it here is safe and is
+            // in fact what makes that pre-existing line meaningful: you cannot
+            // disable spawning in a zone that was never enabled.
             zone_init( "zone_prr" );
             enable_zone( "zone_prr" );
 
@@ -183,6 +203,12 @@ transit_zone_init()
 
             zone_init( "zone_pow_warehouse" );
             enable_zone( "zone_pow_warehouse" );
+
+            zone_init( "zone_pcr" );
+            enable_zone( "zone_pcr" );
+
+            zone_init( "zone_trans_8" );
+            enable_zone( "zone_trans_8" );
         }
     }
 }
