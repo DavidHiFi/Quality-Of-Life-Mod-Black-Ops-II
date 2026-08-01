@@ -258,6 +258,42 @@ pack_a_punch_enable()
 setup_perk_machines_not_controlled_by_zone_capture()
 {
 	level.zone_capture.perk_machines_always_on = array("specialty_additionalprimaryweapon", "specialty_flakjacket", "specialty_grenadepulldeath");
+
+	// ========================================================================
+	//  zm_qol: on the standalone Origins SURVIVAL locations, no perk machine is
+	//  owned by a generator.
+	//
+	//  Anything not in perk_machines_always_on is gated behind capturing the
+	//  generator that owns it (check_perk_machine_valid consults this list), which
+	//  is why Speed Cola never appeared on Trenches - its machine belongs to
+	//  generator_mid_trench and that generator is never captured on a survival
+	//  arena. Reimagined keeps that ownership deliberately, but the user's
+	//  instruction for this project is that survival behaves like Town or Farm:
+	//  everything unlocked from the start.
+	//
+	//  Adding every specialty here means check_perk_machine_valid always passes,
+	//  so the machines spawn and work with no generator involved.
+	//
+	//  is_classic() gated, so CLASSIC ORIGINS IS UNTOUCHED and still requires
+	//  powering generators exactly as stock.
+	// ========================================================================
+	if ( !is_classic() )
+	{
+		level.zone_capture.perk_machines_always_on = array(
+			"specialty_additionalprimaryweapon",
+			"specialty_flakjacket",
+			"specialty_grenadepulldeath",
+			"specialty_armorvest",
+			"specialty_fastreload",
+			"specialty_quickrevive",
+			"specialty_rof",
+			"specialty_deadshot",
+			"specialty_longersprint",
+			"specialty_scavenger",
+			"specialty_widowswine",
+			"specialty_nomotionsensor"
+		);
+	}
 }
 
 check_perk_machine_valid(player)
