@@ -23,7 +23,10 @@ catch {
 }
 
 try {
-    $folders  = @('attachmentunique','images','maps','scripts','ui_mp','weapons')
+    # 'character' holds stock scripts the GAME fails to ship in every gametype's
+    # fastfile set - see character\c_buried_player_reporter_dam.gsc for the case
+    # that made this necessary (Buried survival could not load without it).
+    $folders  = @('attachmentunique','character','images','maps','scripts','ui_mp','weapons')
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 

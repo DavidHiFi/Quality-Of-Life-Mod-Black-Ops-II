@@ -33,8 +33,45 @@ main()
 
 init()
 {
+    zmqol_precache_survival_characters();
     added_weapons();
     move_divetonuke_collision();
+}
+
+// ============================================================================
+//  zmqol_precache_survival_characters
+//
+//  Pre-empts, on Buried, the exact bug that made Docks and Cell Block spawn you
+//  with an invisible body, invisible view arms and an invisible weapon (and made
+//  zombies unable to damage you, because a player with no model has no hit
+//  geometry). Fixed for Alcatraz in v1.1.4; Buried is in the same position and
+//  would have shown it the moment Maze/Borough survival got far enough to spawn
+//  a player.
+//
+//  Cause: scripts\zm\replaced\zm_buried_gamemodes::survival_init sets
+//  level.precachecustomcharacters = ::precache_team_characters, but that pointer
+//  is consumed EARLY, in _zm_gametype::rungametypeprecache during
+//  onprecachegametype, and preinit is not guaranteed to have run by then. On maps
+//  that ship a so_zsurvival_*.ff the characters get precached through stock paths
+//  anyway - but TranZit is the only map in the game that has one (verified with
+//  the OAT Unlinker across every map), so on Buried nothing precaches them.
+//  setmodel on a never-precached xmodel still sets the .model script field, which
+//  is why the v1.1.2 probe looked healthy, but renders nothing.
+//
+//  maps\mp\zm_buried::precache_team_characters precaches exactly the four models
+//  give_team_characters assigns: c_zom_player_cdc_dlc1_fb, c_zom_hazmat_viewhands,
+//  c_zom_player_cia_dlc1_fb, c_zom_suit_viewhands. Symbol verified present in the
+//  SHIPPED zm_buried.gsc bytecode out of zm_buried_patch.ff, not just the dump.
+//
+//  init() is a valid precache window and precaching is idempotent, so this is
+//  harmless if the normal path also runs.
+// ============================================================================
+zmqol_precache_survival_characters()
+{
+    if ( is_classic() )
+        return;
+
+    maps\mp\zm_buried::precache_team_characters();
 }
 
 added_weapons()
