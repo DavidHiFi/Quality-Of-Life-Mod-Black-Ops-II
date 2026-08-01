@@ -153,5 +153,36 @@ transit_zone_init()
 
         zone_init( "zone_cornfield_prototype" );
         enable_zone( "zone_cornfield_prototype" );
+
+        // 🛑 Power Station survival: instant death on spawn.
+        //
+        // Same mechanism as Tunnel, different symptom path. scripts\zm\locs\
+        // zm_transit_loc_power::struct_init DOES register initial_spawn structs
+        // (16 of its 17 register_map_spawn calls pass a team_num), so the player
+        // spawns in the RIGHT PLACE - it is not the map-default fallthrough that
+        // hit Cell Block. What kills them is the playable area:
+        // _zm::in_enabled_playable_area() (_zm.gsc:1442-1456) only counts a
+        // "player_volume" whose targetname is an ENABLED zone, and TranZit's
+        // non-classic init_zones is just zone_pri / zone_station_ext / zone_tow /
+        // zone_far_ext / zone_brn (zm_transit.gsc:391-396). None of the power
+        // station's zones are in it, and they have no adjacency edge that the
+        // enabled set can reach, so the player stands in a volume that is never
+        // enabled and the out-of-area monitor kills them.
+        //
+        // These are exactly the three zones zm_transit_loc_power::struct_init
+        // registers spawn groups for. Gated on the location so Diner, Tunnel,
+        // Cornfield and Town keep the zone set they are already working with -
+        // enabling zones also opens them to zombie spawning.
+        if ( getdvar( "ui_zm_mapstartlocation" ) == "power" )
+        {
+            zone_init( "zone_prr" );
+            enable_zone( "zone_prr" );
+
+            zone_init( "zone_pow" );
+            enable_zone( "zone_pow" );
+
+            zone_init( "zone_pow_warehouse" );
+            enable_zone( "zone_pow_warehouse" );
+        }
     }
 }

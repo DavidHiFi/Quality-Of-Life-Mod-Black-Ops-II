@@ -133,6 +133,7 @@ main()
 init()
 {
     zmqol_register_divetonuke_visionset();
+    zmqol_dev_commands();
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
@@ -2144,6 +2145,84 @@ player_too_many_weapons_monitor()
                 }
             }
             wait( get_player_too_many_weapons_monitor_wait_time() );
+        }
+    }
+}
+
+// ============================================================================
+//  zmqol_dev_commands  -  in-chat developer commands
+//
+//  Requested 2026-08-02 for dev testing, matching the setup the user's friend
+//  runs:
+//      !p <amount>   give yourself that many points (default 1000 if the amount
+//                    is missing or not a number). Negative values are allowed so
+//                    you can take points away too.
+//      !god          toggle invulnerability on/off, with feedback either way.
+//
+//  sv_cheats is forced to 1 here so the commands behave consistently and the
+//  usual Plutonium console cheats keep working alongside them.
+//
+//  Mechanism: T6 fires a level notify "say" carrying the speaker and the raw
+//  message. Verified against a known-working release rather than guessed -
+//  H:\Claude\BO2-GSC-Releases\Zombies Mods\Give Points Command uses exactly
+//  level waittill( "say", player, message ). Builtins used were checked against
+//  the stock dump too: enableinvulnerability/disableinvulnerability appear in
+//  _hostmigration.gsc and add_to_player_score is _zm_score.gsc:311. iprintlnbold
+//  is used for feedback because tell() does not exist in T6.
+//
+//  This lives in ridgelandproject.gsc (a ROOT script) so it is available on every
+//  map, and every reference is to a core script, so AI_CONTEXT rule 2 is safe.
+// ============================================================================
+zmqol_dev_commands()
+{
+    setdvar( "sv_cheats", 1 );
+    level thread zmqol_dev_command_listener();
+}
+
+zmqol_dev_command_listener()
+{
+    level endon( "game_ended" );
+
+    for ( ;; )
+    {
+        level waittill( "say", player, message );
+
+        if ( !isdefined( player ) || !isdefined( message ) )
+            continue;
+
+        tokens = strtok( message, " " );
+
+        if ( !isdefined( tokens ) || tokens.size == 0 )
+            continue;
+
+        cmd = tolower( tokens[0] );
+
+        if ( cmd == "!p" )
+        {
+            // int() of anything non-numeric is 0, so treat 0 as "no amount given"
+            // and fall back to a sensible default rather than doing nothing.
+            amount = 1000;
+
+            if ( tokens.size > 1 && int( tokens[1] ) != 0 )
+                amount = int( tokens[1] );
+
+            player maps\mp\zombies\_zm_score::add_to_player_score( amount, 1 );
+            player iprintlnbold( "^2[zm_qol] ^7points ^2+" + amount );
+        }
+        else if ( cmd == "!god" )
+        {
+            if ( isdefined( player.zmqol_god ) && player.zmqol_god )
+            {
+                player.zmqol_god = 0;
+                player disableinvulnerability();
+                player iprintlnbold( "^1[zm_qol] godmode OFF" );
+            }
+            else
+            {
+                player.zmqol_god = 1;
+                player enableinvulnerability();
+                player iprintlnbold( "^2[zm_qol] godmode ON" );
+            }
         }
     }
 }

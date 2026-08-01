@@ -162,3 +162,69 @@ read.
 3. Buried Borough (`street`) survival — now tagged `zstandard_street`, never tested.
 4. Nuketown survival — never touched or tested at all.
 5. Regression: perk descriptions after several revives; instant start.
+
+---
+
+## 7. ADDENDUM — v1.5.0 (2026-08-02, later the same session)
+
+### Confirmed working by the user
+- **Maze survival** (Buried) — loads and plays.
+- **Origins survival** — all locations except the Church tank issue below.
+- **Die Rise CLASSIC** — Olympia wallbuy is back to normal, confirming the
+  surgical mapents revert in v1.4.0 undid the base-map damage.
+- **Audio** — was the user's missing Steam game files, NOT a mod bug. Closed.
+
+### Fixed in v1.5.0, NOT run in game
+| what | where |
+|---|---|
+| Power Station instant death | `scripts\zm\replaced\zm_transit.gsc` |
+| Church spawning inside the tank / tank breaking containment | `scripts\zm\locs\zm_tomb_loc_church.gsc` |
+| `!p` / `!god` dev chat commands + `sv_cheats 1` | `scripts\zm\ridgelandproject.gsc` |
+
+**Power** was the Tunnel mechanism with a different symptom path. Its loc script
+DOES register initial_spawn structs (16 of 17 `register_map_spawn` calls pass a
+`team_num`), so the player spawns in the right place — unlike Cell Block, which
+fell through to the map default. What killed them is
+`_zm::in_enabled_playable_area()`: TranZit's non-classic `init_zones` is only
+`zone_pri / zone_station_ext / zone_tow / zone_far_ext / zone_brn`
+(`zm_transit.gsc:391-396`), so `zone_prr` / `zone_pow` / `zone_pow_warehouse` are
+never enabled and the player stands in a volume that does not count. Now enabled,
+gated on `ui_zm_mapstartlocation == "power"` so the other TranZit locations keep
+the zone set they already work with.
+
+**Church tank**: entity names verified in the stock Origins scripts —
+`tank` (`zm_tomb_tank.gsc:35`), `trig_tank_station_call` (`:471,:589`),
+`trig_use_tank` (`:266`). All deleted for that location, isdefined-guarded.
+
+**Dev commands** use `level waittill( "say", player, message )`, verified against
+`H:\Claude\BO2-GSC-Releases\Zombies Mods\Give Points Command` rather than
+guessed. `enableinvulnerability`/`disableinvulnerability` and
+`add_to_player_score` (`_zm_score.gsc:311`) confirmed in the stock dump;
+`tell()` does NOT exist in T6 — use `iprintlnbold`.
+
+### 🛑 DIE RISE — mechanism now fully identified, fix NOT shipped
+The seven `zclassic_preinit` clientfields were fixed in v1.4.0. The remaining one:
+
+```
+Clientfield buildable in set [toplayer] is not registered on the client
+```
+
+`clientscripts\mp\zombies\_zm_buildables.csc:25-34` only calls
+`register_clientfields()` when the **first** buildable is added client-side
+(`if ( level.zombie_buildables.size == 1 )`). On Die Rise survival the server
+registers buildables but the client adds none, so the client never registers the
+field while the server does.
+
+**Do NOT simply call `register_clientfields()` from our `zm_highrise.csc`.** Both
+sides size the field with `getminbitcountfornum( level.buildable_piece_count )`,
+and with zero client-side buildables that count is 0 while the server's is not —
+so it would swap a "missing field" mismatch for a "wrong bit count" mismatch.
+`level.buildable_slot_count` is irrelevant here: only Buried ever assigns it
+(`zm_buried_buildables.gsc:75` / `.csc:33`).
+
+**The real fix** is to make the client register the same buildables the server
+does on Die Rise survival — i.e. mirror whatever `zstandard_preinit` /
+`zm_highrise_gamemodes` sets up server-side into
+`scripts\zm\zm_highrise\zm_highrise.csc::init_gamemodes`. Next step: enumerate
+the server-side buildable set for a survival game and match it. Requires a
+`build_ff.bat` relink since `.csc` lives in `mod.ff`.
