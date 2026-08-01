@@ -3,6 +3,13 @@
 #include maps\mp\_utility;
 #include maps\mp\zombies\_zm_utility;
 #include maps\mp\zombies\_zm_zonemgr;
+// 🛑 REQUIRED: the stock body below calls disconnect_door_zones() unqualified.
+// That function lives in maps\mp\zm_transit_utility, and stock zm_transit.gsc
+// only gets it via its own #include of that file. Copying the body without this
+// line throws "Unresolved external: disconnect_door_zones with 3 parameters" at
+// SCRIPT LOAD, which kills every TranZit location (Tunnel, Diner, classic) with
+// a COM_ERROR before the map starts. Confirmed in console_zm.log 2026-08-02.
+#include maps\mp\zm_transit_utility;
 
 // ============================================================================
 //  transit_zone_init   -   replaces maps\mp\zm_transit::transit_zone_init
