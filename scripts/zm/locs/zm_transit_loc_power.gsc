@@ -166,6 +166,61 @@ generatebuildabletarps()
 disable_zombie_spawn_locations()
 {
 	level.zones["zone_trans_8"].is_spawning_allowed = 0;
+	level thread zmqol_log_active_spawn_locations();
+}
+
+// ============================================================================
+//  zm_qol TEMPORARY DIAGNOSTIC - delete once Power's stray spawn is fixed.
+//
+//  Enabling zone_prr / zone_pow / zone_pow_warehouse (needed to stop the instant
+//  death - see scripts\zm\replaced\zm_transit.gsc) also activates every zombie
+//  spawn location inside them, and at least one sits behind the barrier cars that
+//  fence the arena off from the bus route: the user saw a zombie spawn clipping
+//  through a wrecked car ~30s in.
+//
+//  Fixing that needs the exact origins, and the only per-location disabling this
+//  loc script does is the single zone_trans_8 line above. This prints every
+//  enabled spawn location in the three arena zones ONCE, so the offending ones
+//  can be turned off by origin next round - the same way
+//  zm_prison_loc_docks::disable_zombie_spawn_locations does it.
+//
+//  Read-only. Runs once, then stops.
+// ============================================================================
+zmqol_log_active_spawn_locations()
+{
+	level endon( "end_game" );
+	wait 3;
+
+	a_zones = array( "zone_prr", "zone_pow", "zone_pow_warehouse" );
+
+	foreach ( str_zone in a_zones )
+	{
+		if ( !isdefined( level.zones ) || !isdefined( level.zones[str_zone] ) )
+		{
+			println( "[zm_qol] POWERSPAWN " + str_zone + " = NOZONE" );
+			continue;
+		}
+
+		zone = level.zones[str_zone];
+
+		if ( !isdefined( zone.spawn_locations ) )
+		{
+			println( "[zm_qol] POWERSPAWN " + str_zone + " = no spawn_locations" );
+			continue;
+		}
+
+		for ( i = 0; i < zone.spawn_locations.size; i++ )
+		{
+			s = "[zm_qol] POWERSPAWN " + str_zone + " [" + i + "] org=" + zone.spawn_locations[i].origin;
+
+			if ( isdefined( zone.spawn_locations[i].is_enabled ) )
+				s += " enabled=" + zone.spawn_locations[i].is_enabled;
+			else
+				s += " enabled=UNDEF";
+
+			println( s );
+		}
+	}
 }
 
 disable_player_spawn_locations()
