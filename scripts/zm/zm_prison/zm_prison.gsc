@@ -11,6 +11,13 @@ main()
 
 	// --- custom survival start locations: adds Docks (alongside stock Cell Block) ---
 	replaceFunc( maps\mp\zm_alcatraz_gamemodes::init, scripts\zm\replaced\zm_alcatraz_gamemodes::init );
+
+	// 🛑 Cell Block survival killed the player on spawn. This project ships
+	// Reimagined's maps\mp\zm_prison.d3dbsp mapents override but never ported the
+	// working_zone_init that matches it, so the playable-area volumes and the
+	// enabled zones disagreed and in_enabled_playable_area() was false at spawn.
+	// See the long comment in scripts\zm\replaced\zm_prison.gsc.
+	replaceFunc( maps\mp\zm_prison::working_zone_init, scripts\zm\replaced\zm_prison::working_zone_init );
 }
 
 init()

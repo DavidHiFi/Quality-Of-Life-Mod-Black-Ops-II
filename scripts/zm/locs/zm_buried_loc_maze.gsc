@@ -3,11 +3,20 @@
 #include maps\mp\zombies\_zm_magicbox;
 #include maps\mp\zombies\_zm_equip_subwoofer;
 #include maps\mp\zombies\_zm_equip_springpad;
-#include maps\mp\zombies\_zm_equip_turbine;
 #include maps\mp\zombies\_zm_equip_headchopper;
 #include maps\mp\zm_buried_buildables;
 #include maps\mp\zm_buried_gamemodes;
-#include maps\mp\zombies\_zm_race_utility;
+// zm_qol: dropped #include maps\mp\zombies\_zm_race_utility and
+// maps\mp\zombies\_zm_equip_turbine. Neither is used by this file (every call it
+// makes was audited against the shipped bytecode), and _zm_race_utility exists in
+// NO fastfile in the game - the console log reports
+// 'Could not load scriptparsetree "maps/mp/zombies/_zm_race_utility.gsc"' on
+// every map. This is a HYPOTHESIS for the Maze load failure, not a proven root
+// cause: the symptom is that this file never loads, which makes
+// scripts\zm\locs\zm_buried_loc_maze::precache and ::main unresolved to
+// scripts\zm\replaced\zm_buried_gamemodes::init - and "precache"/"main" with 0
+// parameters is exactly the pair the error reports. Removing a dead include that
+// points at a script the engine cannot load is zero-risk either way.
 #include maps\mp\zombies\_zm_utility;
 #include common_scripts\utility;
 #include maps\mp\_utility;
