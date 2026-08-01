@@ -132,6 +132,8 @@ main()
 // ============================================================================
 init()
 {
+    zmqol_register_divetonuke_visionset();
+
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
     precacheitem( "uzi_upgraded_zm" );
@@ -2144,6 +2146,57 @@ player_too_many_weapons_monitor()
             wait( get_player_too_many_weapons_monitor_wait_time() );
         }
     }
+}
+
+// ============================================================================
+//  zmqol_register_divetonuke_visionset
+//
+//  🛑 Fixes: EXE_CLIENT_FIELD_MISMATCH on Mob of the Dead survival -
+//     "Clientfield 'visionset_lerp' in set [toplayer] is not registered on the
+//     server" (console_zm.log 2026-08-02, cellblock run). Cell Block is a STOCK
+//     location, so this was breaking stock survival, not just the added ones.
+//
+//  perks() below calls _zm_perk_divetonuke::enable_divetonuke_perk_for_level()
+//  on these five maps, which makes the CLIENT register the PhD visionset:
+//  clientscripts\mp\zombies\_zm_perk_divetonuke.csc::init_divetonuke ->
+//  vsmgr_register_visionset_info( "zm_perk_divetonuke", ... ), guarded only on
+//  level.enable_magic.
+//
+//  The SERVER half lives in maps\mp\zombies\_zm_perk_divetonuke::init_divetonuke,
+//  and the ONLY caller of that is divetonuke_perk_machine_think() - i.e. it runs
+//  only once a PhD machine is actually being processed, which is both far too
+//  late (vsmgr_register_info asserts on level.vsmgr_initializing, which is only
+//  true during the first frame) and does not happen at all on the survival
+//  locations. Server ends up with zero registered visionsets while the client
+//  has one, so _visionset_mgr never registers visionset_lerp server-side and the
+//  client/server clientfield sets disagree -> instant disconnect.
+//
+//  Registering here in init() puts it inside the legal window, exactly like the
+//  Origins fix in zm_tomb.gsc (see zmqol_register_survival_visionset there, and
+//  [[t6-visionset-registration-timing]]). zm_tomb is deliberately NOT in this
+//  list - it does not call enable_divetonuke_perk_for_level(), and it already
+//  registers this visionset itself, so adding it here would double-register.
+//
+//  Args mirror stock init_divetonuke exactly: version 9000, priority 400,
+//  5 lerp steps, activate_per_player 1.
+// ============================================================================
+zmqol_register_divetonuke_visionset()
+{
+    map = getDvar( "mapname" );
+
+    if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" && map != "zm_prison" && map != "zm_buried" )
+        return;
+
+    // Degrade to "not registered" rather than erroring out of init() if the
+    // ordering ever changes and _visionset_mgr::init() has not run yet.
+    if ( !isdefined( level.vsmgr ) || !isdefined( level.vsmgr["visionset"] ) )
+        return;
+
+    // Don't double-register if something already did it this frame.
+    if ( isdefined( level.vsmgr["visionset"].info ) && isdefined( level.vsmgr["visionset"].info["zm_perk_divetonuke"] ) )
+        return;
+
+    maps\mp\_visionset_mgr::vsmgr_register_info( "visionset", "zm_perk_divetonuke", 9000, 400, 5, 1 );
 }
 
 perks()

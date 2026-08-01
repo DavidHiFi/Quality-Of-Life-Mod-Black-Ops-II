@@ -16,7 +16,47 @@ main()
 init()
 {
     precacheModel("collision_clip_32x32x128");
+    zmqol_precache_survival_characters();
     added_weapons();
+}
+
+// ============================================================================
+//  zmqol_precache_survival_characters
+//
+//  🛑 Fixes: DOCKS/CELL BLOCK SURVIVAL - INVISIBLE BODY, VIEW ARMS AND WEAPON,
+//     and zombies unable to damage you.
+//
+//  v1.1.3 changed which characters survival uses and did NOT fix it: the probe
+//  still reported a correctly assigned model (model=c_zom_player_handsome_fb,
+//  weap=m1911_zm, health=100). The character set was never the problem -
+//  PRECACHING was.
+//
+//  level.precachecustomcharacters is consumed early, in
+//  _zm_gametype::rungametypeprecache() during onprecachegametype. Our
+//  zstandard_preinit assigns it, but preinit is not guaranteed to have run by
+//  then, so on these locations nothing ever precaches the player xmodels.
+//  setmodel/setviewmodel on an xmodel that was never precached still sets the
+//  .model script field - which is why the probe looked healthy - but renders
+//  nothing: no body, no view arms, and no weapon (it hangs off the viewhands
+//  tag). A player entity with no model also has no hit geometry, which is why
+//  zombie melee could never connect. One cause, all three symptoms.
+//
+//  Why TranZit's added locations never showed this: TranZit is the ONLY map in
+//  the game that ships a so_zsurvival_*.ff (verified with the OAT Unlinker
+//  across every map), so its survival characters get precached through stock
+//  paths. Alcatraz has only so_zclassic/so_zencounter, and a zstandard game
+//  loads neither - just zm_prison_patch + zm_prison.
+//
+//  init() is a valid precache window (the precacheModel above already relies on
+//  that). Precaching is idempotent, so this is harmless if the normal path also
+//  runs. Covers Cell Block as well as Docks, since both are zstandard here.
+// ============================================================================
+zmqol_precache_survival_characters()
+{
+    if ( is_classic() )
+        return;
+
+    maps\mp\zm_prison::precache_personality_characters();
 }
 
 delete_perk_machine_clip()
