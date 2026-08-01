@@ -11406,7 +11406,7 @@
 "target" "buildable_turbine"
 "classname" "trigger_use"
 "targetname" "turbine_buildable_trigger"
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "script_location" "processing street"
 "script_angles" "0 90 0"
 "guid" "AAFE088E"
@@ -11417,7 +11417,7 @@
 "target" "buildable_subwoofer"
 "targetname" "subwoofer_zm_buildable_trigger"
 "classname" "trigger_use"
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "script_angles" "0 180 0"
 "script_location" "processing street"
 "guid" "27EE2AA0"
@@ -11438,8 +11438,7 @@
 "target" "buildable_headchopper"
 "classname" "trigger_use"
 "targetname" "headchopper_buildable_trigger"
-"script_gameobjectname" "zclassic zstandard zgrief"
-"script_location" "processing street"
+"script_gameobjectname" "zclassic"
 "script_angles" "0 70 0"
 "guid" "9400B034"
 }
@@ -11467,7 +11466,7 @@
 "model" "p6_anim_zm_buildable_view_tramplesteam"
 "classname" "script_model"
 "targetname" "buildable_springpad"
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "script_location" "processing street"
 "guid" "FB39E3C9"
 }
@@ -11502,7 +11501,7 @@
 "model" "p6_anim_zm_buildable_turbine"
 "angles" "1.00179e-005 2.50448e-006 -1.32111e-005"
 "origin" "-348.5 744 188"
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "script_location" "processing street"
 "guid" "ED5BE537"
 }
@@ -11568,7 +11567,7 @@
 }
 {
 "target" "subwoofer_bench"
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "origin" "665.78 -1138.42 99.15"
 "angles" "0 270 -0.000276555"
 "model" "t6_wpn_zmb_subwoofer"
@@ -11601,8 +11600,7 @@
 "model" "p6_anim_zm_buildable_tramplesteam"
 "angles" "61.5365 340.343 0.216167"
 "origin" "1271.89 1495.38 77.78"
-"script_gameobjectname" "zclassic zstandard zgrief"
-"script_location" "processing street"
+"script_gameobjectname" "zclassic"
 "guid" "78482AAD"
 }
 {
@@ -11675,7 +11673,7 @@
 "target" "buildable_springpad"
 "targetname" "springpad_zm_buildable_trigger"
 "classname" "trigger_use"
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "script_angles" "0 90 0"
 "script_location" "processing street"
 "guid" "087688C3"
@@ -11712,6 +11710,15 @@
 "model" "p6_zm_buildable_tramplesteam_flag"
 "origin" "-115.14 -121.09 19.36"
 "guid" "D9663C8A"
+}
+{
+"angles" "0 1.00179e-005 0"
+"script_noteworthy" "870mcs_zm"
+"targetname" "chalk_p6_zm_bu_chalk"
+"origin" "-805 -470.7 341"
+"classname" "script_struct"
+"model" "p6_zm_bu_chalk"
+"guid" "688A8E97"
 }
 {
 "angles" "0 2.50448e-006 0"
@@ -11923,7 +11930,7 @@
 }
 {
 "angles" "0 2.50448e-006 0"
-"script_noteworthy" "vector_zm"
+"script_noteworthy" "ak74u_zm"
 "targetname" "chalk_p6_zm_bu_chalk"
 "origin" "-460 -1260.2 59"
 "classname" "script_struct"
@@ -20546,7 +20553,7 @@
 "guid" "77CAE415"
 }
 {
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "origin" "-474.72 -1508.07 150"
 "script_noteworthy" "gunshop_chest_zbarrier"
 "type" "zmcore_MagicBox"
@@ -20575,7 +20582,7 @@
 "guid" "97AC858B"
 }
 {
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "origin" "-796.26 -89.04 303"
 "script_noteworthy" "tunnels_chest1_zbarrier"
 "type" "zmcore_MagicBox"
@@ -20604,7 +20611,7 @@
 "guid" "A08322A6"
 }
 {
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "origin" "-1009.74 618.04 158"
 "script_noteworthy" "jail_chest1_zbarrier"
 "type" "zmcore_MagicBox"
@@ -20633,7 +20640,7 @@
 "guid" "232AB47B"
 }
 {
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "origin" "425.77 1375.15 158"
 "script_noteworthy" "courtroom_chest1_zbarrier"
 "type" "zmcore_MagicBox"
@@ -20687,7 +20694,7 @@
 "type" "zmcore_MagicBox"
 "script_noteworthy" "maze_chest2_zbarrier"
 "origin" "5605.74 276.96 17"
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "guid" "C1E2E663"
 }
 {
@@ -20725,7 +20732,7 @@
 "type" "zmcore_MagicBox"
 "script_noteworthy" "maze_chest1_zbarrier"
 "origin" "4127.04 1271.74 17"
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "guid" "9D602221"
 }
 {
@@ -20747,7 +20754,7 @@
 "guid" "7DD3C53B"
 }
 {
-"script_gameobjectname" "zclassic zstandard zgrief"
+"script_gameobjectname" "zclassic zgrief"
 "origin" "-61.47 642.64 -8"
 "script_noteworthy" "start_chest_zbarrier"
 "type" "zmcore_MagicBox"
@@ -20921,6 +20928,7 @@
 }
 {
 "script_sound" "zmb_small_door"
+"script_parameters" "meat_remove race_remove"
 "angles" "0 180 0"
 "spawnflags" "1"
 "targetname" "pf728_auto2500"
@@ -21048,6 +21056,7 @@
 }
 {
 "script_sound" "zmb_small_door"
+"script_parameters" "meat_remove race_remove"
 "spawnflags" "1"
 "targetname" "pf728_auto2516"
 "script_angles" "0 158 0"
@@ -21130,11 +21139,13 @@
 "script_angles" "0 158 0"
 "targetname" "pf728_auto2520"
 "spawnflags" "1"
+"script_parameters" "meat_remove race_remove"
 "script_sound" "zmb_small_door"
 "guid" "CF00C979"
 }
 {
 "script_sound" "zmb_swinging_door"
+"script_parameters" "meat_remove race_remove"
 "angles" "0 224.8 0"
 "spawnflags" "1"
 "targetname" "pf728_auto2497"
@@ -21146,6 +21157,7 @@
 }
 {
 "script_sound" "zmb_swinging_door"
+"script_parameters" "meat_remove race_remove"
 "angles" "0 44.8 0"
 "spawnflags" "1"
 "targetname" "pf728_auto2497"
@@ -21176,6 +21188,7 @@
 {
 "script_firefx" "poltergeist"
 "script_noteworthy" "jiggle"
+"script_parameters" "meat_remove race_remove"
 "angles" "0 222.67 0"
 "spawnflags" "1"
 "targetname" "pf728_auto2529"
@@ -21292,6 +21305,7 @@
 "targetname" "pf728_auto2533"
 "spawnflags" "1"
 "angles" "359.551 1.24663 19.794"
+"script_parameters" "meat_remove race_remove"
 "script_noteworthy" "jiggle"
 "script_firefx" "poltergeist"
 "guid" "986C7FF8"
@@ -21342,6 +21356,7 @@
 "targetname" "pf728_auto2532"
 "spawnflags" "1"
 "angles" "354.143 1.29338 11.181"
+"script_parameters" "meat_remove race_remove"
 "script_noteworthy" "jiggle"
 "script_firefx" "poltergeist"
 "guid" "6E1871E8"
@@ -21349,6 +21364,7 @@
 {
 "script_firefx" "poltergeist"
 "script_noteworthy" "jiggle"
+"script_parameters" "meat_remove race_remove"
 "angles" "3.49773 358.72 12.7746"
 "spawnflags" "1"
 "targetname" "pf728_auto2534"
@@ -21361,6 +21377,7 @@
 {
 "script_firefx" "poltergeist"
 "script_noteworthy" "jiggle"
+"script_parameters" "meat_remove race_remove"
 "angles" "358.1 92.8523 33.6428"
 "spawnflags" "1"
 "targetname" "pf728_auto2528"
@@ -21394,6 +21411,7 @@
 "origin" "414.4 -10.35 171.7"
 "targetname" "pf728_auto2531"
 "spawnflags" "1"
+"script_parameters" "meat_remove race_remove"
 "script_noteworthy" "jiggle"
 "script_firefx" "poltergeist"
 "guid" "71A7E150"
@@ -21405,6 +21423,7 @@
 "origin" "-204.84 135.34 160.72"
 "targetname" "pf728_auto2530"
 "spawnflags" "1"
+"script_parameters" "meat_remove race_remove"
 "script_noteworthy" "jiggle"
 "script_firefx" "poltergeist"
 "angles" "332.175 258.555 -18.0967"
@@ -21418,6 +21437,7 @@
 "targetname" "pf728_auto2504"
 "spawnflags" "1"
 "angles" "0 270 0"
+"script_parameters" "meat_remove race_remove"
 "script_sound" "zmb_mansion_door"
 "guid" "8642F457"
 }
@@ -21434,6 +21454,7 @@
 }
 {
 "script_sound" "zmb_small_door"
+"script_parameters" "meat_remove race_remove"
 "angles" "5.00002 0 0"
 "spawnflags" "1"
 "targetname" "pf728_auto2527"
@@ -21451,11 +21472,13 @@
 "targetname" "pf728_auto2504"
 "spawnflags" "1"
 "angles" "0 270 0"
+"script_parameters" "meat_remove race_remove"
 "script_sound" "zmb_mansion_door"
 "guid" "3FFD4883"
 }
 {
 "script_sound" "zmb_small_door"
+"script_parameters" "meat_remove race_remove"
 "angles" "4.99993 1.00561e-005 8.76447e-007"
 "spawnflags" "1"
 "targetname" "pf728_auto2527"
@@ -21467,6 +21490,7 @@
 }
 {
 "script_sound" "zmb_small_door"
+"script_parameters" "meat_remove race_remove"
 "angles" "0 1.00179e-005 0"
 "spawnflags" "1"
 "targetname" "pf728_auto2495"
@@ -21484,6 +21508,7 @@
 "targetname" "pf728_auto2495"
 "spawnflags" "1"
 "angles" "0 0 0"
+"script_parameters" "meat_remove race_remove"
 "script_sound" "zmb_small_door"
 "guid" "A0AD89BC"
 }
@@ -24198,7 +24223,7 @@
 "angles" "0 90 0"
 "origin" "-2352 -743 1418"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "ballista_zm"
+"zombie_weapon_upgrade" "rottweil72_zm"
 "targetname" "weapon_upgrade"
 "target" "pf732_auto37"
 "guid" "F0390DB3"
@@ -24208,14 +24233,14 @@
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
 "targetname" "pf732_auto37"
 "classname" "script_struct"
-"model" "t6_wpn_sniper_ballista_world"
+"model" "t6_wpn_shotty_olympia_world"
 "angles" "0 90 0"
 "origin" "-2352 -743 1418"
 "guid" "6D2A1B25"
 }
 {
 "script_location" "morgue"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_an94.map"
 "origin" "-272 886.5 198"
 "angles" "0 180 0"
@@ -24241,7 +24266,7 @@
 }
 {
 "script_location" "morgue"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_an94.map"
 "target" "pf733_auto37"
 "targetname" "buildable_wallbuy"
@@ -24253,9 +24278,9 @@
 }
 {
 "script_location" "church"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_beretta93r.map"
-"origin" "1615.77 1468.87 255"
+"origin" "1612.47 1457.17 255"
 "angles" "0 70.2 0"
 "model" "p6_zm_bu_chalk"
 "classname" "script_struct"
@@ -24264,10 +24289,10 @@
 }
 {
 "model" "*154"
-"origin" "1595.3 1477.7 253"
+"origin" "1592 1466 253"
 "script_location" "church"
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_beretta93r.map"
-"script_angles" "0 70.2 0"
+"script_angles" "0 90 0"
 "targetname" "chalk_buildable_trigger"
 "script_noteworthy" "chalk_wallbuy"
 "script_width" "50"
@@ -24279,19 +24304,19 @@
 }
 {
 "script_location" "church"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_beretta93r.map"
 "target" "pf734_auto37"
 "targetname" "buildable_wallbuy"
 "zombie_weapon_upgrade" "dynamic"
 "classname" "script_struct"
 "angles" "0 70.2 0"
-"origin" "1615.77 1468.87 255"
+"origin" "1612.47 1457.17 255"
 "guid" "4C32F822"
 }
 {
 "script_location" "bar"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_bowie.map"
 "origin" "557.93 -1119.41 262"
 "angles" "0 1.00179e-005 0"
@@ -24317,7 +24342,7 @@
 }
 {
 "script_location" "bar"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_bowie.map"
 "target" "pf735_auto37"
 "targetname" "buildable_wallbuy"
@@ -24370,7 +24395,7 @@
 "script_noteworthy" "zclassic_processing"
 "origin" "-2936.25 -826.85 1418"
 "angles" "0 1.00179e-005 0"
-"model" "t6_wpn_ar_saritch_world"
+"model" "t6_wpn_ar_m14_world"
 "classname" "script_struct"
 "targetname" "pf737_auto37"
 "guid" "7004ED06"
@@ -24382,7 +24407,7 @@
 "origin" "-2936.25 -826.85 1418"
 "angles" "0 1.00179e-005 0"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "saritch_zm"
+"zombie_weapon_upgrade" "m14_zm"
 "targetname" "weapon_upgrade"
 "target" "pf737_auto37"
 "guid" "C15AD568"
@@ -24407,10 +24432,48 @@
 "guid" "1A88F438"
 }
 {
+"org_model" "_prefabs/mp/zm_core/spawnable_weapon_tazer.map"
+"script_noteworthy" "zclassic_processing"
+"script_location" "courthouse"
+"origin" "599 986.5 234"
+"angles" "0 90 0"
+"model" "p6_zm_bu_chalk"
+"classname" "script_struct"
+"targetname" "pf739_auto37"
+"guid" "25D19C25"
+}
+{
+"model" "*157"
+"origin" "577 988 232"
+"org_model" "_prefabs/mp/zm_core/spawnable_weapon_tazer.map"
+"script_location" "courthouse"
+"script_angles" "0 90 0"
+"targetname" "chalk_buildable_trigger"
+"script_noteworthy" "chalk_wallbuy"
+"script_width" "50"
+"script_length" "12"
+"script_height" "50"
+"classname" "trigger_use"
+"target" "pf739_auto37"
+"guid" "4507649F"
+}
+{
+"org_model" "_prefabs/mp/zm_core/spawnable_weapon_tazer.map"
+"script_noteworthy" "zclassic_processing"
+"script_location" "courthouse"
+"target" "pf739_auto37"
+"targetname" "buildable_wallbuy"
+"zombie_weapon_upgrade" "dynamic"
+"classname" "script_struct"
+"angles" "0 90 0"
+"origin" "599 986.5 234"
+"guid" "4C32F822"
+}
+{
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_pdw57.map"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "script_location" "prison"
-"origin" "-921.75 510.5 62"
+"origin" "-931.75 510.5 62"
 "angles" "0 180 0"
 "model" "p6_zm_bu_chalk"
 "classname" "script_struct"
@@ -24419,7 +24482,7 @@
 }
 {
 "model" "*158"
-"origin" "-923 488 60"
+"origin" "-933 488 60"
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_pdw57.map"
 "script_location" "prison"
 "script_angles" "0 90 0"
@@ -24434,61 +24497,71 @@
 }
 {
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_pdw57.map"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "script_location" "prison"
 "target" "pf740_auto37"
 "targetname" "buildable_wallbuy"
 "zombie_weapon_upgrade" "dynamic"
 "classname" "script_struct"
 "angles" "0 180 0"
-"origin" "-921.75 510.5 62"
+"origin" "-931.75 510.5 62"
 "guid" "4C32F822"
 }
 {
-"script_location" "mansion"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
-"org_model" "_prefabs/mp/zm_core/spawnable_weapon_ak74u.map"
-"origin" "2354 381.25 142"
-"angles" "0 90 0"
-"model" "p6_zm_bu_chalk"
+"script_location" "street"
+"script_noteworthy" "zgrief_street"
+"org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
+"angles" "0 180 0"
+"origin" "-926.25 510.5 68"
 "classname" "script_struct"
-"targetname" "me7_auto37"
-"guid" "25D19C25"
+"zombie_weapon_upgrade" "rottweil72_zm"
+"targetname" "weapon_upgrade"
+"target" "pf741_auto37"
+"guid" "F0390DB3"
 }
 {
-"origin" "2332 382 140"
-"script_location" "mansion"
-"org_model" "_prefabs/mp/zm_core/spawnable_weapon_ak74u.map"
-"script_angles" "0 90 0"
-"targetname" "chalk_buildable_trigger"
-"script_noteworthy" "chalk_wallbuy"
-"script_width" "50"
-"script_length" "12"
-"script_height" "50"
-"classname" "trigger_use"
-"target" "me7_auto37"
-"guid" "4507649F"
+"script_location" "street"
+"script_noteworthy" "zgrief_street"
+"org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
+"targetname" "pf741_auto37"
+"classname" "script_struct"
+"model" "t6_wpn_shotty_olympia_world"
+"angles" "0 180 0"
+"origin" "-926.25 510.5 68"
+"guid" "6D2A1B25"
 }
 {
-"script_location" "mansion"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
-"org_model" "_prefabs/mp/zm_core/spawnable_weapon_ak74u.map"
-"target" "me7_auto37"
-"targetname" "buildable_wallbuy"
-"zombie_weapon_upgrade" "dynamic"
+"script_location" "street"
+"script_noteworthy" "zgrief_street"
+"org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
+"origin" "609.5 772.75 54"
+"angles" "0 270 0"
+"model" "t6_wpn_ar_m14_world"
 "classname" "script_struct"
-"angles" "0 90 0"
-"origin" "2354 381.25 142"
-"guid" "4C32F822"
+"targetname" "pf742_auto37"
+"guid" "7004ED06"
+}
+{
+"script_location" "street"
+"script_noteworthy" "zgrief_street"
+"org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
+"script_width" "40"
+"origin" "609.5 772.75 54"
+"angles" "0 270 0"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "m14_zm"
+"targetname" "weapon_upgrade"
+"target" "pf742_auto37"
+"guid" "C15AD568"
 }
 {
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
 "script_location" "street"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zgrief_street"
 "angles" "0 270 0"
 "origin" "1.1 1201.9 68"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "insas_zm"
+"zombie_weapon_upgrade" "mp5k_zm"
 "targetname" "weapon_upgrade"
 "target" "pf743_auto37"
 "guid" "F0390DB3"
@@ -24496,16 +24569,37 @@
 {
 "org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
 "script_location" "street"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zgrief_street"
 "targetname" "pf743_auto37"
 "classname" "script_struct"
-"model" "t6_wpn_smg_msmc_world"
+"model" "t6_wpn_smg_mp5_world"
 "angles" "0 270 0"
 "origin" "1.1 1201.9 68"
 "guid" "6D2A1B25"
 }
 {
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
+"script_location" "street"
+"angles" "0 90 0"
+"origin" "2354.5 736.25 148"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "mp5k_zm"
+"targetname" "weapon_upgrade"
+"target" "pf744_auto37"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zclassic_processing"
+"script_location" "street"
+"targetname" "pf744_auto37"
+"classname" "script_struct"
+"model" "t6_wpn_smg_mp5_world"
+"angles" "0 90 0"
+"origin" "2354.5 736.25 148"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zclassic_processing"
 "script_location" "street"
 "origin" "-765.434 -925.25 67.0034"
 "angles" "360 270 2.00007"
@@ -24515,7 +24609,7 @@
 "guid" "D1EECB49"
 }
 {
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "script_location" "street"
 "origin" "-765.434 -925.25 67.0034"
 "angles" "360 270 2.00007"
@@ -24527,7 +24621,7 @@
 }
 {
 "script_location" "street"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "angles" "0 90 0"
 "origin" "823 -508 61"
 "classname" "script_struct"
@@ -24538,7 +24632,7 @@
 }
 {
 "script_location" "street"
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "targetname" "pf746_auto37"
 "classname" "script_struct"
 "model" "t6_wpn_claymore_world"
@@ -24548,28 +24642,28 @@
 "guid" "EE921301"
 }
 {
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "script_location" "street"
 "origin" "675.25 -1119.5 117"
 "angles" "0 1.00179e-005 0"
-"model" "t6_wpn_ar_sig556_world"
+"model" "t6_wpn_ar_m16a2_world"
 "classname" "script_struct"
 "targetname" "pf747_auto37"
 "guid" "45A420E3"
 }
 {
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "script_location" "street"
 "origin" "675.25 -1119.5 117"
 "angles" "0 1.00179e-005 0"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "sig556_zm"
+"zombie_weapon_upgrade" "m16_zm"
 "targetname" "weapon_upgrade"
 "target" "pf747_auto37"
 "guid" "FF59A3C9"
 }
 {
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "script_location" "street"
 "script_int" "-45"
 "origin" "1102.36 -1836.06 181"
@@ -24581,7 +24675,7 @@
 "guid" "ED8E28B4"
 }
 {
-"script_noteworthy" "zclassic_processing, zstandard_street, zgrief_street"
+"script_noteworthy" "zclassic_processing"
 "script_location" "street"
 "script_int" "-45"
 "targetname" "pf748_auto37"
@@ -24590,77 +24684,6 @@
 "angles" "0 45 0"
 "origin" "1096.71 -1841.71 181"
 "guid" "D1EECB49"
-}
-{
-"script_location" "street"
-"script_noteworthy" "zstandard_street, zgrief_street"
-"org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
-"origin" "609.5 772.75 54"
-"angles" "0 270 0"
-"model" "t6_wpn_ar_saritch_world"
-"classname" "script_struct"
-"targetname" "pf742_auto37"
-"guid" "7004ED06"
-}
-{
-"script_location" "street"
-"script_noteworthy" "zstandard_street, zgrief_street"
-"org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
-"script_width" "40"
-"origin" "609.5 772.75 54"
-"angles" "0 270 0"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "saritch_zm"
-"targetname" "weapon_upgrade"
-"target" "pf742_auto37"
-"guid" "C15AD568"
-}
-{
-"script_location" "street"
-"script_noteworthy" "zstandard_street, zgrief_street"
-"org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
-"origin" "-688 -375 153"
-"angles" "5 0 0"
-"model" "t6_wpn_shotty_870mcs_world"
-"classname" "script_struct"
-"targetname" "pf742_auto38"
-"guid" "7004ED06"
-}
-{
-"script_location" "street"
-"script_noteworthy" "zstandard_street, zgrief_street"
-"org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
-"script_width" "40"
-"origin" "-688 -375 153"
-"angles" "5 0 0"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "870mcs_zm"
-"targetname" "weapon_upgrade"
-"target" "pf742_auto38"
-"guid" "C15AD568"
-}
-{
-"script_location" "street"
-"script_noteworthy" "zstandard_street, zgrief_street"
-"org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
-"angles" "0 180 0"
-"origin" "-241 -353 204"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "tazer_knuckles_zm"
-"targetname" "tazer_upgrade"
-"target" "pf741_auto37"
-"guid" "F0390DB3"
-}
-{
-"script_location" "street"
-"script_noteworthy" "zstandard_street, zgrief_street"
-"org_model" "_prefabs/mp/zm_core/spawnable_weapon_dynamic.map"
-"targetname" "pf741_auto37"
-"classname" "script_struct"
-"model" "t6_wpn_taser_knuckles_view"
-"angles" "0 180 0"
-"origin" "-241 -353 204"
-"guid" "6D2A1B25"
 }
 {
 "model" "*159"
@@ -32982,6 +33005,24 @@
 "guid" "BB6ECC38"
 }
 {
+"origin" "3414 856 54"
+"model" "p6_zm_al_vending_ads_on"
+"classname" "script_struct"
+"angles" "0 90 0"
+"script_noteworthy" "specialty_deadshot"
+"targetname" "zm_perk_machine"
+"script_string" " zclassic_perks_processing"
+}
+{
+"origin" "-2366 -168 1223"
+"model" "p6_zm_al_vending_nuke_on"
+"classname" "script_struct"
+"angles" "0 270 0"
+"script_noteworthy" "specialty_flakjacket"
+"targetname" "zm_perk_machine"
+"script_string" " zclassic_perks_processing"
+}
+{
 "script_noteworthy" "zstandard_maze, zgrief_maze"
 "angles" "0 1.00179e-005 0"
 "origin" "4923.88 -178.33 61"
@@ -33095,14 +33136,6 @@
 "classname" "script_struct"
 "targetname" "me6_auto38"
 "guid" "45A420E3"
-}
-{
-"origin" "0 0 0"
-"classname" "worldspawn"
-"fsi" "zm_buried"
-"wsi" "zm_buried"
-"skyboxmodel" "skybox_zm_buried"
-"guid" "4B365109"
 }
 {
 "_color" "1 0 1"
@@ -33251,584 +33284,4 @@
 "model" "zombie_vending_sleight"
 "origin" "5429.2 854 0"
 "guid" "B4AAB927"
-}
-{
-"origin" "-170.5 -328.25 144"
-"model" "zombie_vending_sleight"
-"classname" "script_struct"
-"angles" "0 90 0"
-"script_noteworthy" "specialty_fastreload"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_street zgrief_perks_street"
-"guid" "2D0C1069"
-}
-{
-"origin" "-711 -1249.5 140.5"
-"model" "zombie_vending_three_gun"
-"classname" "script_struct"
-"angles" "0 180 0"
-"script_noteworthy" "specialty_additionalprimaryweapon"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_street zgrief_perks_street"
-"guid" "CB5ACEFE"
-}
-{
-"script_forcespawn" "1"
-"spawnflags" "3"
-"export" "5"
-"model" "c_zom_zombie_buried_ghost_woman_fb"
-"classname" "actor_zm_buried_ghost_female"
-"targetname" "female_ghost"
-"script_noteworthy" "ghost_zombie_spawner"
-"count" "9999"
-"origin" "-168 473 16"
-"guid" "EA7CA081"
-}
-{
-"targetname" "fake_player_spawner"
-"spawnflags" "1"
-"origin" "346.25 240 16"
-"export" "6"
-"model" "c_zom_player_cdc_fb"
-"classname" "actor_zm_ally_cdc"
-"angles" "0 180 0"
-"guid" "DDE3A4A3"
-}
-{
-"origin" "2328 936.5 88"
-"model" "zombie_vending_doubletap2"
-"classname" "script_struct"
-"angles" "0 180 0"
-"script_noteworthy" "specialty_rof"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_street zgrief_perks_street"
-"guid" "8772F301"
-}
-{
-"script_string" "zstandard_perks_street zgrief_perks_street"
-"targetname" "zm_perk_machine"
-"script_noteworthy" "specialty_longersprint"
-"classname" "script_struct"
-"model" "zombie_vending_marathon"
-"origin" "761.63 1542.25 0"
-"angles" "0 0 0"
-"guid" "12B281A4"
-}
-{
-"classname" "script_struct"
-"targetname" "street_turned_player_respawns"
-"angles" "0 300 0"
-"_color" "0.000000 1.000000 1.000000"
-"origin" "776 1456 -6.64"
-"model" "c_zom_zombie3_body01"
-"guid" "61CE4D4A"
-}
-{
-"classname" "script_struct"
-"targetname" "street_turned_player_respawns"
-"angles" "0 255 0"
-"_color" "0.000000 1.000000 1.000000"
-"origin" "1282 1242 7.28"
-"model" "c_zom_zombie3_body01"
-"guid" "32C9F503"
-}
-{
-"classname" "script_struct"
-"targetname" "street_turned_player_respawns"
-"angles" "0 190 0"
-"_color" "0.000000 1.000000 1.000000"
-"origin" "1572 568 16.08"
-"model" "c_zom_zombie3_body01"
-"guid" "6B2ACD57"
-}
-{
-"classname" "script_struct"
-"targetname" "street_turned_player_respawns"
-"angles" "0 280 0"
-"_color" "0.000000 1.000000 1.000000"
-"origin" "438 632 7.1"
-"model" "c_zom_zombie3_body01"
-"guid" "58EFF982"
-}
-{
-"classname" "script_struct"
-"targetname" "street_turned_player_respawns"
-"angles" "0 301 0"
-"_color" "0.000000 1.000000 1.000000"
-"origin" "122 522 36"
-"model" "c_zom_zombie3_body01"
-"guid" "2B3E0E1E"
-}
-{
-"classname" "script_struct"
-"targetname" "street_turned_player_respawns"
-"angles" "0 180 0"
-"_color" "0.000000 1.000000 1.000000"
-"origin" "458 -678 36"
-"model" "c_zom_zombie3_body01"
-"guid" "9AF70160"
-}
-{
-"classname" "script_struct"
-"targetname" "street_turned_player_respawns"
-"angles" "0 135 0"
-"_color" "0.000000 1.000000 1.000000"
-"origin" "390 -1122 84"
-"model" "c_zom_zombie3_body01"
-"guid" "44C74C95"
-}
-{
-"classname" "script_struct"
-"targetname" "street_turned_player_respawns"
-"angles" "0 90 0"
-"_color" "0.000000 1.000000 1.000000"
-"origin" "78 -1706 5.23"
-"model" "c_zom_zombie3_body01"
-"guid" "00A2D918"
-}
-{
-"classname" "script_struct"
-"targetname" "street_turned_player_respawns"
-"angles" "0 60 0"
-"_color" "0.000000 1.000000 1.000000"
-"origin" "-690 -930 20"
-"model" "c_zom_zombie3_body01"
-"guid" "DE9970A6"
-}
-{
-"origin" "-1138 434 23.94"
-"_color" "0.000000 1.000000 1.000000"
-"angles" "0 330 0"
-"targetname" "street_turned_player_respawns"
-"classname" "script_struct"
-"model" "c_zom_zombie3_body01"
-"guid" "801417FD"
-}
-{
-"origin" "-650 554 20"
-"_color" "0.000000 1.000000 1.000000"
-"angles" "0 270 0"
-"targetname" "street_turned_player_respawns"
-"classname" "script_struct"
-"model" "c_zom_zombie3_body01"
-"guid" "CC3135F1"
-}
-{
-"origin" "-162 626 4"
-"_color" "0.000000 1.000000 1.000000"
-"angles" "0 270 0"
-"targetname" "street_turned_player_respawns"
-"classname" "script_struct"
-"model" "c_zom_zombie3_body01"
-"guid" "DE48C052"
-}
-{
-"origin" "130 142 36"
-"_color" "0.000000 1.000000 1.000000"
-"angles" "0 180 0"
-"targetname" "street_turned_player_respawns"
-"classname" "script_struct"
-"model" "c_zom_zombie3_body01"
-"guid" "CD73CC76"
-}
-{
-"origin" "-390 -686 36"
-"_color" "0.000000 1.000000 1.000000"
-"angles" "0 270 0"
-"targetname" "street_turned_player_respawns"
-"classname" "script_struct"
-"model" "c_zom_zombie3_body01"
-"guid" "9BD11A5A"
-}
-{
-"classname" "script_struct"
-"targetname" "street_turned_player_respawns"
-"angles" "0 180 0"
-"_color" "0.000000 1.000000 1.000000"
-"origin" "950 -1058 84"
-"model" "c_zom_zombie3_body01"
-"guid" "F1A8D905"
-}
-{
-"_color" "1 0.501961 0.25098"
-"script_string" "zcleansed_street"
-"targetname" "street_turned_powerups"
-"origin" "967 111 36"
-"angles" "0 90 0"
-"classname" "script_struct"
-"model" "zombie_pickup_perk_bottle"
-"guid" "0CB6B344"
-}
-{
-"_color" "1 0.501961 0.25098"
-"script_string" "zcleansed_street"
-"targetname" "street_turned_powerups"
-"origin" "351 -177 36"
-"angles" "0 90 0"
-"classname" "script_struct"
-"model" "zombie_pickup_perk_bottle"
-"guid" "7C078C37"
-}
-{
-"_color" "1 0.501961 0.25098"
-"script_string" "zcleansed_street"
-"targetname" "street_turned_powerups"
-"origin" "-609 -785 -4.7"
-"angles" "0 90 0"
-"classname" "script_struct"
-"model" "zombie_pickup_perk_bottle"
-"guid" "2773C06D"
-}
-{
-"_color" "1 0.501961 0.25098"
-"script_string" "zcleansed_street"
-"targetname" "street_turned_powerups"
-"origin" "-135 -865 62.94"
-"angles" "0 180 0"
-"classname" "script_struct"
-"model" "zombie_pickup_perk_bottle"
-"guid" "E17F786C"
-}
-{
-"_color" "1 0.501961 0.25098"
-"script_string" "zcleansed_street"
-"targetname" "street_turned_powerups"
-"origin" "-351 351 4"
-"angles" "0 180 0"
-"classname" "script_struct"
-"model" "zombie_pickup_perk_bottle"
-"guid" "0483F5D3"
-}
-{
-"_color" "1 0.501961 0.25098"
-"script_string" "zcleansed_street"
-"targetname" "street_turned_powerups"
-"origin" "-737 279 4"
-"angles" "0 90 0"
-"classname" "script_struct"
-"model" "zombie_pickup_perk_bottle"
-"guid" "5C53513E"
-}
-{
-"_color" "1 0.501961 0.25098"
-"script_string" "zcleansed_street"
-"targetname" "street_turned_powerups"
-"origin" "823 831 51.64"
-"angles" "0 90 0"
-"classname" "script_struct"
-"model" "zombie_pickup_perk_bottle"
-"guid" "509ABA1C"
-}
-{
-"_color" "1 0.501961 0.25098"
-"script_string" "zcleansed_street"
-"targetname" "street_turned_powerups"
-"origin" "753 1545 2.79"
-"angles" "0 240 0"
-"classname" "script_struct"
-"model" "zombie_pickup_perk_bottle"
-"guid" "07D1A43C"
-}
-{
-"classname" "script_model"
-"model" "p6_anim_zm_barricade_board_01"
-"angles" "345 0 -180"
-"origin" "-846.53 507.38 97.87"
-"script_gameobjectname" "zcleansed"
-"script_location" "street"
-"guid" "9D50B1B1"
-}
-{
-"classname" "script_model"
-"model" "p6_anim_zm_barricade_board_02"
-"angles" "350 180 -2.90332e-005"
-"origin" "-848.27 502.88 77.62"
-"script_gameobjectname" "zcleansed"
-"script_location" "street"
-"guid" "74B96265"
-}
-{
-"classname" "script_model"
-"model" "p6_anim_zm_barricade_board_01"
-"angles" "15 180 -2.78959e-005"
-"origin" "-838.2 507.38 37.61"
-"script_gameobjectname" "zcleansed"
-"script_location" "street"
-"guid" "FA11F024"
-}
-{
-"classname" "script_model"
-"model" "p6_anim_zm_barricade_board_03"
-"angles" "0 180 -1.51305e-005"
-"origin" "-844.25 507.38 61.64"
-"script_gameobjectname" "zcleansed"
-"script_location" "street"
-"guid" "3D8934A7"
-}
-{
-"origin" "-848.49 506.38 107.87"
-"angles" "5.00001 0 -180"
-"model" "p6_anim_zm_barricade_board_03"
-"classname" "script_model"
-"script_gameobjectname" "zcleansed"
-"script_location" "street"
-"guid" "7CB8F5B9"
-}
-{
-"origin" "-844.28 503.88 43.61"
-"angles" "345 180 -5.40474e-005"
-"model" "p6_anim_zm_barricade_board_02"
-"classname" "script_model"
-"script_gameobjectname" "zcleansed"
-"script_location" "street"
-"guid" "3E3A8E09"
-}
-{
-"script_location" "street"
-"script_gameobjectname" "zcleansed"
-"origin" "-874.29 504.88 75.88"
-"angles" "85 1.00179e-005 180"
-"model" "p6_anim_zm_barricade_board_01"
-"classname" "script_model"
-"guid" "99126A5A"
-}
-{
-"script_location" "street"
-"script_gameobjectname" "zcleansed"
-"origin" "-814.46 505.38 79.88"
-"angles" "275 1.00179e-005 -180"
-"model" "p6_anim_zm_barricade_board_03"
-"classname" "script_model"
-"guid" "CC0FD47C"
-}
-{
-"origin" "1443 2303.5 16"
-"model" "zombie_vending_revive"
-"classname" "script_struct"
-"angles" "0 340 0"
-"script_noteworthy" "specialty_quickrevive"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_street zgrief_perks_street"
-"guid" "02016D14"
-}
-{
-"origin" "-665.13 1069.13 9.49"
-"model" "zombie_vending_jugg"
-"classname" "script_struct"
-"angles" "0 1.00179e-005 0"
-"script_noteworthy" "specialty_armorvest"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_street zgrief_perks_street"
-"guid" "4676CB87"
-}
-{
-"count" "9999"
-"script_forcespawn" "1"
-"classname" "actor_zm_buried_basic_03"
-"model" "c_zom_zombie_buried_sgirl_body1"
-"export" "7"
-"spawnflags" "3"
-"script_noteworthy" "zombie_spawner"
-"script_disable_bleeder" "1"
-"origin" "-232 473 16"
-"guid" "3AF47751"
-}
-{
-"classname" "actor_zm_buried_basic_01_char_01"
-"model" "c_zom_zombie_buried_civilian_body1"
-"export" "8"
-"count" "9999"
-"script_disable_bleeder" "1"
-"script_forcespawn" "1"
-"script_noteworthy" "zombie_spawner"
-"spawnflags" "3"
-"origin" "-360 472 8"
-"guid" "93554AC2"
-}
-{
-"classname" "actor_zm_buried_basic_01_char_02"
-"model" "c_zom_zombie_buried_civilian_body1"
-"export" "9"
-"count" "9999"
-"script_disable_bleeder" "1"
-"script_forcespawn" "1"
-"script_noteworthy" "zombie_spawner"
-"spawnflags" "3"
-"origin" "-360 424 8"
-"guid" "118A0DE9"
-}
-{
-"classname" "actor_zm_buried_basic_01_char_03"
-"model" "c_zom_zombie_buried_civilian_body1"
-"export" "10"
-"count" "9999"
-"script_disable_bleeder" "1"
-"script_forcespawn" "1"
-"script_noteworthy" "zombie_spawner"
-"spawnflags" "3"
-"origin" "-360 376 8"
-"guid" "323AC947"
-}
-{
-"classname" "actor_zm_buried_basic_01_char_04"
-"model" "c_zom_zombie_buried_civilian_body1"
-"export" "11"
-"count" "9999"
-"script_disable_bleeder" "1"
-"script_forcespawn" "1"
-"script_noteworthy" "zombie_spawner"
-"spawnflags" "3"
-"origin" "-360 328 8"
-"guid" "BE630905"
-}
-{
-"classname" "actor_zm_buried_basic_01_char_05"
-"model" "c_zom_zombie_buried_civilian_body1"
-"export" "12"
-"count" "9999"
-"script_disable_bleeder" "1"
-"script_forcespawn" "1"
-"script_noteworthy" "zombie_spawner"
-"spawnflags" "3"
-"origin" "-360 280 8"
-"guid" "CFD8AD42"
-}
-{
-"classname" "actor_zm_buried_basic_02_char_01"
-"model" "c_zom_zombie_buried_miner_body1"
-"export" "13"
-"spawnflags" "3"
-"count" "9999"
-"script_disable_bleeder" "1"
-"script_forcespawn" "1"
-"script_noteworthy" "zombie_spawner"
-"origin" "-296 472 8"
-"guid" "279A2366"
-}
-{
-"classname" "actor_zm_buried_basic_02_char_02"
-"model" "c_zom_zombie_buried_miner_body1"
-"export" "14"
-"spawnflags" "3"
-"count" "9999"
-"script_disable_bleeder" "1"
-"script_forcespawn" "1"
-"script_noteworthy" "zombie_spawner"
-"origin" "-296 424 8"
-"guid" "35569425"
-}
-{
-"classname" "actor_zm_buried_basic_02_char_03"
-"model" "c_zom_zombie_buried_miner_body1"
-"export" "15"
-"spawnflags" "3"
-"count" "9999"
-"script_disable_bleeder" "1"
-"script_forcespawn" "1"
-"script_noteworthy" "zombie_spawner"
-"origin" "-296 376 8"
-"guid" "4F21AB9F"
-}
-{
-"angles" "0 340 0"
-"script_gameobjectname" "zcleansed"
-"script_location" "street"
-"classname" "script_model"
-"model" "p6_zm_bu_street_blocker_crates"
-"origin" "-651.34 599.69 33"
-"spawnflags" "1"
-"guid" "2C8B0EAD"
-}
-{
-"script_gameobjectname" "zcleansed"
-"script_location" "street"
-"angles" "328.012 92.1221 -1.12439"
-"classname" "script_model"
-"model" "p6_zm_bu_street_blocker_crates"
-"origin" "-287.82 594.71 25.57"
-"spawnflags" "1"
-"guid" "A5FC4BB0"
-}
-{
-"spawnflags" "1"
-"origin" "-143.82 -60.29 87.53"
-"model" "p6_zm_bu_street_blocker_crates"
-"classname" "script_model"
-"angles" "33.5793 95.2425 2.9052"
-"script_location" "street"
-"script_gameobjectname" "zcleansed"
-"guid" "6586E9EA"
-}
-{
-"script_string" "zstandard_perks_street zgrief_perks_street"
-"origin" "1205.61 698.608 -17.68"
-"model" "p6_anim_zm_buildable_pap"
-"classname" "script_struct"
-"angles" "0 191.4 0"
-"target" "me8_auto1"
-"targetname" "zm_perk_machine"
-"script_noteworthy" "specialty_weapupgrade"
-"guid" "4C900751"
-}
-{
-"script_string" "zstandard_perks_street zgrief_perks_street"
-"classname" "script_struct"
-"model" "zombie_sign_please_wait"
-"angles" "0 11.4 -180"
-"origin" "1179.85 679.642 31.82"
-"targetname" "me8_auto1"
-"guid" "284B1301"
-}
-{
-"script_string" "zstandard_perks_street zgrief_perks_street"
-"angles" "0 191.4 0"
-"origin" "1206.66 711.063 35.32"
-"script_sound" "mx_packa_jingle"
-"targetname" "perksacola"
-"classname" "script_struct"
-"guid" "F2DE7BAA"
-}
-{
-"angles" "0 0 0"
-"origin" "599 -374 205"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "frag_grenade_zm"
-"targetname" "weapon_upgrade"
-"target" "pf3666_auto37"
-"guid" "834D841B"
-}
-{
-"targetname" "pf3666_auto37"
-"classname" "script_struct"
-"model" "semtex_bag"
-"angles" "0 0 0"
-"origin" "599 -374 205"
-"guid" "CEAAC437"
-}
-{
-"origin" "-2366 -168 1223"
-"model" "p6_zm_al_vending_nuke_on"
-"classname" "script_struct"
-"angles" "0 270 0"
-"script_noteworthy" "specialty_flakjacket"
-"targetname" "zm_perk_machine"
-"script_string" " zclassic_perks_processing"
-}
-{
-"origin" "3414 856 54"
-"model" "p6_zm_al_vending_ads_on"
-"classname" "script_struct"
-"angles" "0 90 0"
-"script_noteworthy" "specialty_deadshot"
-"targetname" "zm_perk_machine"
-"script_string" " zclassic_perks_processing"
-}
-{
-"origin" "-182 -360 144"
-"model" "zombie_vending_tombstone"
-"classname" "script_struct"
-"angles" "0 90 0"
-"script_noteworthy" "specialty_scavenger"
-"targetname" "zm_perk_machine"
-"script_string" " zclassic_perks_processing"
 }
