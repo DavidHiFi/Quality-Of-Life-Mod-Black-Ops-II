@@ -191,6 +191,67 @@ main()
 	array_thread(level.insta_kill_triggers, maps\mp\zm_buried_classic::squashed_death_init, 0);
 
 	disable_zones();
+	level thread zmqol_maze_zone_probe();   // TEMPORARY
+}
+
+// ============================================================================
+//  zm_qol TEMPORARY DIAGNOSTIC - Maze still has no zombies after two attempts.
+//
+//  v1.6.0 enabled zone_maze; v1.6.3 restricted the other 21 zones. Neither
+//  worked, and I have now guessed twice, so this prints the actual state instead:
+//
+//    - every zone that still reports is_enabled, with is_spawning_allowed and
+//      how many spawn_locations it holds
+//    - the size of level.zombie_spawn_locations, which is the pool
+//      _zm_zonemgr::create_spawner_list actually draws from
+//
+//  That distinguishes the remaining possibilities in one run:
+//    zone_maze missing entirely      -> the buried_zone_init replaceFunc is not
+//                                       taking (pointer captured before replace)
+//    zone_maze present, 0 spawn_locs -> zone_init found the volume but not the
+//                                       zone_maze_spawners structs
+//    zone_maze fine, pool empty      -> create_spawner_list runs before our
+//                                       enable and is never rebuilt
+//    pool healthy                    -> zombies ARE spawning; the problem is
+//                                       pathing into the arena, not spawning
+//
+//  Runs twice (5s and 20s) so a pool rebuilt on round start is visible too.
+// ============================================================================
+zmqol_maze_zone_probe()
+{
+	level endon( "end_game" );
+
+	for ( n = 0; n < 2; n++ )
+	{
+		if ( n == 0 )
+			wait 5;
+		else
+			wait 15;
+
+		if ( !isdefined( level.zones ) )
+		{
+			println( "[zm_qol] MAZEZONE level.zones UNDEFINED" );
+			continue;
+		}
+
+		foreach ( index, zone in level.zones )
+		{
+			if ( !isdefined( zone.is_enabled ) || !zone.is_enabled )
+				continue;
+
+			n_spots = 0;
+
+			if ( isdefined( zone.spawn_locations ) )
+				n_spots = zone.spawn_locations.size;
+
+			println( "[zm_qol] MAZEZONE t=" + n + " " + index + " enabled=1 spawning=" + zone.is_spawning_allowed + " spawn_locs=" + n_spots );
+		}
+
+		if ( isdefined( level.zombie_spawn_locations ) )
+			println( "[zm_qol] MAZEZONE t=" + n + " POOL level.zombie_spawn_locations=" + level.zombie_spawn_locations.size );
+		else
+			println( "[zm_qol] MAZEZONE t=" + n + " POOL UNDEFINED" );
+	}
 }
 
 // ============================================================================
