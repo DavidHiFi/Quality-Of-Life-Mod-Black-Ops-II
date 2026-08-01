@@ -64,6 +64,16 @@ main()
     replaceFunc(maps\mp\zm_tomb_capture_zones::get_generator_capture_start_cost, scripts\zm\replaced\zm_tomb_capture_zones::get_generator_capture_start_cost);
     replaceFunc(maps\mp\zm_tomb_capture_zones::magic_box_stub_update_prompt, scripts\zm\replaced\zm_tomb_capture_zones::magic_box_stub_update_prompt);
 
+    // 🛑 Dig sites appearing on survival, where no shovel can be obtained.
+    // Reimagined's init_shovel returns early on !is_classic() before precaching
+    // and placing the dig mounds, so the sites simply do not exist outside
+    // classic Origins. Our copy has the two
+    // scripts\zm\reimagined\_zm_weap_bouncingbetty calls stripped out of
+    // swap_weapon (a function we do not hook - ::custom_swap_weapon above
+    // replaces it): they are the file's only references to a Reimagined-only
+    // script and would have been unresolved externals that killed the load.
+    replaceFunc(maps\mp\zm_tomb_dig::init_shovel, scripts\zm\replaced\zm_tomb_dig::init_shovel);
+
     // Must run in main(), before the map registers its own clientfields.
     zmqol_register_survival_clientfields();
 }
