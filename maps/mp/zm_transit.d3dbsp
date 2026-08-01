@@ -15377,7 +15377,6 @@
 "origin" "7035 -5614 -32"
 "classname" "script_brushmodel"
 "spawnflags" "1"
-"script_parameters" "race_remove meat_remove"
 "script_angles" "0 -90 0"
 "targetname" "auto2389"
 "script_sound" "zmb_door_fence_open"
@@ -15389,7 +15388,6 @@
 "classname" "script_brushmodel"
 "spawnflags" "1"
 "script_angles" "0 95 0"
-"script_parameters" "race_remove meat_remove"
 "targetname" "auto2389"
 "script_sound" "zmb_door_fence_open"
 "guid" "C13A2614"
@@ -15402,7 +15400,6 @@
 "target" "auto2389"
 "targetname" "zombie_door"
 "zombie_cost" "750"
-"script_parameters" "race_remove meat_remove"
 "guid" "ED75D9BD"
 }
 {
@@ -17448,7 +17445,6 @@
 "script_angles" "0 100 0"
 "targetname" "pow_door_rr"
 "script_string" "rotate"
-"script_parameters" "race_remove meat_remove turned_remove"
 "script_sound" "zmb_small_wood_door"
 "guid" "2F87B6DC"
 }
@@ -19598,7 +19594,6 @@
 "spawnflags" "1"
 "script_noteworthy" "clip"
 "targetname" "auto2434"
-"script_parameters" "race_remove meat_remove"
 "guid" "50DF1FBE"
 }
 {
@@ -22304,6 +22299,26 @@
 }
 {
 "classname" "node_pathnode"
+"origin" "6912 -256 -64"
+}
+{
+"classname" "node_pathnode"
+"origin" "6912 -384 -64"
+}
+{
+"classname" "node_pathnode"
+"origin" "6912 -512 -64"
+}
+{
+"classname" "node_pathnode"
+"origin" "6912 -640 -64"
+}
+{
+"classname" "node_pathnode"
+"origin" "6912 -768 -64"
+}
+{
+"classname" "node_pathnode"
 "origin" "6912 0 -56.7"
 "guid" "8A20963F"
 }
@@ -22316,6 +22331,26 @@
 "classname" "node_pathnode"
 "origin" "7040 -128 -68.2"
 "guid" "9EF3C89C"
+}
+{
+"classname" "node_pathnode"
+"origin" "7040 -256 -72"
+}
+{
+"classname" "node_pathnode"
+"origin" "7040 -384 -72"
+}
+{
+"classname" "node_pathnode"
+"origin" "7040 -512 -72"
+}
+{
+"classname" "node_pathnode"
+"origin" "7040 -640 -72"
+}
+{
+"classname" "node_pathnode"
+"origin" "7040 -768 -72"
 }
 {
 "classname" "node_pathnode"
@@ -23001,6 +23036,14 @@
 "classname" "node_pathnode"
 "origin" "7168 -128 -67.8"
 "guid" "B9AEC964"
+}
+{
+"classname" "node_pathnode"
+"origin" "7168 -256 -72"
+}
+{
+"classname" "node_pathnode"
+"origin" "7168 -768 -72"
 }
 {
 "classname" "node_pathnode"
@@ -26275,7 +26318,6 @@
 "targetname" "pf30_auto2282"
 "spawnflags" "1"
 "angles" "0 0 0"
-"script_parameters" "meat_remove race_remove"
 "script_sound" "zmb_small_wood_door"
 "guid" "AFADEBFB"
 }
@@ -26297,7 +26339,6 @@
 "targetname" "pf30_auto2282"
 "spawnflags" "1"
 "angles" "0 90 0"
-"script_parameters" "meat_remove race_remove"
 "script_sound" "zmb_small_wood_door"
 "guid" "0573D033"
 }
@@ -26309,7 +26350,6 @@
 "targetname" "pf30_auto2282"
 "spawnflags" "1"
 "angles" "0 270 0"
-"script_parameters" "meat_remove race_remove"
 "script_sound" "zmb_small_wood_door"
 "guid" "6C59ACE1"
 }
@@ -26331,7 +26371,6 @@
 "script_angles" "0 -100 0"
 "targetname" "pf30_auto2174"
 "spawnflags" "1"
-"script_parameters" "race_remove meat_remove turned_remove"
 "script_sound" "zmb_bank_door"
 "guid" "480D0C6F"
 }
@@ -26353,7 +26392,6 @@
 "targetname" "pf30_auto2433"
 "spawnflags" "1"
 "angles" "0 90 0"
-"script_parameters" "meat_remove race_remove"
 "guid" "D7756500"
 }
 {
@@ -26364,7 +26402,6 @@
 "targetname" "pf30_auto2433"
 "spawnflags" "1"
 "angles" "0 270 0"
-"script_parameters" "meat_remove race_remove"
 "guid" "FF89FA9C"
 }
 {
@@ -26384,7 +26421,6 @@
 "spawnflags" "1"
 "script_noteworthy" "clip"
 "targetname" "pf30_auto2282"
-"script_parameters" "meat_remove race_remove"
 "guid" "B720FABA"
 }
 {
@@ -26394,7 +26430,6 @@
 "script_noteworthy" "clip"
 "spawnflags" "1"
 "classname" "script_brushmodel"
-"script_parameters" "meat_remove"
 "guid" "B49E7ECC"
 }
 {
@@ -26404,7 +26439,6 @@
 "spawnflags" "1"
 "script_noteworthy" "clip"
 "targetname" "pf30_auto2174"
-"script_parameters" "race_remove meat_remove turned_remove"
 "guid" "8B1E23F8"
 }
 {
@@ -26414,12 +26448,10 @@
 "script_noteworthy" "clip"
 "spawnflags" "1"
 "classname" "script_brushmodel"
-"script_parameters" "meat_remove race_remove"
 "guid" "64E5688E"
 }
 {
 "script_sound" "zmb_bank_door"
-"script_parameters" "race_remove meat_remove turned_remove"
 "origin" "1001.1 -67.9 -40"
 "classname" "script_model"
 "model" "p_cub_door01_wood_fullsize"
@@ -26433,7 +26465,6 @@
 "model" "*121"
 "origin" "1821 228 -4"
 "classname" "script_brushmodel"
-"script_parameters" "race_remove meat_remove"
 "guid" "4C4D9058"
 }
 {
@@ -26441,7 +26472,6 @@
 "origin" "1111 470 16"
 "classname" "script_brushmodel"
 "script_noteworthy" "clip"
-"script_parameters" "race_remove meat_remove turned_remove"
 "targetname" "pf30_auto2174"
 "spawnflags" "1"
 "guid" "55C3A156"
@@ -26497,7 +26527,6 @@
 "targetname" "pf30_auto2174"
 "spawnflags" "1"
 "angles" "0 90 0"
-"script_parameters" "meat_remove race_remove"
 "script_sound" "zmb_small_wood_door"
 "guid" "B9276334"
 }
@@ -26724,6 +26753,78 @@
 "zbarrierboardanim5" "o_zombie_magic_box_teddy_rise"
 "classname" "zbarrier_zmcore_MagicBox"
 "guid" "4EFDB2AC"
+}
+{
+"classname" "script_struct"
+"zombie_cost" "950"
+"script_noteworthy" "tunnel_chest"
+"targetname" "treasure_chest_use"
+"angles" "0 89 0"
+"origin" "-10803 -1897 208"
+"guid" "4A436038"
+}
+{
+"classname" "zbarrier_zmcore_MagicBox"
+"zbarrierboardanim5" "o_zombie_magic_box_teddy_rise"
+"zbarriertearanim5" "o_zombie_magic_box_weapon_dual_rise"
+"zbarrierboardmodel5" "tag_origin"
+"zbarrierboardanim4" "o_zombie_magic_box_teddy_rise"
+"zbarriertearanim4" "o_zombie_magic_box_weapon_rise"
+"zbarrierboardmodel4" "tag_origin"
+"zbarrierboardanim3" "o_zombie_magic_box_close"
+"zbarriertearanim3" "o_zombie_magic_box_open"
+"zbarrierboardmodel3" "p6_anim_zm_magic_box"
+"zbarrierboardanim2" "o_zombie_magic_box_leave"
+"zbarriertearanim2" "o_zombie_magic_box_arrive"
+"zbarrierboardmodel2" "p6_anim_zm_magic_box"
+"zbarrierboardanim1" "o_zombie_magic_box_fake_idle_twitch_a"
+"zbarriertearanim1" "o_zombie_magic_box_fake_idle_twitch_b"
+"zbarrierboardmodel1" "p6_anim_zm_magic_box_fake"
+"zbarriernumboards" "5"
+"showupgradedmodel" "0"
+"showalternatemodel" "0"
+"barrieranimtime" "0"
+"angles" "0 89 0"
+"type" "zmcore_MagicBox"
+"origin" "-10803 -1897 208"
+"script_noteworthy" "tunnel_chest_zbarrier"
+"guid" "C82823B1"
+}
+{
+"classname" "script_struct"
+"zombie_cost" "950"
+"script_noteworthy" "cornfield_chest"
+"targetname" "treasure_chest_use"
+"angles" "0 180 0"
+"origin" "13337 72 -179"
+"guid" "4A436037"
+}
+{
+"classname" "zbarrier_zmcore_MagicBox"
+"zbarrierboardanim5" "o_zombie_magic_box_teddy_rise"
+"zbarriertearanim5" "o_zombie_magic_box_weapon_dual_rise"
+"zbarrierboardmodel5" "tag_origin"
+"zbarrierboardanim4" "o_zombie_magic_box_teddy_rise"
+"zbarriertearanim4" "o_zombie_magic_box_weapon_rise"
+"zbarrierboardmodel4" "tag_origin"
+"zbarrierboardanim3" "o_zombie_magic_box_close"
+"zbarriertearanim3" "o_zombie_magic_box_open"
+"zbarrierboardmodel3" "p6_anim_zm_magic_box"
+"zbarrierboardanim2" "o_zombie_magic_box_leave"
+"zbarriertearanim2" "o_zombie_magic_box_arrive"
+"zbarrierboardmodel2" "p6_anim_zm_magic_box"
+"zbarrierboardanim1" "o_zombie_magic_box_fake_idle_twitch_a"
+"zbarriertearanim1" "o_zombie_magic_box_fake_idle_twitch_b"
+"zbarrierboardmodel1" "p6_anim_zm_magic_box_fake"
+"zbarriernumboards" "5"
+"showupgradedmodel" "0"
+"showalternatemodel" "0"
+"barrieranimtime" "0"
+"angles" "0 180 0"
+"type" "zmcore_MagicBox"
+"origin" "13337 72 -179"
+"script_noteworthy" "cornfield_chest_zbarrier"
+"guid" "C82823B2"
 }
 {
 "model" "*125"
@@ -27784,7 +27885,6 @@
 "model" "*132"
 "origin" "1852 -828 -5"
 "classname" "script_brushmodel"
-"script_parameters" "meat_remove"
 "spawnflags" "1"
 "guid" "AA051BB9"
 }
@@ -27799,7 +27899,6 @@
 }
 {
 "spawnflags" "1"
-"script_parameters" "meat_remove"
 "origin" "1822 -827 -56"
 "angles" "0 1.00179e-005 0"
 "model" "p6_door_metal_no_decal_left"
@@ -30897,7 +30996,6 @@
 "spawnflags" "1"
 "classname" "script_brushmodel"
 "script_sound" "zmb_power_door"
-"script_parameters" "race_remove"
 "guid" "D8EE6DB3"
 }
 {
@@ -33244,14 +33342,37 @@
 "guid" "9FD99599"
 }
 {
-"model" "*223"
-"origin" "-7692 6003 78"
-"classname" "trigger_use"
+"angles" "1.00179e-005 270 90"
+"origin" "-7693 5994.25 81"
+"classname" "script_struct"
 "zombie_weapon_upgrade" "beretta93r_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1777_auto2196"
+"script_string" "disable_clientfield"
+"guid" "F0390DB3"
+}
+{
+"targetname" "pf1777_auto2196"
+"classname" "script_struct"
+"model" "t6_wpn_pistol_b2023r_world"
+"angles" "1.00179e-005 270 90"
+"origin" "-7693 5994.25 81"
+"guid" "6D2A1B25"
+}
+{
+"origin" "-7693 5994.25 56"
+"angles" "0 270 90"
+"classname" "script_origin"
+"targetname" "bus_buyable_weapon1_trig"
+"target" "bus_buyable_weapon1_model"
 "script_noteworthy" "bus_buyable_weapon1"
-"guid" "184F88F7"
+}
+{
+"origin" "-7693 5994.25 81"
+"angles" "0 270 90"
+"model" "t6_wpn_pistol_b2023r_world"
+"classname" "script_model"
+"targetname" "bus_buyable_weapon1_model"
 }
 {
 "model" "*224"
@@ -33580,14 +33701,6 @@
 "classname" "script_brushmodel"
 "targetname" "hatch_clip"
 "guid" "57775D5E"
-}
-{
-"origin" "-7693 5994.25 80"
-"angles" "1.00179e-005 270 90"
-"model" "t6_wpn_pistol_b2023r_world"
-"classname" "script_model"
-"targetname" "pf1777_auto2196"
-"guid" "B3B9A025"
 }
 {
 "angles" "0 2.50448e-006 0"
@@ -34574,7 +34687,6 @@
 "guid" "9B0CDE0B"
 }
 {
-"script_parameters" "race_remove meat_remove"
 "spawnflags" "1"
 "targetname" "auto2434"
 "script_angles" "0 308.8 0"
@@ -34594,7 +34706,6 @@
 "script_angles" "0 57.4 0"
 "targetname" "auto2434"
 "spawnflags" "1"
-"script_parameters" "race_remove meat_remove"
 "guid" "CA32CD74"
 }
 {
@@ -34719,7 +34830,6 @@
 "script_angles" "0 84.2 0"
 "targetname" "auto2434"
 "spawnflags" "1"
-"script_parameters" "race_remove meat_remove"
 "guid" "9FF98259"
 }
 {
@@ -34735,7 +34845,6 @@
 "script_noteworthy" "clip"
 "spawnflags" "1"
 "targetname" "auto2434"
-"script_parameters" "race_remove meat_remove"
 "guid" "C11A84AE"
 }
 {
@@ -34753,7 +34862,6 @@
 "script_noteworthy" "fire"
 "target" "auto2506"
 "script_float" "0.4"
-"script_string" "zrace_town"
 "guid" "4F20C94F"
 }
 {
@@ -39026,7 +39134,6 @@
 "script_noteworthy" "fire"
 "target" "auto2510"
 "script_float" "0.4"
-"script_string" "zrace_town"
 "guid" "8ACC2EF1"
 }
 {
@@ -42651,7 +42758,6 @@
 "spawnflags" "1"
 "script_noteworthy" "fire"
 "script_float" "0.1"
-"script_string" "zrace_town"
 "guid" "7E0716EB"
 }
 {
@@ -45225,7 +45331,6 @@
 "script_noteworthy" "fire"
 "target" "auto2518"
 "script_float" "0.4"
-"script_string" "zrace_town"
 "guid" "F653EF56"
 }
 {
@@ -45260,7 +45365,6 @@
 "spawnflags" "1"
 "script_noteworthy" "fire"
 "script_float" "0.4"
-"script_string" "zrace_town"
 "target" "auto2521"
 "guid" "72A4C10C"
 }
@@ -45272,7 +45376,6 @@
 "spawnflags" "1"
 "script_noteworthy" "fire"
 "script_float" "0.4"
-"script_string" "zrace_town"
 "target" "auto2520"
 "guid" "CE62F237"
 }
@@ -46270,198 +46373,6 @@
 }
 {
 "classname" "script_struct"
-"origin" "-11376.4 -372.7 243"
-"angles" "0 82.2 0"
-"targetname" "race_transit_tunnel_team1_spawn"
-"script_int" "1"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_tunnel"
-"_color" "1 0 1"
-"radius" "32"
-"guid" "558F2D35"
-}
-{
-"classname" "script_struct"
-"origin" "-11308.3 -384 243"
-"angles" "0 82.2 0"
-"targetname" "race_transit_tunnel_team2_spawn"
-"script_int" "2"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_tunnel"
-"_color" "1 1 0"
-"radius" "32"
-"guid" "0BBC81DC"
-}
-{
-"classname" "script_struct"
-"origin" "-11367.7 -309.3 243"
-"angles" "0 82.2 0"
-"targetname" "race_transit_tunnel_team1_spawn"
-"script_int" "1"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_tunnel"
-"_color" "1 0 1"
-"radius" "32"
-"guid" "03E6B159"
-}
-{
-"classname" "script_struct"
-"origin" "-11299.6 -320.6 243"
-"angles" "0 82.2 0"
-"targetname" "race_transit_tunnel_team2_spawn"
-"script_int" "2"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_tunnel"
-"_color" "1 1 0"
-"radius" "32"
-"guid" "89F50442"
-}
-{
-"classname" "script_struct"
-"origin" "-11450.9 -363.5 243"
-"angles" "0 82.2 0"
-"targetname" "race_transit_tunnel_team1_spawn"
-"script_int" "1"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_tunnel"
-"_color" "1 0 1"
-"radius" "32"
-"guid" "840092AE"
-}
-{
-"classname" "script_struct"
-"origin" "-11249.6 -395.4 243"
-"angles" "0 82.2 0"
-"targetname" "race_transit_tunnel_team2_spawn"
-"script_int" "2"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_tunnel"
-"_color" "1 1 0"
-"radius" "32"
-"guid" "B308370F"
-}
-{
-"classname" "script_struct"
-"origin" "-11442.2 -300.1 243"
-"angles" "0 82.2 0"
-"targetname" "race_transit_tunnel_team1_spawn"
-"script_int" "1"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_tunnel"
-"_color" "1 0 1"
-"radius" "32"
-"guid" "87D612BC"
-}
-{
-"classname" "script_struct"
-"origin" "-11241 -332 243"
-"angles" "0 82.2 0"
-"targetname" "race_transit_tunnel_team2_spawn"
-"script_int" "2"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_tunnel"
-"_color" "1 1 0"
-"radius" "32"
-"guid" "6E15287C"
-}
-{
-"classname" "script_struct"
-"origin" "-10566.4 2434.4 228.5"
-"angles" "0 335 0"
-"targetname" "meat_tunnel_team_1_player_spawns"
-"script_string" "zmeat_tunnel"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"radius" "32"
-"guid" "86347EEE"
-}
-{
-"classname" "script_struct"
-"origin" "-10593.8 2379.3 228.5"
-"angles" "0 335 0"
-"targetname" "meat_tunnel_team_1_player_spawns"
-"script_string" "zmeat_tunnel"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"radius" "32"
-"guid" "B4AFAC0E"
-}
-{
-"classname" "script_struct"
-"origin" "-10622.4 2321.5 228.5"
-"angles" "0 335 0"
-"targetname" "meat_tunnel_team_1_player_spawns"
-"script_string" "zmeat_tunnel"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"radius" "32"
-"guid" "A29120B2"
-}
-{
-"classname" "script_struct"
-"origin" "-10654.3 2251.9 228.5"
-"angles" "0 335 0"
-"targetname" "meat_tunnel_team_1_player_spawns"
-"script_string" "zmeat_tunnel"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"radius" "32"
-"guid" "14F0CA92"
-}
-{
-"classname" "script_struct"
-"origin" "-10026.3 1944.1 228.5"
-"angles" "0 155 0"
-"targetname" "meat_tunnel_team_2_player_spawns"
-"script_string" "zmeat_tunnel"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"radius" "32"
-"guid" "D815AA62"
-}
-{
-"classname" "script_struct"
-"origin" "-9999 1999.2 228.5"
-"angles" "0 155 0"
-"targetname" "meat_tunnel_team_2_player_spawns"
-"script_string" "zmeat_tunnel"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"radius" "32"
-"guid" "81508EC5"
-}
-{
-"classname" "script_struct"
-"origin" "-9970.3 2057 228.5"
-"angles" "0 155 0"
-"targetname" "meat_tunnel_team_2_player_spawns"
-"script_string" "zmeat_tunnel"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"radius" "32"
-"guid" "38B9E337"
-}
-{
-"classname" "script_struct"
-"origin" "-9938.5 2126.6 228.5"
-"angles" "0 155 0"
-"targetname" "meat_tunnel_team_2_player_spawns"
-"script_string" "zmeat_tunnel"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"radius" "32"
-"guid" "BA2AD013"
-}
-{
-"classname" "script_struct"
 "targetname" "cornfield_nml_player_spawns"
 "angles" "0 180 0"
 "origin" "10384 -192 -189.17"
@@ -46495,324 +46406,6 @@
 "script_noteworthy" "initial_spawn"
 "script_string" "zgrief_cornfield znml_cornfield"
 "guid" "15190476"
-}
-{
-"classname" "script_struct"
-"origin" "8058.1 -9724.3 20.9"
-"targetname" "race_transit_farm_team2_spawn"
-"_color" "1 1 0.501961"
-"angles" "0 120 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_farm"
-"script_int" "2"
-"guid" "8C7027F8"
-}
-{
-"classname" "script_struct"
-"origin" "8055.4 -9647.4 10.4"
-"targetname" "race_transit_farm_team2_spawn"
-"_color" "1 1 0.501961"
-"angles" "0 120 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_farm"
-"script_int" "2"
-"guid" "DD6772B2"
-}
-{
-"classname" "script_struct"
-"origin" "8167.1 -9572.1 -0.8"
-"targetname" "race_transit_farm_team2_spawn"
-"_color" "1 1 0.501961"
-"angles" "0 120 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_farm"
-"script_int" "2"
-"guid" "E03D99C1"
-}
-{
-"classname" "script_struct"
-"origin" "8171.7 -9672.2 12.9"
-"targetname" "race_transit_farm_team2_spawn"
-"_color" "1 1 0.501961"
-"angles" "0 120 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_farm"
-"script_int" "2"
-"guid" "166286D1"
-}
-{
-"classname" "script_struct"
-"origin" "8113.5 -9703.9 17.7"
-"targetname" "race_transit_farm_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 116.1 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_farm"
-"script_int" "1"
-"guid" "63B9441B"
-}
-{
-"classname" "script_struct"
-"origin" "8097 -9619.7 6.3"
-"targetname" "race_transit_farm_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 116.1 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_farm"
-"script_int" "1"
-"guid" "B18A3B39"
-}
-{
-"classname" "script_struct"
-"origin" "8235.5 -9635.8 5.7"
-"targetname" "race_transit_farm_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 116.1 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_farm"
-"script_int" "1"
-"guid" "68DC62B8"
-}
-{
-"classname" "script_struct"
-"origin" "8226 -9540 -4.6"
-"targetname" "race_transit_farm_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 116.1 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_farm"
-"script_int" "1"
-"guid" "44D06167"
-}
-{
-"classname" "script_struct"
-"origin" "8405.6 -6423.1 139.38"
-"angles" "0 125 0"
-"targetname" "meat_farm_team_2_player_spawns"
-"script_string" "zmeat_farm"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"guid" "0FFE12B0"
-}
-{
-"classname" "script_struct"
-"origin" "8511.4 -6337.4 137.06"
-"angles" "0 125 0"
-"targetname" "meat_farm_team_2_player_spawns"
-"script_string" "zmeat_farm"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"guid" "B93940EC"
-}
-{
-"classname" "script_struct"
-"origin" "8459.3 -6412.2 138.89"
-"angles" "0 125 0"
-"targetname" "meat_farm_team_2_player_spawns"
-"script_string" "zmeat_farm"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"guid" "932C3AE1"
-}
-{
-"classname" "script_struct"
-"origin" "8494.7 -6386.2 140.24"
-"angles" "0 125 0"
-"targetname" "meat_farm_team_2_player_spawns"
-"script_string" "zmeat_farm"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"guid" "0BF2A852"
-}
-{
-"classname" "script_struct"
-"origin" "1842.6 1217.5 -43"
-"targetname" "race_transit_town_team2_spawn"
-"_color" "1 1 0"
-"angles" "0 244.8 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_town"
-"script_int" "2"
-"radius" "32"
-"guid" "394C1CFB"
-}
-{
-"classname" "script_struct"
-"origin" "1891.4 1194.5 -43"
-"targetname" "race_transit_town_team2_spawn"
-"_color" "1 1 0"
-"angles" "0 244.8 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_town"
-"script_int" "2"
-"radius" "32"
-"guid" "BCFFC4BF"
-}
-{
-"classname" "script_struct"
-"origin" "1724.5 1264.5 -46"
-"targetname" "race_transit_town_team2_spawn"
-"_color" "1 1 0"
-"angles" "0 270 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_town"
-"script_int" "2"
-"radius" "32"
-"guid" "C2E43C87"
-}
-{
-"classname" "script_struct"
-"origin" "1788.5 1264.5 -46"
-"targetname" "race_transit_town_team2_spawn"
-"_color" "1 1 0"
-"angles" "0 270 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_town"
-"script_int" "2"
-"radius" "32"
-"guid" "D6F076E8"
-}
-{
-"classname" "script_struct"
-"origin" "1535 1266 -46"
-"targetname" "race_transit_town_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 270 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_town"
-"script_int" "1"
-"radius" "32"
-"guid" "E0B4922A"
-}
-{
-"classname" "script_struct"
-"origin" "1589 1266 -46"
-"targetname" "race_transit_town_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 270 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_town"
-"script_int" "1"
-"radius" "32"
-"guid" "A464A495"
-}
-{
-"classname" "script_struct"
-"origin" "1395.5 1258.5 -46"
-"targetname" "race_transit_town_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 270 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_town"
-"script_int" "1"
-"radius" "32"
-"guid" "0509797F"
-}
-{
-"classname" "script_struct"
-"origin" "1459.5 1258.5 -46"
-"targetname" "race_transit_town_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 270 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_town"
-"script_int" "1"
-"radius" "32"
-"guid" "47E3F349"
-}
-{
-"classname" "script_struct"
-"origin" "1387 -1389 -39.5"
-"angles" "0 90 0"
-"targetname" "meat_2_team_1_player_spawns"
-"script_string" "zmeat_town"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"guid" "875423AC"
-}
-{
-"classname" "script_struct"
-"origin" "536 -414.5 -34"
-"angles" "0 0 0"
-"targetname" "meat_2_team_1_player_spawns"
-"script_string" "zmeat_town"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"guid" "01A53D5B"
-}
-{
-"classname" "script_struct"
-"origin" "534.5 -479 -41"
-"angles" "0 0 0"
-"targetname" "meat_2_team_1_player_spawns"
-"script_string" "zmeat_town"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"guid" "4782FEF5"
-}
-{
-"classname" "script_struct"
-"origin" "1461.5 -1391.5 -39.5"
-"angles" "0 90 0"
-"targetname" "meat_2_team_1_player_spawns"
-"script_string" "zmeat_town"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"guid" "F70A1579"
-}
-{
-"targetname" "meat_2_team_2_player_spawns"
-"angles" "0 270 0"
-"origin" "1506 666 -39.5"
-"classname" "script_struct"
-"script_string" "zmeat_town"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"radius" "32"
-"guid" "EDC77508"
-}
-{
-"targetname" "meat_2_team_2_player_spawns"
-"angles" "0 180 0"
-"origin" "2341 -493.5 -33.8"
-"classname" "script_struct"
-"script_string" "zmeat_town"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"guid" "B602A25B"
-}
-{
-"targetname" "meat_2_team_2_player_spawns"
-"angles" "0 180 0"
-"origin" "2342.5 -429 -34"
-"classname" "script_struct"
-"script_string" "zmeat_town"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"guid" "72468664"
-}
-{
-"targetname" "meat_2_team_2_player_spawns"
-"angles" "0 270 0"
-"origin" "1431 665.5 -39.5"
-"classname" "script_struct"
-"script_string" "zmeat_town"
-"script_int" "2"
-"_color" "1 1 0"
-"script_noteworthy" "initial_spawn"
-"radius" "32"
-"guid" "A8CC70D7"
 }
 {
 "classname" "script_struct"
@@ -47113,94 +46706,6 @@
 "classname" "script_struct"
 "radius" "32"
 "guid" "7CCEA7D1"
-}
-{
-"classname" "script_struct"
-"origin" "10149.7 7687.8 -542"
-"targetname" "race_transit_power_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 339.6 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_power"
-"script_int" "1"
-"guid" "43159B3F"
-}
-{
-"classname" "script_struct"
-"origin" "10168.4 7738.4 -542"
-"targetname" "race_transit_power_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 339.6 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_power"
-"script_int" "1"
-"guid" "2B3E38CC"
-}
-{
-"classname" "script_struct"
-"origin" "10108 7554.4 -542"
-"targetname" "race_transit_power_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 339.6 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_power"
-"script_int" "1"
-"guid" "762603D1"
-}
-{
-"classname" "script_struct"
-"origin" "10130.4 7614.4 -542"
-"targetname" "race_transit_power_team1_spawn"
-"_color" "1 0 1"
-"angles" "0 339.6 0"
-"script_noteworthy" "initial_spawn"
-"script_string" "zrace_power"
-"script_int" "1"
-"guid" "B155C5D7"
-}
-{
-"script_int" "2"
-"script_string" "zrace_power"
-"script_noteworthy" "initial_spawn"
-"angles" "0 11.2 0"
-"_color" "1 1 0"
-"targetname" "race_transit_power_team2_spawn"
-"origin" "10095.5 7416.6 -555"
-"classname" "script_struct"
-"guid" "1860A7C6"
-}
-{
-"script_int" "2"
-"script_string" "zrace_power"
-"script_noteworthy" "initial_spawn"
-"angles" "0 11.2 0"
-"_color" "1 1 0"
-"targetname" "race_transit_power_team2_spawn"
-"origin" "10085.1 7469.5 -555"
-"classname" "script_struct"
-"guid" "CB6245A4"
-}
-{
-"script_int" "2"
-"script_string" "zrace_power"
-"script_noteworthy" "initial_spawn"
-"angles" "0 36.4 0"
-"_color" "1 1 0"
-"targetname" "race_transit_power_team2_spawn"
-"origin" "10127.8 7293.6 -555"
-"classname" "script_struct"
-"guid" "89C9C88A"
-}
-{
-"script_int" "2"
-"script_string" "zrace_power"
-"script_noteworthy" "initial_spawn"
-"angles" "0 36.4 0"
-"_color" "1 1 0"
-"targetname" "race_transit_power_team2_spawn"
-"origin" "10089.8 7345.1 -555"
-"classname" "script_struct"
-"guid" "3090FBE2"
 }
 {
 "_color" "0.000000 0.000000 1.000000"
@@ -47657,50 +47162,6 @@
 "_color" "1 0 1"
 "radius" "32"
 "guid" "2C528520"
-}
-{
-"classname" "script_struct"
-"origin" "8220 -5107 76"
-"angles" "0 270 0"
-"targetname" "meat_farm_team_1_player_spawns"
-"script_string" "zmeat_farm"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"guid" "7020EAC7"
-}
-{
-"classname" "script_struct"
-"origin" "8165 -5102 76"
-"angles" "0 270 0"
-"targetname" "meat_farm_team_1_player_spawns"
-"script_string" "zmeat_farm"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"guid" "11EA8BF0"
-}
-{
-"targetname" "meat_farm_team_1_player_spawns"
-"angles" "0 270 0"
-"origin" "8263.5 -5109 76"
-"classname" "script_struct"
-"script_string" "zmeat_farm"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"guid" "65933CDF"
-}
-{
-"targetname" "meat_farm_team_1_player_spawns"
-"angles" "0 270 0"
-"origin" "8326.5 -5102.5 76"
-"classname" "script_struct"
-"script_string" "zmeat_farm"
-"script_int" "1"
-"_color" "1 0 1"
-"script_noteworthy" "initial_spawn"
-"guid" "A35913DD"
 }
 {
 "_color" "1 0 1"
@@ -49705,7 +49166,6 @@
 "targetname" "zone_pri2"
 "script_noteworthy" "player_volume"
 "target" "zone_pri2_spawners"
-"script_parameters" "race_remove meat_remove"
 "guid" "AB041305"
 }
 {
@@ -52786,7 +52246,7 @@
 "angles" "0 270 0"
 "origin" "-6925 5554 -4"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "rottweil72_zm"
+"zombie_weapon_upgrade" "ballista_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1895_auto37"
 "guid" "F0390DB3"
@@ -52794,7 +52254,7 @@
 {
 "targetname" "pf1895_auto37"
 "classname" "script_struct"
-"model" "t6_wpn_shotty_olympia_world"
+"model" "t6_wpn_sniper_ballista_world"
 "angles" "0 270 0"
 "origin" "-6925 5554 -4"
 "guid" "6D2A1B25"
@@ -52803,7 +52263,7 @@
 "angles" "0 1.00179e-005 0"
 "origin" "11179.5 7635.5 -502"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "ak74u_zm"
+"zombie_weapon_upgrade" "vector_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1896_auto37"
 "guid" "5018227C"
@@ -52811,7 +52271,7 @@
 {
 "targetname" "pf1896_auto37"
 "classname" "script_struct"
-"model" "t6_wpn_smg_ak74u_world"
+"model" "t6_wpn_smg_vector_world"
 "angles" "0 1.00179e-005 0"
 "origin" "11179.5 7635.5 -502"
 "guid" "FCC3AFC8"
@@ -52820,7 +52280,7 @@
 "require_look_from" "1"
 "origin" "-6329 5350 17"
 "angles" "0 90 0"
-"model" "t6_wpn_ar_m14_world"
+"model" "t6_wpn_ar_saritch_world"
 "classname" "script_struct"
 "targetname" "pf1897_auto37"
 "target" "pf1897_auto38"
@@ -52832,7 +52292,7 @@
 "origin" "-6329 5350 17"
 "angles" "0 90 0"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "m14_zm"
+"zombie_weapon_upgrade" "saritch_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1897_auto37"
 "guid" "C15AD568"
@@ -52854,44 +52314,6 @@
 "model" "t6_wpn_shotty_870mcs_world"
 "angles" "0 180 0"
 "origin" "-7527 4966 6"
-"guid" "CEAAC437"
-}
-{
-"script_noteworthy" "zrace_town"
-"angles" "0 1.00179e-005 0"
-"origin" "643.5 -767 3"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "870mcs_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1899_auto37"
-"guid" "834D841B"
-}
-{
-"script_noteworthy" "zrace_town"
-"targetname" "pf1899_auto37"
-"classname" "script_struct"
-"model" "t6_wpn_shotty_870mcs_world"
-"angles" "0 1.00179e-005 0"
-"origin" "643.5 -767 3"
-"guid" "CEAAC437"
-}
-{
-"script_noteworthy" "zrace_town"
-"angles" "0 325.2 0"
-"origin" "1738.11 -754.154 -4"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "870mcs_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1900_auto37"
-"guid" "834D841B"
-}
-{
-"script_noteworthy" "zrace_town"
-"targetname" "pf1900_auto37"
-"classname" "script_struct"
-"model" "t6_wpn_shotty_870mcs_world"
-"angles" "0 325.2 0"
-"origin" "1738.11 -754.154 -4"
 "guid" "CEAAC437"
 }
 {
@@ -52918,7 +52340,7 @@
 "require_look_from" "1"
 "origin" "1125 872.2 15"
 "angles" "0 270 0"
-"model" "t6_wpn_ar_m14_world"
+"model" "t6_wpn_ar_saritch_world"
 "classname" "script_struct"
 "targetname" "pf1902_auto37"
 "target" "pf1902_auto38"
@@ -52931,97 +52353,55 @@
 "origin" "1125 872.2 15"
 "angles" "0 270 0"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "m14_zm"
+"zombie_weapon_upgrade" "saritch_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1902_auto37"
 "guid" "C15AD568"
 }
 {
-"script_noteworthy" "zrace_town"
-"require_look_from" "1"
-"origin" "1801 564.2 3"
-"angles" "0 270 0"
-"model" "t6_wpn_ar_m14_world"
-"classname" "script_struct"
-"targetname" "pf1903_auto37"
-"target" "pf1903_auto38"
-"guid" "7004ED06"
-}
-{
-"script_noteworthy" "zrace_town"
-"require_look_from" "1"
-"script_width" "40"
-"origin" "1801 564.2 3"
-"angles" "0 270 0"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "m14_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1903_auto37"
-"guid" "C15AD568"
-}
-{
-"script_noteworthy" "zrace_town"
-"angles" "0 90 0"
-"origin" "2819.6 -1304.9 12.5"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "mp5k_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1904_auto37"
-"guid" "F0390DB3"
-}
-{
-"script_noteworthy" "zrace_town"
-"targetname" "pf1904_auto37"
-"classname" "script_struct"
-"model" "t6_wpn_smg_mp5_world"
-"angles" "0 90 0"
-"origin" "2819.6 -1304.9 12.5"
-"guid" "6D2A1B25"
-}
-{
-"script_noteworthy" "zrace_town, zstandard_town, zgrief_town"
+"script_noteworthy" "zstandard_town, zgrief_town"
 "angles" "0 270 0"
 "origin" "611.1 -993.1 181"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "mp5k_zm"
+"zombie_weapon_upgrade" "insas_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1905_auto37"
 "guid" "F0390DB3"
 }
 {
-"script_noteworthy" "zrace_town, zstandard_town, zgrief_town"
+"script_noteworthy" "zstandard_town, zgrief_town"
 "targetname" "pf1905_auto37"
 "classname" "script_struct"
-"model" "t6_wpn_smg_mp5_world"
+"model" "t6_wpn_smg_msmc_world"
 "angles" "0 270 0"
 "origin" "611.1 -993.1 181"
 "guid" "6D2A1B25"
 }
 {
-"script_noteworthy" "zrace_town"
-"origin" "1068.3 -1241 5"
+"script_noteworthy" "zclassic_transit"
 "angles" "0 270 0"
-"model" "t6_wpn_ar_m16a2_world"
+"origin" "611.1 -993.1 181"
 "classname" "script_struct"
-"targetname" "pf1906_auto37"
-"guid" "45A420E3"
+"zombie_weapon_upgrade" "an94_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1905_auto38"
+"guid" "F0390DB3"
 }
 {
-"script_noteworthy" "zrace_town"
-"origin" "1068.3 -1241 5"
-"angles" "0 270 0"
+"script_noteworthy" "zclassic_transit"
+"targetname" "pf1905_auto38"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "m16_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1906_auto37"
-"guid" "FF59A3C9"
+"model" "t6_wpn_ar_an94_world"
+"angles" "0 270 0"
+"origin" "611.1 -993.1 181"
+"guid" "6D2A1B25"
 }
 {
 "script_noteworthy" "zclassic_transit"
 "angles" "0 1.00179e-005 0"
 "origin" "-5489 -7982.7 62"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "mp5k_zm"
+"zombie_weapon_upgrade" "insas_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1907_auto37"
 "guid" "F0390DB3"
@@ -53030,7 +52410,7 @@
 "script_noteworthy" "zclassic_transit"
 "targetname" "pf1907_auto37"
 "classname" "script_struct"
-"model" "t6_wpn_smg_mp5_world"
+"model" "t6_wpn_smg_msmc_world"
 "angles" "0 1.00179e-005 0"
 "origin" "-5489 -7982.7 62"
 "guid" "6D2A1B25"
@@ -53040,7 +52420,7 @@
 "angles" "0 270 0"
 "origin" "1068.3 -1245 5"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "rottweil72_zm"
+"zombie_weapon_upgrade" "ballista_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1908_auto37"
 "guid" "F0390DB3"
@@ -53049,36 +52429,17 @@
 "script_noteworthy" "zstandard_town,zgrief_town"
 "targetname" "pf1908_auto37"
 "classname" "script_struct"
-"model" "t6_wpn_shotty_olympia_world"
+"model" "t6_wpn_sniper_ballista_world"
 "angles" "0 270 0"
 "origin" "1068.3 -1245 5"
 "guid" "6D2A1B25"
-}
-{
-"script_noteworthy" "zrace_town"
-"origin" "1968.5 -1280.8 5"
-"angles" "0 180 0"
-"model" "t6_wpn_ar_m16a2_world"
-"classname" "script_struct"
-"targetname" "pf1909_auto37"
-"guid" "45A420E3"
-}
-{
-"script_noteworthy" "zrace_town"
-"origin" "1968.5 -1280.8 5"
-"angles" "0 180 0"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "m16_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1909_auto37"
-"guid" "FF59A3C9"
 }
 {
 "script_noteworthy" "zstandard_transit, zgrief_transit"
 "angles" "0 1.00179e-005 0"
 "origin" "-7045.8 4132 -6"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "mp5k_zm"
+"zombie_weapon_upgrade" "insas_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1910_auto37"
 "guid" "F0390DB3"
@@ -53087,7 +52448,26 @@
 "script_noteworthy" "zstandard_transit, zgrief_transit"
 "targetname" "pf1910_auto37"
 "classname" "script_struct"
-"model" "t6_wpn_smg_mp5_world"
+"model" "t6_wpn_smg_msmc_world"
+"angles" "0 1.00179e-005 0"
+"origin" "-7045.8 4132 -6"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zclassic_transit"
+"angles" "0 1.00179e-005 0"
+"origin" "-7045.8 4132 -6"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "pdw57_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1910_auto38"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zclassic_transit"
+"targetname" "pf1910_auto38"
+"classname" "script_struct"
+"model" "t6_wpn_smg_pdw57_world"
 "angles" "0 1.00179e-005 0"
 "origin" "-7045.8 4132 -6"
 "guid" "6D2A1B25"
@@ -53096,7 +52476,7 @@
 "script_noteworthy" "zclassic_transit"
 "origin" "-11839 -1695.1 287"
 "angles" "0 270 0"
-"model" "t6_wpn_ar_m16a2_world"
+"model" "t6_wpn_ar_sig556_world"
 "classname" "script_struct"
 "targetname" "pf1911_auto37"
 "guid" "45A420E3"
@@ -53106,33 +52486,10 @@
 "origin" "-11839 -1695.1 287"
 "angles" "0 270 0"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "m16_zm"
+"zombie_weapon_upgrade" "sig556_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1911_auto37"
 "guid" "FF59A3C9"
-}
-{
-"script_noteworthy" "zrace_town"
-"require_look_from" "1"
-"origin" "628 446 15"
-"angles" "0 270 0"
-"model" "t6_wpn_ar_m14_world"
-"classname" "script_struct"
-"targetname" "pf1912_auto37"
-"target" "pf1912_auto38"
-"guid" "7004ED06"
-}
-{
-"script_noteworthy" "zrace_town"
-"require_look_from" "1"
-"script_width" "40"
-"origin" "628 446 15"
-"angles" "0 270 0"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "m14_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1912_auto37"
-"guid" "C15AD568"
 }
 {
 "script_noteworthy" "zstandard_town, zgrief_town"
@@ -53154,87 +52511,11 @@
 "guid" "D1EECB49"
 }
 {
-"script_noteworthy" "zrace_farm"
-"angles" "0 300.6 0"
-"origin" "7903.36 -6574.63 177"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "mp5k_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1914_auto37"
-"guid" "F0390DB3"
-}
-{
-"script_noteworthy" "zrace_farm"
-"targetname" "pf1914_auto37"
-"classname" "script_struct"
-"model" "t6_wpn_smg_mp5_world"
-"angles" "0 300.6 0"
-"origin" "7903.36 -6574.63 177"
-"guid" "6D2A1B25"
-}
-{
-"script_noteworthy" "zrace_farm"
-"angles" "0 1.00179e-005 0"
-"origin" "8312 -5420 110"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "ak74u_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1915_auto37"
-"guid" "5018227C"
-}
-{
-"script_noteworthy" "zrace_farm"
-"targetname" "pf1915_auto37"
-"classname" "script_struct"
-"model" "t6_wpn_smg_ak74u_world"
-"angles" "0 1.00179e-005 0"
-"origin" "8312 -5420 110"
-"guid" "FCC3AFC8"
-}
-{
-"script_noteworthy" "zrace_farm"
-"angles" "0 210 0"
-"origin" "8171.27 -6605.7 179"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "870mcs_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1916_auto37"
-"guid" "834D841B"
-}
-{
-"script_noteworthy" "zrace_farm"
-"targetname" "pf1916_auto37"
-"classname" "script_struct"
-"model" "t6_wpn_shotty_870mcs_world"
-"angles" "0 210 0"
-"origin" "8171.27 -6605.7 179"
-"guid" "CEAAC437"
-}
-{
-"script_noteworthy" "zrace_farm"
-"angles" "0 90.2 0"
-"origin" "8035.37 -5316.88 110"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "ak74u_zm"
-"targetname" "weapon_upgrade"
-"target" "pf1917_auto37"
-"guid" "5018227C"
-}
-{
-"script_noteworthy" "zrace_farm"
-"targetname" "pf1917_auto37"
-"classname" "script_struct"
-"model" "t6_wpn_smg_ak74u_world"
-"angles" "0 90.2 0"
-"origin" "8035.37 -5316.88 110"
-"guid" "FCC3AFC8"
-}
-{
 "script_noteworthy" "zstandard_farm, zgrief_farm"
 "angles" "0 90.2 0"
-"origin" "8035.38 -5317.37 109"
+"origin" "8035.38 -5317.37 110"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "rottweil72_zm"
+"zombie_weapon_upgrade" "ballista_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1918_auto37"
 "guid" "F0390DB3"
@@ -53243,14 +52524,13 @@
 "script_noteworthy" "zstandard_farm, zgrief_farm"
 "targetname" "pf1918_auto37"
 "classname" "script_struct"
-"model" "t6_wpn_shotty_olympia_world"
+"model" "t6_wpn_sniper_ballista_world"
 "angles" "0 90.2 0"
-"origin" "8035.38 -5317.37 109"
+"origin" "8035.38 -5317.37 110"
 "guid" "6D2A1B25"
 }
 {
 "script_int" "0"
-"script_noteworthy" "zclassic_transit"
 "angles" "0 90 0"
 "origin" "8827 -5838 103"
 "classname" "script_struct"
@@ -53261,32 +52541,12 @@
 }
 {
 "script_int" "0"
-"script_noteworthy" "zclassic_transit"
 "targetname" "pf1919_auto37"
 "classname" "script_struct"
 "model" "t6_wpn_claymore_world"
 "angles" "0 180 0"
 "origin" "8827 -5838 103"
 "guid" "EE921301"
-}
-{
-"script_noteworthy" "zstandard_farm"
-"origin" "8827 -5831 110"
-"angles" "0 90 0"
-"classname" "script_struct"
-"zombie_weapon_upgrade" "tazer_knuckles_zm"
-"targetname" "tazer_upgrade"
-"target" "pf1920_auto37"
-"guid" "ED8E28B4"
-}
-{
-"script_noteworthy" "zstandard_farm"
-"targetname" "pf1920_auto37"
-"classname" "script_struct"
-"model" "t6_wpn_taser_knuckles_view"
-"angles" "0 90 0"
-"origin" "8827 -5839 110"
-"guid" "D1EECB49"
 }
 {
 "script_noteworthy" "zclassic_transit"
@@ -53308,20 +52568,20 @@
 "guid" "D1EECB49"
 }
 {
-"script_noteworthy" "zstandard_farm, zgrief_farm, zrace_farm"
+"script_noteworthy" "zstandard_farm, zgrief_farm"
 "angles" "0 300 0"
 "origin" "7889.5 -6550.06 305"
 "classname" "script_struct"
-"zombie_weapon_upgrade" "mp5k_zm"
+"zombie_weapon_upgrade" "insas_zm"
 "targetname" "weapon_upgrade"
 "target" "pf1922_auto37"
 "guid" "F0390DB3"
 }
 {
-"script_noteworthy" "zstandard_farm, zgrief_farm, zrace_farm"
+"script_noteworthy" "zstandard_farm, zgrief_farm"
 "targetname" "pf1922_auto37"
 "classname" "script_struct"
-"model" "t6_wpn_smg_mp5_world"
+"model" "t6_wpn_smg_msmc_world"
 "angles" "0 300 0"
 "origin" "7889.5 -6550.06 305"
 "guid" "6D2A1B25"
@@ -53362,7 +52622,6 @@
 "script_noteworthy" "fire"
 "target" "auto2529"
 "script_float" "1"
-"script_string" "zrace_town"
 "guid" "803A6715"
 }
 {
@@ -53373,7 +52632,6 @@
 "spawnflags" "1"
 "script_noteworthy" "fire"
 "script_float" "0.4"
-"script_string" "zrace_town"
 "target" "auto2531"
 "guid" "C9854B34"
 }
@@ -54612,22 +53870,479 @@
 "guid" "50C5570E"
 }
 {
-"origin" "5344 7064 -26"
-"model" "p6_zm_al_vending_ads_on"
-"classname" "script_struct"
+"script_noteworthy" "zstandard_diner, zgrief_diner"
 "angles" "0 0 0"
-"script_noteworthy" "specialty_deadshot"
-"targetname" "zm_perk_machine"
-"script_string" "zclassic_perks_transit"
+"origin" "-5064 -7807 -5"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "saritch_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto38"
+"guid" "F0390DB3"
 }
 {
-"origin" "13601 -1296 -189"
-"model" "zombie_vending_three_gun_on"
+"script_noteworthy" "zstandard_diner, zgrief_diner"
+"targetname" "pf1922_auto38"
 "classname" "script_struct"
+"model" "t6_wpn_ar_saritch_world"
 "angles" "0 0 0"
-"script_noteworthy" "specialty_additionalprimaryweapon"
-"targetname" "zm_perk_machine"
-"script_string" "zclassic_perks_transit"
+"origin" "-5064 -7807 -5"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_diner, zgrief_diner"
+"angles" "0 90 0"
+"origin" "-4576 -7748 18"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "870mcs_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto39"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_diner, zgrief_diner"
+"targetname" "pf1922_auto39"
+"classname" "script_struct"
+"model" "t6_wpn_shotty_870mcs_world"
+"angles" "0 90 0"
+"origin" "-4576 -7748 18"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_diner, zgrief_diner"
+"angles" "0 1 0"
+"origin" "-5489 -7982.7 62"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "insas_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto40"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_diner, zgrief_diner"
+"targetname" "pf1922_auto40"
+"classname" "script_struct"
+"model" "t6_wpn_smg_msmc_world"
+"angles" "0 1 0"
+"origin" "-5489 -7982.7 62"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_diner, zgrief_diner"
+"angles" "0 90 0"
+"origin" "-6265 -7941 100"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "tazer_knuckles_zm"
+"targetname" "tazer_upgrade"
+"target" "pf1922_auto41"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_diner, zgrief_diner"
+"targetname" "pf1922_auto41"
+"classname" "script_struct"
+"model" "t6_wpn_taser_knuckles_view"
+"angles" "0 90 0"
+"origin" "-6265 -7949 100"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_power, zgrief_power"
+"angles" "0 90 0"
+"origin" "10559 8565 -514"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "saritch_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto42"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_power, zgrief_power"
+"targetname" "pf1922_auto42"
+"classname" "script_struct"
+"model" "t6_wpn_ar_saritch_world"
+"angles" "0 90 0"
+"origin" "10559 8565 -514"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_power, zgrief_power"
+"angles" "0 180 0"
+"origin" "10678 8135 -476"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "ballista_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto43"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_power, zgrief_power"
+"targetname" "pf1922_auto43"
+"classname" "script_struct"
+"model" "t6_wpn_sniper_ballista_world"
+"angles" "0 180 0"
+"origin" "10678 8135 -476"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_power, zgrief_power"
+"angles" "0 170 0"
+"origin" "11778 7664 -697"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "870mcs_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto44"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_power, zgrief_power"
+"targetname" "pf1922_auto44"
+"classname" "script_struct"
+"model" "t6_wpn_shotty_870mcs_world"
+"angles" "0 170 0"
+"origin" "11778 7664 -697"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_power, zgrief_power"
+"angles" "0 90 0"
+"origin" "11452 8692 -521"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "insas_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto45"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_power, zgrief_power"
+"targetname" "pf1922_auto45"
+"classname" "script_struct"
+"model" "t6_wpn_smg_msmc_world"
+"angles" "0 90 0"
+"origin" "11452 8692 -521"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_power, zgrief_power"
+"angles" "0 0 0"
+"origin" "10835 8145 -353"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "bowie_knife_zm"
+"targetname" "bowie_upgrade"
+"target" "pf1922_auto46"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_power, zgrief_power"
+"targetname" "pf1922_auto46"
+"classname" "script_struct"
+"model" "world_knife_bowie"
+"angles" "0 0 0"
+"origin" "10827 8145 -353"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"angles" "0 -86 0"
+"origin" "-11166 -2844 252"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "saritch_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto47"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"targetname" "pf1922_auto47"
+"classname" "script_struct"
+"model" "t6_wpn_ar_saritch_world"
+"angles" "0 -86 0"
+"origin" "-11166 -2844 252"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"angles" "0 97 0"
+"origin" "-10735 -2960 252"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "ballista_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto48"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"targetname" "pf1922_auto48"
+"classname" "script_struct"
+"model" "t6_wpn_sniper_ballista_world"
+"angles" "0 97 0"
+"origin" "-10735 -2960 252"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"angles" "0 262 0"
+"origin" "-11131 -535 252"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "vector_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto49"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"targetname" "pf1922_auto49"
+"classname" "script_struct"
+"model" "t6_wpn_smg_vector_world"
+"angles" "0 262 0"
+"origin" "-11131 -535 252"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"angles" "0 270 0"
+"origin" "-11839 -1695.1 287"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "sig556_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto50"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"targetname" "pf1922_auto50"
+"classname" "script_struct"
+"model" "t6_wpn_ar_sig556_world"
+"angles" "0 270 0"
+"origin" "-11839 -1695.1 287"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"angles" "0 270 0"
+"origin" "-11839 -2406 287"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "sticky_grenade_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto51"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"targetname" "pf1922_auto51"
+"classname" "script_struct"
+"model" "semtex_bag"
+"angles" "0 270 0"
+"origin" "-11839 -2406 287"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"angles" "0 88 0"
+"origin" "-10787 -1430 252"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "bowie_knife_zm"
+"targetname" "bowie_upgrade"
+"target" "pf1922_auto52"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_tunnel, zgrief_tunnel"
+"targetname" "pf1922_auto52"
+"classname" "script_struct"
+"model" "world_knife_bowie"
+"angles" "0 88 0"
+"origin" "-10787 -1438 252"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"angles" "0 -90 0"
+"origin" "13662 -1166 -134"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "saritch_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto53"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"targetname" "pf1922_auto53"
+"classname" "script_struct"
+"model" "t6_wpn_ar_saritch_world"
+"angles" "0 -90 0"
+"origin" "13662 -1166 -134"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"angles" "0 -90 0"
+"origin" "13553 -539 -133"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "ballista_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto54"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"targetname" "pf1922_auto54"
+"classname" "script_struct"
+"model" "t6_wpn_sniper_ballista_world"
+"angles" "0 -90 0"
+"origin" "13553 -539 -133"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zclassic_transit"
+"angles" "0 -90 0"
+"origin" "13553 -539 -133"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "svu_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1923_auto54"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zclassic_transit"
+"targetname" "pf1923_auto54"
+"classname" "script_struct"
+"model" "t6_wpn_sniper_svu_world"
+"angles" "0 -90 0"
+"origin" "13553 -539 -133"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"angles" "0 0 0"
+"origin" "13793 -1646 -105"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "beretta93r_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto55"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"targetname" "pf1922_auto55"
+"classname" "script_struct"
+"model" "t6_wpn_pistol_b2023r_world"
+"angles" "0 0 0"
+"origin" "13793 -1646 -105"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"angles" "0 -90 0"
+"origin" "13553 -769 -133"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "insas_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto56"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"targetname" "pf1922_auto56"
+"classname" "script_struct"
+"model" "t6_wpn_smg_msmc_world"
+"angles" "0 -90 0"
+"origin" "13553 -769 -133"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"angles" "0 90 0"
+"origin" "13979 -1550 -134"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "vector_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto57"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"targetname" "pf1922_auto57"
+"classname" "script_struct"
+"model" "t6_wpn_smg_vector_world"
+"angles" "0 90 0"
+"origin" "13979 -1550 -134"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"angles" "0 90 0"
+"origin" "14093 -351 -133"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "sig556_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto58"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"targetname" "pf1922_auto58"
+"classname" "script_struct"
+"model" "t6_wpn_ar_sig556_world"
+"angles" "0 90 0"
+"origin" "14093 -351 -133"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"angles" "0 -90 0"
+"origin" "13552 -1387 -134"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "870mcs_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto59"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"targetname" "pf1922_auto59"
+"classname" "script_struct"
+"model" "t6_wpn_shotty_870mcs_world"
+"angles" "0 -90 0"
+"origin" "13552 -1387 -134"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"angles" "0 0 0"
+"origin" "13603 -1082 -134"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "sticky_grenade_zm"
+"targetname" "weapon_upgrade"
+"target" "pf1922_auto60"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"targetname" "pf1922_auto60"
+"classname" "script_struct"
+"model" "semtex_bag"
+"angles" "0 0 0"
+"origin" "13603 -1082 -134"
+"guid" "6D2A1B25"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"angles" "0 -180 0"
+"origin" "13603 -1281 -134"
+"classname" "script_struct"
+"zombie_weapon_upgrade" "claymore_zm"
+"targetname" "claymore_purchase"
+"target" "pf1922_auto61"
+"guid" "F0390DB3"
+}
+{
+"script_noteworthy" "zstandard_cornfield, zgrief_cornfield"
+"targetname" "pf1922_auto61"
+"classname" "script_struct"
+"model" "t6_wpn_claymore_world"
+"angles" "0 -90 0"
+"origin" "13603 -1281 -134"
+"guid" "6D2A1B25"
 }
 {
 "origin" "-10670 -756 195"
@@ -54639,190 +54354,37 @@
 "script_string" "zclassic_perks_transit"
 }
 {
-"origin" "7677 -4740.2 35.130"
+"origin" "5344 7064 -26"
 "model" "p6_zm_al_vending_ads_on"
 "classname" "script_struct"
-"angles" "0 45 0"
+"angles" "0 0 0"
 "script_noteworthy" "specialty_deadshot"
 "targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_farm"
+"script_string" "zclassic_perks_transit"
 }
 {
-"origin" "7949.5 -5401 48.125"
+"origin" "13601 -1298 -190"
 "model" "zombie_vending_three_gun"
 "classname" "script_struct"
-"angles" "0 180 0"
+"angles" "0 0 0"
 "script_noteworthy" "specialty_additionalprimaryweapon"
 "targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_farm"
+"script_string" "zclassic_perks_transit"
 }
 {
-"origin" "8418 -4596.6 48.125" 
-"model" "zombie_vending_marathon"
+"origin" "11571 7707 -757"
+"model" "p6_zm_vending_chugabud"
 "classname" "script_struct"
 "angles" "0 0 0"
-"script_noteworthy" "specialty_longersprint"
+"script_noteworthy" "specialty_finalstand"
 "targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_farm"
+"script_string" "zclassic_perks_transit"
 }
 {
-"origin" "8295.5 -5422 264.125"
-"model" "zombie_vending_tombstone"
-"classname" "script_struct"
-"angles" "0 180 0"
-"script_noteworthy" "specialty_scavenger"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_farm"
+"classname" "actor_zm_ally_farmgirl"
+"model" "c_zom_player_farmgirl_dlc1_fb"
+"export" "2"
+"spawnflags" "1"
+"targetname" "fake_player_spawner"
+"origin" "-8216 0 0"
 }
-{
-"origin" "8507.6 -5599.6 50.125"
-"model" "p6_zm_al_vending_nuke_on"
-"classname" "script_struct"
-"angles" "0 2.50448e-006 0"
-"script_noteworthy" "specialty_flakjacket"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_farm"
-}
-{
-"origin" "8803.4 -5775.9 50.125"
-"model" "p6_anim_zm_buildable_pap"
-"classname" "script_struct"
-"angles" "0 -90 0"
-"script_noteworthy" "specialty_weapupgrade"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_farm"
-}
-{
-"origin" "8803.4 -5775.9 50.125"
-"script_sound" "mx_packa_jingle"
-"classname" "script_struct"
-"angles" "0 -90 -180 0"
-"targetname" "perksacola"
-"script_string" "zstandard_perks_farm"
-}
-{
-"origin" "488 -281 -62"
-"model" "p6_zm_al_vending_ads_on"
-"classname" "script_struct"
-"angles" "0 45 0"
-"script_noteworthy" "specialty_deadshot"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_town"
-}
-{
-"origin" "2442 -771 -55"
-"model" "zombie_vending_three_gun"
-"classname" "script_struct"
-"angles" "0 215 0"
-"script_noteworthy" "specialty_additionalprimaryweapon"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_town"
-}
-{
-"origin" "500 822.7 -40"
-"model" "p6_zm_al_vending_nuke_on"
-"classname" "script_struct"
-"angles" "0 0 0"
-"script_noteworthy" "specialty_flakjacket"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_town"
-}
-{
-"origin" "-6710.5 4993 -56"
-"model" "zombie_vending_revive"
-"classname" "script_struct"
-"angles" "0 180 0"
-"script_noteworthy" "specialty_quickrevive"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_transit"
-}
-{
-"origin" "-6123.5 4108.6 -52"
-"model" "zombie_vending_jugg"
-"classname" "script_struct"
-"angles" "0 180 0"
-"script_noteworthy" "specialty_armorvest"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_transit"
-}
-{
-"origin" "-6304.4 5461.5 -56"
-"model" "zombie_vending_sleight"
-"classname" "script_struct"
-"angles" "0 90 0"
-"script_noteworthy" "specialty_fastreload"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_transit"
-}
-{
-"origin" "-6561.5 5119.2 -56"
-"model" "zombie_vending_doubletap2"
-"classname" "script_struct"
-"angles" "0 135 0"
-"script_noteworthy" "specialty_rof"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_transit"
-}
-{
-"origin" "-7426 4143 -63"
-"model" "zombie_vending_marathon"
-"classname" "script_struct"
-"angles" "0 180 0"
-"script_noteworthy" "specialty_longersprint"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_transit"
-}
-{
-"origin" "-7316 5476.4 -56"
-"model" "zombie_vending_tombstone"
-"classname" "script_struct"
-"angles" "0 0 0"
-"script_noteworthy" "specialty_scavenger"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_transit"
-}
-{
-"origin" "-8088.5 4490.6 -49.6"
-"model" "p6_zm_al_vending_ads_on"
-"classname" "script_struct"
-"angles" "0 136 0"
-"script_noteworthy" "specialty_deadshot"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_transit"
-}
-{
-"origin" "-7688.6 5407.6 -60"
-"model" "zombie_vending_three_gun"
-"classname" "script_struct"
-"angles" "0 -35 0"
-"script_noteworthy" "specialty_additionalprimaryweapon"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_transit"
-}
-{
-"origin" "-6663 4592 -55"
-"model" "p6_zm_al_vending_nuke_on"
-"classname" "script_struct"
-"angles" "0 180 0"
-"script_noteworthy" "specialty_flakjacket"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_transit"
-}
-{
-"origin" "-7638 4386.3 -52.64"
-"model" "p6_anim_zm_buildable_pap"
-"classname" "script_struct"
-"angles" "354.423 120 0.507416"
-"script_noteworthy" "specialty_weapupgrade"
-"targetname" "zm_perk_machine"
-"script_string" "zstandard_perks_transit"
-}
-{
-"origin" "-7638 4386.3 -52.64"
-"script_sound" "mx_packa_jingle"
-"classname" "script_struct"
-"angles" "0 90 -180 0"
-"targetname" "perksacola"
-"script_string" "zstandard_perks_transit"
-}
-

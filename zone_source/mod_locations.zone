@@ -166,3 +166,14 @@ xmodel,c_zom_oleary_shortsleeve_viewhands
 rawfile,animtrees/zm_buried_ghost.atr
 rawfile,animstatedefs/zm_buried_ghost.asd
 script,aitype/zm_buried_ghost_female.gsc
+
+// --- Buried player characters (CDC / CIA), same bug as the Alcatraz set above.
+//     Maze survival spawned with invisible arms and weapon for exactly this
+//     reason. maps\mp\zm_buried::give_team_characters assigns these four, and
+//     per the Unlinker they exist ONLY in so_zencounter_zm_buried.ff (note: the
+//     ENCOUNTER file, not zclassic like Alcatraz's) - which a zstandard game
+//     does not load. build_ff.bat now loads it so these can be copied out.
+xmodel,c_zom_player_cdc_dlc1_fb
+xmodel,c_zom_player_cia_dlc1_fb
+xmodel,c_zom_hazmat_viewhands
+xmodel,c_zom_suit_viewhands

@@ -94,6 +94,7 @@ if exist "%PROJ%\zone_out" rmdir /s /q "%PROJ%\zone_out"
   --load "%BO2_DIR%\zone\all\so_zsurvival_zm_transit.ff" ^
   --load "%BO2_DIR%\zone\all\so_zclassic_zm_prison.ff" ^
   --load "%BO2_DIR%\zone\all\so_zclassic_zm_buried.ff" ^
+  --load "%BO2_DIR%\zone\all\so_zencounter_zm_buried.ff" ^
   --load "%BO2_DIR%\zone\all\zm_tomb.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
