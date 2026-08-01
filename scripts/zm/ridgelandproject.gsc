@@ -2185,9 +2185,31 @@ zmqol_dev_command_listener()
 
     for ( ;; )
     {
-        level waittill( "say", player, message );
+        // 🛑 ARGUMENT ORDER IS ( message, player ) - NOT ( player, message ).
+        // v1.5.0 had these the wrong way round, which is why "!p 10000" silently
+        // did nothing: strtok() was being handed a player ENTITY. Confirmed
+        // against a working Plutonium T6 mod the user already runs,
+        // H:\Claude\littlegods-mod\chat.gsc:21 - `level waittill("say", message,
+        // player)`. The BO2-GSC-Releases sample has them the other way round and
+        // is what led me wrong; trust the mod that actually runs on Plutonium.
+        level waittill( "say", message, player );
 
         if ( !isdefined( player ) || !isdefined( message ) )
+            continue;
+
+        if ( isdefined( level.intermission ) && level.intermission )
+            continue;
+
+        message = tolower( message );
+
+        // Accept BOTH prefixes. The user asked for "!", but Plutonium appears to
+        // swallow a leading "!" as a console command - typing "!god" printed
+        // "unknown cmd" rather than reaching script - and the reference mod above
+        // uses ".". Supporting both means whichever survives to GSC works.
+        if ( message.size < 2 )
+            continue;
+
+        if ( message[0] != "!" && message[0] != "." )
             continue;
 
         tokens = strtok( message, " " );
@@ -2195,9 +2217,10 @@ zmqol_dev_command_listener()
         if ( !isdefined( tokens ) || tokens.size == 0 )
             continue;
 
-        cmd = tolower( tokens[0] );
+        // Strip the prefix character, leaving the bare command word.
+        cmd = getsubstr( tokens[0], 1 );
 
-        if ( cmd == "!p" )
+        if ( cmd == "p" )
         {
             // int() of anything non-numeric is 0, so treat 0 as "no amount given"
             // and fall back to a sensible default rather than doing nothing.
@@ -2207,21 +2230,21 @@ zmqol_dev_command_listener()
                 amount = int( tokens[1] );
 
             player maps\mp\zombies\_zm_score::add_to_player_score( amount, 1 );
-            player iprintlnbold( "^2[zm_qol] ^7points ^2+" + amount );
+            player iprintln( "^2[zm_qol] ^7points ^2+" + amount );
         }
-        else if ( cmd == "!god" )
+        else if ( cmd == "god" )
         {
             if ( isdefined( player.zmqol_god ) && player.zmqol_god )
             {
                 player.zmqol_god = 0;
                 player disableinvulnerability();
-                player iprintlnbold( "^1[zm_qol] godmode OFF" );
+                player iprintln( "^1[zm_qol] godmode OFF" );
             }
             else
             {
                 player.zmqol_god = 1;
                 player enableinvulnerability();
-                player iprintlnbold( "^2[zm_qol] godmode ON" );
+                player iprintln( "^2[zm_qol] godmode ON" );
             }
         }
     }
