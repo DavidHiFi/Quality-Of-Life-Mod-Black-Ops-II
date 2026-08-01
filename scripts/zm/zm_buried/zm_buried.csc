@@ -2,10 +2,51 @@
 #include clientscripts\mp\zombies\_zm_utility;
 #include clientscripts\mp\zombies\_zm_weapons;
 #include clientscripts\mp\zm_buried;
+#include clientscripts\mp\zombies\_zm;
+#include clientscripts\mp\zombies\_zm_turned;
+#include clientscripts\mp\zm_buried_classic;
+#include clientscripts\mp\zm_buried_turned_street;
+#include clientscripts\mp\zm_buried_grief_street;
 
 main()
 {
     replaceFunc(clientscripts\mp\zm_buried::include_weapons, ::include_weapons);
+    replaceFunc(clientscripts\mp\zm_buried::init_gamemodes, ::init_gamemodes);
+}
+
+// ============================================================================
+//  init_gamemodes  (CLIENT)
+//
+//  Same defect as zm_prison\zm_prison.csc - see the long comment there.
+//
+//  scripts\zm\replaced\zm_buried_gamemodes.gsc adds a zstandard gamemode on the
+//  server (Street and the custom Maze location). Stock
+//  clientscripts\mp\zm_buried::init_gamemodes registers zclassic, zgrief and
+//  zcleansed but NOT zstandard, so the client's start_zombie_gametype() bails and
+//  the loading state is never released.
+//
+//  Everything below other than the zstandard line is copied verbatim from stock,
+//  including the _zm_turned::init() call and the duplicated zcleansed registration
+//  (stock registers zcleansed twice - kept as-is deliberately; add_map_gamemode
+//  resets that mode's location arrays, and the second call runs before any
+//  add_map_location_gamemode for zcleansed, so it is harmless).
+//
+//  🛑 NOT verified in game yet - Buried's Maze location has never been tested.
+// ============================================================================
+init_gamemodes()
+{
+    clientscripts\mp\zombies\_zm_turned::init();
+
+    add_map_gamemode( "zcleansed", clientscripts\mp\zombies\_zm_turned::precache, clientscripts\mp\zombies\_zm_turned::main );
+    add_map_gamemode( "zclassic", undefined, undefined );
+    add_map_gamemode( "zgrief", undefined, undefined );
+    add_map_gamemode( "zcleansed", undefined, undefined );
+    add_map_gamemode( "zstandard", undefined, undefined );
+
+    add_map_location_gamemode( "zclassic", "processing", clientscripts\mp\zm_buried_classic::precache, clientscripts\mp\zm_buried_classic::premain, clientscripts\mp\zm_buried_classic::main );
+    add_map_location_gamemode( "zcleansed", "street", clientscripts\mp\zm_buried_turned_street::precache, clientscripts\mp\zm_buried_turned_street::premain, clientscripts\mp\zm_buried_turned_street::main );
+    add_map_location_gamemode( "zgrief", "street", clientscripts\mp\zm_buried_grief_street::precache, clientscripts\mp\zm_buried_grief_street::premain, clientscripts\mp\zm_buried_grief_street::main );
+    add_map_location_gamemode( "zstandard", "street", clientscripts\mp\zm_buried_grief_street::precache, clientscripts\mp\zm_buried_grief_street::premain, clientscripts\mp\zm_buried_grief_street::main );
 }
 
 include_weapons()

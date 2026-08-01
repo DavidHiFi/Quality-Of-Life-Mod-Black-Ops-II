@@ -9,8 +9,25 @@ signature, **say so and check the actual files** — do NOT invent one. If you h
 a stock BO2/T6 GSC dump, grep it to confirm before referencing `maps\mp\...::func`.
 "I'm not sure" is always better than a made-up function that crashes the game.
 
-This is a **standalone side project.** It has nothing to do with "Reimagined",
-"SGS", or any other mod. **Do not import code or files from other mods.**
+This is a **standalone side project.** Do not import code or files from other mods —
+`zm_refreshed`, "SGS", or anything else.
+
+> **🛑 CORRECTION, 2026-08-01 — BO2-Reimagined is now an explicit exception.**
+> This paragraph used to name "Reimagined" alongside the rest. The user has since
+> stated the opposite and it is now the standing instruction: **BO2-Reimagined is the
+> primary reference for this project**, full source cloned at `H:\Claude\BO2-Reimagined`
+> (upstream `https://github.com/Jbleezy/BO2-Reimagined`). The custom survival locations
+> and extra gamemodes in zm_qol are a port of its work — that data is in the stock game
+> files but Treyarch never shipped it, and Reimagined is the implementation that works.
+> The goal is to have all of its gamemodes and maps running in zm_qol.
+>
+> Adapt from it, don't bulk-copy: its `scripts\zm\replaced\*.gsc` also carry its own
+> balance opinions. Prefer **stock body + Reimagined's specific fix**, and cite the
+> Reimagined file and line in a comment (see
+> `scripts\zm\replaced\zm_transit.gsc` for the pattern).
+>
+> `scripts\zm\<map>\<map>_reimagined.gsc`'s `replaceFunc` list is the full inventory of
+> what Reimagined overrides on that map — the fastest way to spot what zm_qol is missing.
 
 ---
 
@@ -101,7 +118,8 @@ short human version.
 - Don't invent stock function names or signatures — verify first.
 - Don't use `#define` / C-preprocessor anything.
 - Don't put map-specific `maps\mp\zm_<map>*` references in a root `scripts/zm/*.gsc`.
-- Don't import files/code from other mods (this is standalone).
+- Don't import files/code from other mods (this is standalone) — **except BO2-Reimagined,
+  which is the project's primary reference; see the correction at the top of this file.**
 - Don't confuse LUI (`.lua`, client UI) with GSC (`.gsc`, gameplay).
 
 ---

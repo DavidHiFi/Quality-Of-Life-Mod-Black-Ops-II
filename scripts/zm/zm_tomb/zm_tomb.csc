@@ -2,10 +2,44 @@
 #include clientscripts\mp\zombies\_zm_utility;
 #include clientscripts\mp\zombies\_zm_weapons;
 #include clientscripts\mp\zm_tomb;
+#include clientscripts\mp\zombies\_zm;
+#include clientscripts\mp\zm_tomb_classic;
 
 main()
 {
     replaceFunc(clientscripts\mp\zm_tomb::include_weapons, ::include_weapons);
+    replaceFunc(clientscripts\mp\zm_tomb::init_gamemodes, ::init_gamemodes);
+}
+
+// ============================================================================
+//  init_gamemodes  (CLIENT)
+//
+//  Same defect as zm_prison\zm_prison.csc - see the long comment there for the
+//  mechanism and the _zm.csc line numbers.
+//
+//  Origins is worse than Mob of the Dead: stock
+//  clientscripts\mp\zm_tomb::init_gamemodes registers ONLY zclassic, while
+//  scripts\zm\replaced\zm_tomb_gamemodes.gsc adds zstandard AND zgrief on the
+//  server (Trenches, Excavation Site, Church, Crazy Place).
+//
+//  This was masked until now: Origins survival was dropping at the clientfield
+//  check (EXE_CLIENT_FIELD_MISMATCH) before it could ever reach the client's
+//  gametype startup. With that fixed in zm_tomb.gsc, this gap becomes the next
+//  thing in the way - so the two changes have to ship together.
+//
+//  The four custom locations get no client-side location funcs, matching the
+//  server (which routes them to scripts\zm\locs\*) and matching TranZit's Diner,
+//  which works with none.
+//
+//  🛑 NOT verified in game yet.
+// ============================================================================
+init_gamemodes()
+{
+    add_map_gamemode( "zclassic", undefined, undefined );
+    add_map_gamemode( "zstandard", undefined, undefined );
+    add_map_gamemode( "zgrief", undefined, undefined );
+
+    add_map_location_gamemode( "zclassic", "tomb", clientscripts\mp\zm_tomb_classic::precache, clientscripts\mp\zm_tomb_classic::premain, clientscripts\mp\zm_tomb_classic::main );
 }
 
 include_weapons()

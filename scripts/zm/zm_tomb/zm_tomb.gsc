@@ -48,6 +48,48 @@ main()
 //  Verified against BO2-Reimagined, which fixes this identically in
 //  scripts/zm/zm_tomb/zm_tomb_reimagined.gsc:191-202 (same four fields, same guard,
 //  also called from the end of main()).
+//
+//  ---------------------------------------------------------------------------
+//  2026-07-31: TWO MORE FIELDS, same root cause, different stock code path.
+//
+//  Crazy Place / zstandard still dropped with EXE_CLIENT_FIELD_MISMATCH:
+//        Clientfield 'electric_cherry_reload_fx' in set [allplayers] is not registered on the server
+//        Clientfield 'visionset_slot' in set[toplayer] not the same bit count : [CLIENT: 2 SERVER: 1]
+//
+//  The gate is maps\mp\zombies\_zm_perks::init() line 52:
+//
+//        vending_triggers = getentarray( "zombie_vending", "targetname" );
+//        ...
+//        if ( vending_triggers.size < 1 )
+//            return;              <-- returns BEFORE the _custom_perks loop at 101-110
+//
+//  perk_machine_spawn_init() only spawns machines whose struct script_string
+//  contains "<gametype>_perks_<location>". No Origins struct is tagged for the
+//  survival locations, so zero "zombie_vending" triggers exist, _zm_perks::init()
+//  bails at line 52, and the per-perk machine_thread loop never runs. Those threads
+//  are the ONLY server-side callers of:
+//        _zm_perk_electric_cherry::init_electric_cherry()  -> registers electric_cherry_reload_fx
+//        _zm_perk_divetonuke::init_divetonuke()            -> registers the zm_perk_divetonuke visionset
+//
+//  The client has no such gate - _zm_perks.csc::init_perk_custom_threads() runs
+//  every registered perk's init thread unconditionally - so the client registers
+//  both and the server neither. The visionset count is what drives visionset_slot's
+//  bit width (_visionset_mgr::finalize_type_clientfields ->
+//  getminbitcountfornum( info.size - 1 )), which is why the second mismatch rides
+//  along with the first:
+//        server: default + zombie_blood                     = 2 -> 1 bit
+//        client: default + zombie_blood + zm_perk_divetonuke = 3 -> 2 bits
+//  Both log lines follow exactly.
+//
+//  Registering here restores parity. Safe against double-registration: if a perk
+//  machine ever DID spawn on a survival location, _zm_perks::init() would not bail,
+//  init_electric_cherry/init_divetonuke would run, and these two lines would become
+//  duplicates - but that is also precisely the case where the mismatch would not
+//  occur, so the guard to revisit is "did we add perk machines to a loc script?".
+//
+//  VERIFIED IN GAME 2026-07-31 (14:07 run, Excavation Site / zstandard): the four
+//  original fields and electric_cherry_reload_fx are all absent from the mismatch
+//  list. Only visionset_slot still mismatched, which is the split-out half below.
 // ============================================================================
 zmqol_register_survival_clientfields()
 {
@@ -58,10 +100,59 @@ zmqol_register_survival_clientfields()
     registerclientfield( "scriptmover", "element_glow_fx", 14000, 4, "int", undefined, 0 );
     registerclientfield( "scriptmover", "bryce_cake",      14000, 2, "int", undefined, 0 );
     registerclientfield( "scriptmover", "switch_spark",    14000, 1, "int", undefined, 0 );
+
+    // Mirror of _zm_perk_electric_cherry::init_electric_cherry (stock signature).
+    registerclientfield( "allplayers", "electric_cherry_reload_fx", 9000, 2, "int" );
+
+    // The divetonuke visionset cannot be registered from here - see
+    // zmqol_register_survival_visionset() below.
+}
+
+// ============================================================================
+//  zmqol_register_survival_visionset
+//
+//  The second half of the fix above, split out because it CANNOT run in main().
+//
+//  2026-08-01: the 11:59 run proved the electric_cherry_reload_fx half worked -
+//  that field is gone from the mismatch list - but Origins still dropped on:
+//        Clientfield 'visionset_slot' in set[toplayer] is not registered with the
+//        same bit count as the server : [CLIENT: 2  SERVER : 1]
+//  i.e. the vsmgr_register_info call that used to sit at the end of
+//  zmqol_register_survival_clientfields() never took.
+//
+//  Why: registerclientfield is a plain engine builtin with no state behind it,
+//  so it works from main(). vsmgr_register_info is not - stock
+//  maps\mp\_visionset_mgr.gsc:21-35 reads level.vsmgr[type] and asserts on
+//  level.vsmgr_initializing, and BOTH are set up by _visionset_mgr::init(),
+//  which runs out of _load::main() - AFTER this mod's main(). The call landed on
+//  an undefined level.vsmgr and did nothing.
+//
+//  init() is inside the legal window: _visionset_mgr::init() has run by then, and
+//  level.vsmgr_initializing is only cleared by finalize_clientfields(), which the
+//  engine invokes later still via codecallback_finalizeinitialization ->
+//  callback( "on_finalize_initialization" ) (_callbacksetup.gsc:19-21).
+//
+//  Guarded on isdefined so that if that ordering ever changes this degrades to
+//  "visionset not registered" rather than a script error that takes out init().
+//
+//  🛑 NOT verified in game yet.
+// ============================================================================
+zmqol_register_survival_visionset()
+{
+    if ( is_classic() )
+        return;
+
+    if ( !isdefined( level.vsmgr ) || !isdefined( level.vsmgr["visionset"] ) )
+        return;
+
+    // Mirror of _zm_perk_divetonuke::init_divetonuke (stock args: version 9000,
+    // priority 400, 5 lerp steps, activate_per_player 1).
+    maps\mp\_visionset_mgr::vsmgr_register_info( "visionset", "zm_perk_divetonuke", 9000, 400, 5, 1 );
 }
 
 init()
 {
+    zmqol_register_survival_visionset();
     added_weapons();
 }
 

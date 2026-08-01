@@ -1,10 +1,12 @@
 @echo off
 REM ============================================================
-REM  zm_expanded_deathmachine  -  BUILD & DEPLOY
+REM  Quality Of Life  -  BUILD & DEPLOY
 REM ------------------------------------------------------------
+REM  Display name lives in mod.json ("Quality Of Life"); the folder / mod id
+REM  stays zm_qol because that is what Plutonium keys the install off.
 REM  Edit any script under scripts\zm\ then double-click this.
 REM  Rebuilds mod.iwd and writes all 6 mod files to:
-REM    1) a send-ready copy:  <project>\build\zm_expanded_deathmachine\
+REM    1) a send-ready copy:  <project>\build\zm_qol\
 REM    2) your Plutonium mods folder (skipped if Plutonium isn't installed)
 REM  Needs only Windows + PowerShell (both built in) - no other tools.
 REM ============================================================

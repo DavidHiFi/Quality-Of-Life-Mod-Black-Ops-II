@@ -2,10 +2,57 @@
 #include clientscripts\mp\zombies\_zm_utility;
 #include clientscripts\mp\zombies\_zm_weapons;
 #include clientscripts\mp\zm_prison;
+#include clientscripts\mp\zombies\_zm;
+#include clientscripts\mp\zm_alcatraz_classic;
+#include clientscripts\mp\zm_alcatraz_grief_cellblock;
 
 main()
 {
     replaceFunc(clientscripts\mp\zm_prison::include_weapons, ::include_weapons);
+    replaceFunc(clientscripts\mp\zm_prison::init_gamemodes, ::init_gamemodes);
+}
+
+// ============================================================================
+//  init_gamemodes  (CLIENT)
+//
+//  🛑 Fixes Docks loading to a BLACK SCREEN with no input (must force-quit).
+//
+//  scripts\zm\replaced\zm_alcatraz_gamemodes.gsc adds a "zstandard" gamemode to
+//  Mob of the Dead on the SERVER, plus the docks location. Stock
+//  clientscripts\mp\zm_prison::init_gamemodes registers only zclassic and zgrief -
+//  there is no zstandard on the client at all. Both of these, in
+//  clientscripts\mp\zombies\_zm.csc, then bail immediately:
+//
+//      start_zombie_gametype()   (_zm.csc:132)
+//      zombe_gametype_premain()  (_zm.csc:107)
+//          gamemode = getdvar( #"ui_gametype" );          // "zstandard"
+//          if ( !isdefined( level.gamemode_map_location_main[gamemode] ) )
+//              return;
+//
+//  That early return also skips level._zombie_gamemodemain, which is what ends the
+//  client's loading state - hence a black screen the server never releases.
+//
+//  Why TranZit's added locations do NOT hit this: stock
+//  clientscripts\mp\zm_transit::init_gamemodes DOES register zstandard (with
+//  transit/farm/town). Diner and Cornfield have no client *location* entry either
+//  and both work - a missing location only skips the optional per-location main,
+//  which is guarded separately at _zm.csc:153. It is the missing *gamemode* that is
+//  fatal. Docks therefore needs no client-side location funcs, only the gamemode.
+//
+//  zclassic/zgrief entries below are copied verbatim from stock so the classic and
+//  grief paths are unchanged.
+//
+//  🛑 NOT verified in game yet.
+// ============================================================================
+init_gamemodes()
+{
+    add_map_gamemode( "zclassic", undefined, undefined );
+    add_map_gamemode( "zgrief", undefined, undefined );
+    add_map_gamemode( "zstandard", undefined, undefined );
+
+    add_map_location_gamemode( "zclassic", "prison", clientscripts\mp\zm_alcatraz_classic::precache, clientscripts\mp\zm_alcatraz_classic::premain, clientscripts\mp\zm_alcatraz_classic::main );
+    add_map_location_gamemode( "zgrief", "cellblock", clientscripts\mp\zm_alcatraz_grief_cellblock::precache, undefined, clientscripts\mp\zm_alcatraz_grief_cellblock::main );
+    add_map_location_gamemode( "zstandard", "cellblock", clientscripts\mp\zm_alcatraz_grief_cellblock::precache, undefined, clientscripts\mp\zm_alcatraz_grief_cellblock::main );
 }
 
 include_weapons()

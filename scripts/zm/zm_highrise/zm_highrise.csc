@@ -2,10 +2,34 @@
 #include clientscripts\mp\zombies\_zm_utility;
 #include clientscripts\mp\zombies\_zm_weapons;
 #include clientscripts\mp\zm_highrise;
+#include clientscripts\mp\zombies\_zm;
+#include clientscripts\mp\zm_highrise_classic;
 
 main()
 {
     replaceFunc(clientscripts\mp\zm_highrise::include_weapons, ::include_weapons);
+    replaceFunc(clientscripts\mp\zm_highrise::init_gamemodes, ::init_gamemodes);
+}
+
+// ============================================================================
+//  init_gamemodes  (CLIENT)
+//
+//  Same defect as zm_prison\zm_prison.csc - see the long comment there.
+//
+//  scripts\zm\replaced\zm_highrise_gamemodes.gsc adds zstandard AND zgrief on the
+//  server (Shopping Mall, Dragon Rooftop, Sweatshop). Stock
+//  clientscripts\mp\zm_highrise::init_gamemodes registers only zclassic, so the
+//  client's start_zombie_gametype() bails and the loading state is never released.
+//
+//  🛑 NOT verified in game yet - Die Rise's custom locations have never been tested.
+// ============================================================================
+init_gamemodes()
+{
+    add_map_gamemode( "zclassic", undefined, undefined );
+    add_map_gamemode( "zstandard", undefined, undefined );
+    add_map_gamemode( "zgrief", undefined, undefined );
+
+    add_map_location_gamemode( "zclassic", "rooftop", clientscripts\mp\zm_highrise_classic::precache, clientscripts\mp\zm_highrise_classic::premain, clientscripts\mp\zm_highrise_classic::main );
 }
 
 include_weapons()
