@@ -184,3 +184,40 @@ xmodel,c_zom_player_cdc_dlc1_fb
 xmodel,c_zom_player_cia_dlc1_fb
 xmodel,c_zom_hazmat_viewhands
 xmodel,c_zom_suit_viewhands
+
+// ============================================================================
+//  GAMETYPE DEFINITION RAWFILES
+// ----------------------------------------------------------------------------
+//  🛑 CORRECTS THE DELIVERY METHOD USED IN v1.6.1.
+//
+//  v1.6.1 put these .txt files in mod.iwd. That does not work: verified after
+//  deploying, the files were confirmed present inside mod.iwd and the engine
+//  STILL logged, on every map load,
+//
+//      Could not load rawfile "maps/mp/gametypes_zm/zmeat.txt"
+//      Could not load rawfile "maps/mp/gametypes_zm/zrace.txt"
+//      Could not load rawfile "maps/mp/gametypes_zm/zturned.txt"
+//
+//  So mod.iwd serves SCRIPTS (Plutonium's Mods loader reads raw .gsc from it -
+//  that is how ridgelandproject.gsc works) but NOT rawfile assets. Rawfiles have
+//  to come out of mod.ff, exactly like animtrees/zm_buried_ghost.atr above.
+//  The mode .gsc scripts stay in mod.iwd, where scripts do load from.
+//
+//  _gametypes.txt is the master list the engine walks. Declaring ours overrides
+//  the stock one, which matters for more than tidiness: the stock list names the
+//  containment mode "zcontainment" (hence the log asking for zcontainment.txt)
+//  while Reimagined's file - and its gametypestable - call it "zcontain". With
+//  our list in force the engine asks for the names we actually ship.
+//
+//  Sourced from zone_assets\maps\mp\gametypes_zm\.
+//
+//  NOTE: this makes the gametypes LOADABLE. It does NOT put them in the menu -
+//  that still needs zm\gametypestable.csv as a stringtable, the localized
+//  strings, and the LUI gameTypes arrays. See checkpoint 10 section 8.
+// ============================================================================
+rawfile,maps/mp/gametypes_zm/_gametypes.txt
+rawfile,maps/mp/gametypes_zm/zmeat.txt
+rawfile,maps/mp/gametypes_zm/zrace.txt
+rawfile,maps/mp/gametypes_zm/zturned.txt
+rawfile,maps/mp/gametypes_zm/zcontain.txt
+rawfile,maps/mp/gametypes_zm/zsr.txt
