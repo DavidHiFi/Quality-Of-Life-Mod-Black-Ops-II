@@ -166,6 +166,13 @@ xmodel,c_zom_oleary_shortsleeve_viewhands
 rawfile,animtrees/zm_buried_ghost.atr
 rawfile,animstatedefs/zm_buried_ghost.asd
 script,aitype/zm_buried_ghost_female.gsc
+// aitype/zm_buried_ghost_female.gsc references character\c_zom_zombie_buried_ghost_woman
+// for its main()/precache(). Shipping the aitype without it produced, in v1.3.0:
+//   Unresolved external: "main"/"precache" with 0 parameters in
+//   "aitype/zm_buried_ghost_female.gsc"
+// - the same dependency-chain failure as c_buried_player_reporter_dam. The
+// character script lives only in so_zclassic/so_zencounter_zm_buried.ff.
+script,character/c_zom_zombie_buried_ghost_woman.gsc
 
 // --- Buried player characters (CDC / CIA), same bug as the Alcatraz set above.
 //     Maze survival spawned with invisible arms and weapon for exactly this
