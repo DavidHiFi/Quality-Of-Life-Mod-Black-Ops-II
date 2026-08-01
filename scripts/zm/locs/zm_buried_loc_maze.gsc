@@ -189,6 +189,60 @@ main()
 
 	level.insta_kill_triggers = getentarray("instant_death", "targetname");
 	array_thread(level.insta_kill_triggers, maps\mp\zm_buried_classic::squashed_death_init, 0);
+
+	disable_zones();
+}
+
+// ============================================================================
+//  disable_zones
+//
+//  🛑 Fixes: MAZE SURVIVAL HAS NO ZOMBIES. The round starts, the counter shows 6,
+//     and none ever arrive.
+//
+//  v1.6.0 enabled zone_maze so its spawn locations would activate, and that half
+//  was right - the mapents has 10 "zone_maze_spawners" structs and the zone
+//  volume targets them. What it did not account for is that Buried's init_zones
+//  (zm_buried.gsc:325-346) enables TWENTY-TWO zones covering the whole map:
+//  zone_start, the tunnels, every street, the stores, the bank... all of them.
+//
+//  _zm_zonemgr::create_spawner_list builds level.zombie_spawn_locations from
+//  EVERY enabled zone, so the round's zombies were being distributed across the
+//  entire Buried map and spawning in the town and tunnels, with no path to a
+//  player sealed inside the maze. They existed - hence the counter reading 6 -
+//  they were just nowhere near the arena.
+//
+//  Every other standalone survival location already does this and Maze was the
+//  one that never got it: see zm_tomb_loc_church::disable_zones (same structure,
+//  village zones) and zm_transit_loc_power::disable_zombie_spawn_locations.
+//
+//  Zones kept are exactly the three the location plays in - the ones
+//  scripts\zm\replaced\zm_buried.gsc enables and that the loc script's own
+//  struct_init re-tags player_respawn_points for. Everything else is disabled AND
+//  has its respawn point locked, so no zombie spawns there and no player can be
+//  sent there either.
+// ============================================================================
+disable_zones()
+{
+	valid_zones = array( "zone_maze", "zone_maze_staircase", "zone_mansion_backyard" );
+	spawn_points = maps\mp\gametypes_zm\_zm_gametype::get_player_spawns_for_gametype();
+
+	foreach ( index, zone in level.zones )
+	{
+		if ( !isinarray( valid_zones, index ) )
+		{
+			level.zones[index].is_enabled = 0;
+			level.zones[index].is_spawning_allowed = 0;
+
+			foreach ( spawn_point in spawn_points )
+			{
+				if ( spawn_point.script_noteworthy == index )
+				{
+					spawn_point.locked = 1;
+					break;
+				}
+			}
+		}
+	}
 }
 
 maze_treasure_chest_init()
