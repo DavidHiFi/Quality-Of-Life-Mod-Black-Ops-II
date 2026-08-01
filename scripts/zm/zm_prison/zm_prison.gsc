@@ -25,6 +25,59 @@ init()
     precacheModel("collision_clip_32x32x128");
     zmqol_precache_survival_characters();
     added_weapons();
+    level thread zmqol_prison_spawn_probe();   // TEMPORARY - see below
+}
+
+// ============================================================================
+//  zm_qol TEMPORARY DIAGNOSTIC - Cell Block instant death on spawn.
+//
+//  Runs on EVERY Alcatraz location (Cell Block uses the stock grief script, so
+//  scripts\zm\locs\loc_common::init never runs there and the Docks probe could
+//  not see it). Samples fast and early because the death is immediate.
+//
+//  What has already been ruled out, statically, from the shipped mapents
+//  override in mod.iwd (maps\mp\zm_prison.d3dbsp, which is plain text):
+//    - Spawn points exist. Of 27 player_respawn_point structs only 2 carry a
+//      script_string ("zgrief_cellblock", "zclassic_prison"); the other 25 have
+//      none, and _zm_gametype::get_player_spawns_for_gametype always includes
+//      structs without a script_string. All four non-classic init zones
+//      (zone_cellblock_east / _west / _west_barber / _west_warden) have a
+//      matching player_respawn_point, so enable_zone unlocks them.
+//    - Playable-area volumes exist for all four of those zones, and the ONLY
+//      player_volume tagged "classic_only" is zone_cellblock_west_gondola_dock,
+//      so the v1.1.5 working_zone_init port is not deleting the cellblock area.
+//
+//  So the remaining question is purely positional: where does the player
+//  actually end up, and is _zm::in_enabled_playable_area() true there. That is
+//  what this prints. The kill path is
+//  _zm::player_out_of_playable_area_monitor -> MotD's
+//  _zm_afterlife::player_out_of_playable_area, which returns true (i.e. KILL)
+//  for anyone not in afterlife.
+// ============================================================================
+zmqol_prison_spawn_probe()
+{
+    level endon( "end_game" );
+
+    for ( i = 0; i < 24; i++ )
+    {
+        wait 0.5;
+
+        foreach ( player in getplayers() )
+        {
+            s = "[zm_qol] PRISON t=" + ( ( i + 1 ) * 0.5 );
+            s += " loc=" + getdvar( "ui_zm_mapstartlocation" );
+            s += " org=" + player.origin;
+            s += " health=" + player.health;
+            s += " inarea=" + player maps\mp\zombies\_zm::in_enabled_playable_area();
+
+            if ( isdefined( player.model ) )
+                s += " model=" + player.model;
+            else
+                s += " model=UNDEF";
+
+            println( s );
+        }
+    }
 }
 
 // ============================================================================

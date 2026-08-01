@@ -100,3 +100,69 @@ xmodel,zm_collision_transit_cornfield_survival
 xmodel,zm_collision_transit_diner_survival
 xmodel,p6_pak_old_plywood_small
 xmodel,p6_zm_tm_wood_post_thin_01_tall
+
+// ============================================================================
+//  MOB OF THE DEAD PLAYER CHARACTERS  -  fixes the invisible-character bug on
+//  Docks and Cell Block survival.
+// ----------------------------------------------------------------------------
+//  🛑 This is the real cause of "invisible body, invisible view arms, invisible
+//  weapon, and zombies that cannot damage you". It is NOT a script bug - v1.1.3
+//  changed the character set and v1.1.4 added precaching, and NEITHER helped,
+//  because the xmodels are not in memory at all.
+//
+//  Established with the OAT Unlinker, per fastfile:
+//      zm_prison.ff             0 player xmodels (only c_zom_cellbreaker_fb)
+//      zm_prison_patch.ff       0 player xmodels
+//      so_zclassic_zm_prison.ff ALL 8 of the models below
+//
+//  A zstandard game loads only zm_prison_patch + zm_prison. It loads neither
+//  so_zclassic nor so_zencounter, and there is no so_zsurvival_zm_prison.ff -
+//  TranZit is the only map in the whole game that ships a so_zsurvival file.
+//  So on Docks/Cell Block there is literally no player character asset present.
+//  setmodel/setviewmodel still set the .model script field, which is why the
+//  in-game probe read model=c_zom_player_deluca_fb and looked perfectly healthy,
+//  but nothing renders - and the weapon is invisible too because it hangs off
+//  the viewhands tag.
+//
+//  Pulling them into mod.ff registers them globally, for every map and mode -
+//  the same technique already used for p6_zm_al_shock_box_on above, and the same
+//  thing BO2-Reimagined does in zone_source\includes\zm_prison.zone.
+//  build_ff.bat already --loads so_zclassic_zm_prison.ff, so the Linker can copy
+//  them straight out of it; the four bodies are what
+//  maps\mp\zm_prison::give_personality_characters sets and the four viewhands are
+//  what precache_personality_characters precaches.
+// ============================================================================
+xmodel,c_zom_player_arlington_fb
+xmodel,c_zom_player_deluca_fb
+xmodel,c_zom_player_handsome_fb
+xmodel,c_zom_player_oleary_fb
+xmodel,c_zom_arlington_coat_viewhands
+xmodel,c_zom_deluca_longsleeve_viewhands
+xmodel,c_zom_handsome_sleeveless_viewhands
+xmodel,c_zom_oleary_shortsleeve_viewhands
+
+// ============================================================================
+//  BURIED GHOST (the Witch)  -  fixes Maze survival failing to load with
+//  COM_ERROR (1) "unknown anim tree 'zm_buried_ghost'".
+// ----------------------------------------------------------------------------
+//  Same class of gap as the character models. The v1.1.6 fix got Buried survival
+//  past the script-link stage (all the mod scripts now report "loaded
+//  successfully" in the log), and it then died on the next missing asset:
+//
+//      Could not load rawfile "animtrees/zm_buried_ghost.atr"
+//      COM_ERROR (1): unknown anim tree 'zm_buried_ghost'
+//
+//  An animtree is resolved at load time by #using_animtree, so this is fatal and
+//  cannot be guarded around in script. Per the Unlinker, animtrees/zm_buried_ghost.atr
+//  and animstatedefs/zm_buried_ghost.asd exist ONLY in so_zclassic_zm_buried.ff
+//  and so_zencounter_zm_buried.ff - neither of which a zstandard game loads, and
+//  there is no so_zsurvival_zm_buried.ff.
+//
+//  build_ff.bat now also --loads so_zclassic_zm_buried.ff so these can be copied
+//  out of it. The aitype script and the ghost's xanims come with it, mirroring
+//  BO2-Reimagined's zone_source\includes\zm_buried.zone, so the ghost can
+//  actually run rather than merely letting the map finish loading.
+// ============================================================================
+rawfile,animtrees/zm_buried_ghost.atr
+rawfile,animstatedefs/zm_buried_ghost.asd
+script,aitype/zm_buried_ghost_female.gsc
