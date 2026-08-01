@@ -30,6 +30,35 @@ init_gamemodes()
     add_map_gamemode( "zgrief", undefined, undefined );
 
     add_map_location_gamemode( "zclassic", "rooftop", clientscripts\mp\zm_highrise_classic::precache, clientscripts\mp\zm_highrise_classic::premain, clientscripts\mp\zm_highrise_classic::main );
+
+    // 🛑 Fixes: EXE_CLIENT_FIELD_MISMATCH on every Die Rise survival location -
+    //    "Clientfield buildable in set [toplayer] is not registered on the client".
+    //
+    // The three gamemodes above were declared but NO location functions were ever
+    // registered for zstandard/zgrief, so on Shopping Mall, Dragon Rooftop and
+    // Sweatshop the client ran no location script at all. It therefore never
+    // included a single buildable, and
+    // clientscripts\mp\zombies\_zm_buildables.csc:25-34 only calls
+    // register_clientfields() when the FIRST buildable is added
+    // ( if ( level.zombie_buildables.size == 1 ) ). The server meanwhile does
+    // register buildables, so the server had the "buildable" clientfield and the
+    // client did not - hence the mismatch and the instant disconnect.
+    //
+    // Note this is the OPPOSITE direction to the seven fields fixed server-side
+    // in v1.4.0 (those were client-has/server-lacks), which is why that fix could
+    // never have covered this one.
+    //
+    // Pointing them at zm_highrise_classic's client functions is the same
+    // technique already used on Buried, where zstandard/zgrief "street" reuse
+    // clientscripts\mp\zm_buried_grief_street. Die Rise ships exactly one client
+    // location script, so it is the only correct target.
+    a_locations = array( "shopping_mall", "dragon_rooftop", "sweatshop" );
+
+    foreach ( str_loc in a_locations )
+    {
+        add_map_location_gamemode( "zstandard", str_loc, clientscripts\mp\zm_highrise_classic::precache, clientscripts\mp\zm_highrise_classic::premain, clientscripts\mp\zm_highrise_classic::main );
+        add_map_location_gamemode( "zgrief", str_loc, clientscripts\mp\zm_highrise_classic::precache, clientscripts\mp\zm_highrise_classic::premain, clientscripts\mp\zm_highrise_classic::main );
+    }
 }
 
 include_weapons()
