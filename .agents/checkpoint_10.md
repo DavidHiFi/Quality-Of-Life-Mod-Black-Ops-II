@@ -228,3 +228,50 @@ does on Die Rise survival — i.e. mirror whatever `zstandard_preinit` /
 `scripts\zm\zm_highrise\zm_highrise.csc::init_gamemodes`. Next step: enumerate
 the server-side buildable set for a survival game and match it. Requires a
 `build_ff.bat` relink since `.csc` lives in `mod.ff`.
+
+---
+
+## 8. CUSTOM GAMEMODES — the full recipe (user answered the blocking question)
+
+**User confirmed 2026-08-02: the Mods menu shows exactly `Classic`, `Survival`,
+`Grief` and nothing else.**
+
+That settles it — the STOCK `zm/gametypestable.csv` is in force. Extracted from
+`ui_zm.ff` with the Unlinker, it defines four modes:
+`zclassic, zstandard, zgrief, zcleansed` (`maxnum_gametype,3`), with string keys
+of the form `ZMUI_CLASSIC_CAPS`. Reimagined's replaces it with **eight**:
+`zclassic, zstandard, zsr, zgrief, zrace, zcontain, zmeat, zturned`, using
+different keys (`ZMUI_ZCLASSIC_CAPS`).
+
+### The five pieces required — all now identified
+
+| piece | where Reimagined keeps it | status in zm_qol |
+|---|---|---|
+| gametype definition rawfiles `maps/mp/gametypes_zm/{zmeat,zturned,zrace,zcontain,zsr}.txt` + `_gametypes.txt` | `maps/mp/gametypes_zm/` | ✅ **shipped v1.6.1** |
+| mode scripts `{zrace,zcontain,zsr,zturned}.gsc` (thin wrappers → `zgrief::main()`; stock already has `zmeat`/`zcleansed`) | same folder | ✅ **shipped v1.6.1** |
+| `zm/gametypestable.csv` as a **stringtable** asset | `zone_source/reimagined.zone:158` | ❌ TODO |
+| localized strings `ZMUI_ZMEAT_CAPS` etc. | `english/localizedstrings/reimagined.str` | ❌ TODO |
+| LUI `CoD.PrivateGameLobby.GameTypeSettings[N].gameTypes[]` | — | ❌ TODO |
+
+**The `.txt` files were a real gap, not speculation:** the console log has
+`Could not load rawfile "maps/mp/gametypes_zm/zmeat.txt"` (and `zrace`,
+`zturned`, `zcontainment`, `znml`, `zdeadpool`, `zpitted`) on every single map
+load. `_gametypes.txt` is the master list the engine walks — 14 entries.
+
+### Order to do the rest in, and the traps
+1. **LUI is the visible gate.** `ui_mp\t6\menus\privategamelobby_project.lua`
+   hard-codes `gameTypes[1..3] = zclassic/zstandard/zgrief` per map index. Even
+   with a perfect table, nothing new appears until these arrays grow.
+2. **The stringtable must go in `mod.ff`**, sourced from `zone_assets\zm\...`.
+   Never point `--add-asset-search-path` at the project root — it contains
+   `weapons\` and the Linker dies rebuilding every weapon.
+3. **Localized strings:** without them the menu shows raw keys. Either compile
+   Reimagined's `.str` in as a `localizedstring` asset, or author our table using
+   the STOCK keys (`ZMUI_CLASSIC_CAPS`…) for the four modes that already have
+   them and only add new keys for the four that do not.
+4. **A mode listed with no `zm\gamesettings_<mode>.cfg` is the likely way to
+   brick the lobby.** Reimagined ships `gamesettings_{zgrief,zmeat,zrace,zcontain,zsr,zturned}.cfg`.
+   Ship those alongside.
+5. Test each new mode on ONE map before assuming the set works — the mapents
+   already carry `zmeat_*`, `zrace_*`, `zturned_*`, `zcleansed_*`, `znml_*`,
+   `zmaxis_*`/`zrichtofen_*` spawn tags, so the spawn data is largely present.
