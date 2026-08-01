@@ -10,8 +10,25 @@
 // This file previously had no main() - it was added for the survival-locations port.
 main()
 {
+    // zm_qol TEMPORARY narrowing markers for the Maze failure (2026-08-02).
+    // Symptom: 2 script errors at load, "Unresolved external: precache / main
+    // with 0 parameters in maps/mp/zm_buried.gsc". In that run NEITHER
+    // scripts/zm/replaced/zm_buried_gamemodes.gsc NOR scripts/zm/locs/
+    // zm_buried_loc_maze.gsc ever appears as "loaded successfully" in the log,
+    // so the chain dies somewhere at/after this file. Every qualified reference
+    // and unqualified call in all three files has been audited against the
+    // SHIPPED bytecode and they all resolve, so these markers say which half
+    // of that is wrong:
+    //   BOTH print   -> main() ran and the replaceFunc resolved; look downstream.
+    //   only A       -> resolving scripts\zm\replaced\zm_buried_gamemodes::init
+    //                   is what fails.
+    //   neither      -> zm_buried/zm_buried.gsc::main() itself is never called.
+    println( "[zm_qol] MAZE marker A - zm_buried::main entered" );
+
     // --- custom survival start locations: adds Maze (alongside stock Borough/street) ---
     replaceFunc( maps\mp\zm_buried_gamemodes::init, scripts\zm\replaced\zm_buried_gamemodes::init );
+
+    println( "[zm_qol] MAZE marker B - zm_buried_gamemodes::init replaceFunc done" );
 }
 
 init()

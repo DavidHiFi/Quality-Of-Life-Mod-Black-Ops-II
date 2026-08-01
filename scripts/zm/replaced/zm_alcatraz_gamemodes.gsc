@@ -29,20 +29,47 @@ init()
 	scripts\zm\replaced\utility::add_struct_location_gamemode_func("zgrief", "docks", scripts\zm\locs\zm_prison_loc_docks::struct_init);
 }
 
+// ============================================================================
+//  🛑 Fixes: DOCKS SURVIVAL - INVISIBLE PLAYER MODEL, INVISIBLE VIEW ARMS AND
+//     WEAPON, AND ZOMBIES THAT CANNOT DAMAGE YOU.
+//
+//  Not a logic bug - the script state was verified correct in game
+//  (2026-08-02 probe: health=100, afterlife=UNDEF, model=c_zom_player_grief_guard_fb,
+//  weap=m1911_zm). It is an ASSET-AVAILABILITY bug.
+//
+//  This function used to point givecustomcharacters at ::give_team_characters,
+//  which resolves through #include maps\mp\zm_alcatraz_grief_cellblock to the
+//  stock GRIEF character setup:
+//      setmodel( "c_zom_player_grief_guard_fb" / "c_zom_player_grief_inmate_fb" )
+//      setviewmodel( "c_zom_grief_guard_viewhands" / "c_zom_oleary_shortsleeve_viewhands" )
+//
+//  Those grief xmodels are NOT in any fastfile a zstandard game loads. Verified
+//  with the OAT Unlinker: Alcatraz ships only so_zclassic_zm_prison.ff and
+//  so_zencounter_zm_prison.ff - there is no so_zsurvival_zm_prison.ff at all
+//  (TranZit is the ONLY map that has one), and the docks run loads just
+//  zm_prison_patch + zm_prison. setmodel/setviewmodel on an xmodel that was
+//  never loaded silently renders nothing: no body, no view arms, and no weapon
+//  (it hangs off the viewhands tag). A player entity with no model also has no
+//  hit geometry, which is why zombie melee could never connect.
+//
+//  Fix: use Mob of the Dead's OWN characters, which live in zm_prison_patch.ff
+//  and are therefore actually loaded (the log confirms
+//  "character/c_zom_oleary.gsc (zm_prison_patch)"). maps\mp\zm_prison::init_characters
+//  is exactly what stock zclassic_preinit calls - it sets has_weasel,
+//  givecustomloadout, precachecustomcharacters (::precache_personality_characters),
+//  givecustomcharacters (::give_personality_characters) and
+//  setupcustomcharacterexerts, then does the same flag_wait this function ended
+//  on. All five symbols verified present in the SHIPPED zm_prison.gsc bytecode,
+//  not just in the script dump.
+//
+//  level.force_team_characters / level.should_use_cia were dropped: nothing in
+//  stock or in this project ever reads them (they are Reimagined's own flags,
+//  and Reimagined's reader was never ported), so they were inert here.
+// ============================================================================
 zstandard_preinit()
 {
-	level.force_team_characters = 1;
-	level.should_use_cia = 0;
-
-	if (randomint(100) >= 50)
-	{
-		level.should_use_cia = 1;
-	}
-
-	level.givecustomloadout = maps\mp\zm_prison::givecustomloadout;
-	level.precachecustomcharacters = ::precache_team_characters;
-	level.givecustomcharacters = ::give_team_characters;
 	level.gamemode_post_spawn_logic = ::give_player_shiv;
 
-	flag_wait("start_zombie_round_logic");
+	// Ends with flag_wait( "start_zombie_round_logic" ), same as before.
+	maps\mp\zm_prison::init_characters();
 }
