@@ -17,6 +17,53 @@ main()
     // --- custom survival start locations: Trenches, Excavation Site, Church, The Crazy Place ---
     replaceFunc( maps\mp\zm_tomb_gamemodes::init, scripts\zm\replaced\zm_tomb_gamemodes::init );
 
+    // ========================================================================
+    //  ORIGINS SURVIVAL - the zone-capture / generator system.
+    //
+    //  Fixes, reported on Trenches:
+    //    - Speed Cola machine missing, with part of it still poking through the
+    //      wall where the robot steps
+    //    - mystery box refusing to open, demanding the generator be powered
+    //    - starting a generator giving no capture progress ring, and spawning
+    //      Templars as if it were classic Origins
+    //    - dig sites visible where no shovel can be obtained
+    //
+    //  These are all one subsystem. Stock zm_tomb_capture_zones assumes classic
+    //  Origins: perk machines and mystery boxes are OWNED by generator zones and
+    //  gated behind capturing them. A standalone survival arena has no generator
+    //  to capture, so the machine never finishes spawning and the box never
+    //  unlocks.
+    //
+    //  BO2-Reimagined already solves this and its version is explicitly
+    //  location-aware - it branches on ui_zm_mapstartlocation == trenches /
+    //  excavation_site / church as well as is_classic(), so classic Origins keeps
+    //  stock behaviour. That matters here: the standing instruction is to add the
+    //  survival locations WITHOUT altering the base maps.
+    //
+    //  Ported verbatim to scripts\zm\replaced\zm_tomb_capture_zones.gsc. Its 21
+    //  #includes are all stock maps\mp\ scripts, so it drags in no other
+    //  Reimagined file, and all 18 hooked functions were verified present in the
+    //  ported copy before wiring these up.
+    // ========================================================================
+    replaceFunc(maps\mp\zm_tomb_capture_zones::precache_everything, scripts\zm\replaced\zm_tomb_capture_zones::precache_everything);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::declare_objectives, scripts\zm\replaced\zm_tomb_capture_zones::declare_objectives);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::init_capture_zone, scripts\zm\replaced\zm_tomb_capture_zones::init_capture_zone);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::register_elements_powered_by_zone_capture_generators, scripts\zm\replaced\zm_tomb_capture_zones::register_elements_powered_by_zone_capture_generators);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::enable_mystery_boxes_in_zone, scripts\zm\replaced\zm_tomb_capture_zones::enable_mystery_boxes_in_zone);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::disable_mystery_boxes_in_zone, scripts\zm\replaced\zm_tomb_capture_zones::disable_mystery_boxes_in_zone);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::pack_a_punch_init, scripts\zm\replaced\zm_tomb_capture_zones::pack_a_punch_init);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::pack_a_punch_enable, scripts\zm\replaced\zm_tomb_capture_zones::pack_a_punch_enable);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::setup_perk_machines_not_controlled_by_zone_capture, scripts\zm\replaced\zm_tomb_capture_zones::setup_perk_machines_not_controlled_by_zone_capture);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::check_perk_machine_valid, scripts\zm\replaced\zm_tomb_capture_zones::check_perk_machine_valid);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::all_zones_captured_vo, scripts\zm\replaced\zm_tomb_capture_zones::all_zones_captured_vo);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::init_recapture_zombie, scripts\zm\replaced\zm_tomb_capture_zones::init_recapture_zombie);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::recapture_zombie_death_func, scripts\zm\replaced\zm_tomb_capture_zones::recapture_zombie_death_func);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::recapture_round_tracker, scripts\zm\replaced\zm_tomb_capture_zones::recapture_round_tracker);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::recapture_zombie_icon_think, scripts\zm\replaced\zm_tomb_capture_zones::recapture_zombie_icon_think);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::get_zone_objective_index, scripts\zm\replaced\zm_tomb_capture_zones::get_zone_objective_index);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::get_generator_capture_start_cost, scripts\zm\replaced\zm_tomb_capture_zones::get_generator_capture_start_cost);
+    replaceFunc(maps\mp\zm_tomb_capture_zones::magic_box_stub_update_prompt, scripts\zm\replaced\zm_tomb_capture_zones::magic_box_stub_update_prompt);
+
     // Must run in main(), before the map registers its own clientfields.
     zmqol_register_survival_clientfields();
 }
@@ -310,4 +357,4 @@ origins_change_patch()
 
         wait 0.1;
     }
-}
+}
