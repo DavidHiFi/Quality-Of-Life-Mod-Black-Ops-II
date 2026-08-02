@@ -2779,18 +2779,46 @@ perks()
 //
 //  🛑 WHY init_electric_cherry() IS CALLED HERE AND NOT LEFT ALONE.
 //  enable_...for_level() only REGISTERS the perk. The clientfield
-//  "electric_cherry_reload_fx" is registered by init_electric_cherry(), and the
-//  only stock caller of that is electric_cherry_perk_machine_think() - i.e. it
-//  runs only once an Electric Cherry MACHINE is being processed. There is no
-//  machine on these maps; the perk comes out of Wunderfizz. Meanwhile the CLIENT
-//  registers that field unconditionally through register_perk_init_thread. Left
-//  as-is the two sides disagree by exactly one field and everyone is dropped
-//  with EXE_CLIENT_FIELD_MISMATCH. Calling it from init() puts the server-side
+//  "electric_cherry_reload_fx" is registered by init_electric_cherry(), while the
+//  CLIENT registers that field unconditionally through register_perk_init_thread.
+//  Left alone the two sides can disagree by exactly one field and everyone is
+//  dropped with EXE_CLIENT_FIELD_MISMATCH. Calling it here puts the server-side
 //  registration in the same legal window - identical in shape to
 //  zmqol_register_divetonuke_visionset above, and to
 //  [[t6-visionset-registration-timing]].
 //
-//  🛑 NOT verified in game yet. Needs build_ff.bat - the client half is a .csc.
+//  🛑 AND WHY perk_machine_thread IS THEN CLEARED.
+//  v1.18.1 shipped with the call above and nothing else, and every one of these
+//  four maps died on load with:
+//        COM_ERROR (1) Attempt to register ClientField electric_cherry_reload_fx
+//        failed. Client Field set 'allplayers' either already contains a field
+//        called electric_cherry_reload_fx, ...
+//  The comment that used to sit here claimed the only stock caller of
+//  init_electric_cherry() is electric_cherry_perk_machine_think(), which "runs
+//  only once an Electric Cherry MACHINE is being processed". That is wrong.
+//  _zm_perks::init() lines 101-110 thread EVERY registered custom perk's
+//  perk_machine_thread with no check that any machine entity exists:
+//        if ( isdefined( level._custom_perks[a_keys[i]].perk_machine_thread ) )
+//            level thread [[ level._custom_perks[a_keys[i]].perk_machine_thread ]]();
+//  and init_electric_cherry() is that thread's first statement. So it fired a
+//  second time and took the server down.
+//
+//  Clearing the pointer is what stops it: the loop above is guarded on
+//  isdefined(). Nothing is lost - the thread's whole body operates on
+//  getentarray( "vendingelectric_cherry", ... ), which is empty on these maps,
+//  then blocks forever on `level waittill( "electric_cherry_on" )`. The perk's
+//  real behaviour (reload attack, perk_lost) is registered separately by
+//  register_perk_threads() and is untouched.
+//
+//  Deleting our own init_electric_cherry() call instead would ALSO fix the crash,
+//  but it would make registration depend on _zm_perks::init() reaching that loop -
+//  and it does not always: it early-returns when vending_triggers.size < 1. That
+//  gate is the documented cause of an earlier mismatch on this project, see
+//  zm_qol\scripts\zm\zm_tomb\zm_tomb.gsc:111-124. Registering in main() and
+//  removing the duplicate is not exposed to it.
+//
+//  🛑 The 9-perk result is still NOT verified in game. Needs build_ff.bat - the
+//  client half is a .csc.
 // ============================================================================
 zmqol_enable_electric_cherry()
 {
@@ -2805,6 +2833,11 @@ zmqol_enable_electric_cherry()
 
     maps\mp\zombies\_zm_perk_electric_cherry::enable_electric_cherry_perk_for_level();
     maps\mp\zombies\_zm_perk_electric_cherry::init_electric_cherry();
+
+    // Stop _zm_perks::init() from threading electric_cherry_perk_machine_think(),
+    // whose first line calls init_electric_cherry() a second time. See above.
+    if ( isdefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) )
+        level._custom_perks[ "specialty_grenadepulldeath" ].perk_machine_thread = undefined;
 }
 
 perks_register_clientfield()
