@@ -3013,6 +3013,26 @@ zmqol_fly_think()
         e_mover delete();
 }
 
+//  🛑 v1.21.1 REPORT: ".fly ... i just am stuck in place im not flying or no
+//  clipping". The link itself is clearly working - being stuck IS the link
+//  holding position - so what failed is the mover never moving. Two candidates,
+//  and this version addresses one and measures the other:
+//
+//    1. e_mover.origin = v_pos teleports the parent. A linked player follows a
+//       mover's MOVEMENT, and a direct origin assignment is not movement - every
+//       stock link target is a real mover (the MOTD gondola runs on moveto, the
+//       plane on vehicle physics). moveto() over exactly one server frame is the
+//       fix, and it also smooths the motion.
+//    2. getnormalizedmovement() may simply return (0,0) while the player is
+//       linked, in which case nothing above matters. That cannot be settled from
+//       here, so the probe below prints what the engine actually reports for the
+//       first ~3 seconds of a flight. If the numbers are all 0 0, input is not
+//       readable while linked and the whole approach is dead - at which point
+//       the answer is t6-gsc-utils' native ufo()/noclip(), which is a plugin
+//       install, not a script change.
+//
+//  Server frame is 20Hz, so 0.05s is one frame: each moveto finishes exactly as
+//  the next is issued, giving continuous motion rather than a stutter.
 zmqol_fly_move( e_mover )
 {
     self endon( "disconnect" );
@@ -3020,6 +3040,7 @@ zmqol_fly_move( e_mover )
     level endon( "game_ended" );
 
     n_speed = 25;
+    n_probe = 0;
 
     for ( ;; )
     {
@@ -3028,13 +3049,23 @@ zmqol_fly_move( e_mover )
 
         v_move = self getnormalizedmovement();
 
+        if ( n_probe < 60 )
+        {
+            if ( isdefined( v_move ) )
+                println( "[zm_qol] fly: move=" + v_move[0] + " " + v_move[1] + " mover=" + e_mover.origin );
+            else
+                println( "[zm_qol] fly: getnormalizedmovement UNDEFINED" );
+
+            n_probe++;
+        }
+
         if ( isdefined( v_move ) && ( v_move[0] != 0 || v_move[1] != 0 ) )
         {
             v_angles = self getplayerangles();
             v_pos = e_mover.origin;
             v_pos = v_pos + ( anglestoforward( v_angles ) * ( v_move[0] * n_speed ) );
             v_pos = v_pos + ( anglestoright( v_angles ) * ( v_move[1] * n_speed ) );
-            e_mover.origin = v_pos;
+            e_mover moveto( v_pos, 0.05 );
         }
 
         wait 0.05;

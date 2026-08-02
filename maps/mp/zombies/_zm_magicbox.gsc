@@ -556,8 +556,40 @@ treasure_chest_think()
 
     if ( isdefined( self.zbarrier ) )
     {
-        play_sound_at_pos( "open_chest", self.origin );
-        play_sound_at_pos( "music_chest", self.origin );
+        // ====================================================================
+        //  zm_qol: play the two box sounds ON THE ZBARRIER instead of at a
+        //  bare world position.
+        //
+        //  The probe above proved the script side is healthy - zbarrier=yes and
+        //  both aliases resolve to zmb_lid_open / zmb_music_box - yet nothing
+        //  was audible. The deciding observation came from the user: on a teddy
+        //  bear spin they DID hear Richtofen laugh. That is play_crazi_sound
+        //  (:272), and it reaches the player as
+        //        self playlocalsound( level.zmb_laugh_alias )
+        //  i.e. sound played ON AN ENTITY. So alias lookup and the sound system
+        //  are both fine on this map, and what is not producing audio is
+        //  specifically playsoundatposition() - the call play_sound_at_pos()
+        //  makes (_zm_utility.gsc:2358).
+        //
+        //  Entity-attached playback is the mechanism stock itself uses for the
+        //  perk machines (machine[i] playsound( "zmb_perks_power_on" )), so this
+        //  swaps to it: same aliases, same moment, delivered on the zbarrier -
+        //  which is the box, so the sound is still positional and still comes
+        //  from the right place.
+        //
+        //  Falls back to the stock call if the sound table is somehow unset, so
+        //  this can only ever add audio, never remove it.
+        // ====================================================================
+        if ( isdefined( level.zombie_sounds ) && isdefined( level.zombie_sounds["open_chest"] ) )
+            self.zbarrier playsound( level.zombie_sounds["open_chest"] );
+        else
+            play_sound_at_pos( "open_chest", self.origin );
+
+        if ( isdefined( level.zombie_sounds ) && isdefined( level.zombie_sounds["music_chest"] ) )
+            self.zbarrier playsound( level.zombie_sounds["music_chest"] );
+        else
+            play_sound_at_pos( "music_chest", self.origin );
+
         self.zbarrier set_magic_box_zbarrier_state( "open" );
     }
 
