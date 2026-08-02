@@ -44,3 +44,33 @@ material,loadscreen_zm_prison_zclassic_prison
 // ============================================================================
 xmodel,p6_zm_buildable_bench_tarp
 xmodel,zm_collision_transit_diner_survival
+
+// ============================================================================
+//  WUNDERFIZZ  -  the real Origins machine, on every map
+// ----------------------------------------------------------------------------
+//  scripts\zm\wunderfizz.gsc places a Der Wunderfizz on all six maps. Upstream
+//  could only do this with a JUGGERNOG model standing in, because it ships as a
+//  loose script and cannot add assets. This is a real mod with a fastfile, so it
+//  uses the actual machine.
+//
+//  Per the Unlinker, every one of these lives ONLY in zm_tomb.ff:
+//      xmodel  p6_zm_vending_diesel_magic          the machine
+//      fx      maps/zombie_tomb/fx_tomb_dieselmagic_on   the swirl it plays
+//      xmodel  t6_wpn_zmb_perk_bottle_bear_world   the teddy on relocate
+//  build_ff.bat already --loads zm_tomb.ff, so the Linker copies them out of it.
+//
+//  🛑 FX ARE A SPECIAL CASE. OpenAssetTools can neither compile nor dump an
+//  FxEffectDef (its matrix lists it ❌/❌), so this fx CANNOT come from a raw
+//  source file - it only resolves by being copied out of a --load'ed fastfile
+//  that owns it at scope=top, which zm_tomb.ff does. If that copy ever fails the
+//  link, do not go looking for a .efx to add: the answer is the --load, not a
+//  source file. See the starter kit's §5.
+//
+//  🛑 The machine's IMAGES are DLC4 assets. A fastfile stores image headers, not
+//  pixels - those come from the ipaks at runtime. If Origins' textures are not in
+//  an ipak the other maps mount, the machine will draw untextured/black off
+//  Origins even though it spawns correctly. Unverified; check it in game.
+// ============================================================================
+xmodel,p6_zm_vending_diesel_magic
+xmodel,t6_wpn_zmb_perk_bottle_bear_world
+fx,maps/zombie_tomb/fx_tomb_dieselmagic_on
