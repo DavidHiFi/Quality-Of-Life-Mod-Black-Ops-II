@@ -8,7 +8,6 @@
 main()
 {
     replaceFunc(clientscripts\mp\zm_highrise::include_weapons, ::include_weapons);
-    replaceFunc(clientscripts\mp\zm_highrise::init_gamemodes, ::init_gamemodes);
 }
 
 // ============================================================================

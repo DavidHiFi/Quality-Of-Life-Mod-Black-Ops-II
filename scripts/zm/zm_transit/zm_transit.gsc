@@ -29,7 +29,6 @@ main()
     // gametypes. Without it every Tunnel respawn point stays locked and the player is
     // dumped at the Bus Depot default spawn and killed instantly - see the header
     // comment in scripts\zm\replaced\zm_transit.gsc for the full chain.
-    replaceFunc( maps\mp\zm_transit::transit_zone_init, scripts\zm\replaced\zm_transit::transit_zone_init );
 
     electric_door_changes();
 

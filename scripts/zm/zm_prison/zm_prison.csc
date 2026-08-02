@@ -9,7 +9,6 @@
 main()
 {
     replaceFunc(clientscripts\mp\zm_prison::include_weapons, ::include_weapons);
-    replaceFunc(clientscripts\mp\zm_prison::init_gamemodes, ::init_gamemodes);
 }
 
 // ============================================================================

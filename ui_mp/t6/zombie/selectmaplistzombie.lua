@@ -94,78 +94,18 @@ CoD.SelectMapListZombie.Locations[4] = {
 }
 CoD.SelectMapListZombie.Locations[5] = {
 	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "power",
-	name = "POWER STATION",
-}
-CoD.SelectMapListZombie.Locations[6] = {
-	ui_mapname = "zm_transit",
 	ui_zm_mapstartlocation = "town",
 	name = "TOWN",                             -- (stock)
 }
-CoD.SelectMapListZombie.Locations[7] = {
-	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "tunnel",
-	name = "TUNNEL",
-}
-CoD.SelectMapListZombie.Locations[8] = {
-	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "cornfield",
-	name = "CORNFIELD",
-}
-CoD.SelectMapListZombie.Locations[9] = {
-	ui_mapname = "zm_highrise",
-	ui_zm_mapstartlocation = "shopping_mall",
-	name = "SHOPPING MALL",
-}
-CoD.SelectMapListZombie.Locations[10] = {
-	ui_mapname = "zm_highrise",
-	ui_zm_mapstartlocation = "dragon_rooftop",
-	name = "DRAGON ROOFTOP",
-}
-CoD.SelectMapListZombie.Locations[11] = {
-	ui_mapname = "zm_highrise",
-	ui_zm_mapstartlocation = "sweatshop",
-	name = "SWEATSHOP",
-}
-CoD.SelectMapListZombie.Locations[12] = {
+CoD.SelectMapListZombie.Locations[6] = {
 	ui_mapname = "zm_buried",
 	ui_zm_mapstartlocation = "street",
-	name = "BOROUGH",                          -- (stock)
+	name = "BOROUGH",                          -- (stock grief)
 }
-CoD.SelectMapListZombie.Locations[13] = {
-	ui_mapname = "zm_buried",
-	ui_zm_mapstartlocation = "maze",
-	name = "MAZE",
-}
-CoD.SelectMapListZombie.Locations[14] = {
+CoD.SelectMapListZombie.Locations[7] = {
 	ui_mapname = "zm_prison",
 	ui_zm_mapstartlocation = "cellblock",
-	name = "CELL BLOCK",                       -- (stock)
-}
-CoD.SelectMapListZombie.Locations[15] = {
-	ui_mapname = "zm_prison",
-	ui_zm_mapstartlocation = "docks",
-	name = "DOCKS",
-}
-CoD.SelectMapListZombie.Locations[16] = {
-	ui_mapname = "zm_tomb",
-	ui_zm_mapstartlocation = "trenches",
-	name = "TRENCHES",
-}
-CoD.SelectMapListZombie.Locations[17] = {
-	ui_mapname = "zm_tomb",
-	ui_zm_mapstartlocation = "excavation_site",
-	name = "EXCAVATION SITE",
-}
-CoD.SelectMapListZombie.Locations[18] = {
-	ui_mapname = "zm_tomb",
-	ui_zm_mapstartlocation = "church",
-	name = "CHURCH",
-}
-CoD.SelectMapListZombie.Locations[19] = {
-	ui_mapname = "zm_tomb",
-	ui_zm_mapstartlocation = "crazy_place",
-	name = "THE CRAZY PLACE",
+	name = "CELL BLOCK",                       -- (stock grief)
 }
 
 CoD.SelectMapListZombie.GetKeyValueIndex = function(table, key, value)

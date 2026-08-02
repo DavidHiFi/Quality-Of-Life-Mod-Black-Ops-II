@@ -11,7 +11,6 @@ main()
     replaceFunc( maps\mp\zm_highrise_elevators::init_elevator_perks, ::init_elevator_perks );
 
     // --- custom survival start locations: adds Shopping Mall, Dragon Rooftop, Sweatshop ---
-    replaceFunc( maps\mp\zm_highrise_gamemodes::init, scripts\zm\replaced\zm_highrise_gamemodes::init );
 
     zmqol_register_survival_clientfields();
 }

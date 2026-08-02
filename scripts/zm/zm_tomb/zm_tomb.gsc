@@ -15,7 +15,6 @@ main()
     replaceFunc( maps\mp\zm_tomb_ee_side::check_for_change, ::origins_change_patch ); // prone "loose change" -> 100
 
     // --- custom survival start locations: Trenches, Excavation Site, Church, The Crazy Place ---
-    replaceFunc( maps\mp\zm_tomb_gamemodes::init, scripts\zm\replaced\zm_tomb_gamemodes::init );
 
     // ========================================================================
     //  ORIGINS SURVIVAL - the zone-capture / generator system.
@@ -45,24 +44,6 @@ main()
     //  Reimagined file, and all 18 hooked functions were verified present in the
     //  ported copy before wiring these up.
     // ========================================================================
-    replaceFunc(maps\mp\zm_tomb_capture_zones::precache_everything, scripts\zm\replaced\zm_tomb_capture_zones::precache_everything);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::declare_objectives, scripts\zm\replaced\zm_tomb_capture_zones::declare_objectives);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::init_capture_zone, scripts\zm\replaced\zm_tomb_capture_zones::init_capture_zone);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::register_elements_powered_by_zone_capture_generators, scripts\zm\replaced\zm_tomb_capture_zones::register_elements_powered_by_zone_capture_generators);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::enable_mystery_boxes_in_zone, scripts\zm\replaced\zm_tomb_capture_zones::enable_mystery_boxes_in_zone);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::disable_mystery_boxes_in_zone, scripts\zm\replaced\zm_tomb_capture_zones::disable_mystery_boxes_in_zone);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::pack_a_punch_init, scripts\zm\replaced\zm_tomb_capture_zones::pack_a_punch_init);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::pack_a_punch_enable, scripts\zm\replaced\zm_tomb_capture_zones::pack_a_punch_enable);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::setup_perk_machines_not_controlled_by_zone_capture, scripts\zm\replaced\zm_tomb_capture_zones::setup_perk_machines_not_controlled_by_zone_capture);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::check_perk_machine_valid, scripts\zm\replaced\zm_tomb_capture_zones::check_perk_machine_valid);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::all_zones_captured_vo, scripts\zm\replaced\zm_tomb_capture_zones::all_zones_captured_vo);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::init_recapture_zombie, scripts\zm\replaced\zm_tomb_capture_zones::init_recapture_zombie);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::recapture_zombie_death_func, scripts\zm\replaced\zm_tomb_capture_zones::recapture_zombie_death_func);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::recapture_round_tracker, scripts\zm\replaced\zm_tomb_capture_zones::recapture_round_tracker);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::recapture_zombie_icon_think, scripts\zm\replaced\zm_tomb_capture_zones::recapture_zombie_icon_think);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::get_zone_objective_index, scripts\zm\replaced\zm_tomb_capture_zones::get_zone_objective_index);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::get_generator_capture_start_cost, scripts\zm\replaced\zm_tomb_capture_zones::get_generator_capture_start_cost);
-    replaceFunc(maps\mp\zm_tomb_capture_zones::magic_box_stub_update_prompt, scripts\zm\replaced\zm_tomb_capture_zones::magic_box_stub_update_prompt);
 
     // 🛑 Dig sites appearing on survival, where no shovel can be obtained.
     // Reimagined's init_shovel returns early on !is_classic() before precaching
@@ -72,7 +53,6 @@ main()
     // swap_weapon (a function we do not hook - ::custom_swap_weapon above
     // replaces it): they are the file's only references to a Reimagined-only
     // script and would have been unresolved externals that killed the load.
-    replaceFunc(maps\mp\zm_tomb_dig::init_shovel, scripts\zm\replaced\zm_tomb_dig::init_shovel);
 
     // 🛑 Giant robots walking through the survival arenas. Stock zm_tomb::main()
     // calls init_giant_robot() with no gametype guard at all, so all three robots
@@ -80,7 +60,6 @@ main()
     // head hatches. Our robot_cycling() returns immediately on !is_classic(), which
     // leaves them spawned but ghosted/inert. See the file header for why they are
     // still spawned rather than skipped outright (_zm_weap_beacon indexes them).
-    replaceFunc(maps\mp\zm_tomb_giant_robot::robot_cycling, scripts\zm\replaced\zm_tomb_giant_robot::robot_cycling);
 
     // 🛑 Side easter eggs (one inch punch prompts, quadrotor medallions, the
     // wagon fire challenge, the wall poster, the light show) running on survival
@@ -89,7 +68,6 @@ main()
     // header for the full inventory and for why it MUST register light_show.
     // zm_tomb::main() does `level thread maps\mp\zm_tomb_ee_side::init()`, a
     // qualified threaded cross-file call, so this hook is the reliable kind.
-    replaceFunc(maps\mp\zm_tomb_ee_side::init, scripts\zm\replaced\zm_tomb_ee_side::init);
 
     // Must run in main(), before the map registers its own clientfields.
     zmqol_register_survival_clientfields();

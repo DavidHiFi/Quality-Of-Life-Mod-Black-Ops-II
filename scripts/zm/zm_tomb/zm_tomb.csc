@@ -8,7 +8,6 @@
 main()
 {
     replaceFunc(clientscripts\mp\zm_tomb::include_weapons, ::include_weapons);
-    replaceFunc(clientscripts\mp\zm_tomb::init_gamemodes, ::init_gamemodes);
 }
 
 // ============================================================================
