@@ -4,6 +4,11 @@
 #include maps\mp\gametypes_zm\_hud_util;
 #include maps\mp\gametypes_zm\_hud_message;
 
+// The animtree the real machine's ball spin lives on. Its rawfile
+// (animtrees/zm_perk_random.atr) is declared in zone_source\mod_locations.zone,
+// so it is in mod.ff on every map - stock only ever had it on Origins.
+#using_animtree("zm_perk_random");
+
 // ============================================================================
 //  main
 //
@@ -59,6 +64,12 @@ setupWunderfizz()
 	// the effect and the machine model (copied out of zm_tomb.ff at link time,
 	// see zone_source\mod_locations.zone), so it loads everywhere.
 	level._effect[ "wunderfizz_loop" ] = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_on" );
+
+	// The three that make it the real machine. Same names stock uses in
+	// _zm_perk_random (.gsc:24-29 / .csc:12-17) so the mapping is obvious.
+	level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_identify" );
+	level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_light" );
+	level._effect[ "perk_machine_steam" ]    = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_steam" );
 
 	if(level.script == "zm_tomb")
     {
@@ -439,6 +450,12 @@ wunderfizzSetup(origin, angles, model)
 	wunderfizzMachine = spawn("script_model", origin);
 	wunderfizzMachine setModel(model);
 	wunderfizzMachine rotateTo(angles, .1);
+	// Per-entity, deliberately NOT scriptmodelsuseanimtree(). Stock calls that
+	// too (_zm_perk_random.gsc:176), but it sets the DEFAULT tree for every
+	// script model in the level - fine on Origins, which owns the tree, and a
+	// good way to break other maps' script-model animations. useanimtree() binds
+	// this machine only, which is all the ball spin needs.
+	wunderfizzMachine useanimtree( #animtree );
 	wunderfizzBottle = spawn("script_model", origin);
 	wunderfizzBottle setModel("tag_origin");
 	wunderfizzBottle.angles = angles;
@@ -455,7 +472,11 @@ wunderfizzSetup(origin, angles, model)
 
 wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 {
-	self thread playLocFX();
+	// playLocFX() used to sit here. It spawned level._effect["lght_marker"], a
+	// per-map effect that mostly does not exist off the maps that load it, so it
+	// was guarded into doing nothing at all - which is why there was no location
+	// beam. Replaced by zmqol_wf_ball_glow(), started when this machine becomes
+	// the active one, using Origins' real fx_tomb_dieselmagic_identify.
 	if(level.wunderfizzChecksPower && level.script != "zm_prison" && level.script != "zm_nuked")
 	{
 		trig SetHintString("Power Must Be Activated First");
@@ -471,6 +492,10 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 		if(level.currentWunderfizzLocation == self.location)
 		{
 			self ShowPart("j_ball");
+			// Arrive: spin up, then settle into the powered idle, and light the
+			// ball + the beam that says "the orb is HERE".
+			self zmqol_wf_anim( "start" );
+			self thread zmqol_wf_ball_glow();
 			for(;;)
 			{
 				trig SetHintString("Hold ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
@@ -482,6 +507,7 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 						if(player.num_perks < perks.size)
 						{
 							self thread wunderfizzSounds();
+							self zmqol_wf_anim( "in_use" );   // ball spins while it cycles
 							player playsound("zmb_cha_ching");
 							self.uses++;
 							player.score -= cost;
@@ -517,11 +543,17 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 								self.bottle setModel("t6_wpn_zmb_perk_bottle_bear_world");
 								level notify("wunderSpinStop");
 								wunderfx Delete();
+								// Departing: shut the ball down and puff steam,
+								// stock's fx_departure_steam.
+								self zmqol_wf_anim( "shut_down" );
+								self notify( "zmqol_wf_ball_off" );
+								self thread zmqol_wf_departure_steam();
 								wait 7;
 								self.bottle setModel("tag_origin");
 								level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
 								level notify("wunderfizzMove");
 								self setModel(model);
+								self useanimtree( #animtree );
 								self.uses = 0;
 								break;
 							}
@@ -554,6 +586,11 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 											time -= .2;
 										}
 										self setModel(model);
+										// setModel resets the entity's anim binding,
+										// so rebind and drop back to the powered idle
+										// or the ball freezes after the first spin.
+										self useanimtree( #animtree );
+										self zmqol_wf_anim( "idle" );
 										self.bottle setModel("tag_origin");
 										trig SetHintString(" ");
 										level notify("wunderSpinStop");
@@ -591,32 +628,104 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 		else{
 			trig SetHintString("Wunderfizz Orb is at Another Location");
 			self HidePart("j_ball");
+			// Stop the glow and the beam - a dormant machine must not advertise
+			// itself, or every location looks like the live one.
+			self notify( "zmqol_wf_ball_off" );
 			level waittill("wunderfizzMove");
 		}
 		wait .1;
 	}
 }
 
-playLocFX()
+// ============================================================================
+//  THE REAL MACHINE'S PRESENTATION
+//
+//  The user compared this against genuine Origins on a friend's screenshare and
+//  listed what was missing: the lightning beam marking where the orb is, the
+//  ball on top spinning, and the electrical fx on the machine. All three exist
+//  in stock and all three are reproduced below from the same assets.
+//
+//  Stock splits them: the ANIMATION is server-side (setanim, _zm_perk_random.gsc
+//  :609-634) and the FX are client-side, driven by five clientfields that
+//  _zm_perk_random.csc listens on. The animation half is a straight port. The fx
+//  half is deliberately NOT ported as clientfields - five more registrations from
+//  a root script running on six maps is the most reliable way to drop everyone
+//  with EXE_CLIENT_FIELD_MISMATCH, and this project has already lost a release to
+//  exactly that. playfx and playfxontag work server-side with no registration, so
+//  the same effects are spawned from here instead, at the same tags stock uses.
+// ============================================================================
+
+//  Stock's update_animation(), verbatim in behaviour (_zm_perk_random.gsc:609).
+zmqol_wf_anim( str_state )
 {
-	level waittill("connected", player);
-
-	// zm_qol: lght_marker is loaded per-map (each map's own script does it), not
-	// in Core, so it is not guaranteed to exist. SpawnFX on an undefined effect
-	// throws and would kill this thread on its first iteration - silently, per
-	// rule 14. The marker beam is cosmetic, so skip it rather than risk that.
-	if(!isDefined(level._effect["lght_marker"]))
-		return;
-
-	for(;;)
+	if( str_state == "start" )
 	{
-		fx = SpawnFX(level._effect["lght_marker"], self.origin);
-		if(self.location == level.currentWunderfizzLocation)
-		{
-			TriggerFX(fx);
-		}
-		level waittill("wunderfizzMove");
-		fx Delete();
+		self clearanim( %root, 0.2 );
+		self setanim( %o_zombie_dlc4_vending_diesel_turn_on, 1, 0.2, 1 );
+	}
+	else if( str_state == "shut_down" )
+	{
+		self clearanim( %root, 0.2 );
+		self setanim( %o_zombie_dlc4_vending_diesel_turn_off, 1, 0.2, 1 );
+	}
+	else if( str_state == "in_use" )
+	{
+		self clearanim( %root, 0.2 );
+		self setanim( %o_zombie_dlc4_vending_diesel_ballspin_loop, 1, 0.2, 1 );
+	}
+	else
+	{
+		self clearanim( %root, 0.2 );
+		self setanim( %o_zombie_dlc4_vending_diesel_on_idle, 1, 0.2, 1 );
+	}
+}
+
+//  The beam. Stock's fx_location_indicator (_zm_perk_random.csc:205) re-plays a
+//  one-shot every 3-4 seconds rather than holding a looping handle, so this does
+//  the same - the fx is authored to be retriggered.
+zmqol_wf_location_beam()
+{
+	self endon( "zmqol_wf_ball_off" );
+	level endon( "end_game" );
+
+	for( ;; )
+	{
+		if( self.location == level.currentWunderfizzLocation )
+			playfx( level._effect[ "perk_machine_location" ], self.origin );
+
+		wait randomfloatrange( 3.0, 4.0 );
+	}
+}
+
+//  The glow on the orb itself, on tag j_ball exactly as stock does
+//  (turn_on_active_ball_light, _zm_perk_random.csc:88), plus the beam.
+zmqol_wf_ball_glow()
+{
+	self endon( "zmqol_wf_ball_off" );
+	level endon( "end_game" );
+
+	self thread zmqol_wf_location_beam();
+
+	for( ;; )
+	{
+		playfxontag( level._effect[ "perk_machine_light" ], self, "j_ball" );
+		wait 1;
+	}
+}
+
+//  Stock's fx_departure_steam (_zm_perk_random.csc:193): a 5-second puff as the
+//  orb leaves, retriggered every 0.1s.
+zmqol_wf_departure_steam()
+{
+	level endon( "end_game" );
+
+	n_ticks = 0;
+
+	while( n_ticks < 50 )
+	{
+		playfxontag( level._effect[ "perk_machine_steam" ], self, "tag_origin" );
+		wait 0.1;
+		n_ticks++;
 	}
 }
 

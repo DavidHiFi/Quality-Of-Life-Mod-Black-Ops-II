@@ -75,6 +75,45 @@ xmodel,p6_zm_vending_diesel_magic
 xmodel,t6_wpn_zmb_perk_bottle_bear_world
 fx,maps/zombie_tomb/fx_tomb_dieselmagic_on
 
+// ----------------------------------------------------------------------------
+//  ...and the parts that make it the REAL machine rather than a lookalike.
+//
+//  The user's report, after seeing genuine Origins on a friend's screenshare:
+//  no lightning beam marking its location, the ball on top does not spin, and
+//  the electrical fx are missing - "it's kinda half-assed right now".
+//  Correct on all three; v1.19.0 shipped the MODEL and stopped there.
+//
+//  Everything below is in zm_tomb.ff, which build_ff.bat already --loads:
+//      animtrees/zm_perk_random.atr        the animtree the ball spin lives on
+//      o_zombie_dlc4_vending_diesel_*      turn_on / turn_off / on_idle /
+//                                          ballspin_loop
+//      fx_tomb_dieselmagic_identify        the beam, stock's "perk_machine_location"
+//      fx_tomb_dieselmagic_light           the ball glow, played on tag j_ball
+//      fx_tomb_dieselmagic_steam           the departure puff
+//
+//  🛑 THE ANIMTREE IS A RAWFILE AND MUST BE DECLARED HERE. mod.iwd serves
+//  scripts but not rawfiles (.atr/.txt/.asd) - those only reach the game through
+//  mod.ff. Ship the xanims without it and setanim() has no tree to resolve
+//  %o_zombie_dlc4_* against.
+//
+//  Stock drives the fx from the CLIENT, through five clientfields in
+//  _zm_perk_random.csc. We deliberately do NOT do that: five more clientfields
+//  registered from a root script on six maps is the single most reliable way to
+//  drop everyone with EXE_CLIENT_FIELD_MISMATCH, and this project has been bitten
+//  by exactly that more than once. playfx / playfxontag work server-side and need
+//  no registration, so the fx are driven from the .gsc instead. The ANIMATION was
+//  always server-side in stock (setanim in _zm_perk_random.gsc:609-634), so that
+//  half is a straight port.
+// ----------------------------------------------------------------------------
+rawfile,animtrees/zm_perk_random.atr
+xanim,o_zombie_dlc4_vending_diesel_turn_on
+xanim,o_zombie_dlc4_vending_diesel_turn_off
+xanim,o_zombie_dlc4_vending_diesel_on_idle
+xanim,o_zombie_dlc4_vending_diesel_ballspin_loop
+fx,maps/zombie_tomb/fx_tomb_dieselmagic_identify
+fx,maps/zombie_tomb/fx_tomb_dieselmagic_light
+fx,maps/zombie_tomb/fx_tomb_dieselmagic_steam
+
 // ============================================================================
 //  THE WUNDERFIZZ / ELECTRIC CHERRY SOUNDS  -  one line, both bugs
 // ----------------------------------------------------------------------------
