@@ -161,7 +161,34 @@ fx,maps/zombie_tomb/fx_tomb_dieselmagic_steam
 //       defined in two loaded banks.
 //  If either bites, this one line is the whole change to revert.
 // ============================================================================
-soundbank,zmb_tomb.all
+// 🛑 REMOVED IN v1.21.2 - IT BRICKED ORIGINS. Booting zm_tomb died with:
+//        COM_ERROR (1) Attempting to override asset 'zmb_tomb.all'
+//                      from zone 'mod' with zone 'zm_tomb'
+//    mod.ff loads first, so by the time zm_tomb.ff declares its own
+//    soundbank,zmb_tomb.all the name is taken, and T6 treats a duplicate asset
+//    across zones as fatal rather than ignoring it. The comment that used to sit
+//    here called this out as the thing to watch on Origins - it was right.
+//
+//    There is no conditional form: mod.ff is one file loaded on every map, so
+//    "declare it everywhere except Origins" cannot be expressed, and no GSC
+//    builtin loads a soundbank at runtime (checked the whole stock dump).
+//    Every stock bank carrying zmb_rand_perk_* is Origins' own, so any bank that
+//    HAS the sounds also collides on the map that owns it.
+//
+//    Cost of the removal: the Wunderfizz spin and Electric Cherry reload are
+//    silent again off Origins. That is a real regression against v1.19.0-v1.21.1
+//    and it is deliberate - an unbootable map is worse than a missing sound.
+//
+//    The way to get them back without a collision is the mod's OWN bank,
+//    mod.all, which already loads on every map and collides with nothing. That
+//    needs five aliases - zmb_rand_perk_start / _loop / _stop / _leave and
+//    zmb_cherry_explode - and the source audio is already extracted on this
+//    machine, under "BO2 Files Organized By Volkz\Sounds":
+//        zmb_tomb.all.sabl\raw\sound\zmb\level\zm_tomb\random_perk_machine\...
+//        zmb_alcatraz.all.sabs\raw\sound\mus\zombie\alcatraz\perksacola\cherry_jingle.flac
+//    Building it needs Sound Studio Extended, which is GUI-only - see
+//    .agents\sound_work_notes.md.
+// soundbank,zmb_tomb.all
 
 // ============================================================================
 //  ELECTRIC CHERRY  -  the 9th perk, on the maps that never shipped it
