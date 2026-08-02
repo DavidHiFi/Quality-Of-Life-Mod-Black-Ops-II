@@ -5,14 +5,16 @@
 --
 --  Replaces the globe-based map picker with two plain list popups reachable from
 --  the private game lobby:
---      SelectMapListZM        - "Change Map"       -> flat list of every survival
---                               start location across all 5 maps
+--      SelectMapListZM        - "Change Map"
 --      SelectGameModeListZM   - "Change Game Mode"
 --
 --  Selecting a location sets BOTH ui_mapname and ui_zm_mapstartlocation, so
---  picking e.g. "DOCKS" switches to zm_prison and starts at Docks. The GSC side
---  (scripts\zm\replaced\zm_*_gamemodes.gsc + scripts\zm\locs\) is what makes the
---  non-stock locations actually playable.
+--  picking e.g. "DINER" switches to zm_transit and starts at the Diner.
+--
+--  v1.15.1: the location lists are back to vanilla. DINER is the only addition
+--  the mod still makes, and scripts\zm\replaced\zm_transit_gamemodes.gsc plus
+--  scripts\zm\locs\zm_transit_loc_diner.gsc are what make it playable. All the
+--  other ported locations, and the custom gamemodes, were removed.
 --
 --  🛑 DIFFERENCE FROM REIMAGINED - read before "fixing" this:
 --  Reimagined reads each location's display name out of the zm/gametypestable.csv
@@ -69,44 +71,92 @@ CoD.SelectMapListZombie.Maps[5] = {
 	ui_zm_mapstartlocation = "tomb",
 }
 
--- Survival / Grief start locations. Entries marked (stock) already work in the
--- base game; the rest are the ones the ported GSC adds.
+-- ----------------------------------------------------------------------------
+--  🛑 SURVIVAL AND GRIEF HAVE DIFFERENT LOCATION LISTS IN THE VANILLA GAME.
+--
+--  This used to be ONE flat table shared by both modes, which is why Borough and
+--  Cell Block showed up when picking a Survival map. They are not survival
+--  locations - vanilla offers them in Grief only - so a single list is wrong in
+--  both directions: it puts grief-only arenas in the survival picker, and
+--  deleting them outright would take them out of Grief, where they belong.
+--
+--  Vanilla, exactly:
+--      Survival : Bus Depot, Farm, Town, Nuketown
+--      Grief    : Bus Depot, Farm, Town, Borough, Cell Block
+--
+--  DINER is the single addition this mod makes, and it appears in both. Stock
+--  registers Diner for NEITHER mode (verified against the stock
+--  zm_transit_gamemodes dump, which has only transit/farm/town on each), so its
+--  grief entry is an addition here too, not a vanilla one.
+-- ----------------------------------------------------------------------------
 CoD.SelectMapListZombie.Locations = {}
 CoD.SelectMapListZombie.Locations[1] = {
 	ui_mapname = "zm_nuked",
 	ui_zm_mapstartlocation = "nuked",
-	name = "NUKETOWN",                         -- (stock)
+	name = "NUKETOWN",
 }
 CoD.SelectMapListZombie.Locations[2] = {
 	ui_mapname = "zm_transit",
 	ui_zm_mapstartlocation = "transit",
-	name = "BUS DEPOT",                        -- (stock)
+	name = "BUS DEPOT",
 }
 CoD.SelectMapListZombie.Locations[3] = {
 	ui_mapname = "zm_transit",
 	ui_zm_mapstartlocation = "diner",
-	name = "DINER",
+	name = "DINER",                            -- added by this mod
 }
 CoD.SelectMapListZombie.Locations[4] = {
 	ui_mapname = "zm_transit",
 	ui_zm_mapstartlocation = "farm",
-	name = "FARM",                             -- (stock)
+	name = "FARM",
 }
 CoD.SelectMapListZombie.Locations[5] = {
 	ui_mapname = "zm_transit",
 	ui_zm_mapstartlocation = "town",
-	name = "TOWN",                             -- (stock)
+	name = "TOWN",
 }
-CoD.SelectMapListZombie.Locations[6] = {
+
+CoD.SelectMapListZombie.GriefLocations = {}
+CoD.SelectMapListZombie.GriefLocations[1] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "transit",
+	name = "BUS DEPOT",
+}
+CoD.SelectMapListZombie.GriefLocations[2] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "diner",
+	name = "DINER",                            -- added by this mod
+}
+CoD.SelectMapListZombie.GriefLocations[3] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "farm",
+	name = "FARM",
+}
+CoD.SelectMapListZombie.GriefLocations[4] = {
+	ui_mapname = "zm_transit",
+	ui_zm_mapstartlocation = "town",
+	name = "TOWN",
+}
+CoD.SelectMapListZombie.GriefLocations[5] = {
 	ui_mapname = "zm_buried",
 	ui_zm_mapstartlocation = "street",
-	name = "BOROUGH",                          -- (stock grief)
+	name = "BOROUGH",
 }
-CoD.SelectMapListZombie.Locations[7] = {
+CoD.SelectMapListZombie.GriefLocations[6] = {
 	ui_mapname = "zm_prison",
 	ui_zm_mapstartlocation = "cellblock",
-	name = "CELL BLOCK",                       -- (stock grief)
+	name = "CELL BLOCK",
 }
+
+-- Which list a non-classic mode uses. Grief gets its own; anything else
+-- (Survival) gets the survival list.
+CoD.SelectMapListZombie.GetLocations = function(gametype)
+	if gametype == "zgrief" then
+		return CoD.SelectMapListZombie.GriefLocations
+	end
+
+	return CoD.SelectMapListZombie.Locations
+end
 
 CoD.SelectMapListZombie.GetKeyValueIndex = function(table, key, value)
 	for i, v in ipairs(table) do
@@ -145,7 +195,9 @@ local function gameModeListSelectionClickedEventHandler(self, event)
 			mapTable = CoD.SelectMapListZombie.Maps
 			mapIndex = CoD.SelectMapListZombie.GetKeyValueIndex(mapTable, "ui_mapname", map)
 		else
-			mapTable = CoD.SelectMapListZombie.Locations
+			-- Uses the gametype being switched TO, not the current dvar - this runs
+			-- while changing mode, so the dvar is still the old one.
+			mapTable = CoD.SelectMapListZombie.GetLocations(gameTable[index].ui_gametype)
 			mapIndex = CoD.SelectMapListZombie.GetKeyValueIndex(mapTable, "ui_zm_mapstartlocation", location)
 		end
 
@@ -230,7 +282,7 @@ local function mapListSelectionClickedEventHandler(self, event)
 		local mapTable = CoD.SelectMapListZombie.Maps
 
 		if UIExpression.DvarString(nil, "ui_gametype") ~= "zclassic" then
-			mapTable = CoD.SelectMapListZombie.Locations
+			mapTable = CoD.SelectMapListZombie.GetLocations(UIExpression.DvarString(nil, "ui_gametype"))
 		end
 
 		Engine.SetDvar("ui_mapname", mapTable[index].ui_mapname)
@@ -273,7 +325,7 @@ local function mapListGetButtonData(controller, index, mutables, self)
 		mutables.text:setText(CoD.GetZombieGameTypeDescription(CoD.Zombie.GAMETYPE_ZCLASSIC, CoD.SelectMapListZombie.Maps[index].ui_mapname))
 	else
 		-- Hardcoded name, not a stringtable lookup - see the header note.
-		mutables.text:setText(CoD.SelectMapListZombie.Locations[index].name)
+		mutables.text:setText(CoD.SelectMapListZombie.GetLocations(UIExpression.DvarString(nil, "ui_gametype"))[index].name)
 	end
 end
 
@@ -296,8 +348,9 @@ function LUI.createMenu.SelectMapListZM(controller)
 		local index = CoD.SelectMapListZombie.GetKeyValueIndex(CoD.SelectMapListZombie.Maps, "ui_mapname", UIExpression.DvarString(nil, "ui_mapname"))
 		listBox:setTotalItems(#CoD.SelectMapListZombie.Maps, index)
 	else
-		local index = CoD.SelectMapListZombie.GetKeyValueIndex(CoD.SelectMapListZombie.Locations, "ui_zm_mapstartlocation", UIExpression.DvarString(nil, "ui_zm_mapstartlocation"))
-		listBox:setTotalItems(#CoD.SelectMapListZombie.Locations, index)
+		local locTable = CoD.SelectMapListZombie.GetLocations(UIExpression.DvarString(nil, "ui_gametype"))
+		local index = CoD.SelectMapListZombie.GetKeyValueIndex(locTable, "ui_zm_mapstartlocation", UIExpression.DvarString(nil, "ui_zm_mapstartlocation"))
+		listBox:setTotalItems(#locTable, index)
 	end
 
 	self:addElement(listBox)
