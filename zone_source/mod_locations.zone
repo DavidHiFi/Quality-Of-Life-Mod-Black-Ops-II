@@ -76,6 +76,50 @@ xmodel,t6_wpn_zmb_perk_bottle_bear_world
 fx,maps/zombie_tomb/fx_tomb_dieselmagic_on
 
 // ============================================================================
+//  THE WUNDERFIZZ / ELECTRIC CHERRY SOUNDS  -  one line, both bugs
+// ----------------------------------------------------------------------------
+//  Checkpoint 14 §3 said "🛑 THE SOUNDS CANNOT BE FIXED FROM SCRIPT" and that is
+//  true - but it is not the whole answer, because they can be fixed from the ZONE.
+//  The reasoning that closed the case was that alias names are stored hashed in a
+//  .sabl, there is no CLI bank builder, and Sound Studio is GUI-only. All correct,
+//  and all only relevant if you are trying to BUILD a bank. We do not have to: the
+//  bank we need already ships with the game, it just is not loaded off Origins.
+//
+//  The game states this outright in console_zm.log. Every bank load is logged, and
+//  a Nuketown run loads exactly:
+//      zmb_patch.all   cmn_root.all   zmb_code_post_gfx.all   zmb_patch_ui.all
+//      zmb_common.all  zmb_nuked_real.all
+//      mod.all         deathmachine_zm.all      <- the mod's own two, from mod.ff
+//  zmb_tomb.all is absent, and that is the bank holding:
+//      zmb_rand_perk_start / _loop / _stop / _leave   (Wunderfizz spin -
+//                                    _zm_perk_random.gsc:645-653, Origins-only)
+//      zmb_cherry_explode                            (Electric Cherry reload -
+//                                    zm_tomb.gsc:1969, 2056)
+//  Origins is the one map that ships BOTH features, so its bank is the one bank
+//  that provably carries every alias the two need. Hence one entry, not two -
+//  zmb_alcatraz.all would add only a redundant copy of the cherry sound.
+//
+//  A soundbank is a legal zone asset - mod_base.zone already declares
+//  "soundbank,mod.all" and "soundbank,deathmachine_zm.all", and the log shows both
+//  loading. The Unlinker confirms zm_tomb.ff owns "soundbank, zmb_tomb.all", and
+//  build_ff.bat already --loads zm_tomb.ff for the machine model, so the Linker
+//  copies this out of the same donor by the same mechanism.
+//
+//  🛑 THIS SHIPS NO AUDIO. A soundbank asset is a reference by NAME; the actual
+//  zmb_tomb.all.sabl/.sabs stay in the base game's sound\ folder, where every copy
+//  of BO2 already has them (the log resolves them straight out of the Steam
+//  install). mod.ff does not grow and nobody needs an extra download.
+//
+//  🛑 UNVERIFIED, and the two things to watch for in game:
+//    1. On ORIGINS this bank is now declared twice - once by zm_tomb.ff, once by
+//       mod.ff. If a double load is not tolerated it will show up there first.
+//    2. Alias collisions with zmb_common/cmn_root, if T6 objects to a name being
+//       defined in two loaded banks.
+//  If either bites, this one line is the whole change to revert.
+// ============================================================================
+soundbank,zmb_tomb.all
+
+// ============================================================================
 //  ELECTRIC CHERRY  -  the 9th perk, on the maps that never shipped it
 // ----------------------------------------------------------------------------
 //  Wunderfizz can only hand out perks the map has REGISTERED - getPerks() reads
