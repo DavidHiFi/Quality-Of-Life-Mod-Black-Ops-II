@@ -326,6 +326,8 @@ init()
     level.round_think_func = ::round_think;
     thread round_hud();
 
+    level thread zmqol_spawn_baseline_probe();   // DIAGNOSTIC - remove once Buried spawns
+
     // --- counterszm ---
     precacheshader( "specialty_chugabud_zombies" );
     precacheshader( "specialty_electric_cherry_zombie" );
@@ -3990,4 +3992,108 @@ fade_out_intro_screen_zm_instant( hold_black_time, fade_out_time, destroyed_afte
         level.introscreen destroy();
 
     flag_set( "initial_blackscreen_passed" );
+}
+
+// ============================================================================
+//  zmqol_spawn_baseline_probe   -   DIAGNOSTIC, remove once Buried spawns zombies
+//
+//  🛑 NO ZOMBIES ON ANY BURIED LOCATION. Confirmed in game 2026-08-02: Borough
+//  and Maze both spawn none. This is NOT the Maze zone bug - the A/B run proved
+//  that, because Borough never had the zone seal applied (it was gated to
+//  location "maze") and fails identically:
+//        SPAWNPROBE street t=20 spawners=0 multi=0 groups=0 pool=15 total=6 alive=0 limit=24 flag=1
+//        SPAWNPROBE maze   t=20 spawners=0 multi=0 groups=0 pool=3  total=6 alive=0 limit=24 flag=1
+//
+//  Every gate in _zm.gsc::round_spawning() reads healthy - the spawn pool is
+//  populated, "spawn_zombies" is set, zombie_ai_limit is 24, 6 zombies are queued
+//  and none are alive. And there is NO script error anywhere in the log.
+//
+//  That silence is the clue. The spawn block is
+//        if ( isdefined( level.zombie_spawners ) )          // _zm.gsc:3037
+//        {
+//            ...
+//            spawner = random( level.zombie_spawners );     // _zm.gsc:3059
+//            ai = spawn_zombie( spawner, spawner.targetname, spawn_point );
+//        }
+//  An EMPTY array is still isdefined, so it would enter, random() would yield
+//  undefined, and spawner.targetname would throw a script error every attempt.
+//  We see no errors - so the array is more likely UNDEFINED, which skips the whole
+//  block silently and leaves ai undefined. That is a perfect match for the symptom.
+//
+//  🛑 The previous probe could not tell those two apart: it did
+//  `if (isdefined(x)) n = x.size;` and printed 0 for both. Same measurement flaw as
+//  the zbarrier and MAZEZONE probes - a bare count with no way to read it. So this
+//  one reports def and size SEPARATELY.
+//
+//  Root script on purpose: it has to run on a map that WORKS, to establish what a
+//  healthy level.zombie_spawners looks like. Nothing here is map-specific
+//  (level vars and _zm_utility only), so it is legal per AI_CONTEXT rule 2.
+//
+//      [zm_qol] BASE <map>/<loc> t=N spawners def=<0/1> size=<n> multi=<0/1> groups=<n>
+//      [zm_qol] BASE <map>/<loc> t=N pool=<n> total=<n> alive=<n> actors=<n> ailim=<n> actlim=<n> flag=<0/1>
+// ============================================================================
+zmqol_spawn_baseline_probe()
+{
+    level endon( "end_game" );
+
+    str_where = level.script + "/" + getdvar( "ui_zm_mapstartlocation" );
+
+    flag_wait( "start_zombie_round_logic" );
+
+    for ( i = 0; i < 2; i++ )
+    {
+        wait 10;
+
+        n_def = 0;
+        n_size = 0;
+
+        if ( isdefined( level.zombie_spawners ) )
+        {
+            n_def = 1;
+            n_size = level.zombie_spawners.size;
+        }
+
+        n_groups = 0;
+
+        if ( isdefined( level.zombie_spawn ) )
+            n_groups = level.zombie_spawn.size;
+
+        // 🛑 live is the whole point of this build. n_size is the array
+        // _zm_spawner::init() CACHED at map init; a_live is the same query re-run
+        // now. If a_live > 0 while n_size == 0, the entities exist and the cache
+        // was simply built too early - which is repairable, and the repair below
+        // does it. If a_live is also 0, the spawner entities genuinely are not in
+        // the world on this gametype and no script fix can conjure them.
+        a_live = getentarray( "zombie_spawner", "script_noteworthy" );
+
+        println( "[zm_qol] BASE " + str_where + " t=" + ( ( i + 1 ) * 10 ) + " spawners def=" + n_def + " size=" + n_size + " live=" + a_live.size + " multi=" + is_true( level.use_multiple_spawns ) + " groups=" + n_groups );
+
+        if ( n_size == 0 && a_live.size > 0 )
+        {
+            level.zombie_spawners = a_live;
+            println( "[zm_qol] BASE " + str_where + " REPAIRED level.zombie_spawners -> " + level.zombie_spawners.size );
+        }
+
+        n_pool = 0;
+
+        if ( isdefined( level.zombie_spawn_locations ) )
+            n_pool = level.zombie_spawn_locations.size;
+
+        n_total = 0;
+
+        if ( isdefined( level.zombie_total ) )
+            n_total = level.zombie_total;
+
+        n_ailim = 0;
+
+        if ( isdefined( level.zombie_ai_limit ) )
+            n_ailim = level.zombie_ai_limit;
+
+        n_actlim = 0;
+
+        if ( isdefined( level.zombie_actor_limit ) )
+            n_actlim = level.zombie_actor_limit;
+
+        println( "[zm_qol] BASE " + str_where + " t=" + ( ( i + 1 ) * 10 ) + " pool=" + n_pool + " total=" + n_total + " alive=" + get_current_zombie_count() + " actors=" + get_current_actor_count() + " ailim=" + n_ailim + " actlim=" + n_actlim + " flag=" + flag( "spawn_zombies" ) );
+    }
 }
