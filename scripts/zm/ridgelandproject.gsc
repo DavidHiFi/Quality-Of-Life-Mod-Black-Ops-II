@@ -2523,11 +2523,23 @@ zmqol_dev_command_listener()
 // ============================================================================
 //  .giveperks / .removeperks
 //
-//  Both walk level._custom_perks rather than a hardcoded list, so they cover
-//  exactly the perks the CURRENT map has registered - including Electric Cherry
-//  once zmqol_enable_electric_cherry() has added it, and Vulture Aid on Buried.
-//  A hardcoded list would try to give perks the map never registered, which has
-//  no clientfield behind it and does nothing useful.
+//  🛑 level._custom_perks IS NOT THE PERK LIST. Both commands used to walk only
+//  that array, and the user's report shows exactly what that costs:
+//  ".removeperks ... said it removed 2 perks but i still have 7". T6 keeps perks
+//  in two places and _custom_perks is the smaller one:
+//
+//    - the NINE core perks are flags:  level.zombiemode_using_<name>_perk.
+//      _zm_perks::init() turns each on with its own turn_<name>_on() thread and
+//      never puts them in _custom_perks (see _zm_perks.gsc:75-99, where the core
+//      perks are nine explicit if-blocks and the _custom_perks loop is separate).
+//    - only perks registered through register_perk_basic_info land in
+//      _custom_perks: Electric Cherry, PhD Flopper, Vulture Aid.
+//
+//  So on a map with two customs it removed two and left the seven core ones -
+//  precisely what was reported. zmqol_map_perks() below reads BOTH, and is the
+//  same enumeration wunderfizz.gsc::getPerks() already uses to decide what the
+//  machine may hand out, so the two agree on what "every perk on this map"
+//  means.
 //
 //  give_perk( perk, bought ) is the stock entry point (_zm_perks.gsc:1982), and
 //  is also the function this mod already replaceFuncs for the perk pop-up HUD,
@@ -2543,20 +2555,67 @@ zmqol_dev_command_listener()
 //  puts Juggernog's max health back. Calling unsetperk() directly would skip all
 //  of that and leave the player on 250 health with no Jugg.
 // ============================================================================
+//  Every perk this map actually has: the nine core flags plus whatever is in
+//  level._custom_perks. Mirrors wunderfizz.gsc::getPerks(), minus its Buried
+//  PhD exclusion - that exists because Buried's Wunderfizz must not OFFER a perk
+//  the map cannot support, which is not a reason to refuse to strip it if the
+//  player somehow has it.
+zmqol_map_perks()
+{
+    a_perks = [];
+
+    if ( isdefined( level.zombiemode_using_juggernaut_perk ) && level.zombiemode_using_juggernaut_perk )
+        a_perks[a_perks.size] = "specialty_armorvest";
+
+    if ( isdefined( level.zombiemode_using_doubletap_perk ) && level.zombiemode_using_doubletap_perk )
+        a_perks[a_perks.size] = "specialty_rof";
+
+    if ( isdefined( level.zombiemode_using_marathon_perk ) && level.zombiemode_using_marathon_perk )
+        a_perks[a_perks.size] = "specialty_longersprint";
+
+    if ( isdefined( level.zombiemode_using_sleightofhand_perk ) && level.zombiemode_using_sleightofhand_perk )
+        a_perks[a_perks.size] = "specialty_fastreload";
+
+    if ( isdefined( level.zombiemode_using_revive_perk ) && level.zombiemode_using_revive_perk )
+        a_perks[a_perks.size] = "specialty_quickrevive";
+
+    if ( isdefined( level.zombiemode_using_additionalprimaryweapon_perk ) && level.zombiemode_using_additionalprimaryweapon_perk )
+        a_perks[a_perks.size] = "specialty_additionalprimaryweapon";
+
+    if ( isdefined( level.zombiemode_using_deadshot_perk ) && level.zombiemode_using_deadshot_perk )
+        a_perks[a_perks.size] = "specialty_deadshot";
+
+    if ( isdefined( level.zombiemode_using_tombstone_perk ) && level.zombiemode_using_tombstone_perk )
+        a_perks[a_perks.size] = "specialty_scavenger";
+
+    if ( isdefined( level.zombiemode_using_chugabud_perk ) && level.zombiemode_using_chugabud_perk )
+        a_perks[a_perks.size] = "specialty_finalstand";
+
+    if ( isdefined( level._custom_perks ) )
+    {
+        a_keys = getarraykeys( level._custom_perks );
+
+        for ( i = 0; i < a_keys.size; i++ )
+        {
+            if ( !isinarray( a_perks, a_keys[i] ) )
+                a_perks[a_perks.size] = a_keys[i];
+        }
+    }
+
+    return a_perks;
+}
+
 zmqol_give_all_perks()
 {
-    if ( !isdefined( level._custom_perks ) )
-        return 0;
-
-    a_keys = getarraykeys( level._custom_perks );
+    a_perks = zmqol_map_perks();
     n_given = 0;
 
-    for ( i = 0; i < a_keys.size; i++ )
+    for ( i = 0; i < a_perks.size; i++ )
     {
-        if ( self hasperk( a_keys[i] ) )
+        if ( self hasperk( a_perks[i] ) )
             continue;
 
-        self maps\mp\zombies\_zm_perks::give_perk( a_keys[i], 0 );
+        self maps\mp\zombies\_zm_perks::give_perk( a_perks[i], 0 );
         n_given++;
         wait 0.05;
     }
@@ -2566,23 +2625,65 @@ zmqol_give_all_perks()
 
 zmqol_remove_all_perks()
 {
-    if ( !isdefined( level._custom_perks ) )
-        return 0;
-
-    a_keys = getarraykeys( level._custom_perks );
+    a_perks = zmqol_map_perks();
     n_taken = 0;
 
-    for ( i = 0; i < a_keys.size; i++ )
+    for ( i = 0; i < a_perks.size; i++ )
     {
-        if ( !self hasperk( a_keys[i] ) )
+        if ( !self hasperk( a_perks[i] ) )
             continue;
 
-        self notify( a_keys[i] + "_stop" );
+        self notify( a_perks[i] + "_stop" );
+        n_taken++;
+        wait 0.05;
+    }
+
+    // Anything the map-perk list did not cover - a perk from a source we do not
+    // enumerate - would survive the loop above and leave the count wrong again.
+    // hasperk() is the ground truth, so sweep whatever is left by the same
+    // notify, and report the honest total.
+    wait 0.1;
+
+    a_left = zmqol_perks_still_held();
+
+    for ( i = 0; i < a_left.size; i++ )
+    {
+        self notify( a_left[i] + "_stop" );
         n_taken++;
         wait 0.05;
     }
 
     return n_taken;
+}
+
+//  The full specialty set a T6 zombies player can be holding. Only used as a
+//  backstop for .removeperks, so a perk added by some path zmqol_map_perks()
+//  does not know about still comes off.
+zmqol_perks_still_held()
+{
+    a_all = [];
+    a_all[a_all.size] = "specialty_armorvest";
+    a_all[a_all.size] = "specialty_rof";
+    a_all[a_all.size] = "specialty_longersprint";
+    a_all[a_all.size] = "specialty_fastreload";
+    a_all[a_all.size] = "specialty_quickrevive";
+    a_all[a_all.size] = "specialty_additionalprimaryweapon";
+    a_all[a_all.size] = "specialty_deadshot";
+    a_all[a_all.size] = "specialty_scavenger";
+    a_all[a_all.size] = "specialty_finalstand";
+    a_all[a_all.size] = "specialty_grenadepulldeath";
+    a_all[a_all.size] = "specialty_flakjacket";
+    a_all[a_all.size] = "specialty_nomotionsensor";
+
+    a_held = [];
+
+    for ( i = 0; i < a_all.size; i++ )
+    {
+        if ( self hasperk( a_all[i] ) )
+            a_held[a_held.size] = a_all[i];
+    }
+
+    return a_held;
 }
 
 // ============================================================================
@@ -2597,8 +2698,12 @@ zmqol_remove_all_perks()
 //
 //  This draws a real panel instead: one hud element per line, set ONCE and left
 //  alone (per CLAUDE.md section 6 - re-settext every frame floods reliable
-//  commands with EXE_SERVERCOMMANDOVERFLOW), up for 20 seconds, and .help again
-//  closes it early.
+//  commands with EXE_SERVERCOMMANDOVERFLOW).
+//
+//  PURELY TOGGLED - the 20-second auto-close v1.19.1 shipped with is gone, at
+//  the user's request: "make the .help command be toggable so when it shows up
+//  on screen i have to do .help or !help again to hide it". It now stays until
+//  a second .help / !help, and nothing else takes it down.
 //
 //  🛑 THE LIST IS NOW THE REAL COMMAND SET. The user asked that it show only the
 //  dot commands actually added. It had drifted: ".dm  spawn a Death Machine" was
@@ -2648,21 +2753,41 @@ zmqol_pack( b_upgrade )
         return;
     }
 
-    if ( !can_upgrade_weapon( str_weapon ) )
-    {
-        self iprintln( "^1[zm_qol] ^7that weapon cannot be Pack-a-Punched" );
-        return;
-    }
-
     b_is_upgraded = is_weapon_upgraded( str_weapon );
 
-    if ( b_upgrade && b_is_upgraded )
+    // 🛑 can_upgrade_weapon() IS THE WRONG GATE FOR .unpack, and gating both
+    //    directions on it is what the user hit: ".unpack ... only seems to be
+    //    working for some weapons" - fine on the DSR-50 and the PDW, refused on
+    //    Mustang & Sally and Hades.
+    //
+    //    _zm_weapons.gsc:1786 - for a weapon that is ALREADY upgraded it returns
+    //        level.zombiemode_reusing_pack_a_punch && weapon_supports_attachments( w )
+    //    i.e. "can this be RE-packed for a different attachment". The DSR-50 and
+    //    PDW take attachments so it said yes; Mustang & Sally and Hades are
+    //    unique Pack-a-Punch weapons with no attachment options, so it said no
+    //    and .unpack refused a weapon it could have reverted perfectly well.
+    //
+    //    Reverting only needs the upgraded -> base mapping, and every upgraded
+    //    weapon has one by construction: add_zombie_weapon() writes
+    //    level.zombie_weapons_upgraded[upgrade_name] = weapon_name (:546), which
+    //    is the same table is_weapon_upgraded() reads. So .unpack asks only
+    //    "is it upgraded", and can_upgrade_weapon() is left to guard .pack,
+    //    where it is the correct question.
+    if ( b_upgrade )
     {
-        self iprintln( "^1[zm_qol] ^7already Pack-a-Punched - use ^3.unpack" );
-        return;
-    }
+        if ( b_is_upgraded )
+        {
+            self iprintln( "^1[zm_qol] ^7already Pack-a-Punched - use ^3.unpack" );
+            return;
+        }
 
-    if ( !b_upgrade && !b_is_upgraded )
+        if ( !can_upgrade_weapon( str_weapon ) )
+        {
+            self iprintln( "^1[zm_qol] ^7that weapon cannot be Pack-a-Punched" );
+            return;
+        }
+    }
+    else if ( !b_is_upgraded )
     {
         self iprintln( "^1[zm_qol] ^7that weapon is not Pack-a-Punched" );
         return;
@@ -2759,23 +2884,6 @@ zmqol_print_help()
         e_line settext( a_lines[i] );
         self.zmqol_help_hud[ self.zmqol_help_hud.size ] = e_line;
     }
-
-    self thread zmqol_help_timeout();
-}
-
-zmqol_help_timeout()
-{
-    self endon( "disconnect" );
-
-    // A second .help while the panel is up re-enters zmqol_print_help, which
-    // closes it - this notify kills the previous timer so a stale one cannot
-    // close a panel the player has just reopened.
-    self notify( "zmqol_help_timer" );
-    self endon( "zmqol_help_timer" );
-
-    wait 20;
-
-    self zmqol_help_close();
 }
 
 zmqol_help_close()
@@ -2783,9 +2891,6 @@ zmqol_help_close()
     if ( !isdefined( self.zmqol_help_hud ) )
         return;
 
-    // Deliberately no notify() here. zmqol_help_timeout endon()s its own timer
-    // notify, so notifying from inside this function would kill the timeout
-    // thread mid-call and leave the elements on screen forever.
     for ( i = 0; i < self.zmqol_help_hud.size; i++ )
     {
         if ( isdefined( self.zmqol_help_hud[i] ) )
