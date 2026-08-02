@@ -12,6 +12,61 @@ main()
 {
     replaceFunc(clientscripts\mp\zm_buried::include_weapons, ::include_weapons);
     replaceFunc(clientscripts\mp\zm_buried::init_gamemodes, ::init_gamemodes);
+    replaceFunc(clientscripts\mp\zm_buried_grief_street::precache, ::grief_street_precache);
+}
+
+// ============================================================================
+//  grief_street_precache  (CLIENT)
+//
+//  🛑 Fixes the BOROUGH hard disconnect:
+//        Clientfield subwoofer_flings_zombie in set [actor] is not registered
+//        on the client
+//        COM_ERROR (3) Server Disconnected - EXE_CLIENT_FIELD_MISMATCH
+//
+//  Direction of the mismatch, per checkpoint 11 §3.7: "not registered on the
+//  CLIENT" means the server has it and the client does not, so the fix is
+//  client-side and needs a build_ff relink. Confirmed against the engine's own
+//  dump in the 06:59 log rather than inferred:
+//        [Client] CLIENTFIELD SET [actor] COUNT : 7   - no subwoofer_flings_zombie
+//        [Server] CLIENTFIELD SET [actor] COUNT : 8   - has subwoofer_flings_zombie
+//  and both sides' [toplayer] sets matched at 23 including buildable/_pu/_sq, which
+//  is how we know the buildables half was never the problem here.
+//
+//  WHY IT HAPPENS. scripts\zm\replaced\zm_buried_gamemodes.gsc:26 routes Borough
+//  to the GRIEF server script:
+//        add_map_location_gamemode("zstandard", "street",
+//                                  maps\mp\zm_buried_grief_street::precache, ...)
+//  and that precache (zm_buried_grief_street.gsc:27) calls
+//  _zm_equip_subwoofer::init(), which registers the field SERVER-side.
+//
+//  The client never matches it, because the client registers the subwoofer from a
+//  gametype gate in clientscripts\mp\zm_buried.csc:514 that has no zstandard arm:
+//        if      ( level.scr_zm_ui_gametype == "zclassic" )                  -> init
+//        else if ( zgrief && level.scr_zm_map_start_location == "street" )   -> init
+//  Borough is zstandard, so neither fires. The stock client's own
+//  zm_buried_grief_street::precache() is EMPTY - on stock the gate above is the
+//  only client-side caller, and stock never reaches this location as zstandard.
+//
+//  WHY HERE. This is the client half of the same precache the server runs, so the
+//  two now line up by construction. It is also provably early enough: premain(),
+//  which runs AFTER precache, is what registers buildable/_pu/_sq - and those came
+//  through registered on the client in the same failing run. Filling an empty stock
+//  function also means no existing behaviour is displaced.
+//
+//  The zstandard guard is load-bearing. Our init_gamemodes registers this same
+//  precache for BOTH zgrief and zstandard; on zgrief the gate at zm_buried.csc:514
+//  already calls init(), and registering a clientfield twice is itself an error.
+//
+//  🛑 NOT verified in game yet. Requires build_ff.bat - a .csc change does not
+//  reach the game through mod.iwd.
+// ============================================================================
+grief_street_precache()
+{
+    if ( getdvar( "ui_gametype" ) != "zstandard" )
+        return;
+
+    clientscripts\mp\zombies\_zm_equip_subwoofer::init();
+    clientscripts\mp\zombies\_zm_equip_subwoofer::init_animtree();
 }
 
 // ============================================================================
