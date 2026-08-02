@@ -74,6 +74,23 @@ main()
     // script and would have been unresolved externals that killed the load.
     replaceFunc(maps\mp\zm_tomb_dig::init_shovel, scripts\zm\replaced\zm_tomb_dig::init_shovel);
 
+    // 🛑 Giant robots walking through the survival arenas. Stock zm_tomb::main()
+    // calls init_giant_robot() with no gametype guard at all, so all three robots
+    // cycle across every survival location with shootable foot soles and enterable
+    // head hatches. Our robot_cycling() returns immediately on !is_classic(), which
+    // leaves them spawned but ghosted/inert. See the file header for why they are
+    // still spawned rather than skipped outright (_zm_weap_beacon indexes them).
+    replaceFunc(maps\mp\zm_tomb_giant_robot::robot_cycling, scripts\zm\replaced\zm_tomb_giant_robot::robot_cycling);
+
+    // 🛑 Side easter eggs (one inch punch prompts, quadrotor medallions, the
+    // wagon fire challenge, the wall poster, the light show) running on survival
+    // arenas that can never reach the quest they belong to. The replacement keeps
+    // the radio song and the loose-change perk-machine reward - see that file's
+    // header for the full inventory and for why it MUST register light_show.
+    // zm_tomb::main() does `level thread maps\mp\zm_tomb_ee_side::init()`, a
+    // qualified threaded cross-file call, so this hook is the reliable kind.
+    replaceFunc(maps\mp\zm_tomb_ee_side::init, scripts\zm\replaced\zm_tomb_ee_side::init);
+
     // Must run in main(), before the map registers its own clientfields.
     zmqol_register_survival_clientfields();
 }
@@ -210,7 +227,339 @@ zmqol_register_survival_visionset()
 init()
 {
     zmqol_register_survival_visionset();
+    level thread zmqol_power_up_all_generators();
+    level thread zmqol_disable_staff_relay_switches();
+    level thread zmqol_remove_survival_ee_props();
+    level thread zmqol_open_stock_barriers();
     added_weapons();
+}
+
+// ============================================================================
+//  zmqol_power_up_all_generators
+//
+//  🛑 Origins survival should not have generators at all.
+//
+//  Stock maps\mp\zm_tomb_capture_zones::init_capture_zones() runs on EVERY gametype -
+//  it flag_wait("start_zombie_round_logic")s and then threads init_capture_zone() on
+//  every s_generator struct in the map, regardless of start location. So on Trenches /
+//  Excavation Site / Church / Crazy Place you get the full classic-Origins economy:
+//    - a "Hold [F] to activate generator" unitrigger on each generator
+//    - the mystery box locked behind "turn on the power"
+//    - perk machines that belong to an uncaptured generator zone never finishing their
+//      spawn (this is the real reason Speed Cola was missing on Trenches - its machine
+//      is owned by generator_mid_trench)
+//    - Pack-a-Punch gated behind all_zones_captured
+//  ...on an arena where no generator can be captured, so none of it is ever obtainable.
+//
+//  This is BO2-Reimagined's fix, ported: scripts/zm/zm_tomb/zm_tomb_reimagined.gsc::
+//  power_up_all_generators(). It marks every capture zone player-controlled at round
+//  start, which is the single lever that resolves all four symptoms at once, because
+//  stock set_player_controlled_zone() (zm_tomb_capture_zones.gsc:1410) does:
+//        ent_flag_set("player_controlled")   -> generator_trigger_prompt_and_visibility()
+//                                               returns 0, so the prompt disappears
+//        enable_perk_machines_in_zone()      -> the perk machines actually spawn
+//        enable_random_perk_machines_in_zone()
+//        enable_mystery_boxes_in_zone()      -> box unlocks, no power prompt
+//        update_captured_zone_count()        -> all 6 captured -> flag "all_zones_captured"
+//                                               -> pack_a_punch_think() -> pack_a_punch_enable()
+//                                               -> flag_set("power_on")
+//
+//  Threaded from init() (Reimagined calls it synchronously, which would block everything
+//  after it on the flag_wait; threading is the safe form).
+//
+//  is_classic() gated: CLASSIC ORIGINS STILL REQUIRES POWERING THE GENERATORS BY HAND.
+//
+//  The wait: init_capture_zones() populates level.zone_capture.zones from inside the same
+//  flag_wait, so we take one network frame after the flag before reading it, then guard on
+//  isdefined rather than assuming.
+//
+//  🛑 NOT verified in game yet.
+// ============================================================================
+zmqol_power_up_all_generators()
+{
+    if ( is_classic() )
+        return;
+
+    flag_wait( "start_zombie_round_logic" );
+    wait_network_frame();
+
+    if ( !isdefined( level.zone_capture ) || !isdefined( level.zone_capture.zones ) )
+        return;
+
+    foreach ( zone in level.zone_capture.zones )
+    {
+        zone maps\mp\zm_tomb_capture_zones::set_player_controlled_area();
+        zone.n_current_progress = 100;
+        zone maps\mp\zm_tomb_capture_zones::generator_state_power_up();
+        level setclientfield( zone.script_noteworthy, zone.n_current_progress / 100 );
+        wait_network_frame();
+    }
+}
+
+// ============================================================================
+//  zmqol_disable_staff_relay_switches
+//
+//  🛑 The lightning-staff switches stay interactable on survival.
+//
+//  Reported on Trenches: the switch in the tank-station building by generator 2 still
+//  takes input. That is one of the eight elemental-staff relay switches
+//  (maps\mp\zm_tomb_quest_elec::electric_puzzle_2_init - relays "bunker",
+//  "tank_platform", "start", "elec", "ruins", "air", "ice", "village", built from the
+//  map's "puzzle_relay_switch" entities).
+//
+//  They exist on survival because stock maps\mp\zm_tomb.gsc::main() threads
+//  main_quest_init() with no gametype guard, and that threads zm_tomb_quest_elec::main(),
+//  which registers a unitrigger per relay in relay_switch_run(). The puzzle they feed is
+//  unreachable on a locked-down arena, so the switch is pure noise.
+//
+//  Why unregister the triggers instead of replaceFunc'ing electric_puzzle_2_init:
+//    1. That function is called SYNCHRONOUSLY and UNQUALIFIED from its own file's main()
+//       (`electric_puzzle_2_init();`). Threaded same-file calls are reliably redirected by
+//       replaceFunc; plain synchronous ones are the case that is still in doubt. No reason
+//       to bet a fix on it.
+//    2. Skipping the init outright would leave level.electric_relays undefined, and
+//       electric_puzzle_2_run/cleanup foreach over it.
+//  unregister_unitrigger (maps\mp\zombies\_zm_unitrigger.gsc:133) is the stock teardown:
+//  it kills the per-player trigger ents and drops the stub from level._unitriggers, and it
+//  no-ops safely on an undefined stub. relay_switch_run() is left blocked forever on a
+//  waittill that can no longer fire, which is harmless.
+//
+//  Deliberately does NOT touch the rest of the staff quest - deleting main_quest_init would
+//  leave level.a_elemental_staffs undefined, which maps\mp\zm_tomb_ffotd.gsc:26
+//  (update_charger_position, threaded from main_end on every gametype) foreachs over.
+//
+//  is_classic() gated, so the classic Origins puzzle is untouched.
+//
+//  🛑 NOT verified in game yet.
+// ============================================================================
+zmqol_disable_staff_relay_switches()
+{
+    if ( is_classic() )
+        return;
+
+    flag_wait( "start_zombie_round_logic" );
+    wait_network_frame();
+
+    if ( !isdefined( level.electric_relays ) )
+        return;
+
+    foreach ( s_relay in level.electric_relays )
+    {
+        if ( isdefined( s_relay.trigger_stub ) )
+            maps\mp\zombies\_zm_unitrigger::unregister_unitrigger( s_relay.trigger_stub );
+    }
+}
+
+// ============================================================================
+//  zmqol_remove_survival_ee_props
+//
+//  🛑 The two remaining bits of full-map Origins furniture that are physically
+//  standing inside the survival arenas.
+//
+//  1. THE TANK. maps\mp\zm_tomb_tank::init() runs on every gametype and sets the
+//     vehicle up unconditionally. The tank parks at the tank station, which is
+//     generator 2 - i.e. inside the TRENCHES arena - and its route crosses NO
+//     MAN'S LAND. Its two call boxes (verified in the shipped mapents) are
+//         trig_tank_station_call  ( 377, -2985,   95)  script_noteworthy call_box_village
+//         trig_tank_station_call  (-273,  4537, -254)  script_noteworthy call_box_bunkers
+//     the first of which is inside the CHURCH arena, where buying it drove the
+//     tank straight through the barricade that fences the location off.
+//
+//     🛑 Why here and not in the loc script, where zm_tomb_loc_church::disable_tank
+//     used to do it: the loc scripts run out of zm_tomb_gamemodes::init, which is
+//     reached from maps\mp\zombies\_zm::init() - line ~218 of zm_tomb::main(),
+//     ELEVEN LINES BEFORE maps\mp\zm_tomb_tank::init() at ~229. Deleting the tank
+//     there means tank::init then runs
+//         level.vh_tank = getent( "tank", "targetname" );   // undefined
+//         level.vh_tank tank_setup();                       // method on undefined
+//     Church has been shipping that ordering, which is very likely a silent script
+//     error every round. Waiting for start_zombie_round_logic puts us safely after
+//     tank::init and after players_on_tank_update/tank_disconnect_paths have taken
+//     their path snapshot. Deleting an entity terminates the threads that hold it
+//     as self, so tank_setup/tankuseanimtree/tank_discovery_vo all go with it.
+//
+//     Safe to leave level.enemy_location_override_func pointing at the tank code:
+//     enemy_location_override() only dereferences level.vh_tank underneath
+//     `if ( isdefined( self.tank_state ) )`, and nothing sets tank_state once the
+//     tank is gone.
+//
+//  2. THE SOUL BOXES. maps\mp\zm_tomb_challenges::init_box_footprints() threads
+//     box_footprint_think on all four "foot_box" script_models regardless of
+//     gametype - they glow, they open, they absorb souls. Two of the four sit in
+//     the EXCAVATION SITE arena (-2138,-300,176) and (667, 640, 66), a third at
+//     (2752,-88,151) also in no man's land, the fourth (1324,-3712,302) by the
+//     church. The challenge they feed rewards the one inch punch, which is the
+//     quest weapon we are removing everywhere else.
+//
+//     Deleted rather than replaceFunc'd on purpose: init_box_footprints is reached
+//     ONLY as a ::function pointer handed to add_stat() inside
+//     tomb_challenges_add_stats, which is CLAUDE.md §4 failure mode 3 (pointer
+//     bound at registration). Deleting the entities kills the box_footprint_think
+//     threads with them and needs no hook at all.
+//
+//  is_classic() gated - classic Origins keeps its tank and its soul boxes.
+//
+//  🛑 NOT verified in game yet.
+// ============================================================================
+zmqol_remove_survival_ee_props()
+{
+    if ( is_classic() )
+        return;
+
+    // ------------------------------------------------------------------------
+    //  🛑 ORDERING. This used to wait on start_zombie_round_logic, which was two
+    //  frames TOO LATE. maps\mp\zm_tomb_tank::players_on_tank_update() - threaded
+    //  on the tank by tank_setup() - opens with exactly that flag_wait and then
+    //  immediately does `self thread tank_disconnect_paths()`. The matching
+    //  connectpaths() lives on the tank's own thread, so deleting the vehicle
+    //  afterwards stranded a disconnected region in the AI path graph with nothing
+    //  left alive to reconnect it. The tank is parked off-map at (-8192, -4096, 0)
+    //  so it probably severed nothing real, but "probably" is not good enough next
+    //  to a reported zombie-pathing bug.
+    //
+    //  Waiting on level.vh_tank instead lands the deletion in the correct window:
+    //  AFTER maps\mp\zm_tomb_tank::init() has run (it is what assigns the var, so
+    //  tank_setup() never sees an undefined self - the ordering trap that made this
+    //  wrong in zm_tomb_loc_church) and BEFORE start_zombie_round_logic releases
+    //  players_on_tank_update. Deleting an entity terminates the threads holding it
+    //  as self, so that thread dies still parked on its flag_wait and
+    //  tank_disconnect_paths() is never reached.
+    //
+    //  The timeout keeps this from spinning forever if tank::init is ever skipped;
+    //  the getent() calls below are all isdefined-guarded, so giving up early
+    //  degrades to "nothing to remove".
+    // ------------------------------------------------------------------------
+    n_waited = 0;
+
+    while ( !isdefined( level.vh_tank ) && n_waited < 200 )
+    {
+        n_waited++;
+        wait 0.05;
+    }
+
+    a_call_boxes = getentarray( "trig_tank_station_call", "targetname" );
+
+    foreach ( trigger in a_call_boxes )
+    {
+        if ( isdefined( trigger ) )
+            trigger delete();
+    }
+
+    // The ride-on trigger. It ships parked off-map at (-8192, -4240, 164) with the
+    // tank and is carried along with it, so it has to go too or it rides to the
+    // station with a vehicle that no longer exists.
+    t_use_tank = getent( "trig_use_tank", "targetname" );
+
+    if ( isdefined( t_use_tank ) )
+        t_use_tank delete();
+
+    e_tank = getent( "tank", "targetname" );
+
+    if ( isdefined( e_tank ) )
+        e_tank delete();
+
+    level.vh_tank = undefined;
+
+    a_boxes = getentarray( "foot_box", "script_noteworthy" );
+
+    foreach ( box in a_boxes )
+    {
+        if ( isdefined( box ) )
+            box delete();
+    }
+}
+
+// ============================================================================
+//  zmqol_open_stock_barriers
+//
+//  🛑 Zombies walk through Origins' wooden window barriers WITHOUT tearing the
+//  boards. Reported at generator 3 on Trenches, 2026-08-02.
+//
+//  ROOT CAUSE - Origins is the only map that never zone-tags its zbarriers.
+//
+//  maps\mp\zombies\_zm_zonemgr.gsc:317 only adds a barrier to a zone:
+//        if ( targets[j] iszbarrier() && isdefined( targets[j].script_string )
+//             && targets[j].script_string == zone_name )
+//            zone.zbarriers[zone.zbarriers.size] = targets[j];
+//
+//  Counted over the shipped mapents (T6-Data-Archive):
+//        zm_transit   38 of 38 zbarriers carry script_string
+//        zm_prison    22 of 22
+//        zm_tomb       0 of 12          <-- every one of them untagged
+//
+//  So on Origins `zone.zbarriers` is empty for EVERY zone, forever. Three
+//  consequences, and the third is the bug:
+//    1. maps\mp\zm_tomb.gsc::drop_all_barriers() iterates zone.zbarriers, so on
+//       this map it is a COMPLETE NO-OP. Treyarch clearly meant every barrier to
+//       be open - Origins has no board-repair minigame - but the code never
+//       reaches a single one, which is why the boards are still standing.
+//    2. The barrier attack/repair system never engages with them either, so no
+//       zombie ever plays a tear animation on one.
+//    3. Each barrier ships with a node_negotiation_begin entity at the SAME
+//       origin carrying animscript "zm_mantle_over_40" - an ordinary path node,
+//       always live, owned by nobody. Zombies mantle straight through six intact
+//       boards. Verified on the one 394 units from generator_mid_trench:
+//         (696, 1985, -97)  zbarrier_zmcore_BasicWoodBarrier, zbarriernumboards 6
+//
+//  THE FIX - finish what drop_all_barriers() was trying to do.
+//
+//  Same two calls stock uses, same 0.05s pacing, but the barriers are reached via
+//  the "exterior_goal" structs (which DO target them correctly) instead of the
+//  permanently-empty zone arrays. The window then reads as an open hole, matching
+//  both Treyarch's evident intent and what the zombies actually do.
+//
+//  is_classic() gated, so classic Origins is untouched - and note this changes
+//  nothing there anyway, since stock already intends all barriers open.
+//
+//  🛑 THE OTHER OPTION, NOT TAKEN. The barriers could instead be made REAL on
+//  survival - assign each one a script_string naming the zone it sits in, before
+//  _zm_zonemgr builds its arrays, and Origins survival would get Town/Farm-style
+//  boards that zombies tear and players rebuild for points. That is a bigger
+//  change: zone membership has to be resolved at runtime by volume containment
+//  (the volumes are brush models, so it cannot be tabulated offline), barriers sit
+//  on zone boundaries where containment is ambiguous, and registering them alters
+//  zombie spawn/goal selection on all four arenas. Worth doing deliberately, not
+//  as a side effect of a bug fix.
+//
+//  🛑 NOT verified in game yet.
+// ============================================================================
+zmqol_open_stock_barriers()
+{
+    if ( is_classic() )
+        return;
+
+    flag_wait( "start_zombie_round_logic" );
+    wait_network_frame();
+
+    a_goals = getstructarray( "exterior_goal", "targetname" );
+    n_opened = 0;
+
+    foreach ( s_goal in a_goals )
+    {
+        if ( !isdefined( s_goal.target ) )
+            continue;
+
+        a_targets = getentarray( s_goal.target, "targetname" );
+
+        foreach ( e_barrier in a_targets )
+        {
+            if ( !isdefined( e_barrier ) || !e_barrier iszbarrier() )
+                continue;
+
+            n_pieces = e_barrier getnumzbarrierpieces();
+
+            for ( i = 0; i < n_pieces; i++ )
+            {
+                e_barrier hidezbarrierpiece( i );
+                e_barrier setzbarrierpiecestate( i, "open" );
+            }
+
+            n_opened++;
+            wait 0.05;
+        }
+    }
+
+    println( "[zm_qol] BARRIERS opened " + n_opened + " stock zbarriers" );
 }
 
 added_weapons()

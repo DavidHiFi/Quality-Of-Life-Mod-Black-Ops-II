@@ -54,50 +54,20 @@ main()
 	disable_zones();
 	disable_zombie_spawn_locations();
 	disable_player_spawn_locations();
-	disable_tank();
 	level thread scripts\zm\locs\loc_common::init();
 }
 
 // ============================================================================
-//  disable_tank
+//  disable_tank() USED TO LIVE HERE and has moved to
+//  scripts\zm\zm_tomb\zm_tomb.gsc::zmqol_remove_survival_ee_props().
 //
-//  🛑 Church survival spawned the player INSIDE the tank, and buying it at round
-//  one drove it straight through the barricade that is supposed to fence the
-//  church off into its own standalone arena - breaking the whole point of the
-//  location. Every other custom survival location deletes the traversal it does
-//  not want (see zm_prison_loc_docks::disable_gondola_call_triggers for the same
-//  pattern); Church never did.
-//
-//  Entity names verified against the stock Origins scripts:
-//      "tank"                  the vehicle itself      (zm_tomb_tank.gsc:35)
-//      "trig_tank_station_call" the call/buy boxes     (zm_tomb_tank.gsc:471,589)
-//      "trig_use_tank"          the ride-on trigger    (zm_tomb_tank.gsc:266)
-//
-//  Deleting the call boxes alone would stop it being bought but would leave the
-//  hull sitting on the spawn points, so the vehicle goes too. Everything is
-//  isdefined-guarded so a missing entity degrades to "nothing to remove" rather
-//  than erroring out of main() and taking the location down with it.
+//  Two reasons, both in that function's header: the tank is in the TRENCHES and
+//  NO MAN'S LAND arenas as well as this one so the removal belongs somewhere all
+//  four locations share, and this file runs ~11 lines of zm_tomb::main() BEFORE
+//  maps\mp\zm_tomb_tank::init(), so deleting the vehicle from here left tank::init
+//  calling tank_setup() on an undefined level.vh_tank. The new home waits for
+//  start_zombie_round_logic, which is after tank::init.
 // ============================================================================
-disable_tank()
-{
-	a_call_boxes = getentarray( "trig_tank_station_call", "targetname" );
-
-	foreach ( trigger in a_call_boxes )
-	{
-		if ( isdefined( trigger ) )
-			trigger delete();
-	}
-
-	t_use_tank = getent( "trig_use_tank", "targetname" );
-
-	if ( isdefined( t_use_tank ) )
-		t_use_tank delete();
-
-	vh_tank = getent( "tank", "targetname" );
-
-	if ( isdefined( vh_tank ) )
-		vh_tank delete();
-}
 
 treasure_chest_init()
 {
