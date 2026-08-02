@@ -2290,8 +2290,9 @@ player_too_many_weapons_monitor()
 //
 //  Prints the mod's own banner once per player at the start of a game.
 //
-//  "^4" is BO2's blue colour code (^1 red, ^2 green, ^3 yellow, ^4 blue,
-//  ^5 cyan, ^6 pink, ^7 white) - same convention the chat commands below use.
+//  "^5" is BO2's LIGHT blue / cyan (^1 red, ^2 green, ^3 yellow, ^4 blue,
+//  ^5 light blue, ^6 pink, ^7 white) - same convention the chat commands below
+//  use. It was ^4 (dark blue) up to v1.18.2; the user asked for the lighter one.
 //
 //  Waits on "initial_blackscreen_passed" for the same reason every other HUD
 //  thread in this file does: printing before it puts the line behind the loading
@@ -2318,7 +2319,7 @@ zmqol_credits_banner_print()
     flag_wait( "initial_blackscreen_passed" );
     wait 1;
 
-    self iprintln( "^4Quality Of Life Mod | Credits: DavidHiFi & Synarxis" );
+    self iprintln( "^5Quality Of Life Mod | Credits: DavidHiFi & Synarxis" );
 }
 
 zmqol_dev_commands()
@@ -2662,35 +2663,83 @@ zmqol_infinite_ammo_think()
     }
 }
 
-//  T6 has no player noclip builtin - traversemode( "noclip" ) is AI traversal, not
-//  this - so flight is hand-rolled. getnormalizedmovement() returns the player's
-//  stick/WASD input as (forward, right), and anglestoforward() carries the view
-//  PITCH, so looking up and holding forward climbs. That is ordinary noclip
-//  behaviour and needs no extra keys.
+//  T6 has no player noclip builtin a script can call - traversemode( "noclip" ) is
+//  AI traversal, and the real "noclip"/"ufo" move modes are client debug commands
+//  (stock only ever READS them, via player isinmovemode( "ufo", "noclip" ) in
+//  _zm_devgui.gsc:1128). So flight has to be hand-rolled.
 //
-//  setorigin() runs every frame even when idle: that is what holds you up, by
-//  resetting the position gravity accumulated since the last frame.
+//  🛑 v1.18.2 hand-rolled it with setorigin() every 0.05s and the user reported it
+//  "just kinda bugs out my player movement" - correctly. setorigin does not turn
+//  off player physics: between our calls the engine still runs gravity, ground
+//  trace and world collision on a normal walking player, then we teleport it back.
+//  The two fight every frame, which is the stutter, and collision is never
+//  disabled, so it is not noclip at all - you cannot pass through geometry.
+//
+//  The mechanism that DOES work is linking the player to a mover entity.
+//  playerlinkto() hands position control to that entity outright: no gravity, no
+//  world collision, view left free. Stock precedent, both shapes:
+//      _qrdrone.gsc:350-352      spawn( "script_origin" ) -> hide() -> playerlinkto
+//      zm_alcatraz_travel.gsc:770-774  the MOTD gondola - players ride a linked
+//                                      script_origin and still look around and shoot
+//  so a linked player is not a frozen one.
+//
+//  Movement then means moving the mover. getnormalizedmovement() returns WASD /
+//  stick as (forward, right), and anglestoforward() carries view PITCH, so looking
+//  up and holding forward climbs. That is ordinary noclip and needs no extra keys.
 zmqol_fly_think()
 {
+    level endon( "game_ended" );
+
+    e_mover = spawn( "script_origin", self.origin );
+    e_mover hide();
+
+    self playerlinkto( e_mover );
+    self thread zmqol_fly_move( e_mover );
+
+    // 🛑 waittill_any_RETURN, not waittill_any. common_scripts\utility::waittill_any
+    // implements notifies 2..n as self endon() - so on death or disconnect this
+    // thread would be KILLED and the unlink below would never run, leaving the
+    // player welded to a hidden script_origin with no way out. waittill_any_return
+    // returns the notify instead, and special-cases "death" so listing it here does
+    // not re-introduce the endon.
+    self waittill_any_return( "zmqol_fly_off", "disconnect", "death", "player_downed", "bled_out" );
+
+    self notify( "zmqol_fly_move_stop" );
+
+    if ( isdefined( self ) )
+    {
+        self unlink();
+        self.zmqol_fly = 0;
+    }
+
+    if ( isdefined( e_mover ) )
+        e_mover delete();
+}
+
+zmqol_fly_move( e_mover )
+{
     self endon( "disconnect" );
-    self endon( "zmqol_fly_off" );
+    self endon( "zmqol_fly_move_stop" );
     level endon( "game_ended" );
 
     n_speed = 25;
 
     for ( ;; )
     {
-        v_pos = self.origin;
+        if ( !isdefined( e_mover ) )
+            return;
+
         v_move = self getnormalizedmovement();
 
         if ( isdefined( v_move ) && ( v_move[0] != 0 || v_move[1] != 0 ) )
         {
             v_angles = self getplayerangles();
+            v_pos = e_mover.origin;
             v_pos = v_pos + ( anglestoforward( v_angles ) * ( v_move[0] * n_speed ) );
             v_pos = v_pos + ( anglestoright( v_angles ) * ( v_move[1] * n_speed ) );
+            e_mover.origin = v_pos;
         }
 
-        self setorigin( v_pos );
         wait 0.05;
     }
 }
