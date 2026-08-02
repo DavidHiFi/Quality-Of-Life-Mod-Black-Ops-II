@@ -43,6 +43,26 @@ main()
 
 init()
 {
+    // 🛑 THIS LINE IS LOAD-BEARING. Without it v1.21.0 killed every map with
+    //        COM_ERROR (1) Unrecognized animtree 'zm_perk_random'.
+    //        You may need to call ScriptModelsUseAnimTree()
+    //    -> SV_Shutdown, before the map ever boots.
+    //
+    //    v1.21.0 bound the tree per entity with useanimtree() only, on the
+    //    reasoning that scriptmodelsuseanimtree() sets ONE global default and
+    //    would break other maps' animated script models. That reasoning was
+    //    wrong: it REGISTERS a tree for script-model use, cumulatively, and
+    //    stock calls it several times per map with different trees - Origins
+    //    alone does so from zm_tomb_capture_zones, zm_tomb_giant_robot,
+    //    zm_tomb_quest_fire, zm_tomb_tank and _zm_perk_random. useanimtree()
+    //    then picks which registered tree an entity uses. Both are required,
+    //    in this order, which is exactly what stock does
+    //    (_zm_perk_random.gsc:174-177, called from zm_tomb.gsc:246).
+    //
+    //    Synchronous and ahead of the thread below, so it cannot lose a race
+    //    with the useanimtree() in wunderfizzSetup().
+    scriptmodelsuseanimtree( #animtree );
+
     thread setupWunderfizz();
 }
 
@@ -450,11 +470,9 @@ wunderfizzSetup(origin, angles, model)
 	wunderfizzMachine = spawn("script_model", origin);
 	wunderfizzMachine setModel(model);
 	wunderfizzMachine rotateTo(angles, .1);
-	// Per-entity, deliberately NOT scriptmodelsuseanimtree(). Stock calls that
-	// too (_zm_perk_random.gsc:176), but it sets the DEFAULT tree for every
-	// script model in the level - fine on Origins, which owns the tree, and a
-	// good way to break other maps' script-model animations. useanimtree() binds
-	// this machine only, which is all the ball spin needs.
+	// Picks which registered tree this entity animates on. init() must already
+	// have run scriptmodelsuseanimtree() or this throws "Unrecognized animtree"
+	// and takes the whole map down - see the note there.
 	wunderfizzMachine useanimtree( #animtree );
 	wunderfizzBottle = spawn("script_model", origin);
 	wunderfizzBottle setModel("tag_origin");

@@ -104,6 +104,11 @@ fx,maps/zombie_tomb/fx_tomb_dieselmagic_on
 //  no registration, so the fx are driven from the .gsc instead. The ANIMATION was
 //  always server-side in stock (setanim in _zm_perk_random.gsc:609-634), so that
 //  half is a straight port.
+//
+//  🛑 The animtree ALSO needs scriptmodelsuseanimtree( #animtree ) at runtime -
+//  declaring the .atr here only makes the asset exist. v1.21.0 shipped without
+//  that call and every map died on load with "Unrecognized animtree
+//  'zm_perk_random'". See the note in scripts\zm\wunderfizz.gsc::init().
 // ----------------------------------------------------------------------------
 rawfile,animtrees/zm_perk_random.atr
 xanim,o_zombie_dlc4_vending_diesel_turn_on
