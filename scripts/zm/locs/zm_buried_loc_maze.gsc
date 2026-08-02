@@ -191,67 +191,81 @@ main()
 	array_thread(level.insta_kill_triggers, maps\mp\zm_buried_classic::squashed_death_init, 0);
 
 	disable_zones();
-	level thread zmqol_maze_zone_probe();   // TEMPORARY
+	level thread zmqol_seal_zones_after_manager();
 }
 
 // ============================================================================
-//  zm_qol TEMPORARY DIAGNOSTIC - Maze still has no zombies after two attempts.
+//  zmqol_seal_zones_after_manager
 //
-//  v1.6.0 enabled zone_maze; v1.6.3 restricted the other 21 zones. Neither
-//  worked, and I have now guessed twice, so this prints the actual state instead:
+//  🛑 The other half of the Maze fix. Read
+//  scripts\zm\replaced\zm_buried.gsc::zmqol_zone_flag first - the two have to stay
+//  in step.
 //
-//    - every zone that still reports is_enabled, with is_spawning_allowed and
-//      how many spawn_locations it holds
-//    - the size of level.zombie_spawn_locations, which is the pool
-//      _zm_zonemgr::create_spawner_list actually draws from
+//  The v1.6.4 probe finally ran on 2026-08-02 and reported FOURTEEN zones enabled
+//  with spawning on, so zombies were spawning across all of Buried and never
+//  reaching the walled maze. The disable_zones() call above cannot fix that on its
+//  own for a reason that is pure ordering:
 //
-//  That distinguishes the remaining possibilities in one run:
-//    zone_maze missing entirely      -> the buried_zone_init replaceFunc is not
-//                                       taking (pointer captured before replace)
-//    zone_maze present, 0 spawn_locs -> zone_init found the volume but not the
-//                                       zone_maze_spawners structs
-//    zone_maze fine, pool empty      -> create_spawner_list runs before our
-//                                       enable and is never rebuilt
-//    pool healthy                    -> zombies ARE spawning; the problem is
-//                                       pathing into the arena, not spawning
+//      zm_buried::main()
+//        ...
+//        maps\mp\zombies\_zm::init()          -> gamemode init -> THIS FILE's main()
+//                                                -> disable_zones() runs HERE
+//        ...
+//        level thread manage_zones(init_zones) -> zone_init + enable_zone on all 22
+//                                                init_zones, wiping what we just did
 //
-//  Runs twice (5s and 20s) so a pool rebuilt on round start is visible too.
+//  _zm_zonemgr::manage_zones assigns level.zone_keys immediately AFTER that init
+//  pass, so it is the exact signal for "the wipe has happened". Waiting on it puts
+//  the re-disable in the first instant at which it can stick.
+//
+//  It sticks because the adjacency table is already sealed by zmqol_zone_flag:
+//  every non-maze edge points at a flag that is never set, so manage_zones' own
+//  `if (flags_set) enable_zone(...)` pass can never turn one back on. Without that
+//  seal this would be just as futile as the first call - enable_zone() restores
+//  is_enabled AND is_spawning_allowed, and the loc opens the power and every door,
+//  so the flags stay set for the whole game.
+//
+//  The second pass at start_zombie_round_logic is belt and braces for anything that
+//  enables a zone during round-one setup. The final line reports the outcome, so a
+//  single load says whether this worked without needing another probe build:
+//      [zm_qol] MAZEZONE sealed - enabled=<n> spawn_pool=<n>
+//  Expect enabled=3 (zone_maze, zone_maze_staircase, zone_mansion_backyard).
+//
+//  🛑 NOT verified in game yet.
 // ============================================================================
-zmqol_maze_zone_probe()
+zmqol_seal_zones_after_manager()
 {
 	level endon( "end_game" );
 
-	for ( n = 0; n < 2; n++ )
+	n = 0;
+
+	while ( !isdefined( level.zone_keys ) && n < 400 )
 	{
-		if ( n == 0 )
-			wait 5;
-		else
-			wait 15;
-
-		if ( !isdefined( level.zones ) )
-		{
-			println( "[zm_qol] MAZEZONE level.zones UNDEFINED" );
-			continue;
-		}
-
-		foreach ( index, zone in level.zones )
-		{
-			if ( !isdefined( zone.is_enabled ) || !zone.is_enabled )
-				continue;
-
-			n_spots = 0;
-
-			if ( isdefined( zone.spawn_locations ) )
-				n_spots = zone.spawn_locations.size;
-
-			println( "[zm_qol] MAZEZONE t=" + n + " " + index + " enabled=1 spawning=" + zone.is_spawning_allowed + " spawn_locs=" + n_spots );
-		}
-
-		if ( isdefined( level.zombie_spawn_locations ) )
-			println( "[zm_qol] MAZEZONE t=" + n + " POOL level.zombie_spawn_locations=" + level.zombie_spawn_locations.size );
-		else
-			println( "[zm_qol] MAZEZONE t=" + n + " POOL UNDEFINED" );
+		n++;
+		wait 0.05;
 	}
+
+	wait 0.05;
+	disable_zones();
+
+	flag_wait( "start_zombie_round_logic" );
+	wait_network_frame();
+	disable_zones();
+
+	n_enabled = 0;
+
+	foreach ( index, zone in level.zones )
+	{
+		if ( isdefined( zone.is_enabled ) && zone.is_enabled )
+			n_enabled++;
+	}
+
+	n_pool = 0;
+
+	if ( isdefined( level.zombie_spawn_locations ) )
+		n_pool = level.zombie_spawn_locations.size;
+
+	println( "[zm_qol] MAZEZONE sealed - enabled=" + n_enabled + " spawn_pool=" + n_pool );
 }
 
 // ============================================================================
