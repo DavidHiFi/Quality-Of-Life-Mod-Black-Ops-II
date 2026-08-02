@@ -2580,35 +2580,102 @@ zmqol_remove_all_perks()
 // ============================================================================
 //  .help
 //
-//  iprintln is one line at a time and the feed is short, so this staggers the
-//  lines slightly rather than dumping them all in a single frame where the
-//  earliest would scroll straight off.
+//  🛑 REWRITTEN FROM iprintln TO A HUD PANEL. The old version pushed 14 lines
+//  into the bottom-left feed 0.1s apart. The user's report: "it scrolls through
+//  all the commands ... so quickly and you can't even read them in time" - the
+//  feed is only a few lines deep and expires each line on a timer, so the list
+//  was always scrolling itself off before it finished printing. Staggering the
+//  writes could never fix that; the feed is the wrong widget.
+//
+//  This draws a real panel instead: one hud element per line, set ONCE and left
+//  alone (per CLAUDE.md section 6 - re-settext every frame floods reliable
+//  commands with EXE_SERVERCOMMANDOVERFLOW), up for 20 seconds, and .help again
+//  closes it early.
+//
+//  🛑 THE LIST IS NOW THE REAL COMMAND SET. The user asked that it show only the
+//  dot commands actually added. It had drifted: ".dm  spawn a Death Machine" was
+//  listed but has no handler in zmqol_dev_command_listener() - the Death Machine
+//  is a power-up, not a chat command - and ".infiniteammo" was the only entry
+//  that did not show its short form. Verified against every `cmd == "..."` branch
+//  in the listener: p, god, ghost, afk, fly, infiniteammo/infammo, reload,
+//  nozmspawns, where, giveperks, removeperks, help. Twelve, and twelve are
+//  listed. If a command is added, add it here in the same pass.
 // ============================================================================
+zmqol_help_lines()
+{
+    a_lines = [];
+    a_lines[a_lines.size] = "^5Quality Of Life ^7- chat commands (prefix ^3.^7 or ^3!^7)";
+    a_lines[a_lines.size] = "^3.help^7                     show / hide this list";
+    a_lines[a_lines.size] = "^3.p <n>^7                    give n points (default 1000)";
+    a_lines[a_lines.size] = "^3.god^7                      toggle godmode";
+    a_lines[a_lines.size] = "^3.ghost^7                    toggle - zombies ignore you";
+    a_lines[a_lines.size] = "^3.afk^7                      toggle - ghost + godmode";
+    a_lines[a_lines.size] = "^3.fly^7                      toggle flight";
+    a_lines[a_lines.size] = "^3.infiniteammo^7 / ^3.infammo^7  toggle - never run dry";
+    a_lines[a_lines.size] = "^3.reload^7                   refill all weapons + equipment";
+    a_lines[a_lines.size] = "^3.giveperks^7                give every perk on this map";
+    a_lines[a_lines.size] = "^3.removeperks^7              remove every perk you have";
+    a_lines[a_lines.size] = "^3.nozmspawns^7               toggle zombie spawning";
+    a_lines[a_lines.size] = "^3.where^7                    print your coordinates";
+    return a_lines;
+}
+
 zmqol_print_help()
 {
     self endon( "disconnect" );
 
-    a_lines = [];
-    a_lines[a_lines.size] = "^3[zm_qol] ^7commands - prefix ^3.^7 or ^3!";
-    a_lines[a_lines.size] = "^3.help^7            this list";
-    a_lines[a_lines.size] = "^3.p <n>^7           give n points (default 1000)";
-    a_lines[a_lines.size] = "^3.god^7             toggle godmode";
-    a_lines[a_lines.size] = "^3.ghost^7           toggle - zombies ignore you";
-    a_lines[a_lines.size] = "^3.afk^7             toggle - ghost + godmode";
-    a_lines[a_lines.size] = "^3.fly^7             toggle noclip flight";
-    a_lines[a_lines.size] = "^3.infiniteammo^7    toggle - never run dry";
-    a_lines[a_lines.size] = "^3.reload^7          refill all weapons + equipment";
-    a_lines[a_lines.size] = "^3.giveperks^7       give every perk on this map";
-    a_lines[a_lines.size] = "^3.removeperks^7     remove every perk you have";
-    a_lines[a_lines.size] = "^3.nozmspawns^7      toggle zombie spawning";
-    a_lines[a_lines.size] = "^3.where^7           print your coordinates";
-    a_lines[a_lines.size] = "^3.dm^7              spawn a Death Machine";
+    if ( isdefined( self.zmqol_help_hud ) )
+    {
+        self zmqol_help_close();
+        return;
+    }
+
+    a_lines = zmqol_help_lines();
+    self.zmqol_help_hud = [];
 
     for ( i = 0; i < a_lines.size; i++ )
     {
-        self iprintln( a_lines[i] );
-        wait 0.1;
+        e_line = self createfontstring( "hudsmall", 1.1 );
+        e_line setpoint( "TOP_LEFT", "TOP_LEFT", 14, 34 + ( i * 13 ) );
+        e_line.hidewheninmenu = 1;
+        e_line.foreground = 1;
+        e_line settext( a_lines[i] );
+        self.zmqol_help_hud[ self.zmqol_help_hud.size ] = e_line;
     }
+
+    self thread zmqol_help_timeout();
+}
+
+zmqol_help_timeout()
+{
+    self endon( "disconnect" );
+
+    // A second .help while the panel is up re-enters zmqol_print_help, which
+    // closes it - this notify kills the previous timer so a stale one cannot
+    // close a panel the player has just reopened.
+    self notify( "zmqol_help_timer" );
+    self endon( "zmqol_help_timer" );
+
+    wait 20;
+
+    self zmqol_help_close();
+}
+
+zmqol_help_close()
+{
+    if ( !isdefined( self.zmqol_help_hud ) )
+        return;
+
+    // Deliberately no notify() here. zmqol_help_timeout endon()s its own timer
+    // notify, so notifying from inside this function would kill the timeout
+    // thread mid-call and leave the elements on screen forever.
+    for ( i = 0; i < self.zmqol_help_hud.size; i++ )
+    {
+        if ( isdefined( self.zmqol_help_hud[i] ) )
+            self.zmqol_help_hud[i] destroy();
+    }
+
+    self.zmqol_help_hud = undefined;
 }
 
 // ============================================================================
@@ -2692,6 +2759,14 @@ zmqol_fly_think()
 
     e_mover = spawn( "script_origin", self.origin );
     e_mover hide();
+
+    // 🛑 SET THE MOVER'S ANGLES BEFORE LINKING. Stock always does -
+    // zm_alcatraz_travel.gsc:770-774 sets e_origin.angles = self.angles on the
+    // line before playerlinkto - because the link makes the entity's angles the
+    // player's view BASE. Link to an entity still sitting at (0,0,0) and the view
+    // is yanked to face world-north the instant you toggle it on, which on its own
+    // reads as "the controls broke". v1.19.0 omitted this.
+    e_mover.angles = self.angles;
 
     self playerlinkto( e_mover );
     self thread zmqol_fly_move( e_mover );
