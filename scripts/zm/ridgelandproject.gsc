@@ -2505,6 +2505,14 @@ zmqol_dev_command_listener()
             n_taken = player zmqol_remove_all_perks();
             player iprintln( "^1[zm_qol] ^7removed " + n_taken + " perk(s)" );
         }
+        else if ( cmd == "pack" )
+        {
+            player zmqol_pack( 1 );
+        }
+        else if ( cmd == "unpack" )
+        {
+            player zmqol_pack( 0 );
+        }
         else if ( cmd == "help" )
         {
             player thread zmqol_print_help();
@@ -2598,9 +2606,116 @@ zmqol_remove_all_perks()
 //  is a power-up, not a chat command - and ".infiniteammo" was the only entry
 //  that did not show its short form. Verified against every `cmd == "..."` branch
 //  in the listener: p, god, ghost, afk, fly, infiniteammo/infammo, reload,
-//  nozmspawns, where, giveperks, removeperks, help. Twelve, and twelve are
-//  listed. If a command is added, add it here in the same pass.
+//  nozmspawns, where, pack, unpack, giveperks, removeperks, help. Fourteen, and
+//  fourteen are listed. If a command is added, add it here in the same pass.
 // ============================================================================
+// ============================================================================
+//  .pack / .unpack
+//
+//  Pack-a-Punch the held weapon, or put it back to stock, with no machine, no
+//  cost and no animation.
+//
+//  Modelled on the instant-Pack-a-Punch path already in this file (see the
+//  Trigger loop around line 1760) - same stock calls, minus the trigger, the
+//  score deduction and the fx:
+//      switch_from_alt_weapon()  first, so packing while holding the alt form of
+//                                a dual-mode weapon does not strand you on it
+//      get_upgrade_weapon()      base -> upgraded
+//      get_base_weapon_name( w, 0 )  upgraded -> base. The second argument is
+//                                "return the input if it is NOT upgraded"; we
+//                                pass 0 so an un-upgraded weapon comes back
+//                                undefined and we can say so instead of
+//                                re-giving the same gun.
+//      get_pack_a_punch_weapon_options()  the camo/reticle blob, so a packed
+//                                gun looks packed. This file overrides that
+//                                function (see main()); it is the merged
+//                                animated-camo version, which is what we want.
+//
+//  Ammo is carried across rather than reset, clamped to the new clip size the
+//  same way the machine does it.
+//
+//  can_upgrade_weapon() is the stock gate (_zm_weapons.gsc:1786) and screens out
+//  the riotshield, equipment, placeable mines and the revive tool, so those are
+//  not re-tested here.
+// ============================================================================
+zmqol_pack( b_upgrade )
+{
+    str_weapon = self getcurrentweapon();
+
+    if ( !isdefined( str_weapon ) || str_weapon == "none" || str_weapon == "zombie_fists_zm" )
+    {
+        self iprintln( "^1[zm_qol] ^7nothing in your hands to do that to" );
+        return;
+    }
+
+    if ( !can_upgrade_weapon( str_weapon ) )
+    {
+        self iprintln( "^1[zm_qol] ^7that weapon cannot be Pack-a-Punched" );
+        return;
+    }
+
+    b_is_upgraded = is_weapon_upgraded( str_weapon );
+
+    if ( b_upgrade && b_is_upgraded )
+    {
+        self iprintln( "^1[zm_qol] ^7already Pack-a-Punched - use ^3.unpack" );
+        return;
+    }
+
+    if ( !b_upgrade && !b_is_upgraded )
+    {
+        self iprintln( "^1[zm_qol] ^7that weapon is not Pack-a-Punched" );
+        return;
+    }
+
+    n_clip = self getweaponammoclip( str_weapon );
+    n_stock = self getweaponammostock( str_weapon );
+
+    str_weapon = self maps\mp\zombies\_zm_weapons::switch_from_alt_weapon( str_weapon );
+
+    if ( b_upgrade )
+        str_new = maps\mp\zombies\_zm_weapons::get_upgrade_weapon( str_weapon, will_upgrade_weapon_as_attachment( str_weapon ) );
+    else
+        str_new = maps\mp\zombies\_zm_weapons::get_base_weapon_name( str_weapon, 0 );
+
+    if ( !isdefined( str_new ) || str_new == "" || str_new == str_weapon )
+    {
+        // No ternary in T6 GSC - spell it out.
+        if ( b_upgrade )
+            self iprintln( "^1[zm_qol] ^7no upgraded version of that weapon exists" );
+        else
+            self iprintln( "^1[zm_qol] ^7no stock version of that weapon exists" );
+
+        return;
+    }
+
+    self takeweapon( str_weapon );
+
+    if ( b_upgrade )
+        self giveweapon( str_new, 0, self maps\mp\zombies\_zm_weapons::get_pack_a_punch_weapon_options( str_new ) );
+    else
+        self giveweapon( str_new );
+
+    n_clip_size = weaponclipsize( str_new );
+
+    if ( n_clip > n_clip_size )
+        n_clip = n_clip_size;
+
+    self setweaponammoclip( str_new, n_clip );
+    self setweaponammostock( str_new, n_stock );
+    self switchtoweapon( str_new );
+
+    if ( b_upgrade )
+    {
+        self playsound( "zmb_perks_packa_ready" );
+        self iprintln( "^2[zm_qol] ^7Pack-a-Punched" );
+    }
+    else
+    {
+        self iprintln( "^2[zm_qol] ^7back to stock" );
+    }
+}
+
 zmqol_help_lines()
 {
     a_lines = [];
@@ -2613,6 +2728,8 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.fly^7                      toggle flight";
     a_lines[a_lines.size] = "^3.infiniteammo^7 / ^3.infammo^7  toggle - never run dry";
     a_lines[a_lines.size] = "^3.reload^7                   refill all weapons + equipment";
+    a_lines[a_lines.size] = "^3.pack^7                     Pack-a-Punch the held weapon";
+    a_lines[a_lines.size] = "^3.unpack^7                   revert the held weapon to stock";
     a_lines[a_lines.size] = "^3.giveperks^7                give every perk on this map";
     a_lines[a_lines.size] = "^3.removeperks^7              remove every perk you have";
     a_lines[a_lines.size] = "^3.nozmspawns^7               toggle zombie spawning";
