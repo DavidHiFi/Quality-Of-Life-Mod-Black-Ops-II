@@ -53,6 +53,43 @@ street_struct_init()
 	a_wallbuys[a_wallbuys.size] = ( 609.5, 772.75, 54 );    // m14_zm
 	a_wallbuys[a_wallbuys.size] = ( 1.1, 1201.9, 68 );      // mp5k_zm
 	scripts\zm\locs\loc_common::enable_wallbuys( a_wallbuys );
+
+	// ========================================================================
+	//  🛑 BOROUGH HAS NO PERK MACHINES. Reported in game 2026-08-02: no Vulture
+	//  Aid in the church.
+	//
+	//  Same root cause as the Origins perk-bottle soft-lock fixed in v1.9.2.
+	//  maps\mp\zombies\_zm_perks::perk_machine_spawn_init only spawns a machine
+	//  for a "zm_perk_machine" struct whose script_string contains
+	//  "<ui_gametype>_perks_<start location>". Dumping the REAL Buried entities
+	//  with OAT's Unlinker (the T6-Data-Archive copy omits them) shows all EIGHT
+	//  of Buried's perk structs carry exactly one tag:
+	//        "script_string" "zclassic_perks_processing"   x8
+	//  Nothing for street, nothing for grief, nothing for zstandard. So Borough
+	//  matches none of them and spawns zero machines.
+	//
+	//  zm_buried_grief_street::main's turnperkon() calls do NOT help - turnperkon
+	//  is just `level notify( perk + "_on" )` (zm_buried_gamemodes.gsc:111). It
+	//  powers on machines that already exist; it cannot create one.
+	//
+	//  Fix is the same one this project already uses for the Maze: re-register the
+	//  structs for this gametype/location in a struct_init, which is the only
+	//  window early enough. Origins and angles copied from the Unlinker dump.
+	//
+	//  Six of the eight are inside Borough's play area. Deliberately EXCLUDED:
+	//        specialty_longersprint  (7017, 370, 108)   mansion/maze side
+	//        specialty_weapupgrade   (6269, 889, -139)  mansion/maze side, and
+	//                                Pack-a-Punch is buildable here anyway -
+	//                                main() already sets buildables_built["pap"].
+	//
+	//  🛑 NOT verified in game yet.
+	// ========================================================================
+	scripts\zm\replaced\utility::register_perk_struct( "specialty_armorvest", "zombie_vending_jugg", ( -665.13, 1069.13, 8 ), ( 0, 0, 0 ) );
+	scripts\zm\replaced\utility::register_perk_struct( "specialty_quickrevive", "zombie_vending_revive", ( -926.31, -216.76, 288 ), ( 0, 0.599965, 0 ) );
+	scripts\zm\replaced\utility::register_perk_struct( "specialty_fastreload", "zombie_vending_sleight", ( 141.25, 598, 175.75 ), ( 0, 180, 0 ) );
+	scripts\zm\replaced\utility::register_perk_struct( "specialty_rof", "zombie_vending_doubletap2", ( 2423, 10, 88 ), ( 0, 180, 0 ) );
+	scripts\zm\replaced\utility::register_perk_struct( "specialty_additionalprimaryweapon", "zombie_vending_three_gun", ( -711, -1249.5, 140.5 ), ( 0, 180, 0 ) );
+	scripts\zm\replaced\utility::register_perk_struct( "specialty_nomotionsensor", "p6_zm_vending_vultureaid", ( 1450.33, 2302.68, 12 ), ( 0, 340.2, 0 ) );
 }
 
 zstandard_preinit()
