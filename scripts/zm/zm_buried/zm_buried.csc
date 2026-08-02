@@ -13,6 +13,40 @@ main()
     replaceFunc(clientscripts\mp\zm_buried::include_weapons, ::include_weapons);
     replaceFunc(clientscripts\mp\zm_buried::init_gamemodes, ::init_gamemodes);
     replaceFunc(clientscripts\mp\zm_buried_grief_street::precache, ::grief_street_precache);
+
+    zmqol_enable_vulture_on_borough();
+}
+
+// ============================================================================
+//  zmqol_enable_vulture_on_borough  (CLIENT)
+//
+//  The mandatory other half of scripts\zm\zm_buried\zm_buried.gsc's function of
+//  the same name - read the full explanation there. Short version: Borough
+//  survival needs Vulture Aid registered so its perk machine stops being tagged
+//  as Speed Cola by _zm_perks::perk_machine_spawn_init's `default:` branch.
+//
+//  Registering it server-side only would register a clientfield the client does
+//  not have and disconnect everyone with EXE_CLIENT_FIELD_MISMATCH - exactly the
+//  failure grief_street_precache below was written to fix. Stock's gate at
+//  clientscripts\mp\zm_buried.csc:49 is zclassic-only on this side too:
+//        if ( is_gametype_active( "zclassic" ) )
+//            clientscripts\mp\zombies\_zm_perk_vulture::enable_vulture_perk_for_level();
+//
+//  The condition below is deliberately the same pair of dvars the server checks,
+//  so the two sides cannot drift apart.
+//
+//  🛑 NOT verified in game yet. Requires build_ff.bat - a .csc change does not
+//  reach the game through mod.iwd.
+// ============================================================================
+zmqol_enable_vulture_on_borough()
+{
+    if ( getdvar( "ui_gametype" ) != "zstandard" )
+        return;
+
+    if ( getdvar( "ui_zm_mapstartlocation" ) != "street" )
+        return;
+
+    clientscripts\mp\zombies\_zm_perk_vulture::enable_vulture_perk_for_level();
 }
 
 // ============================================================================

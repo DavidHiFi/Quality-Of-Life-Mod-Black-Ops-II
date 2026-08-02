@@ -2078,7 +2078,17 @@ get_perk_machine_ents()
 {
     // Every perk vending targetname zm_expanded / the maps use.
     // (vending_packapunch is intentionally excluded - it isn't a perk.)
-    names = array( "vending_jugg", "vending_sleight", "vending_doubletap", "vending_doubletap2", "vending_revive", "vending_marathon", "vending_three_gun", "vending_additionalprimaryweapon", "vending_ads", "vending_deadshot", "vending_nuke", "vending_divetonuke", "vending_tombstone", "vending_chugabud" );
+    //
+    // 🛑 vending_vulture was MISSING here until v1.13.2, and the reason it never
+    // showed up before is worth keeping. _zm_perks::perk_machine_spawn_init tags a
+    // machine by switching on the perk name; specialty_nomotionsensor has no case,
+    // so before v1.13.0 Vulture Aid fell into `default:` and was tagged
+    // "vending_sleight". This list found it under that wrong name, so the prone
+    // bonus appeared to work. v1.13.0 fixed the tag to the correct
+    // "vending_vulture" (see zm_buried\zm_buried.gsc), which took it straight back
+    // out of this list - so Borough's Vulture Aid stopped paying the 100 points.
+    // Both halves are needed: the correct tag AND this entry.
+    names = array( "vending_jugg", "vending_sleight", "vending_doubletap", "vending_doubletap2", "vending_revive", "vending_marathon", "vending_three_gun", "vending_additionalprimaryweapon", "vending_ads", "vending_deadshot", "vending_nuke", "vending_divetonuke", "vending_tombstone", "vending_chugabud", "vending_vulture" );
     machines = [];
     for ( i = 0; i < names.size; i++ )
     {

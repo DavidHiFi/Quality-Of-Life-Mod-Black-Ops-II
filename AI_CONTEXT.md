@@ -106,7 +106,7 @@ which is rare.
 1. Edit a `.gsc` in `scripts\zm\`.
 2. Run `build.bat` (re-zips `mod.iwd`, writes the 6 files to a send-ready folder
    and the Plutonium mods folder). Needs only Windows + PowerShell.
-3. Launch Plutonium T6 → Zombies → Mods → `zm_expanded_deathmachine`.
+3. Launch Plutonium T6 → Zombies → Mods → `Quality Of Life`.
 
 `build.bat` never compiles GSC and never touches `mod.ff`. See `README.md` for the
 short human version.

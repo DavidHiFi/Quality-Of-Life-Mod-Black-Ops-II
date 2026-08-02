@@ -40,7 +40,7 @@ Two rules that apply to every session:
 | Build (assets) | `build_ff.bat` — relinks `mod.ff`. Only needed after editing `zone_source\` or `zone_assets\`. |
 | Build | `zm_qol\build.bat` → runs `pack_iwd.ps1` → verifies the 6 mod files → copies to `build\zm_qol\` and `%LOCALAPPDATA%\Plutonium\storage\t6\mods\zm_qol\` |
 | Plutonium storage | `%LOCALAPPDATA%\Plutonium\storage\t6\` |
-| Launch | Plutonium T6 → Zombies → **Mods** → `zm_expanded_deathmachine` |
+| Launch | Plutonium T6 → Zombies → **Mods** → `Quality Of Life` |
 | GSC decompiler | `xensik/gsc-tool` (`gsc-tool -m decomp -g t6 -s pc --t6fixup <file>`) — for inspecting `*-compiled.gsc` only; not part of the normal dev loop |
 | Starter kit reference | `H:\Claude\t6 modding starter kit\reference\gsc-dump\` (stock T6 scripts) and `...\reference\docs\` (GSC language ref, perk/specialty tables, shader IDs, MOTD custom-perk guide) |
 | Sibling project (reference only) | `H:\Claude\Projects Sources\zm_refreshed\` — a **third-party mod's build output**, no source. Do not import from it (per `AI_CONTEXT.md`). |

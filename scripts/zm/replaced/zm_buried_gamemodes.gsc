@@ -23,7 +23,7 @@ init()
 
 	add_map_location_gamemode("zclassic", "processing", maps\mp\zm_buried_classic::precache, maps\mp\zm_buried_classic::main);
 
-	add_map_location_gamemode("zstandard", "street", maps\mp\zm_buried_grief_street::precache, maps\mp\zm_buried_grief_street::main);
+	add_map_location_gamemode("zstandard", "street", maps\mp\zm_buried_grief_street::precache, ::borough_survival_main);
 	add_map_location_gamemode("zstandard", "maze", scripts\zm\locs\zm_buried_loc_maze::precache, scripts\zm\locs\zm_buried_loc_maze::main);
 
 	add_map_location_gamemode("zgrief", "street", maps\mp\zm_buried_grief_street::precache, maps\mp\zm_buried_grief_street::main);
@@ -90,6 +90,95 @@ street_struct_init()
 	scripts\zm\replaced\utility::register_perk_struct( "specialty_rof", "zombie_vending_doubletap2", ( 2423, 10, 88 ), ( 0, 180, 0 ) );
 	scripts\zm\replaced\utility::register_perk_struct( "specialty_additionalprimaryweapon", "zombie_vending_three_gun", ( -711, -1249.5, 140.5 ), ( 0, 180, 0 ) );
 	scripts\zm\replaced\utility::register_perk_struct( "specialty_nomotionsensor", "p6_zm_vending_vultureaid", ( 1450.33, 2302.68, 12 ), ( 0, 340.2, 0 ) );
+}
+
+// ============================================================================
+//  borough_survival_main   -   Borough (zstandard/street)
+//
+//  Wraps stock maps\mp\zm_buried_grief_street::main rather than replacing it,
+//  so all of stock's behaviour (12 wallbuys, the five chests, the arena
+//  collision, the turnperkon calls) is kept exactly as-is and only the two
+//  things Borough gets wrong are added around it.
+//
+//  🛑 WHY WE ARE DOING THIS AT ALL. zm_qol registers stock
+//  zm_buried_grief_street::main for this location; BO2-Reimagined - the
+//  designated reference for these survival locations - registers its OWN
+//  replaced copy. CLAUDE.md says the gap is "usually a stock function
+//  Reimagined replaces that zm_qol never ported", and this is exactly that
+//  case. Adapting rather than bulk-copying, per the same rule: Reimagined's
+//  copy also cuts the wallbuys from 12 to 5, drops the tunnel chest and
+//  randomises the box, which are its own balance choices and not wanted here.
+//
+//  1. ZONE RESTRICTION. Measured in game: Borough runs with 39 zones enabled
+//     and 95 spawn locations - effectively the whole of Buried, including the
+//     tunnels, the bank and the mansion, none of which is reachable from the
+//     sealed street arena. Reimagined's disable_tunnels() shuts exactly these
+//     off. Zombies spawning in them can never path to the player.
+//
+//     🛑 This is NOT yet proven to be the freeze cause - a zombie measured at
+//     dist=67 was frozen too, which no zone theory explains. It is being done
+//     because it is wrong on its own terms and because the reference does it,
+//     not because it is a confirmed fix.
+//
+//  2. CHALK. Reported in game: the chalk "?" icons draw on top of the Olympia
+//     wallbuy. Buried's chalk system lets you draw wallbuys anywhere, which
+//     makes no sense on a single sealed arena. deletechalktriggers() is
+//     stock (zm_buried_gamemodes.gsc:27) and removes the triggers.
+//
+//     Ordering is load-bearing: stock main's builddynamicwallbuys() walks
+//     level.chalk_builds and calls wait_and_remove() on each stub, so the
+//     chalk has to survive until that has run or the wallbuys never appear.
+//     Hence a thread that waits for the round flag plus a margin, rather than
+//     deleting up front.
+//
+//  🛑 NOT verified in game yet.
+// ============================================================================
+borough_survival_main()
+{
+	level thread borough_remove_chalk();
+	borough_restrict_zones();
+
+	maps\mp\zm_buried_grief_street::main();
+}
+
+borough_restrict_zones()
+{
+	// Origins of this list: BO2-Reimagined scripts\zm\replaced\
+	// zm_buried_grief_street::disable_tunnels, minus its collision-wall models
+	// (stock already seals the arena with zm_collision_buried_street_grief).
+	a_zones = [];
+	a_zones[a_zones.size] = "zone_tunnels_center";
+	a_zones[a_zones.size] = "zone_tunnels_north";
+	a_zones[a_zones.size] = "zone_tunnels_north2";
+	a_zones[a_zones.size] = "zone_tunnels_south";
+	a_zones[a_zones.size] = "zone_tunnels_south2";
+	a_zones[a_zones.size] = "zone_tunnels_south3";
+	a_zones[a_zones.size] = "zone_bank";
+	a_zones[a_zones.size] = "zone_mansion";
+
+	foreach ( str_zone in a_zones )
+	{
+		if ( !isDefined( level.zones ) || !isDefined( level.zones[str_zone] ) )
+		{
+			continue;
+		}
+
+		level.zones[str_zone].is_enabled = 0;
+		level.zones[str_zone].is_spawning_allowed = 0;
+	}
+}
+
+borough_remove_chalk()
+{
+	level endon( "end_game" );
+
+	flag_wait( "start_zombie_round_logic" );
+
+	// stock main does builddynamicwallbuys() at start_zombie_round_logic + 1s;
+	// stay clear of it.
+	wait 4;
+
+	maps\mp\zm_buried_gamemodes::deletechalktriggers();
 }
 
 zstandard_preinit()

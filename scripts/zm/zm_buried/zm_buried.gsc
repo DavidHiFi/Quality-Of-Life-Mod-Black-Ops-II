@@ -28,6 +28,8 @@ main()
     // --- custom survival start locations: adds Maze (alongside stock Borough/street) ---
     replaceFunc( maps\mp\zm_buried_gamemodes::init, scripts\zm\replaced\zm_buried_gamemodes::init );
 
+    zmqol_enable_vulture_on_borough();
+
     // 🛑 REMOVED 2026-08-02: replaceFunc on maps\mp\zm_buried::buried_zone_init,
     // along with scripts\zm\replaced\zm_buried.gsc.
     //
@@ -57,12 +59,277 @@ main()
     // With this gone, stock buried_zone_init runs unmodified.
 }
 
+// ============================================================================
+//  zmqol_enable_vulture_on_borough
+//
+//  🛑 Fixes: "where the Vulture Aid machine is meant to be, a Speed Cola machine
+//  is there instead" - reported in game on Borough survival, 2026-08-02.
+//
+//  The struct is NOT wrong. Our street_struct_init registers
+//  specialty_nomotionsensor with model p6_zm_vending_vultureaid at
+//  (1450.33, 2302.68, 12), which matches the zm_buried mapents byte for byte, and
+//  the vultureaid xmodels are in the BASE zm_buried.ff (Unlinker: 7 assets), which
+//  every gametype loads. Nothing is missing and nothing is mispaired.
+//
+//  What actually happens is in _zm_perks::perk_machine_spawn_init. It switches on
+//  the perk name to tag the machine, and specialty_nomotionsensor - a DLC perk -
+//  has no case, so it falls into `default:` at _zm_perks.gsc:3057:
+//        use_trigger.script_string  = "speedcola_perk";
+//        perk_machine.script_string = "speedcola_perk";
+//        perk_machine.targetname    = "vending_sleight";
+//  The escape hatch for DLC perks is the very next statement (:3071):
+//        if ( isdefined( level._custom_perks[perk].perk_machine_set_kvps ) )
+//            [[ ... ]]( use_trigger, perk_machine, bump_trigger, collision );
+//  which for Vulture Aid is _zm_perk_vulture::vulture_perk_machine_setup, and it
+//  re-tags the machine "vending_vulture".
+//
+//  That hook is only populated by enable_vulture_perk_for_level(), and stock
+//  zm_buried.gsc:263 calls it inside `if ( is_gametype_active( "zclassic" ) )`.
+//  Borough is zstandard, so on survival the perk is never registered, the default
+//  branch stands, and Speed Cola's own machine thread then finds our machine by
+//  getentarray( "vending_sleight", "targetname" ) and setmodels it to
+//  zombie_vending_sleight. Hence a Speed Cola machine in the Vulture Aid spot -
+//  and buying it would have handed out Speed Cola, not Vulture Aid.
+//
+//  main() is early enough and is not destructive: initialize_custom_perk_arrays()
+//  and _register_undefined_perk() both only create when undefined, so registering
+//  ahead of _zm_perks::init survives it.
+//
+//  🛑 The client half is MANDATORY. register_perk_clientfields() registers a
+//  clientfield server-side; clientscripts\mp\zm_buried.csc:49 has the identical
+//  zclassic-only gate, so doing this on the server alone produces
+//  EXE_CLIENT_FIELD_MISMATCH. See zm_buried.csc for the matching call.
+//
+//  Scoped to Borough only: it is the one location whose perk set contains Vulture
+//  Aid. Maze registers no vulture struct, and classic is left completely alone.
+//
+//  🛑 NOT verified in game yet. Needs build_ff.bat for the .csc half.
+// ============================================================================
+zmqol_enable_vulture_on_borough()
+{
+    if ( getdvar( "g_gametype" ) != "zstandard" )
+        return;
+
+    if ( getdvar( "ui_zm_mapstartlocation" ) != "street" )
+        return;
+
+    maps\mp\zombies\_zm_perk_vulture::enable_vulture_perk_for_level();
+}
+
 init()
 {
     zmqol_precache_survival_characters();
     added_weapons();
     move_divetonuke_collision();
     level thread zmqol_spawner_probe();   // DIAGNOSTIC - remove once Maze spawns
+    level thread zmqol_stuck_zombie_probe();   // DIAGNOSTIC - remove once Borough zombies move
+    level thread zmqol_flopper_probe();        // DIAGNOSTIC - remove once Perma-Flopper works
+}
+
+// ============================================================================
+//  zmqol_flopper_probe   -   DIAGNOSTIC. Remove once Perma-Flopper works.
+//
+//  Reported twice: dolphin diving from height in CLASSIC Buried produces no
+//  explosion. Nothing this session touched it - ridgelandproject.gsc, where all
+//  the persistent-upgrade code lives, has not been modified - so this is
+//  pre-existing, but it is real and worth fixing.
+//
+//  The full chain, read out of stock, is three conditions and the probe splits
+//  them so we stop guessing which one fails:
+//
+//   1. AWARDED. _zm.gsc:4168 only consults the perma path when
+//      level.pers_upgrade_flopper is set (zm_buried::init_persistent_abilities,
+//      is_classic only), and pers_upgrade_flopper_damage_check then requires
+//      self.pers_upgrades_awarded["flopper"]. ridgelandproject.gsc:1683 does
+//      `set_client_stat( "pers_flopper_counter", 1 )` and stock's required
+//      value IS 1 (_zm_pers_upgrades.gsc:147) - but stats() does not run until
+//      flag_wait( "initial_blackscreen_passed" ), and the award watcher only
+//      re-tests an upgrade when that stat shows up in self.stats_this_frame.
+//      So "granted the stat but never awarded the upgrade" is a live theory.
+//
+//   2. ACTIVE. pers_upgrade_flopper_watcher sets self.pers_flopper_active on
+//      "dtp_start" and clears it on "dtp_end". No dive-to-prone notify, no
+//      explosion, even when awarded.
+//
+//   3. DAMAGE. The explosion notify only fires from
+//      pers_upgrade_flopper_damage_check, which is reached solely via
+//      smeansofdeath == "MOD_FALLING" and then needs idamage > 0. A dive that
+//      does no fall damage can never explode - which would make this not a bug
+//      at all, just a shorter drop than it looks.
+//
+//      [zm_qol] FLOPPER t=N lvl_enabled=<0/1> awarded=<...> active=<...> falls=<n>
+// ============================================================================
+zmqol_flopper_probe()
+{
+    level endon( "end_game" );
+
+    if ( !is_classic() )
+        return;
+
+    flag_wait( "initial_blackscreen_passed" );
+
+    for ( i = 0; i < 3; i++ )
+    {
+        wait 10;
+
+        a_players = get_players();
+
+        if ( !isdefined( a_players ) || a_players.size == 0 )
+            continue;
+
+        player = a_players[0];
+
+        str_lvl = "0";
+
+        if ( isdefined( level.pers_upgrade_flopper ) && level.pers_upgrade_flopper )
+            str_lvl = "1";
+
+        str_awarded = "undef";
+
+        if ( isdefined( player.pers_upgrades_awarded ) && isdefined( player.pers_upgrades_awarded["flopper"] ) )
+            str_awarded = "" + player.pers_upgrades_awarded["flopper"];
+
+        str_active = "undef";
+
+        if ( isdefined( player.pers_flopper_active ) )
+            str_active = "" + player.pers_flopper_active;
+
+        n_falls = 0;
+
+        if ( isdefined( player.pers_num_flopper_damages ) )
+            n_falls = player.pers_num_flopper_damages;
+
+        println( "[zm_qol] FLOPPER t=" + ( ( i + 1 ) * 10 ) + " lvl_enabled=" + str_lvl + " awarded=" + str_awarded + " active=" + str_active + " falls=" + n_falls );
+    }
+}
+
+// ============================================================================
+//  zmqol_stuck_zombie_probe   -   DIAGNOSTIC. Remove once Borough zombies move.
+//
+//  v1.13.1 got zombies SPAWNING on Borough (probe: size=9 live=9 pool=9 alive=6,
+//  no errors). They do not MOVE. Reported in game: they play animations on the
+//  spot, and the player can walk right up to them and hear them go to attack.
+//
+//  🛑 That last detail is the important one and it kills the obvious theory.
+//  "Wrong zones enabled, zombies spawn across the map" cannot be it - if they
+//  were spawning in zone_start you could not walk up to them, because
+//  zone_start's four spawn points sit at z 1180..1278 (the Processing cave)
+//  while the whole Borough arena is z -122..490. They are near the player.
+//
+//  What I could establish offline, and what I could not:
+//    - 34 structs carry script_noteworthy "spawn_location"; only 7 of them are
+//      barricade-linked (script_string "barricade_start_1" etc).
+//    - NOTHING in the base mapents has a targetname beginning "barricade", and
+//      neither addon mapents (so_zclassic / so_zencounter) contains one either.
+//      So where Buried's zbarriers come from is unresolved - and if a zombie
+//      spawns at a barricade whose boards never come off it stands there
+//      playing the tear-down animation forever, which is EXACTLY the symptom.
+//      That is the same failure documented for Origins in checkpoint 13 3a:
+//      zone.zbarriers empty -> drop_all_barriers() is a no-op.
+//
+//  Rather than guess a third time (the project has paid for that twice on this
+//  map already), this measures all three candidates at once:
+//
+//    dist       - small => near the player, so it is NOT a zone/geography
+//                 problem. large => they are spawning somewhere unreachable.
+//    zbarriers  - per enabled zone. 0 across the board => barrier theory.
+//    speed      - if zombie_move_speed is undefined or 0 they were never told
+//                 to move at all, which points at spawn init, not pathing.
+//
+//      [zm_qol] STUCK t=N player @ (x y z)
+//      [zm_qol] STUCK t=N zone <name> spawn_locs=<n> zbarriers=<n>
+//      [zm_qol] STUCK t=N zombie @ (x y z) dist=<n> speed=<s>
+// ============================================================================
+zmqol_stuck_zombie_probe()
+{
+    level endon( "end_game" );
+
+    // Runs on EVERY Buried gametype now, deliberately - this round is an A/B
+    // against classic, which demonstrably works, so classic has to be measured
+    // too. Rule 17: comparing to a working case in the same build beat four
+    // rounds of single-case probing last time.
+    flag_wait( "start_zombie_round_logic" );
+
+    str_where = getdvar( "g_gametype" ) + "/" + getdvar( "ui_zm_mapstartlocation" );
+
+    for ( i = 0; i < 3; i++ )
+    {
+        wait 10;
+
+        n = ( i + 1 ) * 10;
+        a_players = get_players();
+
+        if ( !isdefined( a_players ) || a_players.size == 0 )
+            continue;
+
+        player = a_players[0];
+
+        // Totals, not a line per zone: 39 enabled zones made the last dump
+        // unreadable, and the only number that matters is whether ANY zone
+        // has zbarriers.
+        n_zones = 0;
+        n_spots = 0;
+        n_barriers = 0;
+        n_zones_with_barriers = 0;
+
+        if ( isdefined( level.zones ) )
+        {
+            foreach ( str_zone, zone in level.zones )
+            {
+                if ( !isdefined( zone.is_enabled ) || !zone.is_enabled )
+                    continue;
+
+                n_zones++;
+
+                if ( isdefined( zone.spawn_locations ) )
+                    n_spots = n_spots + zone.spawn_locations.size;
+
+                if ( isdefined( zone.zbarriers ) && zone.zbarriers.size > 0 )
+                {
+                    n_barriers = n_barriers + zone.zbarriers.size;
+                    n_zones_with_barriers++;
+                }
+            }
+        }
+
+        println( "[zm_qol] STUCK " + str_where + " t=" + n + " zones=" + n_zones + " spawn_locs=" + n_spots + " zbarriers=" + n_barriers + " zones_with_barriers=" + n_zones_with_barriers );
+
+        a_zombies = get_round_enemy_array();
+
+        foreach ( zombie in a_zombies )
+        {
+            if ( !isdefined( zombie ) )
+                continue;
+
+            str_speed = "undef";
+
+            if ( isdefined( zombie.zombie_move_speed ) )
+                str_speed = "" + zombie.zombie_move_speed;
+
+            // ignoreall is THE field. zombie_spawn_init sets it to 1 and only
+            // zombie_setup_attack_properties clears it - and that call sits
+            // immediately after the animscripted() on first_node.zbarrier at
+            // _zm_spawner.gsc:537. If the zbarrier is undefined that line
+            // throws, the thread dies silently, and ignoreall stays 1 forever:
+            // the zombie stands still and cannot attack. Exactly the symptom.
+            str_ignore = "undef";
+
+            if ( isdefined( zombie.ignoreall ) )
+                str_ignore = "" + zombie.ignoreall;
+
+            str_zb = "no_first_node";
+
+            if ( isdefined( zombie.first_node ) )
+            {
+                if ( isdefined( zombie.first_node.zbarrier ) )
+                    str_zb = "yes";
+                else
+                    str_zb = "NO_ZBARRIER";
+            }
+
+            println( "[zm_qol] STUCK " + str_where + " t=" + n + " zombie dist=" + int( distance( zombie.origin, player.origin ) ) + " speed=" + str_speed + " ignoreall=" + str_ignore + " first_node.zbarrier=" + str_zb );
+        }
+    }
 }
 
 // ============================================================================
