@@ -2449,7 +2449,7 @@ zmqol_dev_command_listener()
             {
                 player.zmqol_fly = 1;
                 player thread zmqol_fly_think();
-                player iprintln( "^2[zm_qol] fly ON ^7- look where you want to go" );
+                player iprintln( "^2[zm_qol] fly ON ^7- MELEE fwd, ADS back, JUMP up, STANCE down, SPRINT boost" );
             }
         }
         else if ( cmd == "infiniteammo" || cmd == "infammo" )
@@ -2850,7 +2850,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.god^7                      toggle godmode";
     a_lines[a_lines.size] = "^3.ghost^7                    toggle - zombies ignore you";
     a_lines[a_lines.size] = "^3.afk^7                      toggle - ghost + godmode";
-    a_lines[a_lines.size] = "^3.fly^7                      toggle flight";
+    a_lines[a_lines.size] = "^3.fly^7                      noclip: melee=fwd ads=back jump/stance=up/down";
     a_lines[a_lines.size] = "^3.infiniteammo^7 / ^3.infammo^7  toggle - never run dry";
     a_lines[a_lines.size] = "^3.reload^7                   refill all weapons + equipment";
     a_lines[a_lines.size] = "^3.pack^7                     Pack-a-Punch the held weapon";
@@ -2972,9 +2972,31 @@ zmqol_infinite_ammo_think()
 //                                      script_origin and still look around and shoot
 //  so a linked player is not a frozen one.
 //
-//  Movement then means moving the mover. getnormalizedmovement() returns WASD /
-//  stick as (forward, right), and anglestoforward() carries view PITCH, so looking
-//  up and holding forward climbs. That is ordinary noclip and needs no extra keys.
+//  🛑 v1.22.0 PROBE RESULT - WASD IS NOT READABLE, AND THAT IS SETTLED.
+//  v1.21.2 shipped a probe printing getnormalizedmovement() for the first ~3s of a
+//  flight. Every single line in console_zm.log came back:
+//      [zm_qol] fly: getnormalizedmovement UNDEFINED
+//  Not "0 0" - UNDEFINED. The builtin returns nothing at all, so the movement
+//  branch guarded on it could never run. That, and not the mover or the link, is
+//  why flight was "stuck in place": the link held the player, and nothing ever
+//  moved the mover.
+//
+//  Why: in the ZM script dump getnormalizedmovement() appears ONLY inside /# ... #/
+//  developer blocks (_createfx.gsc:1272, 2721). It is a dev-build builtin and is
+//  not exposed by the retail/Plutonium ZM build. The starter kit's GSC reference
+//  lists it as a normal player function - that entry is wrong for this build, and
+//  the runtime is the authority. Do not reintroduce it.
+//
+//  What every working T6 UFO mod does instead is read BUTTONS, never WASD, and
+//  steer with the view. Two independent shipped implementations in this workspace
+//  agree, and neither touches getnormalizedmovement:
+//      Plutonium-T6-Scripts\chat_commands\chat_command_ufo_mode.gsc:83-117
+//          MeleeButtonPressed() -> PlayerLinkTo + MoveTo( ... AnglesToForward ... )
+//      littlegods-mod\funciones.gsc:1880-1921
+//          fragButtonPressed() -> moveTo( origin + AnglesToForward * 20 )
+//  So movement is: hold a button, fly the way you are looking. anglestoforward()
+//  carries view PITCH, so looking up and holding forward climbs - jump/stance are
+//  only there for fine vertical trim.
 zmqol_fly_think()
 {
     level endon( "game_ended" );
@@ -2991,6 +3013,24 @@ zmqol_fly_think()
     e_mover.angles = self.angles;
 
     self playerlinkto( e_mover );
+
+    // 🛑 WITHOUT THIS, FLYING KILLS YOU, AND IT READS AS "FLY IS BROKEN".
+    // Leaving the playable area in ZM is fatal: _zm.gsc runs a per-player monitor
+    // gated on level.player_out_of_playable_area_monitor (set to 1 in
+    // _zm.gsc::init(), per-map in zm_highrise.gsc::setup_zone_monitor:571) which
+    // kills anyone outside the enabled zones - exactly where flight goes. Stash
+    // the old value and clear it for the duration; chat_commands does the same
+    // thing at chat_command_ufo_mode.gsc:10-13. Invulnerability + ignoreme cover
+    // the rest, mirroring the .afk branch above.
+    if ( !isdefined( level.zmqol_fly_oopam ) )
+    {
+        level.zmqol_fly_oopam = level.player_out_of_playable_area_monitor;
+        level.player_out_of_playable_area_monitor = 0;
+    }
+
+    self.ignoreme = 1;
+    self enableinvulnerability();
+
     self thread zmqol_fly_move( e_mover );
 
     // 🛑 waittill_any_RETURN, not waittill_any. common_scripts\utility::waittill_any
@@ -3003,70 +3043,115 @@ zmqol_fly_think()
 
     self notify( "zmqol_fly_move_stop" );
 
+    // Restore the death-barrier monitor for everyone once nobody is flying.
+    if ( isdefined( level.zmqol_fly_oopam ) )
+    {
+        b_anyone_flying = 0;
+        a_players = get_players();
+
+        for ( i = 0; i < a_players.size; i++ )
+        {
+            if ( a_players[i] != self && isdefined( a_players[i].zmqol_fly ) && a_players[i].zmqol_fly )
+                b_anyone_flying = 1;
+        }
+
+        if ( !b_anyone_flying )
+        {
+            level.player_out_of_playable_area_monitor = level.zmqol_fly_oopam;
+            level.zmqol_fly_oopam = undefined;
+        }
+    }
+
     if ( isdefined( self ) )
     {
         self unlink();
         self.zmqol_fly = 0;
+
+        // Only give back what fly itself turned on - .god / .ghost / .afk own
+        // these flags too and must survive a landing.
+        if ( ( !isdefined( self.zmqol_ghost ) || !self.zmqol_ghost ) && ( !isdefined( self.zmqol_afk ) || !self.zmqol_afk ) )
+            self.ignoreme = 0;
+
+        if ( ( !isdefined( self.zmqol_god ) || !self.zmqol_god ) && ( !isdefined( self.zmqol_afk ) || !self.zmqol_afk ) )
+            self disableinvulnerability();
     }
 
     if ( isdefined( e_mover ) )
         e_mover delete();
 }
 
-//  🛑 v1.21.1 REPORT: ".fly ... i just am stuck in place im not flying or no
-//  clipping". The link itself is clearly working - being stuck IS the link
-//  holding position - so what failed is the mover never moving. Two candidates,
-//  and this version addresses one and measures the other:
+//  CONTROLS - buttons, not WASD. See the block above zmqol_fly_think() for why
+//  WASD cannot be read at all in this build.
 //
-//    1. e_mover.origin = v_pos teleports the parent. A linked player follows a
-//       mover's MOVEMENT, and a direct origin assignment is not movement - every
-//       stock link target is a real mover (the MOTD gondola runs on moveto, the
-//       plane on vehicle physics). moveto() over exactly one server frame is the
-//       fix, and it also smooths the motion.
-//    2. getnormalizedmovement() may simply return (0,0) while the player is
-//       linked, in which case nothing above matters. That cannot be settled from
-//       here, so the probe below prints what the engine actually reports for the
-//       first ~3 seconds of a flight. If the numbers are all 0 0, input is not
-//       readable while linked and the whole approach is dead - at which point
-//       the answer is t6-gsc-utils' native ufo()/noclip(), which is a plugin
-//       install, not a script change.
+//      MELEE   fly forward along your view (look down to descend, up to climb)
+//      ADS     fly backward
+//      JUMP    straight up          STANCE  straight down
+//      SPRINT  hold with any of the above for 3x speed
 //
-//  Server frame is 20Hz, so 0.05s is one frame: each moveto finishes exactly as
-//  the next is issued, giving continuous motion rather than a stutter.
+//  Melee is the forward key because it is the one button with no meaningful
+//  effect while linked - the knife swing is cosmetic - and it is what
+//  chat_command_ufo_mode.gsc uses for exactly this reason. Frag (littlegods'
+//  choice) would pull a grenade pin every frame, so it is deliberately not used.
+//
+//  🛑 e_mover.origin, not self.origin. A linked player's origin is driven BY the
+//  mover, so feeding self.origin back in makes the step depend on the previous
+//  frame's interpolation and the flight drifts and stutters. chat_commands has
+//  this bug (it reads self.origin at :112); littlegods reads the mover and is
+//  the one to copy.
+//
+//  🛑 moveto(), never "e_mover.origin = v_pos". A linked player follows the
+//  mover's MOVEMENT; a direct origin assignment teleports the parent and the
+//  child does not track it. Every stock link target is a real mover. Server tick
+//  is 20Hz, so a 0.05s moveto finishes exactly as the next is issued - continuous
+//  motion rather than a stutter.
 zmqol_fly_move( e_mover )
 {
     self endon( "disconnect" );
     self endon( "zmqol_fly_move_stop" );
     level endon( "game_ended" );
 
-    n_speed = 25;
-    n_probe = 0;
+    n_speed = 20;
 
     for ( ;; )
     {
         if ( !isdefined( e_mover ) )
             return;
 
-        v_move = self getnormalizedmovement();
+        v_angles = self getplayerangles();
+        v_pos = e_mover.origin;
+        b_moved = 0;
 
-        if ( n_probe < 60 )
+        n_step = n_speed;
+
+        if ( self sprintbuttonpressed() )
+            n_step = n_speed * 3;
+
+        if ( self meleebuttonpressed() )
         {
-            if ( isdefined( v_move ) )
-                println( "[zm_qol] fly: move=" + v_move[0] + " " + v_move[1] + " mover=" + e_mover.origin );
-            else
-                println( "[zm_qol] fly: getnormalizedmovement UNDEFINED" );
-
-            n_probe++;
+            v_pos = v_pos + ( anglestoforward( v_angles ) * n_step );
+            b_moved = 1;
         }
 
-        if ( isdefined( v_move ) && ( v_move[0] != 0 || v_move[1] != 0 ) )
+        if ( self adsbuttonpressed() )
         {
-            v_angles = self getplayerangles();
-            v_pos = e_mover.origin;
-            v_pos = v_pos + ( anglestoforward( v_angles ) * ( v_move[0] * n_speed ) );
-            v_pos = v_pos + ( anglestoright( v_angles ) * ( v_move[1] * n_speed ) );
+            v_pos = v_pos - ( anglestoforward( v_angles ) * n_step );
+            b_moved = 1;
+        }
+
+        if ( self jumpbuttonpressed() )
+        {
+            v_pos = v_pos + ( ( 0, 0, 1 ) * n_step );
+            b_moved = 1;
+        }
+
+        if ( self stancebuttonpressed() )
+        {
+            v_pos = v_pos - ( ( 0, 0, 1 ) * n_step );
+            b_moved = 1;
+        }
+
+        if ( b_moved )
             e_mover moveto( v_pos, 0.05 );
-        }
 
         wait 0.05;
     }
