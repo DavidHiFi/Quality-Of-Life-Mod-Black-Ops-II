@@ -88,6 +88,15 @@ REM --- link -------------------------------------------------------------------
 echo   Linking mod.ff ...
 if exist "%PROJ%\zone_out" rmdir /s /q "%PROJ%\zone_out"
 
+REM  zm_prison + zm_prison_patch are loaded for ELECTRIC CHERRY: the perk's
+REM  models, fx, bottle weapon, HUD material and vision file are in zm_prison.ff,
+REM  and BOTH halves of its script - maps\mp\zombies\_zm_perk_electric_cherry.gsc
+REM  and the matching .csc - are in zm_prison_patch.ff.
+REM
+REM  🛑 Do NOT put REM lines between the caret-continued --load arguments below.
+REM  cmd does not treat them as comments there - they are passed to the Linker as
+REM  arguments, and it fails with: Could not find zone definition file for
+REM  target "REM".
 "%OAT_BASE%\Linker.exe" ^
   --load "%PROJ%\zone_source\base\mod.ff" ^
   --load "%BO2_DIR%\zone\all\ui_zm.ff" ^
@@ -96,6 +105,8 @@ if exist "%PROJ%\zone_out" rmdir /s /q "%PROJ%\zone_out"
   --load "%BO2_DIR%\zone\all\so_zclassic_zm_buried.ff" ^
   --load "%BO2_DIR%\zone\all\so_zencounter_zm_buried.ff" ^
   --load "%BO2_DIR%\zone\all\zm_tomb.ff" ^
+  --load "%BO2_DIR%\zone\all\zm_prison.ff" ^
+  --load "%BO2_DIR%\zone\all\zm_prison_patch.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^

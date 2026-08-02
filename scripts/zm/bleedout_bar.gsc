@@ -61,9 +61,12 @@ Bleedout_bar_startup()
 	flag_wait( "initial_blackscreen_passed" ); // yeah we don't want this to run while the match is setting up
 	//self iprintln("Bleed out bar setup"); // debuging
 	
-	credits = getDvarIntDefault( "credits", 1 ); // show who created this script
+	// zm_qol: upstream flashed "Bleedout Bar V2.0 Created by Nathan3197" on screen
+	// at every spawn. Default flipped to OFF so it does not interrupt the start of
+	// a game - the attribution lives in this file's header and in the commit
+	// instead. Set the "credits" dvar to 1 to bring the on-screen line back.
+	credits = getDvarIntDefault( "credits", 0 );
 
-	//credits
 	if(int(credits) == 1)
 	{
 		self iprintln("Bleedout Bar V2.0 Created by ^2Nathan3197");

@@ -74,3 +74,44 @@ xmodel,zm_collision_transit_diner_survival
 xmodel,p6_zm_vending_diesel_magic
 xmodel,t6_wpn_zmb_perk_bottle_bear_world
 fx,maps/zombie_tomb/fx_tomb_dieselmagic_on
+
+// ============================================================================
+//  ELECTRIC CHERRY  -  the 9th perk, on the maps that never shipped it
+// ----------------------------------------------------------------------------
+//  Wunderfizz can only hand out perks the map has REGISTERED - getPerks() reads
+//  level._custom_perks - so without this the machine tops out at 8 and says
+//  "You have all 8 perks". Electric Cherry is stock on Mob of the Dead and
+//  Origins only.
+//
+//  maps\mp\zombies\_zm_perk_electric_cherry.gsc is a CORE module, so the server
+//  half is reachable from a root script. Everything else has to be imported:
+//      script  clientscripts/mp/zombies/_zm_perk_electric_cherry.csc
+//                                              (zm_prison_patch.ff)
+//      xmodel  p6_zm_vending_electric_cherry_off / _on      (zm_prison.ff)
+//      weapon  zombie_perk_bottle_cherry                    (zm_prison.ff)
+//      the six fx its precache loads                        (zm_prison.ff)
+//      material specialty_electric_cherry_zombie  - the HUD perk icon
+//      rawfile vision/zm_electric_cherry.vision
+//  build_ff.bat now --loads zm_prison.ff and zm_prison_patch.ff for these.
+//
+//  🛑 THE CLIENT SCRIPT IS NOT OPTIONAL. register_perk_clientfields registers
+//  perk_electric_cherry on the server; without the .csc doing the same the sets
+//  disagree and everyone eats EXE_CLIENT_FIELD_MISMATCH - the same trap Vulture
+//  Aid set on Borough.
+//
+//  🛑 NOT verified in game yet.
+// ============================================================================
+script,clientscripts/mp/zombies/_zm_perk_electric_cherry.csc
+
+xmodel,p6_zm_vending_electric_cherry_off
+xmodel,p6_zm_vending_electric_cherry_on
+weapon,zombie_perk_bottle_cherry
+material,specialty_electric_cherry_zombie
+rawfile,vision/zm_electric_cherry.vision
+
+fx,maps/zombie_alcatraz/fx_alcatraz_electric_cherry_down
+fx,maps/zombie_alcatraz/fx_alcatraz_electric_cherry_sm
+fx,maps/zombie_alcatraz/fx_alcatraz_electric_cherry_player
+fx,maps/zombie_alcatraz/fx_alcatraz_electric_cherry_lg
+fx,maps/zombie/fx_zombie_tesla_shock
+fx,maps/zombie/fx_zombie_tesla_shock_secondary

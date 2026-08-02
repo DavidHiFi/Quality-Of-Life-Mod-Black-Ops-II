@@ -251,6 +251,42 @@ perks()
 		level thread toggle_vending_divetonuke_power_on_think();
 		level thread toggle_vending_divetonuke_power_off_think();
 	}
+
+	zmqol_enable_electric_cherry();
+}
+
+// ============================================================================
+//  zmqol_enable_electric_cherry  (CLIENT)
+//
+//  The mandatory other half of zmqol_enable_electric_cherry() in
+//  scripts\zm\ridgelandproject.gsc - read the full reasoning there.
+//
+//  The server registers perk_electric_cherry (and electric_cherry_reload_fx) on
+//  these four maps so Wunderfizz can hand out the 9th perk. If the client does
+//  not register the identical pair the sets disagree and everyone is dropped
+//  with EXE_CLIENT_FIELD_MISMATCH before the map even starts.
+//
+//  The map list and the already-registered guard are deliberately the same shape
+//  as the server's, so the two cannot drift apart. Mob of the Dead and Origins
+//  are excluded on both sides because they enable the perk themselves.
+//
+//  clientscripts\mp\zombies\_zm_perk_electric_cherry.csc is not present on these
+//  maps in stock - it ships in zm_prison_patch.ff - so mod.ff carries it now,
+//  declared in zone_source\mod_locations.zone.
+//
+//  🛑 NOT verified in game yet. Requires build_ff.bat.
+// ============================================================================
+zmqol_enable_electric_cherry()
+{
+	map = getDvar( "mapname" );
+
+	if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" && map != "zm_buried" )
+		return;
+
+	if ( isDefined( level._custom_perks ) && isDefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) )
+		return;
+
+	clientscripts\mp\zombies\_zm_perk_electric_cherry::enable_electric_cherry_perk_for_level();
 }
 
 toggle_vending_deadshot_power_on_think()

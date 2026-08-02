@@ -233,6 +233,7 @@ init()
     zmqol_restore_perk_bottles_on_survival();
     zmqol_register_divetonuke_visionset();
     zmqol_dev_commands();
+    level thread zmqol_credits_banner();
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
@@ -2284,6 +2285,42 @@ player_too_many_weapons_monitor()
 //  This lives in ridgelandproject.gsc (a ROOT script) so it is available on every
 //  map, and every reference is to a core script, so AI_CONTEXT rule 2 is safe.
 // ============================================================================
+// ============================================================================
+//  zmqol_credits_banner
+//
+//  Prints the mod's own banner once per player at the start of a game.
+//
+//  "^4" is BO2's blue colour code (^1 red, ^2 green, ^3 yellow, ^4 blue,
+//  ^5 cyan, ^6 pink, ^7 white) - same convention the chat commands below use.
+//
+//  Waits on "initial_blackscreen_passed" for the same reason every other HUD
+//  thread in this file does: printing before it puts the line behind the loading
+//  screen where nobody sees it. The extra second lets the round-start text clear
+//  first. iprintln (bottom-left feed) rather than iprintlnbold, so it does not
+//  sit across the middle of the screen while you are playing.
+// ============================================================================
+zmqol_credits_banner()
+{
+    level endon( "end_game" );
+
+    for ( ;; )
+    {
+        level waittill( "connected", player );
+        player thread zmqol_credits_banner_print();
+    }
+}
+
+zmqol_credits_banner_print()
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+
+    flag_wait( "initial_blackscreen_passed" );
+    wait 1;
+
+    self iprintln( "^4Quality Of Life Mod | Credits: DavidHiFi & Synarxis" );
+}
+
 zmqol_dev_commands()
 {
     setdvar( "sv_cheats", 1 );
@@ -2457,6 +2494,119 @@ zmqol_dev_command_listener()
             player iprintln( "^2[zm_qol] ^7x " + int( v_pos[0] ) + "  y " + int( v_pos[1] ) + "  z " + int( v_pos[2] ) );
             println( "[zm_qol] WHERE " + level.script + " (" + v_pos[0] + ", " + v_pos[1] + ", " + v_pos[2] + ")" );
         }
+        else if ( cmd == "giveperks" )
+        {
+            n_given = player zmqol_give_all_perks();
+            player iprintln( "^2[zm_qol] ^7gave " + n_given + " perk(s)" );
+        }
+        else if ( cmd == "removeperks" )
+        {
+            n_taken = player zmqol_remove_all_perks();
+            player iprintln( "^1[zm_qol] ^7removed " + n_taken + " perk(s)" );
+        }
+        else if ( cmd == "help" )
+        {
+            player thread zmqol_print_help();
+        }
+    }
+}
+
+// ============================================================================
+//  .giveperks / .removeperks
+//
+//  Both walk level._custom_perks rather than a hardcoded list, so they cover
+//  exactly the perks the CURRENT map has registered - including Electric Cherry
+//  once zmqol_enable_electric_cherry() has added it, and Vulture Aid on Buried.
+//  A hardcoded list would try to give perks the map never registered, which has
+//  no clientfield behind it and does nothing useful.
+//
+//  give_perk( perk, bought ) is the stock entry point (_zm_perks.gsc:1982), and
+//  is also the function this mod already replaceFuncs for the perk pop-up HUD,
+//  so perks handed out here animate and count exactly like bought ones.
+//
+//  🛑 REMOVAL IS A NOTIFY, NOT A CALL. There is no stock "remove a perk"
+//  function - unsetperk() sits inside perk_think(), which is a waiting loop:
+//        perk_str = perk + "_stop";
+//        result = self waittill_any_return( "fake_death", "death",
+//                                           "player_downed", perk_str );
+//  Notifying "<perk>_stop" is therefore the supported way out, and it runs the
+//  whole stock teardown - unsetperk, num_perks--, and the per-perk switch that
+//  puts Juggernog's max health back. Calling unsetperk() directly would skip all
+//  of that and leave the player on 250 health with no Jugg.
+// ============================================================================
+zmqol_give_all_perks()
+{
+    if ( !isdefined( level._custom_perks ) )
+        return 0;
+
+    a_keys = getarraykeys( level._custom_perks );
+    n_given = 0;
+
+    for ( i = 0; i < a_keys.size; i++ )
+    {
+        if ( self hasperk( a_keys[i] ) )
+            continue;
+
+        self maps\mp\zombies\_zm_perks::give_perk( a_keys[i], 0 );
+        n_given++;
+        wait 0.05;
+    }
+
+    return n_given;
+}
+
+zmqol_remove_all_perks()
+{
+    if ( !isdefined( level._custom_perks ) )
+        return 0;
+
+    a_keys = getarraykeys( level._custom_perks );
+    n_taken = 0;
+
+    for ( i = 0; i < a_keys.size; i++ )
+    {
+        if ( !self hasperk( a_keys[i] ) )
+            continue;
+
+        self notify( a_keys[i] + "_stop" );
+        n_taken++;
+        wait 0.05;
+    }
+
+    return n_taken;
+}
+
+// ============================================================================
+//  .help
+//
+//  iprintln is one line at a time and the feed is short, so this staggers the
+//  lines slightly rather than dumping them all in a single frame where the
+//  earliest would scroll straight off.
+// ============================================================================
+zmqol_print_help()
+{
+    self endon( "disconnect" );
+
+    a_lines = [];
+    a_lines[a_lines.size] = "^3[zm_qol] ^7commands - prefix ^3.^7 or ^3!";
+    a_lines[a_lines.size] = "^3.help^7            this list";
+    a_lines[a_lines.size] = "^3.p <n>^7           give n points (default 1000)";
+    a_lines[a_lines.size] = "^3.god^7             toggle godmode";
+    a_lines[a_lines.size] = "^3.ghost^7           toggle - zombies ignore you";
+    a_lines[a_lines.size] = "^3.afk^7             toggle - ghost + godmode";
+    a_lines[a_lines.size] = "^3.fly^7             toggle noclip flight";
+    a_lines[a_lines.size] = "^3.infiniteammo^7    toggle - never run dry";
+    a_lines[a_lines.size] = "^3.reload^7          refill all weapons + equipment";
+    a_lines[a_lines.size] = "^3.giveperks^7       give every perk on this map";
+    a_lines[a_lines.size] = "^3.removeperks^7     remove every perk you have";
+    a_lines[a_lines.size] = "^3.nozmspawns^7      toggle zombie spawning";
+    a_lines[a_lines.size] = "^3.where^7           print your coordinates";
+    a_lines[a_lines.size] = "^3.dm^7              spawn a Death Machine";
+
+    for ( i = 0; i < a_lines.size; i++ )
+    {
+        self iprintln( a_lines[i] );
+        wait 0.1;
     }
 }
 
@@ -2606,6 +2756,55 @@ perks()
         level.zombiemode_using_divetonuke_perk = 1;
         maps\mp\zombies\_zm_perk_divetonuke::enable_divetonuke_perk_for_level();
     }
+
+    zmqol_enable_electric_cherry();
+}
+
+// ============================================================================
+//  zmqol_enable_electric_cherry
+//
+//  Makes Electric Cherry the 9th perk on the maps that never shipped it, which
+//  is what stops Wunderfizz at 8 - getPerks() reads level._custom_perks, so a
+//  perk the map never registered can never be offered. Reported in game: after
+//  eight perks the machine says "You have all 8 perks".
+//
+//  Stock enables it on Mob of the Dead (zm_prison.gsc:111) and Origins
+//  (zm_tomb.gsc:180) only, so those two are EXCLUDED here - registering a perk
+//  twice re-registers its clientfields, which is an error in itself.
+//
+//  maps\mp\zombies\_zm_perk_electric_cherry is a CORE module, so referencing it
+//  from this root script is legal under AI_CONTEXT rule 2. Its assets are not
+//  core, though - models, fx, the bottle weapon and the client .csc all come
+//  from zm_prison(.ff/_patch.ff) via zone_source\mod_locations.zone.
+//
+//  🛑 WHY init_electric_cherry() IS CALLED HERE AND NOT LEFT ALONE.
+//  enable_...for_level() only REGISTERS the perk. The clientfield
+//  "electric_cherry_reload_fx" is registered by init_electric_cherry(), and the
+//  only stock caller of that is electric_cherry_perk_machine_think() - i.e. it
+//  runs only once an Electric Cherry MACHINE is being processed. There is no
+//  machine on these maps; the perk comes out of Wunderfizz. Meanwhile the CLIENT
+//  registers that field unconditionally through register_perk_init_thread. Left
+//  as-is the two sides disagree by exactly one field and everyone is dropped
+//  with EXE_CLIENT_FIELD_MISMATCH. Calling it from init() puts the server-side
+//  registration in the same legal window - identical in shape to
+//  zmqol_register_divetonuke_visionset above, and to
+//  [[t6-visionset-registration-timing]].
+//
+//  🛑 NOT verified in game yet. Needs build_ff.bat - the client half is a .csc.
+// ============================================================================
+zmqol_enable_electric_cherry()
+{
+    map = getDvar( "mapname" );
+
+    if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" && map != "zm_buried" )
+        return;
+
+    // Already registered by something else this frame - do not double up.
+    if ( isdefined( level._custom_perks ) && isdefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) )
+        return;
+
+    maps\mp\zombies\_zm_perk_electric_cherry::enable_electric_cherry_perk_for_level();
+    maps\mp\zombies\_zm_perk_electric_cherry::init_electric_cherry();
 }
 
 perks_register_clientfield()
@@ -4260,34 +4459,4 @@ zmqol_spawn_baseline_probe()
         // the world on this gametype and no script fix can conjure them.
         a_live = getentarray( "zombie_spawner", "script_noteworthy" );
 
-        println( "[zm_qol] BASE " + str_where + " t=" + ( ( i + 1 ) * 10 ) + " spawners def=" + n_def + " size=" + n_size + " live=" + a_live.size + " multi=" + is_true( level.use_multiple_spawns ) + " groups=" + n_groups );
-
-        if ( n_size == 0 && a_live.size > 0 )
-        {
-            level.zombie_spawners = a_live;
-            println( "[zm_qol] BASE " + str_where + " REPAIRED level.zombie_spawners -> " + level.zombie_spawners.size );
-        }
-
-        n_pool = 0;
-
-        if ( isdefined( level.zombie_spawn_locations ) )
-            n_pool = level.zombie_spawn_locations.size;
-
-        n_total = 0;
-
-        if ( isdefined( level.zombie_total ) )
-            n_total = level.zombie_total;
-
-        n_ailim = 0;
-
-        if ( isdefined( level.zombie_ai_limit ) )
-            n_ailim = level.zombie_ai_limit;
-
-        n_actlim = 0;
-
-        if ( isdefined( level.zombie_actor_limit ) )
-            n_actlim = level.zombie_actor_limit;
-
-        println( "[zm_qol] BASE " + str_where + " t=" + ( ( i + 1 ) * 10 ) + " pool=" + n_pool + " total=" + n_total + " alive=" + get_current_zombie_count() + " actors=" + get_current_actor_count() + " ailim=" + n_ailim + " actlim=" + n_actlim + " flag=" + flag( "spawn_zombies" ) );
-    }
-}
+        println( 
