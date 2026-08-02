@@ -4,6 +4,38 @@
 #include maps\mp\gametypes_zm\_hud_util;
 #include maps\mp\gametypes_zm\_hud_message;
 
+// ============================================================================
+//  main
+//
+//  🛑 EXISTS ONLY TO PRECACHE. Plutonium runs main() before init() and inside the
+//  precache window - confirmed in console_zm.log, which lists
+//  "GSC Executed scripts/zm/<name>::main()" for every root script that has one,
+//  ahead of every ::init().
+//
+//  The bug this fixes: the user reported that when the machine relocates it shows
+//  "a standard perk bottle" instead of the teddy bear. The bear is NOT missing
+//  from the fastfile - Unlinker --list mod.ff confirms xmodel
+//  t6_wpn_zmb_perk_bottle_bear_world, its material and its image are all in there.
+//  It was never precached, and a setmodel() to an unprecached model at RUNTIME
+//  fails silently, leaving whatever model the entity already had - which is the
+//  last perk bottle the cycle landed on. Exactly the reported symptom.
+//
+//  Why only this one model was affected:
+//    - the perk bottles (t6_wpn_zmb_perk_bottle_*_world) ride in on their
+//      zombie_perk_bottle_* WEAPON, which default_vending_precaching precacheitem's,
+//      so they are registered as a side effect;
+//    - the MACHINE gets away with it because wunderfizzSetup() setmodel's it during
+//      init(), while the precache window is still open;
+//    - the bear has no weapon and is only ever set mid-game, so it had nothing.
+//  The machine is precached explicitly below anyway - it currently works by timing
+//  luck, which is not a thing to leave load-bearing.
+// ============================================================================
+main()
+{
+    precachemodel( "t6_wpn_zmb_perk_bottle_bear_world" );
+    precachemodel( "p6_zm_vending_diesel_magic" );
+}
+
 init()
 {
     thread setupWunderfizz();
