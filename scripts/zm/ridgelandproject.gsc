@@ -130,8 +130,107 @@ main()
 //           file, so they could all be called init()/onplayerconnect()/
 //           onplayerspawned() without conflict).
 // ============================================================================
+// ============================================================================
+//  zmqol_restore_perk_bottles_on_survival
+//
+//  🛑 Fixes: drinking a perk from the Wunderfizz on any custom survival location
+//     plays no animation and leaves the player permanently unable to sprint,
+//     shoot or melee. Reported on Origins/Trenches 2026-08-02.
+//
+//  THE CHAIN, traced end to end:
+//
+//  1. maps\mp\zombies\_zm_perks::perk_machine_spawn_init() only spawns a perk
+//     machine when a "zm_perk_machine" struct's script_string contains
+//     "<ui_gametype>_perks_<start location>". Dumping every shipped mapents with
+//     OAT's Unlinker shows NO struct is tagged for any location this mod adds:
+//         zm_tomb  - 6 structs, 5 tagged "zclassic_perks_tomb", 1 untagged (the
+//                    Pack-a-Punch). Nothing for trenches/excavation_site/church/
+//                    crazy_place. (zm_qol ships no zm_tomb mapents at all.)
+//         zm_highrise 8/8 tagged, zm_prison 11/11, zm_transit 43/43, zm_buried
+//                    14/14 - none tagged for Diner, Tunnel, Power, Docks, or the
+//                    three Die Rise locations.
+//     So those locations spawn ZERO perk machines.
+//
+//  2. _zm_perks::init() then does (stock line ~52):
+//         vending_triggers = getentarray( "zombie_vending", "targetname" );
+//         ...move every "specialty_weapupgrade" trigger OUT of that array...
+//         if ( vending_triggers.size < 1 )
+//             return;                       <-- BAILS
+//     Origins' one untagged machine IS the Pack-a-Punch, so it gets moved out and
+//     the array is empty. init() returns early on every custom survival location.
+//
+//  3. Everything that builds the perk-bottle system lives AFTER that return:
+//         level.machine_assets = [];
+//         [[ level.custom_vending_precaching ]]();   <- precacheitem() of every
+//                                                       "zombie_perk_bottle_*"
+//                                                       and the machine_assets
+//                                                       lookup table
+//
+//  4. The Wunderfizz still works and still hands out perks, because
+//     _zm_perk_random is a separate system. On grab it calls
+//     _zm_perks::perk_give_bottle_begin( perk ), which does:
+//         self increment_is_drinking();
+//         self disable_player_move_states( 1 );      <- sprint/fire/melee OFF
+//         weapon = level.machine_assets["juggernog"].weapon;   <- undefined table
+//         self giveweapon( weapon ); self switchtoweapon( weapon );
+//     With no weapon to switch to, "weapon_change_complete" never fires, so
+//     _zm_perk_random::grab_check() blocks forever on its waittill_any_return and
+//     perk_give_bottle_end() - the ONLY caller of enable_player_move_states() -
+//     never runs. That is the reported soft-lock exactly.
+//
+//  THE FIX
+//
+//  Do what the bail skipped: create level.machine_assets and run the map's own
+//  vending precache. custom_vending_precaching touches no entities - it is purely
+//  precacheitem/precachemodel/loadfx plus building machine_assets - so calling it
+//  without any machines present is safe. Its first block also walks
+//  level._custom_perks[*].precache_func, which is what precaches
+//  "zombie_perk_bottle_cherry" for Electric Cherry (specialty_grenadepulldeath is
+//  in Origins' Wunderfizz rotation but has no case in perk_give_bottle_begin's
+//  switch - it resolves through level._custom_perks[perk].perk_bottle instead).
+//
+//  Root script on purpose: the same bail hits Origins x4, Die Rise x3, Docks,
+//  Diner, Tunnel and Power. Nothing referenced here is map-specific -
+//  level.custom_vending_precaching is a level var and _zm_perks is globally safe
+//  per AI_CONTEXT rule 2 - so this is legal in ridgelandproject.gsc.
+//
+//  Guards:
+//    - is_classic() -> never touches a classic map, where init() does not bail.
+//    - isdefined( level.machine_assets ) -> no-ops wherever _zm_perks::init()
+//      completed normally, so any location that already worked is untouched. This
+//      is also what makes it safe if perk machines are ever added to a loc script
+//      or the mapents get patched: the fix simply stops applying.
+//    - level.custom_vending_precaching is defaulted here because stock only
+//      defaults it AFTER the bail; maps that do not set it themselves would
+//      otherwise have it undefined. (Origins sets it in zm_tomb::main().)
+//
+//  Must run in init(): level.custom_vending_precaching and level._custom_perks are
+//  populated by the map's main(), which runs after this mod's main(). init() is
+//  still inside the precache window - the precacheitem() calls immediately below
+//  in this same function have always worked.
+//
+//  🛑 NOT verified in game yet.
+// ============================================================================
+zmqol_restore_perk_bottles_on_survival()
+{
+    if ( is_classic() )
+        return;
+
+    // _zm_perks::init() got past its bail - nothing to repair.
+    if ( isdefined( level.machine_assets ) )
+        return;
+
+    level.machine_assets = [];
+
+    if ( !isdefined( level.custom_vending_precaching ) )
+        level.custom_vending_precaching = maps\mp\zombies\_zm_perks::default_vending_precaching;
+
+    [[ level.custom_vending_precaching ]]();
+}
+
 init()
 {
+    zmqol_restore_perk_bottles_on_survival();
     zmqol_register_divetonuke_visionset();
     zmqol_dev_commands();
 
