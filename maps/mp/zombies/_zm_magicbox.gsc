@@ -508,6 +508,52 @@ treasure_chest_think()
     if ( isdefined( self.chest_lid ) )
         self.chest_lid thread treasure_chest_lid_open();
 
+    // ========================================================================
+    //  zm_qol PROBE (v1.20.1) - box jingle missing on TranZit survival (Farm).
+    //
+    //  Both box sounds below can vanish with no error at all, and there are
+    //  exactly two silent paths. This prints which one it is, once per open.
+    //
+    //    1. self.zbarrier undefined -> the whole block is skipped.
+    //    2. level.zombie_sounds["music_chest"] undefined -> play_sound_at_pos
+    //       (_zm_utility.gsc:2350-2357) returns without playing. Its complaint
+    //       is inside a /# #/ dev block, so retail says nothing. The entry is
+    //       set by add_sound( "music_chest", "zmb_music_box" ) in _zm.gsc:821.
+    //
+    //  Already ruled OUT with evidence, so the probe does not test for them:
+    //    - the v1.19.0 soundbank,zmb_tomb.all addition. zmb_tomb.all.sabl holds
+    //      no music_box file at all (its box sounds are Origins' own
+    //      zmb/level/zm_tomb/magic_box/*), so it cannot be shadowing this.
+    //    - a missing bank. Neither zmb_classic_transit nor zmb_survival_transit
+    //      carries ANY box sound; both rely on zmb_common.all, which loads on
+    //      Farm. So the bank set is not what differs between classic and
+    //      survival TranZit - which points at script state, i.e. the two cases
+    //      above.
+    //
+    //  Remove once the cause is known.
+    // ========================================================================
+    str_probe = "[zm_qol] box open: zbarrier=";
+
+    if ( isdefined( self.zbarrier ) )
+        str_probe = str_probe + "yes";
+    else
+        str_probe = str_probe + "NO";
+
+    if ( isdefined( level.zombie_sounds ) && isdefined( level.zombie_sounds["music_chest"] ) )
+        str_probe = str_probe + " music_chest=" + level.zombie_sounds["music_chest"];
+    else
+        str_probe = str_probe + " music_chest=UNSET";
+
+    if ( isdefined( level.zombie_sounds ) && isdefined( level.zombie_sounds["open_chest"] ) )
+        str_probe = str_probe + " open_chest=" + level.zombie_sounds["open_chest"];
+    else
+        str_probe = str_probe + " open_chest=UNSET";
+
+    if ( isdefined( self.script_sound ) )
+        str_probe = str_probe + " script_sound=" + self.script_sound;
+
+    println( str_probe );
+
     if ( isdefined( self.zbarrier ) )
     {
         play_sound_at_pos( "open_chest", self.origin );
