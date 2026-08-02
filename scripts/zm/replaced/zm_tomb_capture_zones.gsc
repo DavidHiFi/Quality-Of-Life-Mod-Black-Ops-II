@@ -161,36 +161,104 @@ generator_unitrigger_think()
 	}
 }
 
+// ============================================================================
+//  zm_qol: every register_* call below is now routed through a guard.
+//
+//  🛑 Two of the three stock helpers dereference their lookup result immediately
+//  and die on undefined, which takes the REST of this function with it:
+//
+//    register_perk_machine_for_zone -> get_perk_machine_trigger_from_vending_entity
+//        = getent( "vending_sleight", "target" ). Nothing spawns those triggers on
+//        a survival location: perk_machine_spawn_init() matches
+//        "<gametype>_perks_<location>" against zm_perk_machine structs and the
+//        stock Origins mapents tag none of them for trenches / excavation_site /
+//        church / crazy_place (verified with OAT's Unlinker - 6 structs, 5 tagged
+//        zclassic_perks_tomb, 1 untagged and that one is the Pack-a-Punch). So on
+//        every survival start location this function was dying on its FIRST call
+//        and never reaching the mystery box registrations below it.
+//
+//    register_mystery_box_for_zone -> get_mystery_box_from_script_noteworthy
+//        searches level.chests, which each loc script builds by hand. A loc script
+//        that leaves a chest out of that array turns the matching
+//        register_mystery_box_for_zone call into a miss, so the guard stays.
+//        (It is no longer Trenches that trips it: as of 2026-08-02 that file lists
+//        all three chests again, bunker_start_chest included - the start bunker is
+//        reachable, its doors are purchasable. The guard is now load-bearing only
+//        for the other three Origins arenas.)
+//
+//  register_random_perk_machine_for_zone needs no guard - it only loops over
+//  getentarray() results and adds nothing when there is no match.
+//
+//  Skipping a registration is harmless: an unregistered element is simply not
+//  owned by a generator zone, and enable_/disable_mystery_boxes_in_zone and
+//  enable_perk_machines_in_zone all isdefined-guard their arrays. On this project
+//  every zone is force-captured at round start anyway
+//  (zm_tomb\zm_tomb.gsc::zmqol_power_up_all_generators).
+//
+//  CLASSIC ORIGINS is unaffected: there every machine and chest exists, so every
+//  guard passes and the call list is identical to stock.
+// ============================================================================
 register_elements_powered_by_zone_capture_generators()
 {
 	if (is_classic() || getdvar("ui_zm_mapstartlocation") == "trenches")
 	{
 		register_random_perk_machine_for_zone("generator_start_bunker", "starting_bunker");
-		register_perk_machine_for_zone("generator_start_bunker", "revive", "vending_revive", ::revive_perk_fx_think);
-		register_mystery_box_for_zone("generator_start_bunker", "bunker_start_chest");
+		zmqol_register_perk_machine_if_present("generator_start_bunker", "revive", "vending_revive", ::revive_perk_fx_think);
+		zmqol_register_mystery_box_if_present("generator_start_bunker", "bunker_start_chest");
 		register_random_perk_machine_for_zone("generator_tank_trench", "trenches_right");
-		register_perk_machine_for_zone("generator_tank_trench", "deadshot", "vending_deadshot");
-		register_mystery_box_for_zone("generator_tank_trench", "bunker_tank_chest");
+		zmqol_register_perk_machine_if_present("generator_tank_trench", "deadshot", "vending_deadshot");
+		zmqol_register_mystery_box_if_present("generator_tank_trench", "bunker_tank_chest");
 		register_random_perk_machine_for_zone("generator_mid_trench", "trenches_left");
-		register_perk_machine_for_zone("generator_mid_trench", "sleight", "vending_sleight");
-		register_mystery_box_for_zone("generator_mid_trench", "bunker_cp_chest");
+		zmqol_register_perk_machine_if_present("generator_mid_trench", "sleight", "vending_sleight");
+		zmqol_register_mystery_box_if_present("generator_mid_trench", "bunker_cp_chest");
 	}
 
 	if (is_classic() || getdvar("ui_zm_mapstartlocation") == "excavation_site")
 	{
 		register_random_perk_machine_for_zone("generator_nml_right", "nml");
-		register_perk_machine_for_zone("generator_nml_right", "juggernog", "vending_jugg");
-		register_mystery_box_for_zone("generator_nml_right", "nml_open_chest");
+		zmqol_register_perk_machine_if_present("generator_nml_right", "juggernog", "vending_jugg");
+		zmqol_register_mystery_box_if_present("generator_nml_right", "nml_open_chest");
 		register_random_perk_machine_for_zone("generator_nml_left", "farmhouse");
-		register_perk_machine_for_zone("generator_nml_left", "marathon", "vending_marathon");
-		register_mystery_box_for_zone("generator_nml_left", "nml_farm_chest");
+		zmqol_register_perk_machine_if_present("generator_nml_left", "marathon", "vending_marathon");
+		zmqol_register_mystery_box_if_present("generator_nml_left", "nml_farm_chest");
 	}
 
 	if (is_classic() || getdvar("ui_zm_mapstartlocation") == "church")
 	{
 		register_random_perk_machine_for_zone("generator_church", "church");
-		register_perk_machine_for_zone("generator_church", "doubletap", "vending_doubletap");
-		register_mystery_box_for_zone("generator_church", "village_church_chest");
+		zmqol_register_perk_machine_if_present("generator_church", "doubletap", "vending_doubletap");
+		zmqol_register_mystery_box_if_present("generator_church", "village_church_chest");
+	}
+}
+
+// Registers only if the vending trigger actually exists. Same lookup the stock
+// helper uses (getent by "target"), just tested first instead of dereferenced.
+zmqol_register_perk_machine_if_present(str_zone_name, str_perk_name, str_machine_targetname, func_perk_fx_think)
+{
+	if (!isdefined(getent(str_machine_targetname, "target")))
+	{
+		return;
+	}
+
+	register_perk_machine_for_zone(str_zone_name, str_perk_name, str_machine_targetname, func_perk_fx_think);
+}
+
+// Registers only if this chest is in the loc script's level.chests pool - the
+// same array get_mystery_box_from_script_noteworthy() searches.
+zmqol_register_mystery_box_if_present(str_zone_name, str_noteworthy)
+{
+	if (!isdefined(level.chests))
+	{
+		return;
+	}
+
+	foreach (s_chest in level.chests)
+	{
+		if (isdefined(s_chest.script_noteworthy) && s_chest.script_noteworthy == str_noteworthy)
+		{
+			register_mystery_box_for_zone(str_zone_name, str_noteworthy);
+			return;
+		}
 	}
 }
 
