@@ -4,65 +4,83 @@
 #include maps\mp\gametypes_zm\_hud_util;
 #include maps\mp\gametypes_zm\_hud_message;
 
-// The animtree the real machine's ball spin lives on. Its rawfile
-// (animtrees/zm_perk_random.atr) is declared in zone_source\mod_locations.zone,
-// so it is in mod.ff on every map - stock only ever had it on Origins.
-#using_animtree("zm_perk_random");
 
 // ============================================================================
-//  main
+//  zmqol_wf_machine_model
 //
-//  🛑 EXISTS ONLY TO PRECACHE. Plutonium runs main() before init() and inside the
-//  precache window - confirmed in console_zm.log, which lists
-//  "GSC Executed scripts/zm/<name>::main()" for every root script that has one,
-//  ahead of every ::init().
+//  🛑 WHY THIS IS NOT THE REAL ORIGINS MACHINE ANY MORE.
 //
-//  The bug this fixes: the user reported that when the machine relocates it shows
-//  "a standard perk bottle" instead of the teddy bear. The bear is NOT missing
-//  from the fastfile - Unlinker --list mod.ff confirms xmodel
-//  t6_wpn_zmb_perk_bottle_bear_world, its material and its image are all in there.
-//  It was never precached, and a setmodel() to an unprecached model at RUNTIME
-//  fails silently, leaving whatever model the entity already had - which is the
-//  last perk bottle the cycle landed on. Exactly the reported symptom.
+//  v1.19.0 - v1.21.3 used p6_zm_vending_diesel_magic, pulled out of zm_tomb.ff
+//  at link time. That broke ORIGINS, and it took a screenshot plus an asset
+//  audit to see it. The chain, straight out of the Linker log:
 //
-//  Why only this one model was affected:
-//    - the perk bottles (t6_wpn_zmb_perk_bottle_*_world) ride in on their
-//      zombie_perk_bottle_* WEAPON, which default_vending_precaching precacheitem's,
-//      so they are registered as a side effect;
-//    - the MACHINE gets away with it because wunderfizzSetup() setmodel's it during
-//      init(), while the precache window is still open;
-//    - the bear has no weapon and is only ever set mid-game, so it had nothing.
-//  The machine is precached explicitly below anyway - it currently works by timing
-//  luck, which is not a thing to leave load-bearing.
+//      p6_zm_vending_diesel_magic
+//        -> mc/mtl_p6_zm_tm_monolith_rock -> p6_zm_tm_monolith_rock_n,
+//                                            zm_tm_rock_pattern_01_*,
+//                                            p6_zm_tm_monolith_dark_*
+//        -> mc/mtl_p6_zm_tm_crystal       -> mtl_p6_zm_tm_crystal_*
+//        -> mc/mtl_..._ball / _logo       -> chemistry_glass_*
+//
+//  The Origins Wunderfizz is skinned with the same textures as Origins'
+//  Pack-a-Punch MONOLITH. Shipping the model therefore made mod.ff take
+//  OWNERSHIP of those textures, and mod.ff loads before zm_tomb.ff, so on
+//  Origins the map's own copies were refused - the same "Attempting to override
+//  asset ... from zone 'mod' with zone 'zm_tomb'" mechanism that made Origins
+//  unbootable via the soundbank, except for images and materials it fails
+//  quietly. Symptoms the user hit: a garbled HUD element and no generator
+//  capture indicator, with
+//      Could not load fx "maps/zombie_tomb/fx_tomb_pack_a_punch_light_beams"
+//  in the log. Measured: 137 assets added beyond the donor, 108 of them also
+//  owned by zm_tomb.ff.
+//
+//  It is not fixable by declaring them differently - mod.ff is one file loaded
+//  on every map, so "own these everywhere except Origins" cannot be expressed.
+//  A stock map rendering correctly beats a prettier machine on five others, so
+//  every Origins-derived asset is gone: the machine model, the four
+//  fx_tomb_dieselmagic_* effects, the zm_perk_random animtree and its four
+//  xanims, and the teddy-bear bottle. With them go the ball spin, the location
+//  beam and the electrical fx. The Wunderfizz still works exactly as before.
+//
+//  ⚠ If the real machine is ever wanted back, the ONLY clean route is shipping
+//  it under mod-private asset names (zmqol_vending_diesel_magic + renamed
+//  materials and images) so nothing collides. Do not simply re-add the xmodel.
+//
+//  Substitute: Juggernog's machine, which every map already owns - verified with
+//  Unlinker, and Mob of the Dead is the one that names it differently.
+// ============================================================================
+zmqol_wf_machine_model()
+{
+    if ( level.script == "zm_prison" )
+        return "p6_zm_al_vending_jugg_on";
+
+    return "zombie_vending_jugg";
+}
+
+// ============================================================================
+//  main - exists only to precache.
+//
+//  Plutonium runs main() before init() and inside the precache window, confirmed
+//  in console_zm.log, which lists "GSC Executed scripts/zm/<name>::main()" for
+//  every root script that has one, ahead of every ::init().
+//
+//  The relocate cue needs this: a setmodel() to an unprecached model at RUNTIME
+//  fails silently and leaves the entity on whatever it already had, which is why
+//  the machine used to show a leftover perk bottle instead of the bear. The perk
+//  bottles get away without it because they ride in on their zombie_perk_bottle_*
+//  WEAPON, which default_vending_precaching precacheitem's.
+//
+//  zombie_teddybear replaces t6_wpn_zmb_perk_bottle_bear_world - that model is
+//  Origins-owned too. ridgelandproject.gsc already precaches the teddy for the
+//  secret-song easter egg, so it is available on every map.
 // ============================================================================
 main()
 {
-    precachemodel( "t6_wpn_zmb_perk_bottle_bear_world" );
-    precachemodel( "p6_zm_vending_diesel_magic" );
+    precachemodel( "zombie_teddybear" );
+    precachemodel( zmqol_wf_machine_model() );
 }
 
 init()
 {
-    // 🛑 THIS LINE IS LOAD-BEARING. Without it v1.21.0 killed every map with
-    //        COM_ERROR (1) Unrecognized animtree 'zm_perk_random'.
-    //        You may need to call ScriptModelsUseAnimTree()
-    //    -> SV_Shutdown, before the map ever boots.
-    //
-    //    v1.21.0 bound the tree per entity with useanimtree() only, on the
-    //    reasoning that scriptmodelsuseanimtree() sets ONE global default and
-    //    would break other maps' animated script models. That reasoning was
-    //    wrong: it REGISTERS a tree for script-model use, cumulatively, and
-    //    stock calls it several times per map with different trees - Origins
-    //    alone does so from zm_tomb_capture_zones, zm_tomb_giant_robot,
-    //    zm_tomb_quest_fire, zm_tomb_tank and _zm_perk_random. useanimtree()
-    //    then picks which registered tree an entity uses. Both are required,
-    //    in this order, which is exactly what stock does
-    //    (_zm_perk_random.gsc:174-177, called from zm_tomb.gsc:246).
-    //
-    //    Synchronous and ahead of the thread below, so it cannot lose a race
-    //    with the useanimtree() in wunderfizzSetup().
-    scriptmodelsuseanimtree( #animtree );
-
     thread setupWunderfizz();
 }
 
@@ -77,64 +95,55 @@ setupWunderfizz()
 		level.currentWunderfizzLocation = 0;
 	else
 		level.currentWunderfizzLocation = 1;
-	// zm_qol: hoisted out of the zm_tomb branch. Upstream only loaded this on
-	// Origins, because only Origins owns the effect - so on every other map
-	// SpawnFX( level._effect["wunderfizz_loop"], ... ) in wunderfizz() ran on an
-	// undefined effect and killed the thread silently. mod.ff now carries both
-	// the effect and the machine model (copied out of zm_tomb.ff at link time,
-	// see zone_source\mod_locations.zone), so it loads everywhere.
-	level._effect[ "wunderfizz_loop" ] = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_on" );
-
-	// The three that make it the real machine. Same names stock uses in
-	// _zm_perk_random (.gsc:24-29 / .csc:12-17) so the mapping is obvious.
-	level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_identify" );
-	level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_light" );
-	level._effect[ "perk_machine_steam" ]    = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_steam" );
+	// 🛑 NO fx_tomb_dieselmagic_on ANY MORE - see zmqol_wf_machine_model() below
+	// for why every Origins-derived asset had to leave mod.ff. Every use of
+	// level._effect["wunderfizz_loop"] is guarded on isdefined, so leaving the key
+	// unset simply means the machine runs without its swirl. Origins keeps its own.
 
 	if(level.script == "zm_tomb")
     {
-		zmqol_wf_add((2468,4459,-316), (0,180,0), "p6_zm_vending_diesel_magic");
+		zmqol_wf_add((2468,4459,-316), (0,180,0), zmqol_wf_machine_model());
     }
     else if(level.script == "zm_nuked")
     {
-    	zmqol_wf_add((-649,281,-56), (0,162,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((-915,286,-56), (0,66,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((716,21,-57), (0,192,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((-649,281,-56), (0,162,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((-915,286,-56), (0,66,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((716,21,-57), (0,192,0), zmqol_wf_machine_model());
     }
     else if(level.script == "zm_prison")
     {
-    	zmqol_wf_add((-377,-3903,-8448), (0,270, 0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((2046, 10332.9, 1336), (0,180,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((-1056,8673,1336), (0,90,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((2795,9270,1336), (0,180,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((-843,5585,-72), (0,13,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((2724,9563,1708), (0,90,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((-377,-3903,-8448), (0,270, 0), zmqol_wf_machine_model());
+    	zmqol_wf_add((2046, 10332.9, 1336), (0,180,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((-1056,8673,1336), (0,90,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((2795,9270,1336), (0,180,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((-843,5585,-72), (0,13,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((2724,9563,1708), (0,90,0), zmqol_wf_machine_model());
     }
     else if(level.script == "zm_buried")
     {
-    	zmqol_wf_add((146,138,10), (0,270,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((-374,-1103,8), (0,270,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((-58,-1512,168), (0,180,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((1521,1366,-14), (0,342,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((4910,725,2), (0,0,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((6862,846,108), (0,49,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((146,138,10), (0,270,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((-374,-1103,8), (0,270,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((-58,-1512,168), (0,180,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((1521,1366,-14), (0,342,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((4910,725,2), (0,0,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((6862,846,108), (0,49,0), zmqol_wf_machine_model());
     }
     else if(level.script == "zm_transit")
     {
-    	zmqol_wf_add((11168,8120,-576), (0,0,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((-7103,4952,-56), (0,0,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((-11824,-1495,228), (0,90,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((-5043,-7772,-61), (0,180,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((8371,-5408,264), (0,180,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((1823,114,88), (0,90,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((11168,8120,-576), (0,0,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((-7103,4952,-56), (0,0,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((-11824,-1495,228), (0,90,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((-5043,-7772,-61), (0,180,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((8371,-5408,264), (0,180,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((1823,114,88), (0,90,0), zmqol_wf_machine_model());
     }
     else if(level.script == "zm_highrise")
     {
-    	zmqol_wf_add((2608, 275, 1296), (0,60,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((1482, 1060, 3395), (0,180,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((2964, 2698, 2905), (349,0,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((1648, -635, 2880), (0,150,0), "p6_zm_vending_diesel_magic");
-    	zmqol_wf_add((1809, 1459, 3040), (0,0,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((2608, 275, 1296), (0,60,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((1482, 1060, 3395), (0,180,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((2964, 2698, 2905), (349,0,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((1648, -635, 2880), (0,150,0), zmqol_wf_machine_model());
+    	zmqol_wf_add((1809, 1459, 3040), (0,0,0), zmqol_wf_machine_model());
     }
 
 	zmqol_wf_place();
@@ -393,9 +402,9 @@ getPerkModel(perk)
 	if(perk == "specialty_armorvest")
 	{
 		if( level.script == "zm_prison" )
-			return "p6_zm_vending_diesel_magic";
+			return zmqol_wf_machine_model();
 		else
-			return "p6_zm_vending_diesel_magic";
+			return zmqol_wf_machine_model();
 	}
 	if(perk == "specialty_nomotionsensor")
 		return "p6_zm_vending_vultureaid";
@@ -470,10 +479,6 @@ wunderfizzSetup(origin, angles, model)
 	wunderfizzMachine = spawn("script_model", origin);
 	wunderfizzMachine setModel(model);
 	wunderfizzMachine rotateTo(angles, .1);
-	// Picks which registered tree this entity animates on. init() must already
-	// have run scriptmodelsuseanimtree() or this throws "Unrecognized animtree"
-	// and takes the whole map down - see the note there.
-	wunderfizzMachine useanimtree( #animtree );
 	wunderfizzBottle = spawn("script_model", origin);
 	wunderfizzBottle setModel("tag_origin");
 	wunderfizzBottle.angles = angles;
@@ -509,11 +514,8 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 	{
 		if(level.currentWunderfizzLocation == self.location)
 		{
-			self ShowPart("j_ball");
 			// Arrive: spin up, then settle into the powered idle, and light the
 			// ball + the beam that says "the orb is HERE".
-			self zmqol_wf_anim( "start" );
-			self thread zmqol_wf_ball_glow();
 			for(;;)
 			{
 				trig SetHintString("Hold ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
@@ -525,14 +527,15 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 						if(player.num_perks < perks.size)
 						{
 							self thread wunderfizzSounds();
-							self zmqol_wf_anim( "in_use" );   // ball spins while it cycles
 							player playsound("zmb_cha_ching");
 							self.uses++;
 							player.score -= cost;
 							trig setHintString(" ");
 							rtime = 3;
-							wunderfx = SpawnFX(level._effect["wunderfizz_loop"], self.origin,AnglesToForward(angles),AnglesToUp(angles));
-							TriggerFX(wunderfx);
+							wunderfx = undefined;
+								if( isdefined( level._effect[ "wunderfizz_loop" ] ) )
+									wunderfx = SpawnFX(level._effect["wunderfizz_loop"], self.origin,AnglesToForward(angles),AnglesToUp(angles));
+							if( isdefined( wunderfx ) ) TriggerFX(wunderfx);
 							self thread perk_bottle_motion();
 							wait .1;
 							while(rtime>0)
@@ -551,27 +554,23 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 										break;
 									}
 								}
-								TriggerFX(wunderfx);
+								if( isdefined( wunderfx ) ) TriggerFX(wunderfx);
 								wait .2;
 								rtime -= .2;
 							}
 							self notify( "done_cycling" );
 							if((self.uses >= RandomIntRange(3,7)) && (level.wunderfizz_locations > 1))
 							{
-								self.bottle setModel("t6_wpn_zmb_perk_bottle_bear_world");
+								self.bottle setModel("zombie_teddybear");
 								level notify("wunderSpinStop");
-								wunderfx Delete();
+								if( isdefined( wunderfx ) ) wunderfx Delete();
 								// Departing: shut the ball down and puff steam,
 								// stock's fx_departure_steam.
-								self zmqol_wf_anim( "shut_down" );
-								self notify( "zmqol_wf_ball_off" );
-								self thread zmqol_wf_departure_steam();
 								wait 7;
 								self.bottle setModel("tag_origin");
 								level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
 								level notify("wunderfizzMove");
 								self setModel(model);
-								self useanimtree( #animtree );
 								self.uses = 0;
 								break;
 							}
@@ -599,16 +598,11 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 												player thread givePerk(perklist[j]);
 												break;
 											}
-											TriggerFX(wunderfx);
+											if( isdefined( wunderfx ) ) TriggerFX(wunderfx);
 											wait .2;
 											time -= .2;
 										}
 										self setModel(model);
-										// setModel resets the entity's anim binding,
-										// so rebind and drop back to the powered idle
-										// or the ball freezes after the first spin.
-										self useanimtree( #animtree );
-										self zmqol_wf_anim( "idle" );
 										self.bottle setModel("tag_origin");
 										trig SetHintString(" ");
 										level notify("wunderSpinStop");
@@ -622,7 +616,7 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 										break;
 									}
 								}
-								wunderfx Delete();
+								if( isdefined( wunderfx ) ) wunderfx Delete();
 								wait 2;
 								trig SetHintString("Hold ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
 							}
@@ -645,111 +639,14 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 		}
 		else{
 			trig SetHintString("Wunderfizz Orb is at Another Location");
-			self HidePart("j_ball");
 			// Stop the glow and the beam - a dormant machine must not advertise
 			// itself, or every location looks like the live one.
-			self notify( "zmqol_wf_ball_off" );
 			level waittill("wunderfizzMove");
 		}
 		wait .1;
 	}
 }
 
-// ============================================================================
-//  THE REAL MACHINE'S PRESENTATION
-//
-//  The user compared this against genuine Origins on a friend's screenshare and
-//  listed what was missing: the lightning beam marking where the orb is, the
-//  ball on top spinning, and the electrical fx on the machine. All three exist
-//  in stock and all three are reproduced below from the same assets.
-//
-//  Stock splits them: the ANIMATION is server-side (setanim, _zm_perk_random.gsc
-//  :609-634) and the FX are client-side, driven by five clientfields that
-//  _zm_perk_random.csc listens on. The animation half is a straight port. The fx
-//  half is deliberately NOT ported as clientfields - five more registrations from
-//  a root script running on six maps is the most reliable way to drop everyone
-//  with EXE_CLIENT_FIELD_MISMATCH, and this project has already lost a release to
-//  exactly that. playfx and playfxontag work server-side with no registration, so
-//  the same effects are spawned from here instead, at the same tags stock uses.
-// ============================================================================
-
-//  Stock's update_animation(), verbatim in behaviour (_zm_perk_random.gsc:609).
-zmqol_wf_anim( str_state )
-{
-	if( str_state == "start" )
-	{
-		self clearanim( %root, 0.2 );
-		self setanim( %o_zombie_dlc4_vending_diesel_turn_on, 1, 0.2, 1 );
-	}
-	else if( str_state == "shut_down" )
-	{
-		self clearanim( %root, 0.2 );
-		self setanim( %o_zombie_dlc4_vending_diesel_turn_off, 1, 0.2, 1 );
-	}
-	else if( str_state == "in_use" )
-	{
-		self clearanim( %root, 0.2 );
-		self setanim( %o_zombie_dlc4_vending_diesel_ballspin_loop, 1, 0.2, 1 );
-	}
-	else
-	{
-		self clearanim( %root, 0.2 );
-		self setanim( %o_zombie_dlc4_vending_diesel_on_idle, 1, 0.2, 1 );
-	}
-}
-
-//  The beam. Stock's fx_location_indicator (_zm_perk_random.csc:205) re-plays a
-//  one-shot every 3-4 seconds rather than holding a looping handle, so this does
-//  the same - the fx is authored to be retriggered.
-zmqol_wf_location_beam()
-{
-	self endon( "zmqol_wf_ball_off" );
-	level endon( "end_game" );
-
-	for( ;; )
-	{
-		if( self.location == level.currentWunderfizzLocation )
-			playfx( level._effect[ "perk_machine_location" ], self.origin );
-
-		wait randomfloatrange( 3.0, 4.0 );
-	}
-}
-
-//  The glow on the orb itself, on tag j_ball exactly as stock does
-//  (turn_on_active_ball_light, _zm_perk_random.csc:88), plus the beam.
-//
-//  🛑 PLAYED ONCE, NOT ON A LOOP. v1.21.0 retriggered it every second, and the
-//  screenshot showed the result: a blown-out white-blue blob swallowing the whole
-//  top of the machine, because fx_tomb_dieselmagic_light is a LOOPING effect and
-//  every retrigger stacked another copy on the same tag. Stock plays it exactly
-//  once and keeps the handle (self._ball_glow = playfxontag(...), stopped with
-//  stopfx). The beam is the opposite case - a one-shot stock deliberately
-//  re-fires every 3-4s - which is why only that one loops.
-zmqol_wf_ball_glow()
-{
-	self endon( "zmqol_wf_ball_off" );
-	level endon( "end_game" );
-
-	self thread zmqol_wf_location_beam();
-
-	playfxontag( level._effect[ "perk_machine_light" ], self, "j_ball" );
-}
-
-//  Stock's fx_departure_steam (_zm_perk_random.csc:193): a 5-second puff as the
-//  orb leaves, retriggered every 0.1s.
-zmqol_wf_departure_steam()
-{
-	level endon( "end_game" );
-
-	n_ticks = 0;
-
-	while( n_ticks < 50 )
-	{
-		playfxontag( level._effect[ "perk_machine_steam" ], self, "tag_origin" );
-		wait 0.1;
-		n_ticks++;
-	}
-}
 
 chooseLocation(currLoc)
 {

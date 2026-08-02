@@ -71,9 +71,9 @@ xmodel,zm_collision_transit_diner_survival
 //  an ipak the other maps mount, the machine will draw untextured/black off
 //  Origins even though it spawns correctly. Unverified; check it in game.
 // ============================================================================
-xmodel,p6_zm_vending_diesel_magic
-xmodel,t6_wpn_zmb_perk_bottle_bear_world
-fx,maps/zombie_tomb/fx_tomb_dieselmagic_on
+// REMOVED v1.22.0 (owned Origins' assets): xmodel,p6_zm_vending_diesel_magic
+// REMOVED v1.22.0 (owned Origins' assets): xmodel,t6_wpn_zmb_perk_bottle_bear_world
+// REMOVED v1.22.0 (owned Origins' assets): fx,maps/zombie_tomb/fx_tomb_dieselmagic_on
 
 // ----------------------------------------------------------------------------
 //  ...and the parts that make it the REAL machine rather than a lookalike.
@@ -110,14 +110,14 @@ fx,maps/zombie_tomb/fx_tomb_dieselmagic_on
 //  that call and every map died on load with "Unrecognized animtree
 //  'zm_perk_random'". See the note in scripts\zm\wunderfizz.gsc::init().
 // ----------------------------------------------------------------------------
-rawfile,animtrees/zm_perk_random.atr
-xanim,o_zombie_dlc4_vending_diesel_turn_on
-xanim,o_zombie_dlc4_vending_diesel_turn_off
-xanim,o_zombie_dlc4_vending_diesel_on_idle
-xanim,o_zombie_dlc4_vending_diesel_ballspin_loop
-fx,maps/zombie_tomb/fx_tomb_dieselmagic_identify
-fx,maps/zombie_tomb/fx_tomb_dieselmagic_light
-fx,maps/zombie_tomb/fx_tomb_dieselmagic_steam
+// REMOVED v1.22.0 (owned Origins' assets): rawfile,animtrees/zm_perk_random.atr
+// REMOVED v1.22.0 (owned Origins' assets): xanim,o_zombie_dlc4_vending_diesel_turn_on
+// REMOVED v1.22.0 (owned Origins' assets): xanim,o_zombie_dlc4_vending_diesel_turn_off
+// REMOVED v1.22.0 (owned Origins' assets): xanim,o_zombie_dlc4_vending_diesel_on_idle
+// REMOVED v1.22.0 (owned Origins' assets): xanim,o_zombie_dlc4_vending_diesel_ballspin_loop
+// REMOVED v1.22.0 (owned Origins' assets): fx,maps/zombie_tomb/fx_tomb_dieselmagic_identify
+// REMOVED v1.22.0 (owned Origins' assets): fx,maps/zombie_tomb/fx_tomb_dieselmagic_light
+// REMOVED v1.22.0 (owned Origins' assets): fx,maps/zombie_tomb/fx_tomb_dieselmagic_steam
 
 // ============================================================================
 //  THE WUNDERFIZZ / ELECTRIC CHERRY SOUNDS  -  one line, both bugs
