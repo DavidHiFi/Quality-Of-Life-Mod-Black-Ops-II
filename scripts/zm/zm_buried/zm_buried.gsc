@@ -28,13 +28,33 @@ main()
     // --- custom survival start locations: adds Maze (alongside stock Borough/street) ---
     replaceFunc( maps\mp\zm_buried_gamemodes::init, scripts\zm\replaced\zm_buried_gamemodes::init );
 
-    // 🛑 Maze survival had no zombies at all - zone_maze is not in Buried's
-    // init_zones and is the SOURCE of both its adjacency edges, so on the
-    // standalone location nothing ever enables it and its spawn locations never
-    // activate. See scripts\zm\replaced\zm_buried.gsc.
-    replaceFunc( maps\mp\zm_buried::buried_zone_init, scripts\zm\replaced\zm_buried::buried_zone_init );
-
-    println( "[zm_qol] MAZE marker B - zm_buried_gamemodes::init replaceFunc done" );
+    // 🛑 REMOVED 2026-08-02: replaceFunc on maps\mp\zm_buried::buried_zone_init,
+    // along with scripts\zm\replaced\zm_buried.gsc.
+    //
+    // It existed to zone_init/enable_zone zone_maze, zone_maze_staircase and
+    // zone_mansion_backyard, on the reasoning that zone_maze is absent from
+    // Buried's init_zones and is the SOURCE of both its adjacency edges, so
+    // nothing would ever enable it.
+    //
+    // That reasoning was wrong. _zm_zonemgr::manage_zones enables the SOURCE zone,
+    // not just the destination (_zm_zonemgr.gsc:586-591):
+    //        if ( flags_set )
+    //        {
+    //            enable_zone( zkeys[z] );            <-- zone_maze itself
+    //            azone.is_connected = 1;
+    //            if ( !level.zones[azkeys[az]].is_enabled )
+    //                enable_zone( azkeys[az] );
+    //        }
+    // so zm_buried_loc_maze::main()'s own flag_set("mansion_door1") is already
+    // sufficient to bring all three zones up through stock adjacency.
+    //
+    // Confirmed against BO2-Reimagined, which is the reference for this location
+    // and whose Maze spawns zombies correctly: its buried_zone_init differs from
+    // stock by ONE unrelated line (zone_toy_store -> zone_candy_store) and it does
+    // no maze zone work at all. Deliberately not taking that line - it changes
+    // classic Buried connectivity and has nothing to do with the maze.
+    //
+    // With this gone, stock buried_zone_init runs unmodified.
 }
 
 init()
@@ -42,6 +62,85 @@ init()
     zmqol_precache_survival_characters();
     added_weapons();
     move_divetonuke_collision();
+    level thread zmqol_spawner_probe();   // DIAGNOSTIC - remove once Maze spawns
+}
+
+// ============================================================================
+//  zmqol_spawner_probe   -   DIAGNOSTIC, A/B. Remove once Maze spawns zombies.
+//
+//  Where the Maze investigation actually stands, so this is not re-derived:
+//
+//  The zone seal is PROVEN GOOD. The 09:56 run reported, at t=30s:
+//      player @ (4746, 594, 4.1) in_zone=zone_maze
+//      zone_maze             en=1 act=1 occ=1 spawn=1 spots=8/8
+//      zone_mansion_backyard en=1 act=1 occ=0 spawn=1 spots=3/3
+//      zone_maze_staircase   en=1 act=1 occ=0 spawn=1 spots=7/7
+//      POOL=18 spawners=0 zombie_total=6
+//  Every condition create_spawner_list tests (_zm_zonemgr.gsc:959 - is_enabled &&
+//  is_active && is_spawning_allowed, then per-spot is_enabled) is satisfied, the
+//  pool is full at 18, and 6 zombies are queued. Zones are not the problem any more.
+//
+//  The one anomaly is level.zombie_spawners.size == 0. _zm.gsc:3059 does
+//  `spawner = random( level.zombie_spawners )` and then dereferences
+//  spawner.targetname, so an empty array cannot spawn anything.
+//
+//  🛑 WHY THAT IS NOT YET A DIAGNOSIS. _zm_spawner::init() builds that array with
+//  a flat, gametype-independent getentarray("zombie_spawner","script_noteworthy"),
+//  so it should hold the SAME value on Borough - which spawns zombies fine - as on
+//  Maze. Either that assumption is wrong, or something on the Maze path empties it.
+//  Nothing in the ZM dump registers a custom_ai_spawn_check, and Buried does not
+//  set level.ignore_spawner_func (only TranZit does), so neither of the two stock
+//  mechanisms that mutate the array is in play. The archived mapents cannot settle
+//  it either - they contain no actor/spawner entities at all.
+//
+//  So this runs on EVERY Buried location and prints the same fields, to be read as
+//  an A/B: load a location that works, then Maze, and diff the two lines. Whichever
+//  field differs is the cause, with no further guessing.
+//
+//      [zm_qol] SPAWNPROBE <loc> t=N spawners=<n> multi=<0/1> groups=<n>
+//      [zm_qol] SPAWNPROBE <loc> t=N pool=<n> total=<n> alive=<n> limit=<n> flag=<0/1>
+// ============================================================================
+zmqol_spawner_probe()
+{
+    level endon( "end_game" );
+
+    str_loc = getdvar( "ui_zm_mapstartlocation" );
+
+    flag_wait( "start_zombie_round_logic" );
+
+    for ( i = 0; i < 2; i++ )
+    {
+        wait 10;
+
+        n_spawners = 0;
+
+        if ( isdefined( level.zombie_spawners ) )
+            n_spawners = level.zombie_spawners.size;
+
+        n_groups = 0;
+
+        if ( isdefined( level.zombie_spawn ) )
+            n_groups = level.zombie_spawn.size;
+
+        println( "[zm_qol] SPAWNPROBE " + str_loc + " t=" + ( ( i + 1 ) * 10 ) + " spawners=" + n_spawners + " multi=" + is_true( level.use_multiple_spawns ) + " groups=" + n_groups );
+
+        n_pool = 0;
+
+        if ( isdefined( level.zombie_spawn_locations ) )
+            n_pool = level.zombie_spawn_locations.size;
+
+        n_total = 0;
+
+        if ( isdefined( level.zombie_total ) )
+            n_total = level.zombie_total;
+
+        n_limit = 0;
+
+        if ( isdefined( level.zombie_ai_limit ) )
+            n_limit = level.zombie_ai_limit;
+
+        println( "[zm_qol] SPAWNPROBE " + str_loc + " t=" + ( ( i + 1 ) * 10 ) + " pool=" + n_pool + " total=" + n_total + " alive=" + maps\mp\zombies\_zm_utility::get_current_zombie_count() + " limit=" + n_limit + " flag=" + flag( "spawn_zombies" ) );
+    }
 }
 
 // ============================================================================

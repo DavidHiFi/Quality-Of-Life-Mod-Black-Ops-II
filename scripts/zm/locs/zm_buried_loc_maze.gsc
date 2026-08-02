@@ -3,20 +3,20 @@
 #include maps\mp\zombies\_zm_magicbox;
 #include maps\mp\zombies\_zm_equip_subwoofer;
 #include maps\mp\zombies\_zm_equip_springpad;
+#include maps\mp\zombies\_zm_equip_turbine;
 #include maps\mp\zombies\_zm_equip_headchopper;
 #include maps\mp\zm_buried_buildables;
 #include maps\mp\zm_buried_gamemodes;
-// zm_qol: dropped #include maps\mp\zombies\_zm_race_utility and
-// maps\mp\zombies\_zm_equip_turbine. Neither is used by this file (every call it
-// makes was audited against the shipped bytecode), and _zm_race_utility exists in
-// NO fastfile in the game - the console log reports
-// 'Could not load scriptparsetree "maps/mp/zombies/_zm_race_utility.gsc"' on
-// every map. This is a HYPOTHESIS for the Maze load failure, not a proven root
-// cause: the symptom is that this file never loads, which makes
-// scripts\zm\locs\zm_buried_loc_maze::precache and ::main unresolved to
-// scripts\zm\replaced\zm_buried_gamemodes::init - and "precache"/"main" with 0
-// parameters is exactly the pair the error reports. Removing a dead include that
-// points at a script the engine cannot load is zero-risk either way.
+// zm_qol: _zm_equip_turbine RESTORED 2026-08-02 to match BO2-Reimagined, whose
+// Maze spawns zombies correctly and which is the reference for this location.
+//
+// STILL dropped: #include maps\mp\zombies\_zm_race_utility. That one stays out
+// because the script exists in NO fastfile in the game - the console log reports
+// 'Could not load scriptparsetree "maps/mp/zombies/_zm_race_utility.gsc"' on every
+// map - and dropping it is what made this file load at all. This file's precache()
+// and main() now resolve for zm_buried_gamemodes::init, which they did not before.
+// That is the one deliberate deviation from the reference here; if Maze ever fails
+// to load again, this is the first line to look at.
 #include maps\mp\zombies\_zm_utility;
 #include common_scripts\utility;
 #include maps\mp\_utility;
@@ -190,134 +190,6 @@ main()
 	level.insta_kill_triggers = getentarray("instant_death", "targetname");
 	array_thread(level.insta_kill_triggers, maps\mp\zm_buried_classic::squashed_death_init, 0);
 
-	disable_zones();
-	level thread zmqol_seal_zones_after_manager();
-}
-
-// ============================================================================
-//  zmqol_seal_zones_after_manager
-//
-//  🛑 The other half of the Maze fix. Read
-//  scripts\zm\replaced\zm_buried.gsc::zmqol_zone_flag first - the two have to stay
-//  in step.
-//
-//  The v1.6.4 probe finally ran on 2026-08-02 and reported FOURTEEN zones enabled
-//  with spawning on, so zombies were spawning across all of Buried and never
-//  reaching the walled maze. The disable_zones() call above cannot fix that on its
-//  own for a reason that is pure ordering:
-//
-//      zm_buried::main()
-//        ...
-//        maps\mp\zombies\_zm::init()          -> gamemode init -> THIS FILE's main()
-//                                                -> disable_zones() runs HERE
-//        ...
-//        level thread manage_zones(init_zones) -> zone_init + enable_zone on all 22
-//                                                init_zones, wiping what we just did
-//
-//  _zm_zonemgr::manage_zones assigns level.zone_keys immediately AFTER that init
-//  pass, so it is the exact signal for "the wipe has happened". Waiting on it puts
-//  the re-disable in the first instant at which it can stick.
-//
-//  It sticks because the adjacency table is already sealed by zmqol_zone_flag:
-//  every non-maze edge points at a flag that is never set, so manage_zones' own
-//  `if (flags_set) enable_zone(...)` pass can never turn one back on. Without that
-//  seal this would be just as futile as the first call - enable_zone() restores
-//  is_enabled AND is_spawning_allowed, and the loc opens the power and every door,
-//  so the flags stay set for the whole game.
-//
-//  The second pass at start_zombie_round_logic is belt and braces for anything that
-//  enables a zone during round-one setup. The final line reports the outcome, so a
-//  single load says whether this worked without needing another probe build:
-//      [zm_qol] MAZEZONE sealed - enabled=<n> spawn_pool=<n>
-//  Expect enabled=3 (zone_maze, zone_maze_staircase, zone_mansion_backyard).
-//
-//  🛑 NOT verified in game yet.
-// ============================================================================
-zmqol_seal_zones_after_manager()
-{
-	level endon( "end_game" );
-
-	n = 0;
-
-	while ( !isdefined( level.zone_keys ) && n < 400 )
-	{
-		n++;
-		wait 0.05;
-	}
-
-	wait 0.05;
-	disable_zones();
-
-	flag_wait( "start_zombie_round_logic" );
-	wait_network_frame();
-	disable_zones();
-
-	n_enabled = 0;
-
-	foreach ( index, zone in level.zones )
-	{
-		if ( isdefined( zone.is_enabled ) && zone.is_enabled )
-			n_enabled++;
-	}
-
-	n_pool = 0;
-
-	if ( isdefined( level.zombie_spawn_locations ) )
-		n_pool = level.zombie_spawn_locations.size;
-
-	println( "[zm_qol] MAZEZONE sealed - enabled=" + n_enabled + " spawn_pool=" + n_pool );
-}
-
-// ============================================================================
-//  disable_zones
-//
-//  🛑 Fixes: MAZE SURVIVAL HAS NO ZOMBIES. The round starts, the counter shows 6,
-//     and none ever arrive.
-//
-//  v1.6.0 enabled zone_maze so its spawn locations would activate, and that half
-//  was right - the mapents has 10 "zone_maze_spawners" structs and the zone
-//  volume targets them. What it did not account for is that Buried's init_zones
-//  (zm_buried.gsc:325-346) enables TWENTY-TWO zones covering the whole map:
-//  zone_start, the tunnels, every street, the stores, the bank... all of them.
-//
-//  _zm_zonemgr::create_spawner_list builds level.zombie_spawn_locations from
-//  EVERY enabled zone, so the round's zombies were being distributed across the
-//  entire Buried map and spawning in the town and tunnels, with no path to a
-//  player sealed inside the maze. They existed - hence the counter reading 6 -
-//  they were just nowhere near the arena.
-//
-//  Every other standalone survival location already does this and Maze was the
-//  one that never got it: see zm_tomb_loc_church::disable_zones (same structure,
-//  village zones) and zm_transit_loc_power::disable_zombie_spawn_locations.
-//
-//  Zones kept are exactly the three the location plays in - the ones
-//  scripts\zm\replaced\zm_buried.gsc enables and that the loc script's own
-//  struct_init re-tags player_respawn_points for. Everything else is disabled AND
-//  has its respawn point locked, so no zombie spawns there and no player can be
-//  sent there either.
-// ============================================================================
-disable_zones()
-{
-	valid_zones = array( "zone_maze", "zone_maze_staircase", "zone_mansion_backyard" );
-	spawn_points = maps\mp\gametypes_zm\_zm_gametype::get_player_spawns_for_gametype();
-
-	foreach ( index, zone in level.zones )
-	{
-		if ( !isinarray( valid_zones, index ) )
-		{
-			level.zones[index].is_enabled = 0;
-			level.zones[index].is_spawning_allowed = 0;
-
-			foreach ( spawn_point in spawn_points )
-			{
-				if ( spawn_point.script_noteworthy == index )
-				{
-					spawn_point.locked = 1;
-					break;
-				}
-			}
-		}
-	}
 }
 
 maze_treasure_chest_init()
