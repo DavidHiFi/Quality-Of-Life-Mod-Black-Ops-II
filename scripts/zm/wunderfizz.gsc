@@ -405,7 +405,13 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 										self.bottle setModel("tag_origin");
 										trig SetHintString(" ");
 										level notify("wunderSpinStop");
-										fx Delete();
+										// zm_qol: `fx Delete()` used to live here. `fx` was only ever
+										// assigned inside the placeholder else-branch this commit
+										// removed, so with that gone nothing assigns it and the
+										// Plutonium compiler rejects the whole file:
+										//     local variable 'fx' not found
+										// The machine's loop effect is `wunderfx`, which is deleted
+										// a few lines below - so there is nothing left to clean up.
 										break;
 									}
 								}
