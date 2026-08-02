@@ -204,6 +204,7 @@ zmqol_register_survival_visionset()
 
 init()
 {
+    level thread zmqol_probe_capture_zones();
     zmqol_register_survival_visionset();
     level thread zmqol_power_up_all_generators();
     level thread zmqol_disable_staff_relay_switches();
@@ -253,6 +254,82 @@ init()
 //
 //  🛑 NOT verified in game yet.
 // ============================================================================
+// ============================================================================
+//  zmqol_probe_capture_zones  -  CLASSIC ORIGINS ONLY, diagnostic, remove later
+//
+//  Reported: starting generator 1 in the spawn area shows no progress indicator.
+//  The user's read was that leftover custom-survival code is still interfering.
+//  That is not supported by anything I can check offline, and the checks were
+//  not cheap, so they are recorded here rather than repeated:
+//
+//    - every Origins-specific function this file adds returns immediately on
+//      is_classic() - power_up_all_generators, disable_staff_relay_switches,
+//      remove_survival_ee_props, open_stock_barriers, and both clientfield
+//      registrations. None of them execute in classic.
+//    - the capture HUD is driven by WORLD-scope clientfields
+//      (zone_capture_hud_generator_N, zc_change_progress_bar_color, via
+//      setupclientfieldcodecallbacks in zm_tomb_capture_zones.csc:17-32). The
+//      mod registers no world-scope clientfield anywhere, so it cannot be
+//      shifting that layout.
+//    - the HUD's LUI is ui_mp\t6\zombie\tombcapturezonedisplay.lua and
+//      capturezonewheeltombdisplay.lua, both in zm_tomb_patch.ff. mod.ff
+//      contains no .lua at all, so nothing is shadowing them. The one in-game
+//      LUI this mod does override, hudpowerupszombie.lua, has no capture or
+//      generator symbols in either the stock or the modded copy.
+//    - our zm_tomb.csc replaces only include_weapons; the stock client-side
+//      capture init (init_cz_animtree / init_structs / init_custom_pap,
+//      zm_tomb.csc:103-126) is untouched.
+//
+//  So this prints whether the SERVER half is running, which splits the problem
+//  in half: if progress climbs here while nothing draws, it is client/LUI; if
+//  progress never moves, it is server-side and the zone objects are the place to
+//  look.
+// ============================================================================
+zmqol_probe_capture_zones()
+{
+    if ( !is_classic() )
+        return;
+
+    flag_wait( "start_zombie_round_logic" );
+    wait_network_frame();
+
+    if ( !isdefined( level.zone_capture ) || !isdefined( level.zone_capture.zones ) )
+    {
+        println( "[zm_qol] capture probe: level.zone_capture MISSING - server side never initialised" );
+        return;
+    }
+
+    println( "[zm_qol] capture probe: " + level.zone_capture.zones.size + " zone(s) registered" );
+
+    a_last = [];
+    n_ticks = 0;
+
+    while ( n_ticks < 600 )
+    {
+        for ( i = 0; i < level.zone_capture.zones.size; i++ )
+        {
+            zone = level.zone_capture.zones[i];
+
+            if ( !isdefined( zone ) || !isdefined( zone.n_current_progress ) )
+                continue;
+
+            if ( !isdefined( a_last[i] ) || a_last[i] != zone.n_current_progress )
+            {
+                str_name = "?";
+
+                if ( isdefined( zone.script_noteworthy ) )
+                    str_name = zone.script_noteworthy;
+
+                println( "[zm_qol] capture probe: zone " + i + " (" + str_name + ") progress " + zone.n_current_progress );
+                a_last[i] = zone.n_current_progress;
+            }
+        }
+
+        wait 0.5;
+        n_ticks++;
+    }
+}
+
 zmqol_power_up_all_generators()
 {
     if ( is_classic() )
