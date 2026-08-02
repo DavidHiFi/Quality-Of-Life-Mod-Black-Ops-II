@@ -2358,6 +2358,190 @@ zmqol_dev_command_listener()
                 player iprintln( "^2[zm_qol] godmode ON" );
             }
         }
+        else if ( cmd == "ghost" )
+        {
+            // self.ignoreme is the stock "AI does not target me" flag - it is what
+            // maps\mp\zombies\_zm_spawner sets on a fresh zombie and what the
+            // afk_on_command_by_THS script uses for the same purpose.
+            if ( isdefined( player.zmqol_ghost ) && player.zmqol_ghost )
+            {
+                player.zmqol_ghost = 0;
+                player.ignoreme = 0;
+                player iprintln( "^1[zm_qol] ghost OFF ^7- zombies can see you" );
+            }
+            else
+            {
+                player.zmqol_ghost = 1;
+                player.ignoreme = 1;
+                player iprintln( "^2[zm_qol] ghost ON ^7- zombies ignore you" );
+            }
+        }
+        else if ( cmd == "afk" )
+        {
+            // Ghost + godmode together, which is what the AFK script does. No
+            // 5-minute cap or 30-minute cooldown here: that exists upstream to stop
+            // abuse in public games, and this is a private-match QoL mod.
+            if ( isdefined( player.zmqol_afk ) && player.zmqol_afk )
+            {
+                player.zmqol_afk = 0;
+                player.ignoreme = 0;
+
+                if ( !isdefined( player.zmqol_god ) || !player.zmqol_god )
+                    player disableinvulnerability();
+
+                player iprintln( "^1[zm_qol] AFK OFF" );
+            }
+            else
+            {
+                player.zmqol_afk = 1;
+                player.ignoreme = 1;
+                player enableinvulnerability();
+                player iprintln( "^2[zm_qol] AFK ON ^7- ignored and invulnerable" );
+            }
+        }
+        else if ( cmd == "fly" )
+        {
+            if ( isdefined( player.zmqol_fly ) && player.zmqol_fly )
+            {
+                player.zmqol_fly = 0;
+                player notify( "zmqol_fly_off" );
+                player iprintln( "^1[zm_qol] fly OFF" );
+            }
+            else
+            {
+                player.zmqol_fly = 1;
+                player thread zmqol_fly_think();
+                player iprintln( "^2[zm_qol] fly ON ^7- look where you want to go" );
+            }
+        }
+        else if ( cmd == "infiniteammo" || cmd == "infammo" )
+        {
+            if ( isdefined( player.zmqol_infammo ) && player.zmqol_infammo )
+            {
+                player.zmqol_infammo = 0;
+                player notify( "zmqol_infammo_off" );
+                player iprintln( "^1[zm_qol] infinite ammo OFF" );
+            }
+            else
+            {
+                player.zmqol_infammo = 1;
+                player thread zmqol_infinite_ammo_think();
+                player iprintln( "^2[zm_qol] infinite ammo ON" );
+            }
+        }
+        else if ( cmd == "reload" )
+        {
+            player zmqol_fill_all_ammo();
+            player iprintln( "^2[zm_qol] ^7all weapons and equipment refilled" );
+        }
+        else if ( cmd == "nozmspawns" )
+        {
+            // "spawn_zombies" is the stock flag round_spawning waits on - see
+            // _hostmigration.gsc, which clears and re-sets it around a migration.
+            if ( isdefined( level.zmqol_nospawns ) && level.zmqol_nospawns )
+            {
+                level.zmqol_nospawns = 0;
+                flag_set( "spawn_zombies" );
+                player iprintln( "^1[zm_qol] zombie spawning ON" );
+            }
+            else
+            {
+                level.zmqol_nospawns = 1;
+                flag_clear( "spawn_zombies" );
+                player iprintln( "^2[zm_qol] zombie spawning OFF ^7- existing zombies remain" );
+            }
+        }
+        else if ( cmd == "where" )
+        {
+            v_pos = player.origin;
+            player iprintln( "^2[zm_qol] ^7x " + int( v_pos[0] ) + "  y " + int( v_pos[1] ) + "  z " + int( v_pos[2] ) );
+            println( "[zm_qol] WHERE " + level.script + " (" + v_pos[0] + ", " + v_pos[1] + ", " + v_pos[2] + ")" );
+        }
+    }
+}
+
+// ============================================================================
+//  Chat-command helpers
+// ============================================================================
+
+//  getweaponslist( 1 ) is what stock Max Ammo uses (_zm_powerups.gsc:1585) and it
+//  covers offhand too - the stock code right below it tests is_lethal_grenade()
+//  on the results - so grenades, claymores and equipment all refill from this one
+//  call. weaponclipsize() returns 0 for weapons with no clip (grenades), so the
+//  setweaponammoclip is guarded rather than applied blindly.
+zmqol_fill_all_ammo()
+{
+    a_weapons = self getweaponslist( 1 );
+
+    if ( !isdefined( a_weapons ) )
+        return;
+
+    foreach ( str_weapon in a_weapons )
+    {
+        self givemaxammo( str_weapon );
+
+        n_clip = weaponclipsize( str_weapon );
+
+        if ( n_clip > 0 )
+            self setweaponammoclip( str_weapon, n_clip );
+
+        str_alt = weaponaltweaponname( str_weapon );
+
+        if ( isdefined( str_alt ) && str_alt != "none" )
+        {
+            self givemaxammo( str_alt );
+
+            n_altclip = weaponclipsize( str_alt );
+
+            if ( n_altclip > 0 )
+                self setweaponammoclip( str_alt, n_altclip );
+        }
+    }
+}
+
+zmqol_infinite_ammo_think()
+{
+    self endon( "disconnect" );
+    self endon( "zmqol_infammo_off" );
+    level endon( "game_ended" );
+
+    for ( ;; )
+    {
+        self zmqol_fill_all_ammo();
+        wait 0.5;
+    }
+}
+
+//  T6 has no player noclip builtin - traversemode( "noclip" ) is AI traversal, not
+//  this - so flight is hand-rolled. getnormalizedmovement() returns the player's
+//  stick/WASD input as (forward, right), and anglestoforward() carries the view
+//  PITCH, so looking up and holding forward climbs. That is ordinary noclip
+//  behaviour and needs no extra keys.
+//
+//  setorigin() runs every frame even when idle: that is what holds you up, by
+//  resetting the position gravity accumulated since the last frame.
+zmqol_fly_think()
+{
+    self endon( "disconnect" );
+    self endon( "zmqol_fly_off" );
+    level endon( "game_ended" );
+
+    n_speed = 25;
+
+    for ( ;; )
+    {
+        v_pos = self.origin;
+        v_move = self getnormalizedmovement();
+
+        if ( isdefined( v_move ) && ( v_move[0] != 0 || v_move[1] != 0 ) )
+        {
+            v_angles = self getplayerangles();
+            v_pos = v_pos + ( anglestoforward( v_angles ) * ( v_move[0] * n_speed ) );
+            v_pos = v_pos + ( anglestoright( v_angles ) * ( v_move[1] * n_speed ) );
+        }
+
+        self setorigin( v_pos );
+        wait 0.05;
     }
 }
 
