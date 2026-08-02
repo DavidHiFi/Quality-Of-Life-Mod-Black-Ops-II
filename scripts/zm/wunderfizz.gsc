@@ -47,6 +47,7 @@ setupWunderfizz()
 	level.wunderfizzCost = getDvarIntDefault("wunderfizzCost", 1500);
 	wunderfizzUseRandomStart = getDvarIntDefault("wunderfizzUseRandomStart", 0 );
 	level.wunderfizz_locations = 0;
+	level.zmqol_wf_pending = [];
 	if(wunderfizzUseRandomStart)
 		level.currentWunderfizzLocation = 0;
 	else
@@ -61,97 +62,158 @@ setupWunderfizz()
 
 	if(level.script == "zm_tomb")
     {
-		wunderfizzSetup((2468,4459,-316), (0,180,0), "p6_zm_vending_diesel_magic");
-		//DO NOT TOUCH BELOW IF YOU DON'T KNOW WHAT YOU'RE DOING
-		if(wunderfizzUseRandomStart)
-		{
-			level waittill("connected", player);
-			wait 1;
-			level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
-			level notify("wunderfizzMove");
-		}
+		zmqol_wf_add((2468,4459,-316), (0,180,0), "p6_zm_vending_diesel_magic");
     }
     else if(level.script == "zm_nuked")
     {
-    	wunderfizzSetup((-649,281,-56), (0,162,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((-915,286,-56), (0,66,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((716,21,-57), (0,192,0), "p6_zm_vending_diesel_magic");
-    	//DO NOT TOUCH BELOW IF YOU DON'T KNOW WHAT YOU'RE DOING
-    	if(wunderfizzUseRandomStart)
-    	{
-    		level waittill("connected", player);
-    		wait 1;
-			level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
-			level notify("wunderfizzMove");
-    	}
+    	zmqol_wf_add((-649,281,-56), (0,162,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((-915,286,-56), (0,66,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((716,21,-57), (0,192,0), "p6_zm_vending_diesel_magic");
     }
     else if(level.script == "zm_prison")
     {
-    	wunderfizzSetup((-377,-3903,-8448), (0,270, 0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((2046, 10332.9, 1336), (0,180,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((-1056,8673,1336), (0,90,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((2795,9270,1336), (0,180,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((-843,5585,-72), (0,13,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((2724,9563,1708), (0,90,0), "p6_zm_vending_diesel_magic");
-    	//DO NOT TOUCH BELOW IF YOU DON'T KNOW WHAT YOU'RE DOING
-    	if(wunderfizzUseRandomStart)
-    	{
-    		level waittill("connected", player);
-    		wait 1;
-			level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
-			level notify("wunderfizzMove");
-    	}
+    	zmqol_wf_add((-377,-3903,-8448), (0,270, 0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((2046, 10332.9, 1336), (0,180,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((-1056,8673,1336), (0,90,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((2795,9270,1336), (0,180,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((-843,5585,-72), (0,13,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((2724,9563,1708), (0,90,0), "p6_zm_vending_diesel_magic");
     }
     else if(level.script == "zm_buried")
     {
-    	wunderfizzSetup((146,138,10), (0,270,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((-374,-1103,8), (0,270,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((-58,-1512,168), (0,180,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((1521,1366,-14), (0,342,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((4910,725,2), (0,0,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((6862,846,108), (0,49,0), "p6_zm_vending_diesel_magic");
-    	//DO NOT TOUCH BELOW IF YOU DON'T KNOW WHAT YOU'RE DOING
-    	if(wunderfizzUseRandomStart)
-    	{
-    		level waittill("connected", player);
-    		wait 1;
-			level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
-			level notify("wunderfizzMove");
-    	}
+    	zmqol_wf_add((146,138,10), (0,270,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((-374,-1103,8), (0,270,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((-58,-1512,168), (0,180,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((1521,1366,-14), (0,342,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((4910,725,2), (0,0,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((6862,846,108), (0,49,0), "p6_zm_vending_diesel_magic");
     }
     else if(level.script == "zm_transit")
     {
-    	wunderfizzSetup((11168,8120,-576), (0,0,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((-7103,4952,-56), (0,0,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((-11824,-1495,228), (0,90,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((-5043,-7772,-61), (0,180,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((8371,-5408,264), (0,180,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((1823,114,88), (0,90,0), "p6_zm_vending_diesel_magic");
-    	//DO NOT TOUCH BELOW IF YOU DON'T KNOW WHAT YOU'RE DOING
-    	if(wunderfizzUseRandomStart)
-    	{
-    		level waittill("connected", player);
-    		wait 1;
-			level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
-			level notify("wunderfizzMove");
-    	}
+    	zmqol_wf_add((11168,8120,-576), (0,0,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((-7103,4952,-56), (0,0,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((-11824,-1495,228), (0,90,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((-5043,-7772,-61), (0,180,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((8371,-5408,264), (0,180,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((1823,114,88), (0,90,0), "p6_zm_vending_diesel_magic");
     }
     else if(level.script == "zm_highrise")
     {
-    	wunderfizzSetup((2608, 275, 1296), (0,60,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((1482, 1060, 3395), (0,180,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((2964, 2698, 2905), (349,0,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((1648, -635, 2880), (0,150,0), "p6_zm_vending_diesel_magic");
-    	wunderfizzSetup((1809, 1459, 3040), (0,0,0), "p6_zm_vending_diesel_magic");
-    	//DO NOT TOUCH BELOW IF YOU DON'T KNOW WHAT YOU'RE DOING
-    	if(wunderfizzUseRandomStart)
-    	{
-    		level waittill("connected", player);
-    		wait 1;
-			level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
-			level notify("wunderfizzMove");
-    	}
+    	zmqol_wf_add((2608, 275, 1296), (0,60,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((1482, 1060, 3395), (0,180,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((2964, 2698, 2905), (349,0,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((1648, -635, 2880), (0,150,0), "p6_zm_vending_diesel_magic");
+    	zmqol_wf_add((1809, 1459, 3040), (0,0,0), "p6_zm_vending_diesel_magic");
     }
+
+	zmqol_wf_place();
+
+	// Hoisted out of all six map branches, where it sat as an identical copy.
+	// It has to run AFTER placement now, and it must not run at all when there is
+	// only one location: chooseLocation() loops until it draws a number different
+	// from the current one, so with wunderfizz_locations == 1 it spins forever.
+	if( wunderfizzUseRandomStart && level.wunderfizz_locations > 1 )
+	{
+		level waittill("connected", player);
+		wait 1;
+		level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
+		level notify("wunderfizzMove");
+	}
+}
+
+// ============================================================================
+//  zmqol_wf_add / zmqol_wf_place / zmqol_wf_filter_to_zones
+//
+//  🛑 THE BUG: on Bus Depot and Farm survival the user found ONE machine, and it
+//  said "Wunderfizz Orb is at Another Location" - permanently.
+//
+//  The location lists above are whole-map lists. TranZit's six are one per
+//  region: bus depot, diner, power, town, farm, cornfield. Survival and grief
+//  only ever open ONE of those regions, but all six machines were still spawned
+//  and counted, so level.wunderfizz_locations was 6 while exactly one was
+//  reachable. currentWunderfizzLocation then spent 5/6 of its life pointing at a
+//  machine on the far side of a map the player cannot cross, and the one machine
+//  in front of them reported itself as "the other location". Same on Mob of the
+//  Dead, Buried and Die Rise, which have the same map-wide lists.
+//
+//  Rather than hardcode a coordinate per gametype+location, ask the game. The
+//  zone manager already knows the answer: level.zones is populated ONLY by
+//  _zm_zonemgr::zone_init(), which runs only for the zones this gametype and
+//  location actually manages (_zm_zonemgr.gsc:166-174). So a point inside the
+//  playable area resolves to a zone and a point outside it resolves to
+//  undefined - no coordinate tables, and it covers Diner and the grief variants
+//  for free.
+//
+//  Once the list is down to one, the rest falls out of the existing code with no
+//  further change: wunderfizz() only offers to relocate when
+//  level.wunderfizz_locations > 1, and location 1 == currentWunderfizzLocation,
+//  so the single machine is live and stays put. That is exactly what the user
+//  asked for.
+//
+//  Gated on !is_classic() per the standing rule that classic stays stock - on a
+//  classic map every machine is reachable and the full list is correct.
+//
+//  🛑 FAILS OPEN. If the zone lookup comes back with nothing at all - zones not
+//  built yet, or a machine sitting just outside every volume - the full list is
+//  used, which is the old behaviour. A wrong hint string beats no Wunderfizz.
+// ============================================================================
+zmqol_wf_add( origin, angles, model )
+{
+	s_place = spawnstruct();
+	s_place.origin = origin;
+	s_place.angles = angles;
+	s_place.model = model;
+	level.zmqol_wf_pending[ level.zmqol_wf_pending.size ] = s_place;
+}
+
+zmqol_wf_place()
+{
+	a_place = level.zmqol_wf_pending;
+
+	if( !is_classic() )
+	{
+		a_zoned = zmqol_wf_filter_to_zones( a_place );
+
+		if( a_zoned.size > 0 )
+			a_place = a_zoned;
+	}
+
+	n_candidates = level.zmqol_wf_pending.size;
+
+	for( i = 0; i < a_place.size; i++ )
+		wunderfizzSetup( a_place[i].origin, a_place[i].angles, a_place[i].model );
+
+	level.zmqol_wf_pending = [];
+	println( "[zm_qol] wunderfizz: placed " + a_place.size + " of " + n_candidates + " candidate location(s)" );
+}
+
+zmqol_wf_filter_to_zones( a_place )
+{
+	a_keep = [];
+
+	// The location scripts build their zones from _load::main(), which can land
+	// after this thread starts. Ten seconds is far longer than it has ever taken
+	// and the machines are only needed once the blackscreen lifts.
+	n_wait = 0;
+	while( ( !isdefined( level.zones ) || level.zones.size < 1 ) && n_wait < 200 )
+	{
+		wait 0.05;
+		n_wait++;
+	}
+
+	if( !isdefined( level.zones ) || level.zones.size < 1 )
+		return a_keep;
+
+	for( i = 0; i < a_place.size; i++ )
+	{
+		// ignore_enabled_check = 1: zones start disabled and only open as doors
+		// are bought, but a machine behind a closed door is still in the play
+		// area and should be kept.
+		if( isdefined( maps\mp\zombies\_zm_zonemgr::get_zone_from_position( a_place[i].origin, 1 ) ) )
+			a_keep[ a_keep.size ] = a_place[i];
+	}
+
+	return a_keep;
 }
 
 getPerks()
