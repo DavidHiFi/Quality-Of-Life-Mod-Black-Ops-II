@@ -56,6 +56,50 @@ main()
 	level thread scripts\zm\locs\loc_common::init();
 }
 
+// ============================================================================
+//  zm_qol: the box and the Wunderfizz spots available on Trenches.
+//
+//  🛑 CORRECTION, 2026-08-02. An earlier version of this file trimmed both pools
+//  to the two trench spots on the reasoning that "the start bunker (generator 1)
+//  is walled off on this arena". THAT WAS WRONG - the doors into the spawn area
+//  are purchasable, reported in game by the user. disable_zones() ten lines above
+//  says the same thing and was not read carefully enough: its valid_zones list
+//  contains "zone_start", "zone_start_a" and "zone_start_b", so the start bunker
+//  has always been a reachable part of the Trenches arena. Both entities are
+//  really there, verified in the shipped mapents (T6-Data-Archive zm_tomb.d3dbsp):
+//      bunker_start_chest  script_struct       (2900, 5520, -368)
+//      starting_bunker     random_perk_machine (2968, 5368, -368)
+//  The Wunderfizz had been deleted outright by the loop below, which is why it
+//  went missing from that room.
+//
+//  Both pools are now back to the stock/Reimagined arrays - all three spots.
+//
+//  🛑 The two "start_" arrays below are a DIFFERENT thing and stay trimmed to the
+//  two trench spots, matching Reimagined. They pick where the box and Wunderfizz
+//  BEGIN, not where they can move to, so leaving the start bunker out of them
+//  keeps round one from opening with the box behind a door nobody can afford yet.
+//
+//  Consequence for the move pattern: with three entries neither strictly
+//  alternates any more, which reverses checkpoint 11 item 4 on purpose - that
+//  request was made on the same "unreachable third spot" premise this note
+//  corrects.
+//    Box        maps\mp\zombies\_zm_magicbox::default_box_move_logic() walks
+//               level.chests by index and re-randomises on wrap.
+//    Wunderfizz maps\mp\zombies\_zm_perk_random::machine_selector() re-reads
+//               getentarray("random_perk_machine") each move; its do/while only
+//               re-rolls while the pick equals the CURRENT machine, so with three
+//               it picks randomly between the other two.
+//
+//  level.chests is not just the move pool - zm_tomb_capture_zones::
+//  get_mystery_box_from_script_noteworthy() searches it. Restoring
+//  bunker_start_chest makes register_mystery_box_for_zone(
+//  "generator_start_bunker", "bunker_start_chest") a HIT rather than the
+//  guaranteed miss it used to be; that is fine, and it is why
+//  scripts\zm\replaced\zm_tomb_capture_zones.gsc already registers this zone for
+//  trenches. The box ends up owned by generator_start_bunker and unlocked anyway,
+//  because zm_tomb\zm_tomb.gsc::zmqol_power_up_all_generators() force-captures
+//  every zone at round start.
+// ============================================================================
 treasure_chest_init()
 {
 	chest_names = array("bunker_start_chest", "bunker_cp_chest", "bunker_tank_chest");
@@ -108,6 +152,36 @@ init_barriers()
 		scripts\zm\locs\loc_common::barrier("p6_zm_tm_barricade_wall_02", (-686, 2653, -184), (0, 0, 0));
 	}
 
+	// ========================================================================
+	//  🛑 zm_qol: this barricade shipped with NO collision partner.
+	//
+	//  loc_common::barrier()'s 4th argument is `disconnect_paths`, and it is the
+	//  ONLY thing in that function that blocks anything - it spawns the model with
+	//  the collision flag and calls disconnectPaths(). Without it a barrier() call
+	//  is decoration and nothing more.
+	//
+	//  Every other barrier block in all 14 loc scripts is a collision_wall_* /
+	//  collision_geo_* call carrying that flag, followed by props laid on top.
+	//  This line was the single exception in the whole project: a lone
+	//  p6_zm_tm_barricade_wall_02 - a wall of wooden planks - with no collision
+	//  and no path disconnect, ~740 units from generator_tank_trench
+	//  (-351.5, 3448, -282.5) and right on the edge of the Trenches spawn ring.
+	//  Zombies pathed straight through the boards without touching them.
+	//
+	//  Inherited as-is from BO2-Reimagined; its init_barriers() is identical here,
+	//  so this is an upstream gap rather than something the port introduced.
+	//
+	//  Placement follows the rule the other three pairs in this file already obey:
+	//      collision yaw    = prop yaw + 90 (mod 180)   -90 + 90 -> 0
+	//      collision origin = prop origin, z + 64       -112 + 64 -> -48
+	//  and 128x128 matches the other two trench barricades.
+	//
+	//  🛑 If zombies now fail to REACH the arena instead, this disconnectPaths is
+	//  the first thing to back out - checkpoint 11 §3.6, the two opposite zone
+	//  failure modes. Deleting just the collision line below restores the old
+	//  behaviour exactly.
+	// ========================================================================
+	scripts\zm\locs\loc_common::barrier("collision_wall_128x128x10_standard", (-749, 2820, -48), (0, 0, 0), 1);
 	scripts\zm\locs\loc_common::barrier("p6_zm_tm_barricade_wall_02", (-749, 2820, -112), (0, -90, 0));
 
 	scripts\zm\locs\loc_common::barrier("collision_wall_128x128x10_standard", (80, 4509, -288), (0, 0, 0), 1);
