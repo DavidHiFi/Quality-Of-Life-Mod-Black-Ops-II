@@ -136,13 +136,28 @@ setupWunderfizz()
 //  in front of them reported itself as "the other location". Same on Mob of the
 //  Dead, Buried and Die Rise, which have the same map-wide lists.
 //
-//  Rather than hardcode a coordinate per gametype+location, ask the game. The
-//  zone manager already knows the answer: level.zones is populated ONLY by
-//  _zm_zonemgr::zone_init(), which runs only for the zones this gametype and
-//  location actually manages (_zm_zonemgr.gsc:166-174). So a point inside the
-//  playable area resolves to a zone and a point outside it resolves to
-//  undefined - no coordinate tables, and it covers Diner and the grief variants
-//  for free.
+//  🛑 v1.19.1 TRIED THE ZONE MANAGER AND IT DOES NOT DISCRIMINATE. The theory was
+//  that level.zones is populated only by _zm_zonemgr::zone_init() for the zones
+//  this gametype+location manages, so an out-of-area point would resolve to
+//  undefined. The diagnostic below disproved it on the first run:
+//      [zm_qol] wunderfizz: placed 5 of 6 candidate location(s)
+//  on Farm, where one is reachable. TranZit registers its zone volumes map-wide
+//  regardless of location, so every machine except one sits inside some zone. Do
+//  not re-try this approach.
+//
+//  What IS location-specific by construction is the player spawn set.
+//  _zm_gametype::get_player_spawns_for_gametype() (:1443) matches
+//  player_respawn_point structs whose script_string contains
+//  "<ui_gametype>_<location>" - it cannot return a spawn belonging to another
+//  survival location, which is exactly the property the zone lookup lacked. So
+//  keep a machine only if it is near somewhere this gametype can actually spawn
+//  a player. Still no hardcoded coordinates, and Diner and grief come free.
+//
+//  The 2500-unit threshold is picked off the geometry, not taste: TranZit's
+//  regions are 10,000+ units apart (Farm's machine is ~10 units from a farm
+//  spawn, the next nearest candidate ~13,500), while a machine sitting across a
+//  survival arena is at most a couple of thousand from the nearest spawn. Any
+//  number between about 3,000 and 5,000 would behave identically here.
 //
 //  Once the list is down to one, the rest falls out of the existing code with no
 //  further change: wunderfizz() only offers to relocate when
@@ -153,9 +168,10 @@ setupWunderfizz()
 //  Gated on !is_classic() per the standing rule that classic stays stock - on a
 //  classic map every machine is reachable and the full list is correct.
 //
-//  🛑 FAILS OPEN. If the zone lookup comes back with nothing at all - zones not
-//  built yet, or a machine sitting just outside every volume - the full list is
-//  used, which is the old behaviour. A wrong hint string beats no Wunderfizz.
+//  🛑 NEVER RETURNS NOTHING. If no machine clears the threshold - an arena whose
+//  spawns are further out than expected - the single CLOSEST one is kept rather
+//  than the whole list. One reachable machine that stays put is the requested
+//  behaviour; falling back to all six would just reproduce the bug.
 // ============================================================================
 zmqol_wf_add( origin, angles, model )
 {
@@ -172,10 +188,10 @@ zmqol_wf_place()
 
 	if( !is_classic() )
 	{
-		a_zoned = zmqol_wf_filter_to_zones( a_place );
+		a_near = zmqol_wf_filter_to_play_area( a_place );
 
-		if( a_zoned.size > 0 )
-			a_place = a_zoned;
+		if( a_near.size > 0 )
+			a_place = a_near;
 	}
 
 	n_candidates = level.zmqol_wf_pending.size;
@@ -187,33 +203,75 @@ zmqol_wf_place()
 	println( "[zm_qol] wunderfizz: placed " + a_place.size + " of " + n_candidates + " candidate location(s)" );
 }
 
-zmqol_wf_filter_to_zones( a_place )
+zmqol_wf_filter_to_play_area( a_place )
 {
 	a_keep = [];
+	n_threshold = 2500;
 
-	// The location scripts build their zones from _load::main(), which can land
-	// after this thread starts. Ten seconds is far longer than it has ever taken
-	// and the machines are only needed once the blackscreen lifts.
+	// The respawn structs are indexed by struct_class_init out of _load::main(),
+	// which can land after this thread starts. Ten seconds is far longer than it
+	// has ever taken, and the machines are only needed once the blackscreen lifts.
+	a_spawns = [];
 	n_wait = 0;
-	while( ( !isdefined( level.zones ) || level.zones.size < 1 ) && n_wait < 200 )
+	while( n_wait < 200 )
 	{
+		a_spawns = maps\mp\gametypes_zm\_zm_gametype::get_player_spawns_for_gametype();
+
+		if( isdefined( a_spawns ) && a_spawns.size > 0 )
+			break;
+
 		wait 0.05;
 		n_wait++;
 	}
 
-	if( !isdefined( level.zones ) || level.zones.size < 1 )
+	if( !isdefined( a_spawns ) || a_spawns.size < 1 )
+	{
+		println( "[zm_qol] wunderfizz: no gametype spawns found - keeping the full list" );
 		return a_keep;
+	}
+
+	n_best = -1;
+	n_best_dist = 0;
 
 	for( i = 0; i < a_place.size; i++ )
 	{
-		// ignore_enabled_check = 1: zones start disabled and only open as doors
-		// are bought, but a machine behind a closed door is still in the play
-		// area and should be kept.
-		if( isdefined( maps\mp\zombies\_zm_zonemgr::get_zone_from_position( a_place[i].origin, 1 ) ) )
+		n_dist = zmqol_wf_dist_to_nearest( a_place[i].origin, a_spawns );
+
+		println( "[zm_qol] wunderfizz: candidate " + ( i + 1 ) + " is " + int( n_dist ) + " from the nearest spawn" );
+
+		if( n_best < 0 || n_dist < n_best_dist )
+		{
+			n_best = i;
+			n_best_dist = n_dist;
+		}
+
+		if( n_dist <= n_threshold )
 			a_keep[ a_keep.size ] = a_place[i];
 	}
 
+	// Nothing cleared the threshold - keep the closest rather than the whole map.
+	if( a_keep.size < 1 && n_best >= 0 )
+	{
+		println( "[zm_qol] wunderfizz: nothing within " + n_threshold + " - keeping the closest at " + int( n_best_dist ) );
+		a_keep[ a_keep.size ] = a_place[ n_best ];
+	}
+
 	return a_keep;
+}
+
+zmqol_wf_dist_to_nearest( v_origin, a_spawns )
+{
+	n_best = distance( v_origin, a_spawns[0].origin );
+
+	for( i = 1; i < a_spawns.size; i++ )
+	{
+		n_dist = distance( v_origin, a_spawns[i].origin );
+
+		if( n_dist < n_best )
+			n_best = n_dist;
+	}
+
+	return n_best;
 }
 
 getPerks()
