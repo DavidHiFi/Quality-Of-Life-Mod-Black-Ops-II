@@ -717,6 +717,14 @@ zmqol_wf_location_beam()
 
 //  The glow on the orb itself, on tag j_ball exactly as stock does
 //  (turn_on_active_ball_light, _zm_perk_random.csc:88), plus the beam.
+//
+//  🛑 PLAYED ONCE, NOT ON A LOOP. v1.21.0 retriggered it every second, and the
+//  screenshot showed the result: a blown-out white-blue blob swallowing the whole
+//  top of the machine, because fx_tomb_dieselmagic_light is a LOOPING effect and
+//  every retrigger stacked another copy on the same tag. Stock plays it exactly
+//  once and keeps the handle (self._ball_glow = playfxontag(...), stopped with
+//  stopfx). The beam is the opposite case - a one-shot stock deliberately
+//  re-fires every 3-4s - which is why only that one loops.
 zmqol_wf_ball_glow()
 {
 	self endon( "zmqol_wf_ball_off" );
@@ -724,11 +732,7 @@ zmqol_wf_ball_glow()
 
 	self thread zmqol_wf_location_beam();
 
-	for( ;; )
-	{
-		playfxontag( level._effect[ "perk_machine_light" ], self, "j_ball" );
-		wait 1;
-	}
+	playfxontag( level._effect[ "perk_machine_light" ], self, "j_ball" );
 }
 
 //  Stock's fx_departure_steam (_zm_perk_random.csc:193): a 5-second puff as the
