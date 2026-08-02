@@ -1,5 +1,26 @@
 # Sound work — findings and plan (2026-08-02)
 
+> **2026-08-03 CORRECTION — read this before believing the pessimism below.**
+> This file (and checkpoint 14 §3) concluded that missing sounds are unfixable because there is
+> no CLI bank builder. That conclusion is only valid for audio that **does not already ship with
+> the game**. It does not apply when the alias exists in a stock bank that simply is not loaded
+> on the current map.
+>
+> `console_zm.log` logs every bank load (`Attempting to load soundbank <name>`). A Nuketown run
+> loads `zmb_patch.all`, `cmn_root.all`, `zmb_code_post_gfx.all`, `zmb_patch_ui.all`,
+> `zmb_common.all`, `zmb_nuked_real.all`, `mod.all`, `deathmachine_zm.all` — and nothing else.
+> Adding `soundbank,zmb_tomb.all` to `zone_source\mod_locations.zone` makes the game load
+> Origins' bank on every map; the Linker copies the asset out of the already-`--load`ed
+> `zm_tomb.ff`. **The asset is a name reference only** — the `.sabl`/`.sabs` stay in the base
+> game's `sound\` folder, so `mod.ff` grew 478 KB and nothing extra ships. That is v1.19.0's
+> fix for the silent Wunderfizz spin and Electric Cherry reload.
+>
+> **This does NOT rescue §1 below.** The gun sounds are a *replacement* job: those aliases are
+> already loaded from `cmn_root.all`, so there is no unloaded bank to pull in and the shadowing
+> question in §1's blocker 1 is still open. §2 (menu music) is likewise untouched — that is an
+> alias-field edit, not a bank-load problem.
+
+
 Two requests from the user, neither started. Everything below is **verified**, not assumed.
 Written so the investigation does not have to be repeated.
 
