@@ -4459,4 +4459,34 @@ zmqol_spawn_baseline_probe()
         // the world on this gametype and no script fix can conjure them.
         a_live = getentarray( "zombie_spawner", "script_noteworthy" );
 
-        println( 
+        println( "[zm_qol] BASE " + str_where + " t=" + ( ( i + 1 ) * 10 ) + " spawners def=" + n_def + " size=" + n_size + " live=" + a_live.size + " multi=" + is_true( level.use_multiple_spawns ) + " groups=" + n_groups );
+
+        if ( n_size == 0 && a_live.size > 0 )
+        {
+            level.zombie_spawners = a_live;
+            println( "[zm_qol] BASE " + str_where + " REPAIRED level.zombie_spawners -> " + level.zombie_spawners.size );
+        }
+
+        n_pool = 0;
+
+        if ( isdefined( level.zombie_spawn_locations ) )
+            n_pool = level.zombie_spawn_locations.size;
+
+        n_total = 0;
+
+        if ( isdefined( level.zombie_total ) )
+            n_total = level.zombie_total;
+
+        n_ailim = 0;
+
+        if ( isdefined( level.zombie_ai_limit ) )
+            n_ailim = level.zombie_ai_limit;
+
+        n_actlim = 0;
+
+        if ( isdefined( level.zombie_actor_limit ) )
+            n_actlim = level.zombie_actor_limit;
+
+        println( "[zm_qol] BASE " + str_where + " t=" + ( ( i + 1 ) * 10 ) + " pool=" + n_pool + " total=" + n_total + " alive=" + get_current_zombie_count() + " actors=" + get_current_actor_count() + " ailim=" + n_ailim + " actlim=" + n_actlim + " flag=" + flag( "spawn_zombies" ) );
+    }
+}
