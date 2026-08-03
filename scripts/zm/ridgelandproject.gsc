@@ -3111,6 +3111,7 @@ zmqol_fly_move( e_mover )
     level endon( "game_ended" );
 
     n_speed = 20;
+    n_probe = 0;
 
     for ( ;; )
     {
@@ -3121,32 +3122,59 @@ zmqol_fly_move( e_mover )
         v_pos = e_mover.origin;
         b_moved = 0;
 
-        n_step = n_speed;
+        b_sprint = self sprintbuttonpressed();
+        b_use    = self usebuttonpressed();
+        b_attack = self attackbuttonpressed();
+        b_melee  = self meleebuttonpressed();
+        b_ads    = self adsbuttonpressed();
+        b_frag   = self fragbuttonpressed();
+        b_jump   = self jumpbuttonpressed();
+        b_stance = self stancebuttonpressed();
 
-        if ( self sprintbuttonpressed() )
-            n_step = n_speed * 3;
-
-        if ( self meleebuttonpressed() )
+        // PROBE - remove once the button set is settled. Prints what the engine
+        // actually reports while LINKED, for the first ~5s of a flight.
+        if ( n_probe < 100 )
         {
-            v_pos = v_pos + ( anglestoforward( v_angles ) * n_step );
+            println( "[zm_qol] fly buttons: sprint=" + b_sprint + " use=" + b_use + " attack=" + b_attack
+                     + " melee=" + b_melee + " ads=" + b_ads + " frag=" + b_frag
+                     + " jump=" + b_jump + " stance=" + b_stance );
+            n_probe++;
+        }
+
+        // 🛑 FORWARD/BACK ARE OR-ed ACROSS SEVERAL BUTTONS ON PURPOSE.
+        // v1.23.0 drove forward from melee and back from ads, and the user got
+        // NO horizontal movement at all while jump and stance worked fine. So
+        // WEAPON-ACTION buttons (melee, ads, and presumably attack) are
+        // suppressed while playerlinkto'd; movement-ish ones are not.
+        //
+        // That also explains why chat_command_ufo_mode.gsc gets away with melee:
+        // it reads the button while UNLINKED and only links for the frames the
+        // button is held. We stay linked the whole flight, so we cannot.
+        //
+        // Rather than bet the release on one replacement, every plausible button
+        // drives the same axis - whichever the engine reports, flight works. The
+        // probe above says which ones those are so this can be narrowed later.
+        if ( b_sprint || b_attack || b_melee )
+        {
+            v_pos = v_pos + ( anglestoforward( v_angles ) * n_speed );
             b_moved = 1;
         }
 
-        if ( self adsbuttonpressed() )
+        if ( b_use || b_ads || b_frag )
         {
-            v_pos = v_pos - ( anglestoforward( v_angles ) * n_step );
+            v_pos = v_pos - ( anglestoforward( v_angles ) * n_speed );
             b_moved = 1;
         }
 
-        if ( self jumpbuttonpressed() )
+        if ( b_jump )
         {
-            v_pos = v_pos + ( ( 0, 0, 1 ) * n_step );
+            v_pos = v_pos + ( ( 0, 0, 1 ) * n_speed );
             b_moved = 1;
         }
 
-        if ( self stancebuttonpressed() )
+        if ( b_stance )
         {
-            v_pos = v_pos - ( ( 0, 0, 1 ) * n_step );
+            v_pos = v_pos - ( ( 0, 0, 1 ) * n_speed );
             b_moved = 1;
         }
 

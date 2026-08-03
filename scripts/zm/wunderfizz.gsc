@@ -160,21 +160,31 @@ setupWunderfizz()
 	//  "Unlinker --list mod.ff" - so they cost no new asset and cannot collide
 	//  with anything that is not already colliding.
 	//
-	//    fx_zombie_cola_arsenal_on   a perk-machine "powered on" glow. LOOPING,
-	//                                which is what the orb light needs.
-	//    fx_zombie_tesla_shock       a discrete electrical burst. One-shot, so
-	//                                it is safe to retrigger on a timer.
-	//    fx_alcatraz_electric_cherry_lg  the big electric-cherry discharge, used
-	//                                for the swirl while the machine cycles.
+	//  🛑 SCALE IS THE THING THAT BITES, NOT COLOUR. v1.26.x used
+	//  fx_zombie_cola_arsenal_on for the orb light. It is a PERK-MACHINE-sized
+	//  "powered on" glow - authored to envelop a whole vending cabinet - so
+	//  attaching it to the ball tag produced the screenshot the user sent: a
+	//  huge pink cloud swallowing the bottom half of the machine and spilling
+	//  onto the ground. The effect was played correctly (once, not looped); it
+	//  was simply the wrong SIZE. Anything named *_cola_*_on or *_lg is
+	//  cabinet-scale - do not attach those to a tag.
+	//
+	//    fx_alcatraz_electric_cherry_sm   small electric accent. LOOPING, and
+	//                                     small enough to sit on the ball.
+	//    fx_zombie_tesla_shock_ground     a discrete burst, for the departure.
 	//
 	//  🛑 Match LOOPING vs ONE-SHOT to how each is played below, or you get the
 	//  v1.21.0 bug back: a looping fx retriggered every second stacked into a
 	//  blown-out white blob swallowing the top of the machine.
+	//
+	//  The location MARKER is deliberately gone. Stock's is a vertical lightning
+	//  beam (fx_tomb_dieselmagic_identify); nothing we own resembles one, and
+	//  firing a tesla shock at the machine's base every 3-4 seconds read as
+	//  noise rather than a marker. Missing beats wrong.
 	// ------------------------------------------------------------------------
-	level._effect[ "wunderfizz_loop" ]       = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_lg" );
-	level._effect[ "perk_machine_light" ]    = loadfx( "maps/misc/fx_zombie_cola_arsenal_on" );
-	level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie/fx_zombie_tesla_shock" );
-	level._effect[ "perk_machine_steam" ]    = loadfx( "maps/zombie/fx_zombie_tesla_shock_ground" );
+	level._effect[ "wunderfizz_loop" ]    = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_sm" );
+	level._effect[ "perk_machine_light" ] = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_sm" );
+	level._effect[ "perk_machine_steam" ] = loadfx( "maps/zombie/fx_zombie_tesla_shock_ground" );
 
 	if(level.script == "zm_tomb")
     {
@@ -779,24 +789,6 @@ zmqol_wf_anim( str_state )
 	}
 }
 
-//  The "the orb is HERE" marker. Stock's fx_location_indicator
-//  (_zm_perk_random.csc:205) re-plays a ONE-SHOT every 3-4 seconds rather than
-//  holding a looping handle, so this does the same. fx_zombie_tesla_shock is
-//  likewise one-shot, so retriggering it is safe - unlike the orb light below.
-zmqol_wf_location_beam()
-{
-	self endon( "zmqol_wf_ball_off" );
-	level endon( "end_game" );
-
-	for( ;; )
-	{
-		if( self.location == level.currentWunderfizzLocation )
-			playfx( level._effect[ "perk_machine_location" ], self.origin );
-
-		wait randomfloatrange( 3.0, 4.0 );
-	}
-}
-
 //  The glow on the orb itself, on tag j_ball exactly where stock puts it
 //  (turn_on_active_ball_light, _zm_perk_random.csc:88), plus the marker.
 //
@@ -810,8 +802,6 @@ zmqol_wf_ball_glow()
 {
 	self endon( "zmqol_wf_ball_off" );
 	level endon( "end_game" );
-
-	self thread zmqol_wf_location_beam();
 
 	playfxontag( level._effect[ "perk_machine_light" ], self, "j_ball" );
 }
