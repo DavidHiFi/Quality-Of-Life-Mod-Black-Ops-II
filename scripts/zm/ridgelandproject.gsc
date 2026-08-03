@@ -2913,26 +2913,27 @@ zmqol_pack( b_upgrade )
 
 zmqol_help_lines()
 {
+    //  🛑 LINE COUNT IS A HARD BUDGET, NOT A STYLE CHOICE. The user's screenshot
+    //  shows this panel stopping dead after ".removeperks" - the 12th line - with
+    //  everything below it, power-ups included, simply absent. Nothing errored:
+    //  a client has a fixed HUD-element allowance and this mod already spends
+    //  ~13 of it on permanent elements (health bar, name, timer, zombie counter,
+    //  shield, the perk pop-up's three, the notifier). One createfontstring per
+    //  command line ran the budget out mid-list, and every extra command added
+    //  since has been invisible.
+    //
+    //  So commands are GROUPED. Grouping is what keeps the whole list inside the
+    //  allowance; do not expand this back to one line per command, and if you
+    //  add commands, add them to an existing line.
     a_lines = [];
-    a_lines[a_lines.size] = "^5Quality Of Life ^7- chat commands (prefix ^3.^7 ^7, ^3!^7 or ^3/^7)";
-    a_lines[a_lines.size] = "^3.help^7                     show / hide this list";
-    a_lines[a_lines.size] = "^3.p <n>^7                    give n points (default 1000)";
-    a_lines[a_lines.size] = "^3.god^7                      toggle godmode";
-    a_lines[a_lines.size] = "^3.ghost^7                    toggle - zombies ignore you";
-    a_lines[a_lines.size] = "^3.afk^7                      toggle - ghost + godmode";
-    a_lines[a_lines.size] = "^3.fly^7                      noclip: WASD to move, jump/stance = up/down";
-    a_lines[a_lines.size] = "^3.infiniteammo^7 / ^3.infammo^7  toggle - never run dry";
-    a_lines[a_lines.size] = "^3.reload^7                   refill all weapons + equipment";
-    a_lines[a_lines.size] = "^3.pack^7                     Pack-a-Punch the held weapon";
-    a_lines[a_lines.size] = "^3.unpack^7                   revert the held weapon to stock";
-    a_lines[a_lines.size] = "^3.giveperks^7                give every perk on this map";
-    a_lines[a_lines.size] = "^3.removeperks^7              remove every perk you have";
-    a_lines[a_lines.size] = "^3.nozmspawns^7               toggle zombie spawning";
-    a_lines[a_lines.size] = "^3.where^7                    print your coordinates";
-    a_lines[a_lines.size] = "^3.powerups^7                 list the power-ups on this map";
-    a_lines[a_lines.size] = "^3.powerup <name>^7 / ^3.drop^7   spawn one in front of you";
-    a_lines[a_lines.size] = "^3.dm^7 / ^3.deathmachine^7          drop a Death Machine";
-    a_lines[a_lines.size] = "^3.dm ^7.nuke ^3.maxammo ^7.insta ^3.dp ^7.carp ^3.sale ^7...  short forms";
+    a_lines[a_lines.size] = "^5Quality Of Life ^7- chat commands (prefix ^3.^7 ^3!^7 or ^3/^7)";
+    a_lines[a_lines.size] = "^3.help ^7show/hide   ^3.p <n> ^7points   ^3.where ^7coords";
+    a_lines[a_lines.size] = "^3.god ^7godmode   ^3.ghost ^7ignored   ^3.afk ^7both";
+    a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance = up/down)";
+    a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.reload ^7refill everything";
+    a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
+    a_lines[a_lines.size] = "^3.giveperks ^7/ ^3.removeperks ^7   ^3.nozmspawns ^7toggle spawns";
+    a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
 
     // 🛑 The tail of this panel is GENERATED, not typed - user: "make sure that
     // the .help command always is updated to show all the custom added chat
@@ -2952,22 +2953,27 @@ zmqol_help_lines()
 
         if ( isdefined( a_keys ) && a_keys.size > 0 )
         {
-            a_lines[a_lines.size] = "^5every power-up below is also its own command ^7(" + a_keys.size + " here):";
+            a_lines[a_lines.size] = "^5every power-up is also its own command ^7(" + a_keys.size + " here):";
 
+            //  Six per line, for the budget reason above - at four per line a map
+            //  with a dozen power-ups would cost three lines and push the tail of
+            //  the list back off the screen, which is the bug this is fixing.
             str_line = "";
             for ( i = 0; i < a_keys.size; i++ )
             {
                 if ( str_line != "" )
-                    str_line = str_line + "^7, ";
+                    str_line = str_line + "^7 ";
 
                 str_line = str_line + "^3." + a_keys[i];
 
-                if ( ( i % 4 ) == 3 || i == a_keys.size - 1 )
+                if ( ( i % 6 ) == 5 || i == a_keys.size - 1 )
                 {
                     a_lines[a_lines.size] = "  " + str_line;
                     str_line = "";
                 }
             }
+
+            a_lines[a_lines.size] = "^7short forms: ^3.dm ^3.nuke ^3.maxammo ^3.insta ^3.dp ^3.carp ^3.sale";
         }
     }
 
@@ -2987,10 +2993,33 @@ zmqol_print_help()
     a_lines = zmqol_help_lines();
     self.zmqol_help_hud = [];
 
+    //  🛑 Hard cap. The client HUD-element allowance is what silently ate the
+    //  bottom of this panel before (see zmqol_help_lines), and a generated
+    //  power-up section means the length now varies by map - so a map with an
+    //  unusually long list must drop a line ON PURPOSE and SAY SO, rather than
+    //  vanish and look like the earlier bug all over again.
+    n_max = 14;
+
+    if ( a_lines.size > n_max )
+    {
+        n_dropped = a_lines.size - n_max + 1;
+        a_trimmed = [];
+
+        for ( i = 0; i < n_max - 1; i++ )
+            a_trimmed[a_trimmed.size] = a_lines[i];
+
+        a_trimmed[a_trimmed.size] = "^1...and " + n_dropped + " more - see ^3.powerups";
+        a_lines = a_trimmed;
+    }
+
     for ( i = 0; i < a_lines.size; i++ )
     {
         e_line = self createfontstring( "hudsmall", 1.1 );
-        e_line setpoint( "TOP_LEFT", "TOP_LEFT", 14, 34 + ( i * 13 ) );
+
+        //  Tucked into the very top-left, tight line spacing: the user's
+        //  screenshot had the chat feed cutting straight through the middle of
+        //  the list. Chat sits well below this now.
+        e_line setpoint( "TOP_LEFT", "TOP_LEFT", 8, 18 + ( i * 12 ) );
         e_line.hidewheninmenu = 1;
         e_line.foreground = 1;
         e_line settext( a_lines[i] );

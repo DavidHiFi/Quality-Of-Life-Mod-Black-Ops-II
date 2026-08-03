@@ -15,19 +15,28 @@ cd /d "%~dp0"
 set "MOD_NAME=zm_qol"
 set "FILES=mod.ff mod.iwd mod.json mod.all.sabl mod.all.sabs deathmachine_zm.all.sabl"
 
-REM  OPTIONAL replacement soundbanks - deployed only if present, never required.
+REM  OPTFILES is now EMPTY, and cmn_root.all.sabl is deliberately not in it.
 REM
-REM  These are stock bank FILES shipped alongside the mod so Plutonium loads the
-REM  mod's copy instead of the base game's. They are deliberately NOT in %FILES%
-REM  and NOT in the zone:
-REM    - code_post_gfx_zm.ff already OWNS "soundbank,cmn_root.all" and loads on
-REM      every ZM map, so declaring it in mod_locations.zone is the fatal
-REM      "Attempting to override asset ... from zone 'mod'" COM_ERROR that made
-REM      Origins unbootable in v1.21.0. This overrides the FILE, not the ASSET.
-REM    - cmn_root.all.sabl is 267 MB, over GitHub's 100 MB per-file limit, so it
-REM      is gitignored. A fresh clone simply builds without it and plays stock
-REM      weapon audio.
-set "OPTFILES=cmn_root.all.sabl"
+REM  The premise was that shipping a stock bank FILE next to the mod would make
+REM  Plutonium load the mod's copy. It does not. console_zm.log prints the full
+REM  path and MD5 of every bank it opens, and across three separate attempts -
+REM  mods\zm_qol\, mods\zm_qol\sound\, storage\t6\sound\ and storage\t6\raw\sound\ -
+REM  it loaded the game's own copy every single time:
+REM
+REM    SOUND Header load success for F:\...\Black Ops II\sound\cmn_root.all.sabl
+REM
+REM  The rule the log actually shows is ownership, not search order: a bank comes
+REM  from the folder of the ZONE THAT DECLARED IT. mod.all and deathmachine_zm.all
+REM  load from the mod folder because mod_base.zone declares them; every stock
+REM  bank name loads from the game's sound\ folder and nothing else is consulted.
+REM  Declaring a stock bank in our zone is the fatal "Attempting to override
+REM  asset ... from zone 'mod'" COM_ERROR that made Origins unbootable in v1.21.0.
+REM
+REM  So there is no mod-contained route for replacement weapon audio, and copying
+REM  267 MB into the mod folder on every build achieved nothing. Replacing the
+REM  file in the game's own sound\ folder is the only thing that works, and that
+REM  is a change to the game install, not to this mod.
+set "OPTFILES="
 set "STAMP_FILES=%FILES%"
 
 REM --- find PowerShell (fall back to the full system path if not on PATH) ---

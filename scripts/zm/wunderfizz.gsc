@@ -109,6 +109,24 @@ main()
     precachemodel( "zombie_teddybear" );
     precachemodel( zmqol_wf_machine_model() );
 
+    //  The bottles for perks THIS MOD adds to maps that never had them. A map
+    //  precaches only its own perks' bottles, so without these the cycling
+    //  bottle is a model the level never registered.
+    //
+    //  🛑 Exactly these six and no more. They are the perk-bottle world models
+    //  `Unlinker --list mod.ff` reports mod.ff itself carrying, so they resolve
+    //  on every map because mod.ff loads on every map. Precaching a model the
+    //  level does not have is fatal at load, so nothing goes in this list that
+    //  has not been confirmed present in mod.ff - in particular NOT vulture or
+    //  whoswho, which exist only in Buried / Die Rise / Mob of the Dead and are
+    //  reachable only when those maps register the perk themselves.
+    precachemodel( "t6_wpn_zmb_perk_bottle_cherry_world" );
+    precachemodel( "t6_wpn_zmb_perk_bottle_deadshot_world" );
+    precachemodel( "t6_wpn_zmb_perk_bottle_doubletap_world" );
+    precachemodel( "t6_wpn_zmb_perk_bottle_marathon_world" );
+    precachemodel( "t6_wpn_zmb_perk_bottle_mule_kick_world" );
+    precachemodel( "t6_wpn_zmb_perk_bottle_nuke_world" );
+
     //  🛑 THIS CALL IS NOT OPTIONAL. Declaring the .atr in the zone only makes
     //  the ASSET exist; without registering it here every map dies on load with
     //      COM_ERROR (1) Unrecognized animtree 'qolwf_perk_random'.
@@ -257,10 +275,57 @@ setupWunderfizz()
 		//  read as magical from across the map, which is exactly this machine's
 		//  job - and the EMP burst is the only large blue ELECTRIC discharge in the
 		//  global set, so it carries the zap the user can already hear.
-		level._effect[ "wunderfizz_loop" ]       = loadfx( "misc/fx_zombie_powerup_wave" );
-		level._effect[ "perk_machine_light" ]    = loadfx( "misc/fx_zombie_powerup_on" );
-		level._effect[ "perk_machine_location" ] = loadfx( "weapon/emp/fx_emp_explosion_equip" );
-		level._effect[ "perk_machine_steam" ]    = loadfx( "misc/fx_zombie_powerup_grab" );
+		//  🛑 READ THIS BEFORE PICKING A FIFTH SET.
+		//
+		//  There is NO lightning or electric-arc effect available off Origins.
+		//  That is not an opinion about taste, it is the whole 226-effect list
+		//  that exists on all six maps: the only electrical entries are
+		//  fx_elec_sparking_oneshot, fx_elec_wire_spark_burst, fx_elec_spark_emit
+		//  (all three are sparking-wire utilities - the user's "it looks like a
+		//  power panel that's faulty", which is precisely what they depict) and
+		//  fx_emp_explosion_equip. Origins' arcs are fx_tomb_dieselmagic_on, and
+		//  shipping it is impossible: OAT can neither dump nor compile an
+		//  FxEffectDef, so it cannot be renamed, and the only other route is
+		//  --load zm_tomb.ff, which makes mod.ff own Origins' assets and makes
+		//  Origins unbootable. Every off-Origins effect here is a stand-in and
+		//  always will be.
+		//
+		//  So the choice is which compromise, and that is now the USER's to make
+		//  in-game rather than mine to guess one release at a time:
+		//      zmqol_wf_fx 0   EMP discharge   - the closest thing to a zap
+		//      zmqol_wf_fx 1   power-up energy - v1.35.0, reads as magic not zap
+		//      zmqol_wf_fx 2   sparking wires  - v1.34.0, the "faulty panel"
+		n_set = getdvarintdefault( "zmqol_wf_fx", 0 );
+
+		if( n_set == 2 )
+		{
+			level._effect[ "wunderfizz_loop" ]       = loadfx( "env/electrical/fx_elec_sparking_oneshot" );
+			level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie/fx_zombie_packapunch" );
+			level._effect[ "perk_machine_location" ] = loadfx( "system_elements/fx_elec_spark_emit" );
+			level._effect[ "perk_machine_steam" ]    = loadfx( "env/electrical/fx_elec_wire_spark_burst" );
+		}
+		else if( n_set == 1 )
+		{
+			level._effect[ "wunderfizz_loop" ]       = loadfx( "misc/fx_zombie_powerup_wave" );
+			level._effect[ "perk_machine_light" ]    = loadfx( "misc/fx_zombie_powerup_on" );
+			level._effect[ "perk_machine_location" ] = loadfx( "weapon/emp/fx_emp_explosion_equip" );
+			level._effect[ "perk_machine_steam" ]    = loadfx( "misc/fx_zombie_powerup_grab" );
+		}
+		else
+		{
+			//  The EMP burst carries the spin, because a blue electrical
+			//  discharge is the nearest thing in the global set to an arc. It is
+			//  an explosion, so it gets a much slower beat than a spark would -
+			//  stacking explosions is how v1.30.0 produced its blinding blob.
+			//  The orb keeps the power-up aura: it is the one LOOPING glow at
+			//  orb scale, and it is what made the machine "look a bit better".
+			level._effect[ "wunderfizz_loop" ]       = loadfx( "weapon/emp/fx_emp_explosion_equip" );
+			level._effect[ "perk_machine_light" ]    = loadfx( "misc/fx_zombie_powerup_on" );
+			level._effect[ "perk_machine_location" ] = loadfx( "weapon/emp/fx_emp_explosion_equip" );
+			level._effect[ "perk_machine_steam" ]    = loadfx( "misc/fx_zombie_powerup_grab" );
+		}
+
+		level.zmqol_wf_fx_set = n_set;
 	}
 
 	//  The location fx fires at the orb's height off Origins (an EMP burst
@@ -621,8 +686,12 @@ getPerkBottleModel(perk)
 		return "t6_wpn_zmb_perk_bottle_doubletap_world";
 	if(perk == "specialty_longersprint")
 		return "t6_wpn_zmb_perk_bottle_marathon_world";
+	//  🛑 WAS "t6_wpn_zmb_perk_bottle_vultureaid_world" - AN ASSET THAT DOES NOT
+	//  EXIST. The real model is ..._vulture_world. Unlinker --list across every
+	//  map zone plus mod.ff finds exactly two spellings, vulture and whoswho, and
+	//  neither "vultureaid" nor "chugabud" appears anywhere in the game.
 	if(perk == "specialty_nomotionsensor")
-		return "t6_wpn_zmb_perk_bottle_vultureaid_world";
+		return "t6_wpn_zmb_perk_bottle_vulture_world";
 	if(perk == "specialty_fastreload")
 		return "t6_wpn_zmb_perk_bottle_sleight_world";
 	if(perk == "specialty_flakjacket")
@@ -631,14 +700,28 @@ getPerkBottleModel(perk)
 		return "t6_wpn_zmb_perk_bottle_revive_world";
 	if(perk == "specialty_scavenger")
 		return "t6_wpn_zmb_perk_bottle_tombstone_world";
+	//  🛑 Same bug: the asset is ..._whoswho_world, not "..._chugabud_world".
+	//  "chugabud" is the PERK's internal name and the VENDING model's name
+	//  (p6_zm_vending_chugabud), but the bottle it dispenses is Who's Who.
 	if(perk == "specialty_finalstand")
-		return "t6_wpn_zmb_perk_bottle_chugabud_world";
+		return "t6_wpn_zmb_perk_bottle_whoswho_world";
 	if(perk == "specialty_grenadepulldeath")
 		return "t6_wpn_zmb_perk_bottle_cherry_world";
 	if(perk == "specialty_additionalprimaryweapon")
 		return "t6_wpn_zmb_perk_bottle_mule_kick_world";
 	if(perk == "specialty_deadshot")
 		return "t6_wpn_zmb_perk_bottle_deadshot_world";
+
+	//  🛑 THIS FALLBACK IS THE ACTUAL FIX FOR "the bottle is invisible".
+	//  Falling off the end returned UNDEFINED, and self.bottle setModel(undefined)
+	//  kills the thread that owns the machine - which is why it always struck on
+	//  the last perk (the one perk left is by definition the odd one out) and why
+	//  the machine stayed broken afterwards.
+	//
+	//  The teddy bear is the right stand-in: main() already precaches it, it is
+	//  the model this machine legitimately shows on departure, and a mystery box
+	//  bear reads as intentional rather than as a hole.
+	return "zombie_teddybear";
 }
 
 wunderfizzSetup(origin, angles, model)
@@ -985,9 +1068,15 @@ zmqol_wf_spin_fx()
 	//  electrical crackle, so it gets a slower beat - each wave needs room to
 	//  travel before the next one starts, and at 0.1s they overlap into a solid
 	//  ball, which is the v1.30.0 failure in a new costume.
+	//  The beat has to match what the effect IS. Origins' arc is a short one-shot
+	//  and stock retriggers it at 0.1s. An EMP explosion at 0.1s would be the
+	//  v1.30.0 blinding blob, so set 0 gets a much slower one; the spark and wave
+	//  sets sit in between.
 	n_beat = 0.25;
 	if( level.script == "zm_tomb" )
 		n_beat = 0.1;
+	else if( isdefined( level.zmqol_wf_fx_set ) && level.zmqol_wf_fx_set == 0 )
+		n_beat = 0.6;
 
 	for( ;; )
 	{
