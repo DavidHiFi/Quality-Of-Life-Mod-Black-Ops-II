@@ -1932,11 +1932,33 @@ nofog_onplayerspawned()
 // ============================================================================
 //  noperklimit  (was noperklimit.gsc)
 // ============================================================================
+// 🛑 THIS USED TO HARDCODE 9, IN A FUNCTION CALLED remove_perk_limit().
+// Reported in game: spinning the Wunderfizz repeatedly could never yield the
+// last perk - it stopped at nine with "You Can Only Hold 9 Perks". The perk
+// that went missing (Stamin-Up, in the report) is simply whichever one was not
+// rolled first; it was never Stamin-Up-specific, and marathon IS enabled on
+// TranZit (see perks() below), so getPerks() was offering it correctly.
+//
+// The mod has grown past nine perks - wunderfizz::getPerks() can offer twelve
+// once Electric Cherry, Vulture Aid, PhD and Deadshot are added to a map - so a
+// literal 9 became a cap rather than the removal of one.
+//
+// Now derived from the same list the Wunderfizz actually offers, so adding a
+// perk later cannot silently reintroduce the cap. Both files are ROOT scripts
+// that load on every map, so this cross-file call is safe under AI_CONTEXT
+// rule 2 (only MAP-SPECIFIC references break other maps).
 remove_perk_limit()
 {
     level waittill( "start_of_round" );
     wait 0.05;
-    level.perk_purchase_limit = 9;
+
+    n_limit = 9;
+    a_perks = scripts\zm\wunderfizz::getPerks();
+
+    if ( isdefined( a_perks ) && a_perks.size > n_limit )
+        n_limit = a_perks.size;
+
+    level.perk_purchase_limit = n_limit;
 }
 
 perklimit_onplayerconnect()

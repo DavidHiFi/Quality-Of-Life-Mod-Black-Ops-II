@@ -646,6 +646,15 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 							if( isdefined( wunderfx ) ) TriggerFX(wunderfx);
 							// Spin the ball while it picks a perk - stock's "in_use".
 							self zmqol_wf_anim( "in_use" );
+							// ...and crackle while it spins. The SpawnFX/TriggerFX
+							// handle above is kept for compatibility but produced
+							// nothing visible ("the perk bottle just visually cycles
+							// without the electricity"), because SpawnFX holds a
+							// persistent fx entity - which only shows for a LOOPING
+							// effect, and every effect this mod can reach is
+							// one-shot. Retriggering on the tag is what actually
+							// draws. Ends itself on "done_cycling", notified below.
+							self thread zmqol_wf_spin_fx();
 							self thread perk_bottle_motion();
 							wait .1;
 							while(rtime>0)
@@ -847,6 +856,22 @@ zmqol_wf_ball_glow()
 //  strike, it lives in the global zombie bank rather than Origins', and its
 //  DistMaxDry is 4000 so it carries. Confirmed against BO2-Reimagined's alias
 //  CSV rather than guessed.
+//  Electricity WHILE the machine cycles a perk. Denser than the idle crackle
+//  because it is a 3-second burst rather than a permanent state, and it stops
+//  the moment the roll ends.
+zmqol_wf_spin_fx()
+{
+	self endon( "done_cycling" );
+	self endon( "zmqol_wf_ball_off" );
+	level endon( "end_game" );
+
+	for( ;; )
+	{
+		playfxontag( level._effect[ "wunderfizz_loop" ], self, "j_ball" );
+		wait 0.4;
+	}
+}
+
 zmqol_wf_lightning()
 {
 	self endon( "zmqol_wf_ball_off" );
@@ -957,8 +982,19 @@ wunderfizzSounds()
 	}
 	else
 	{
+		// 🛑 The loop is the one the user called "kinda off", and packa_ticktock
+		// is why: it is the Pack-a-Punch CLOCK TICK (evt\zombie_global\pap\loop),
+		// which reads as a countdown rather than a spinning orb.
+		// zmb_tombstone_looper is the POWERUP swirl
+		// (evt\zombie_global\powerup\loop\loop_00) - an energy loop, and still
+		// zombie_global so it is on every map.
+		//
+		// 🛑 Do NOT reach for zmb_zombieblood_loop, which sounds like the right
+		// idea: its source is zmb\level\zm_tomb\zombie_blood\loop, i.e. Origins'
+		// bank, and it would be silent everywhere else - the exact bug this
+		// whole branch exists to work around.
 		str_start = "zmb_perks_packa_upgrade";
-		str_loop  = "zmb_perks_packa_ticktock";
+		str_loop  = "zmb_tombstone_looper";
 		str_stop  = "zmb_perks_packa_ready";
 	}
 
