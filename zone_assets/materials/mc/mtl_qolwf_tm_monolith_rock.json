@@ -1,0 +1,320 @@
+{
+    "$schema": "http://openassettools.dev/schema/material.v1.json",
+    "_game": "t6",
+    "_type": "material",
+    "_version": 1,
+    "cameraRegion": "litOpaque",
+    "constants": [
+        {
+            "literal": [
+                0.4000000059604645,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Reflection_Amount"
+        },
+        {
+            "literal": [
+                3.0,
+                3.0,
+                0.0,
+                1.0
+            ],
+            "name": "Micro_1_Scale"
+        },
+        {
+            "literal": [
+                1.0199999809265137,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Macro_Height"
+        },
+        {
+            "literal": [
+                4.0,
+                4.0,
+                0.0,
+                1.0
+            ],
+            "name": "Micro_2_Scale"
+        },
+        {
+            "literal": [
+                0.3400000035762787,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "AO_Diffuse_Adj"
+        },
+        {
+            "literal": [
+                1.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Micro_1_Height"
+        },
+        {
+            "literal": [
+                2.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Micro_2_Height"
+        }
+    ],
+    "contents": 1,
+    "gameFlags": [
+        "10",
+        "CASTS_SHADOW"
+    ],
+    "layeredSurfaceTypes": 536870929,
+    "sortKey": 4,
+    "stateBits": [
+        {
+            "alphaTest": "disabled",
+            "blendOpAlpha": "disabled",
+            "blendOpRgb": "disabled",
+            "colorWriteAlpha": false,
+            "colorWriteRgb": false,
+            "cullFace": "back",
+            "depthTest": "less_equal",
+            "depthWrite": true,
+            "dstBlendAlpha": "zero",
+            "dstBlendRgb": "zero",
+            "polygonOffset": "offset0",
+            "polymodeLine": false,
+            "srcBlendAlpha": "one",
+            "srcBlendRgb": "one",
+            "stencilFront": {
+                "fail": "keep",
+                "func": "equal",
+                "pass": "keep",
+                "zfail": "keep"
+            }
+        },
+        {
+            "alphaTest": "disabled",
+            "blendOpAlpha": "disabled",
+            "blendOpRgb": "disabled",
+            "colorWriteAlpha": false,
+            "colorWriteRgb": false,
+            "cullFace": "back",
+            "depthTest": "less_equal",
+            "depthWrite": true,
+            "dstBlendAlpha": "zero",
+            "dstBlendRgb": "zero",
+            "polygonOffset": "offsetShadowmap",
+            "polymodeLine": false,
+            "srcBlendAlpha": "one",
+            "srcBlendRgb": "one"
+        },
+        {
+            "alphaTest": "disabled",
+            "blendOpAlpha": "disabled",
+            "blendOpRgb": "disabled",
+            "colorWriteAlpha": true,
+            "colorWriteRgb": true,
+            "cullFace": "back",
+            "depthTest": "less_equal",
+            "depthWrite": true,
+            "dstBlendAlpha": "zero",
+            "dstBlendRgb": "zero",
+            "polygonOffset": "offset0",
+            "polymodeLine": false,
+            "srcBlendAlpha": "one",
+            "srcBlendRgb": "one"
+        },
+        {
+            "alphaTest": "disabled",
+            "blendOpAlpha": "disabled",
+            "blendOpRgb": "disabled",
+            "colorWriteAlpha": false,
+            "colorWriteRgb": true,
+            "cullFace": "back",
+            "depthTest": "less_equal",
+            "depthWrite": false,
+            "dstBlendAlpha": "zero",
+            "dstBlendRgb": "zero",
+            "polygonOffset": "offset2",
+            "polymodeLine": true,
+            "srcBlendAlpha": "one",
+            "srcBlendRgb": "one"
+        },
+        {
+            "alphaTest": "disabled",
+            "blendOpAlpha": "disabled",
+            "blendOpRgb": "add",
+            "colorWriteAlpha": true,
+            "colorWriteRgb": true,
+            "cullFace": "back",
+            "depthTest": "less_equal",
+            "depthWrite": true,
+            "dstBlendAlpha": "zero",
+            "dstBlendRgb": "one",
+            "polygonOffset": "offset0",
+            "polymodeLine": false,
+            "srcBlendAlpha": "one",
+            "srcBlendRgb": "one"
+        }
+    ],
+    "stateBitsEntry": [
+        0,
+        1,
+        2,
+        -1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        3,
+        -1,
+        -1,
+        4
+    ],
+    "stateFlags": 121,
+    "surfaceFlags": 17825792,
+    "surfaceTypeBits": 65536,
+    "techniqueSet": "mc_sw4_3d_cod7_tile_blend_spec_8w40z341",
+    "textureAtlas": {
+        "columns": 1,
+        "rows": 1
+    },
+    "textures": [
+        {
+            "image": "qolwf_mono_rock_n",
+            "isMatureContent": false,
+            "name": "Macro_NormalMap",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "normalMap"
+        },
+        {
+            "image": "qolwf_rockpat_g",
+            "isMatureContent": false,
+            "name": "Micro1SpecularAndGloss",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "specularMap"
+        },
+        {
+            "image": "qolwf_mono_dark_g",
+            "isMatureContent": false,
+            "name": "Micro2SpecularAndGloss",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "specularMap"
+        },
+        {
+            "image": "qolwf_mono_dark_c",
+            "isMatureContent": false,
+            "name": "Micro_2_ColorMap",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "colorMap"
+        },
+        {
+            "image": "qolwf_rockpat_n",
+            "isMatureContent": false,
+            "name": "Micro_1_NormalMap",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "normalMap"
+        },
+        {
+            "image": "qolwf_mono_dark_n",
+            "isMatureContent": false,
+            "name": "Micro_2_NormalMap",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "normalMap"
+        },
+        {
+            "image": "qolwf_rockpat_c",
+            "isMatureContent": false,
+            "name": "Micro_1_ColorMap",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "colorMap"
+        },
+        {
+            "image": "qolwf_mono_rock_ao",
+            "isMatureContent": false,
+            "name": "Macro_AO_Mix_Map",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "colorMap"
+        }
+    ]
+}
+

@@ -41,19 +41,45 @@
 //  xanims, and the teddy-bear bottle. With them go the ball spin, the location
 //  beam and the electrical fx. The Wunderfizz still works exactly as before.
 //
-//  ⚠ If the real machine is ever wanted back, the ONLY clean route is shipping
-//  it under mod-private asset names (zmqol_vending_diesel_magic + renamed
-//  materials and images) so nothing collides. Do not simply re-add the xmodel.
+//  ✅ v1.23.0 - THE REAL MACHINE IS BACK, UNDER MOD-PRIVATE NAMES.
+//  The route the revert commit named as "the only clean one" turned out to be
+//  buildable after all. Nothing below is copied out of zm_tomb.ff at link time,
+//  so mod.ff owns no Origins asset and there is nothing left to collide:
 //
-//  Substitute: Juggernog's machine, which every map already owns - verified with
-//  Unlinker, and Mob of the Dead is the one that names it differently.
+//      xmodel    qolwf_vending_diesel_magic          (was p6_zm_vending_diesel_magic)
+//      material  mc/mtl_qolwf_tm_*, mc/mtl_qolwf_vending_diesel_magic*   (7)
+//      image     qolwf_*                                                 (23)
+//
+//  How it is built - see zone_assets\ and the notes in mod_locations.zone:
+//    - The Unlinker dumps the mesh as GLB (--model-format GLB). 🛑 It is GLB or
+//      nothing: the Linker CANNOT compile .xmodel_bin or .XMODEL_EXPORT - even an
+//      untouched dump of a stock model fails with "Failure while trying to load
+//      model for lod 0". Tested all four formats; only GLB loads.
+//    - Material names live as plain text in the GLB's JSON chunk, so they are
+//      renamed in place. 🛑 The replacements are deliberately the SAME BYTE
+//      LENGTH ("p6_zm_tm_"->"qolwf_tm_", "p6_zm_vending_"->"qolwf_vending_")
+//      because a glTF chunk carries its length in a header - change the size and
+//      the file is corrupt.
+//    - Materials dump as JSON and are re-pointed at the renamed images.
+//    - 🛑 The images are the part that cannot come from the game files. A .ff
+//      holds image HEADERS only, so Unlinker reports "Could not find data for
+//      image" for all 23 - the pixels live in the ipaks, which OAT cannot read.
+//      They come instead from the texture dumps already in this workspace
+//      ("BO2 Files Organized By Volkz", "All .DDS Files for Zombies"), converted
+//      PNG -> DDS -> IWI with OAT's ImageConverter --t6 and capped at 512px
+//      (no DXT compressor here, so they ship uncompressed; 512 keeps it ~15 MB).
+//      Shipping our own pixels also removes the old worry that the DLC4 textures
+//      might not be mounted off Origins - they no longer have to be.
+//
+//  Still gone, and NOT recoverable this way: the ball spin, the location beam
+//  and the electrical fx. Those need fx and xanims, and OpenAssetTools can
+//  neither dump nor compile an FxEffectDef - the only way to satisfy an fx is to
+//  --load the fastfile that owns it, which is what causes the collision in the
+//  first place. The machine is the real one; it just stands still.
 // ============================================================================
 zmqol_wf_machine_model()
 {
-    if ( level.script == "zm_prison" )
-        return "p6_zm_al_vending_jugg_on";
-
-    return "zombie_vending_jugg";
+    return "qolwf_vending_diesel_magic";
 }
 
 // ============================================================================

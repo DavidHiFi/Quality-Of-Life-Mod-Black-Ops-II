@@ -71,6 +71,41 @@ xmodel,zm_collision_transit_diner_survival
 //  an ipak the other maps mount, the machine will draw untextured/black off
 //  Origins even though it spawns correctly. Unverified; check it in game.
 // ============================================================================
+// ----------------------------------------------------------------------------
+//  ✅ v1.23.0 - THE REAL MACHINE, REBUILT UNDER MOD-PRIVATE NAMES.
+//
+//  v1.22.0 removed "xmodel,p6_zm_vending_diesel_magic" because declaring it made
+//  mod.ff OWN Origins' Pack-a-Punch monolith textures (108 colliding assets, a
+//  garbled Origins HUD and a dead generator indicator). That diagnosis stands -
+//  do NOT re-add the stock name. What follows is the rebuild it recommended.
+//
+//  This one line pulls in a whole chain that is built from source in
+//  zone_assets\ and shares no NAME with anything the game ships, so the
+//  collision cannot happen:
+//      xmodel    qolwf_vending_diesel_magic
+//        -> material mc/mtl_qolwf_vending_diesel_magic{,_acc,_ball,_logo}
+//                    mc/mtl_qolwf_tm_{crystal,monolith_rock,science_glass}
+//        -> image    qolwf_*   (23, from zone_assets\images\*.iwi)
+//  Nothing here is resolved out of zm_tomb.ff, so the --load of that file is now
+//  only needed by the Electric Cherry chain.
+//
+//  🛑 THE MESH MUST BE GLB. The Linker cannot compile .xmodel_bin or
+//  .XMODEL_EXPORT for T6 - an untouched dump of a stock model fails with
+//  "Failure while trying to load model for lod 0". Dump with
+//  "Unlinker --model-format GLB" and point the lods at the .glb.
+//
+//  🛑 The material renames inside the .glb are byte-length-preserving on purpose
+//  (p6_zm_tm_ -> qolwf_tm_, p6_zm_vending_ -> qolwf_vending_). A glTF chunk
+//  stores its own length, so a rename that changes the size corrupts the file.
+//
+//  🛑 And these images need REAL PIXELS, unlike every other image in this zone.
+//  A material declared here normally borrows the game's own .iwi at runtime; a
+//  mod-private image name matches nothing, so zone_assets\images\qolwf_*.iwi
+//  must exist (build.bat syncs them into images\ -> mod.iwd). They were rebuilt
+//  from the workspace texture dumps rather than the ipaks, which OAT cannot read.
+// ----------------------------------------------------------------------------
+xmodel,qolwf_vending_diesel_magic
+
 // REMOVED v1.22.0 (owned Origins' assets): xmodel,p6_zm_vending_diesel_magic
 // REMOVED v1.22.0 (owned Origins' assets): xmodel,t6_wpn_zmb_perk_bottle_bear_world
 // REMOVED v1.22.0 (owned Origins' assets): fx,maps/zombie_tomb/fx_tomb_dieselmagic_on
