@@ -410,8 +410,9 @@ init()
     precacheshader( "specialty_tombstone_zombies" );
     level thread vpa_onplayerconnect();
 
-    // --- debug: ".dm" chat command spawns a Death Machine in front of you ---
-    level thread debug_chat_listener();
+    // ".dm" used to be its own listener here. It is now one of the power-up chat
+    // commands in zmqol_dev_command_listener() - see zmqol_powerup_alias(). Two
+    // listeners both consuming "say" would have spawned two Death Machines.
 }
 
 // ============================================================================
@@ -1589,38 +1590,16 @@ clear_deathmachine_vars()
 }
 
 // ============================================================================
-//  DEBUG: ".dm" chat command (added 2026-07-26, not part of any merged module)
+//  DEBUG: ".dm" chat command (added 2026-07-26, generalised 2026-08-03)
 // ----------------------------------------------------------------------------
-//  Type ".dm" in chat to drop a Death Machine powerup 70 units in front of
-//  you, for testing. Uses the same stock drop call the game itself uses
-//  (maps\mp\zombies\_zm_powerups::specific_powerup_drop), and the same
-//  forward-offset math from this file's own commented-out powerup_test()
-//  debug function above. Chat-command pattern (level waittill("say", ...))
-//  matches the user's existing SGS scripts (afk.gsc, ErKik T6 Overhaul.gsc,
-//  etc.) rather than inventing a new convention.
+//  debug_chat_listener() lived here. It was a second "say" listener that only
+//  understood the literal ".dm" - no "!"/"/" prefix, no other power-up.
+//
+//  It is now folded into the single dispatcher: zmqol_dev_command_listener()
+//  routes ".dm" through zmqol_powerup_alias() -> zmqol_spawn_powerup(), which
+//  is the same code path every other power-up uses. The drop call and the
+//  70-unit forward offset are carried over unchanged.
 // ============================================================================
-debug_chat_listener()
-{
-    level endon( "end_game" );
-    for ( ;; )
-    {
-        level waittill( "say", message, player );
-        if ( !isdefined( message ) || !isdefined( player ) )
-            continue;
-        message = tolower( message );
-        if ( message == ".dm" )
-        {
-            if ( !isdefined( level.zombie_powerups ) || !isdefined( level.zombie_powerups[ "deathmachine" ] ) )
-            {
-                player iprintln( "^1Death Machine powerup isn't registered on this map." );
-                continue;
-            }
-            drop_origin = player.origin + vectorscale( anglestoforward( player.angles ), 70 );
-            level thread maps\mp\zombies\_zm_powerups::specific_powerup_drop( "deathmachine", drop_origin );
-            player iprintln( "^2Death Machine spawned." );
-        }
-    }
-}
 
 // ============================================================================
 //  high_round_fix  (was high_round_fix.gsc)
@@ -2410,14 +2389,19 @@ zmqol_dev_command_listener()
 
         message = tolower( message );
 
-        // Accept BOTH prefixes. The user asked for "!", but Plutonium appears to
-        // swallow a leading "!" as a console command - typing "!god" printed
+        // Accept ALL THREE prefixes. The user asked for "!", but Plutonium appears
+        // to swallow a leading "!" as a console command - typing "!god" printed
         // "unknown cmd" rather than reaching script - and the reference mod above
-        // uses ".". Supporting both means whichever survives to GSC works.
+        // uses ".". Supporting all of them means whichever survives to GSC works.
+        //
+        // "/" added 2026-08-03 at the user's request. Same caveat as "!": the
+        // client may treat a leading "/" in chat as a console command and never
+        // fire the "say" notify. "." is the one prefix proven to reach script, so
+        // that is what the help panel leads with.
         if ( message.size < 2 )
             continue;
 
-        if ( message[0] != "!" && message[0] != "." )
+        if ( message[0] != "!" && message[0] != "." && message[0] != "/" )
             continue;
 
         tokens = strtok( message, " " );
@@ -2575,6 +2559,33 @@ zmqol_dev_command_listener()
         else if ( cmd == "help" )
         {
             player thread zmqol_print_help();
+        }
+        else if ( cmd == "powerups" )
+        {
+            player thread zmqol_list_powerups();
+        }
+        else if ( cmd == "powerup" || cmd == "drop" )
+        {
+            // Bare ".powerup" lists what this map actually registered, which is
+            // the only reliable way to know - the set differs per map.
+            if ( tokens.size < 2 )
+            {
+                player thread zmqol_list_powerups();
+                continue;
+            }
+
+            player zmqol_spawn_powerup( tokens[1] );
+        }
+        else
+        {
+            // Fall-through: short forms (".nuke", ".maxammo", ".dm") resolve
+            // through the same lookup, so there is exactly one spawn path.
+            // Returns undefined for anything that is not a powerup, which is
+            // how an unrecognised command still does nothing.
+            str_powerup = zmqol_powerup_alias( cmd );
+
+            if ( isdefined( str_powerup ) )
+                player zmqol_spawn_powerup( str_powerup );
         }
     }
 }
@@ -2903,7 +2914,7 @@ zmqol_pack( b_upgrade )
 zmqol_help_lines()
 {
     a_lines = [];
-    a_lines[a_lines.size] = "^5Quality Of Life ^7- chat commands (prefix ^3.^7 or ^3!^7)";
+    a_lines[a_lines.size] = "^5Quality Of Life ^7- chat commands (prefix ^3.^7 ^7, ^3!^7 or ^3/^7)";
     a_lines[a_lines.size] = "^3.help^7                     show / hide this list";
     a_lines[a_lines.size] = "^3.p <n>^7                    give n points (default 1000)";
     a_lines[a_lines.size] = "^3.god^7                      toggle godmode";
@@ -2918,6 +2929,9 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.removeperks^7              remove every perk you have";
     a_lines[a_lines.size] = "^3.nozmspawns^7               toggle zombie spawning";
     a_lines[a_lines.size] = "^3.where^7                    print your coordinates";
+    a_lines[a_lines.size] = "^3.powerups^7                 list the power-ups on this map";
+    a_lines[a_lines.size] = "^3.powerup <name>^7 / ^3.drop^7   spawn one in front of you";
+    a_lines[a_lines.size] = "^3.dm ^7.nuke ^3.maxammo ^7.insta ^3.dp ^7.carp ^3.sale ^7...  short forms";
     return a_lines;
 }
 
@@ -2957,6 +2971,170 @@ zmqol_help_close()
     }
 
     self.zmqol_help_hud = undefined;
+}
+
+// ============================================================================
+//  .powerup / .drop  -  spawn any power-up registered on this map
+//  (added 2026-08-03, replaces the standalone ".dm" listener)
+// ----------------------------------------------------------------------------
+//  🛑 THE LIST IS NOT HARDCODED, ON PURPOSE.
+//
+//  maps\mp\zombies\_zm_powerups::add_zombie_powerup() early-returns when
+//  level.zombie_include_powerups is defined and does not contain the powerup
+//  (stock _zm_powerups.gsc:419-420). So level.zombie_powerups ends up holding
+//  exactly the set the current map included - no more, no less. Iterating it
+//  is therefore the only correct answer to "what can I spawn here", and it
+//  picks up:
+//    - the per-map ones a fixed list would miss ("zombie_blood" is Origins
+//      only, "blue_monkey"/"the_cure" are likewise map-specific),
+//    - this mod's own custom "deathmachine", with no special case.
+//
+//  Spawning goes through the stock specific_powerup_drop( name, origin )
+//  (stock _zm_powerups.gsc:545), which is what the game itself calls. That one
+//  call does powerup_setup + timeout + wobble + grab + move + emp. Spawning
+//  the model directly would give a prop that just sits there.
+//
+//  The 70-unit forward offset is carried over verbatim from the old ".dm"
+//  handler, which came from this file's own powerup_test() debug function.
+// ============================================================================
+zmqol_spawn_powerup( str_name )
+{
+    if ( !isdefined( str_name ) || str_name == "" )
+        return;
+
+    if ( !isdefined( level.zombie_powerups ) || !isdefined( level.zombie_powerups[ str_name ] ) )
+    {
+        self iprintln( "^1[zm_qol] ^7no power-up ^3" + str_name + "^7 on this map - try ^3.powerups" );
+        return;
+    }
+
+    v_drop = self.origin + vectorscale( anglestoforward( self.angles ), 70 );
+    level thread maps\mp\zombies\_zm_powerups::specific_powerup_drop( str_name, v_drop );
+    self iprintln( "^2[zm_qol] ^7dropped ^3" + str_name );
+}
+
+// ----------------------------------------------------------------------------
+//  Short forms. A bare command word is checked against the registered keys
+//  FIRST, so every real powerup name works as its own command (".nuke",
+//  ".carpenter", ".tesla", ".full_ammo") with nothing to maintain. The table
+//  below only exists for the names people actually type instead.
+//
+//  Returns undefined when the word is not a powerup - the listener relies on
+//  that to leave unknown commands alone.
+// ----------------------------------------------------------------------------
+zmqol_powerup_alias( str_cmd )
+{
+    if ( !isdefined( str_cmd ) || !isdefined( level.zombie_powerups ) )
+        return undefined;
+
+    if ( isdefined( level.zombie_powerups[ str_cmd ] ) )
+        return str_cmd;
+
+    str_canon = undefined;
+
+    switch ( str_cmd )
+    {
+        case "dm":
+        case "deathmachine":
+        case "minigun":          str_canon = "minigun";              break;
+        case "ammo":
+        case "maxammo":
+        case "fullammo":         str_canon = "full_ammo";            break;
+        case "ik":
+        case "insta":
+        case "instakill":        str_canon = "insta_kill";           break;
+        case "dp":
+        case "x2":
+        case "doublepoints":     str_canon = "double_points";        break;
+        case "sale":
+        case "firesale":         str_canon = "fire_sale";            break;
+        case "bonfire":          str_canon = "bonfire_sale";         break;
+        case "carp":             str_canon = "carpenter";            break;
+        case "perk":
+        case "freeperk":         str_canon = "free_perk";            break;
+        case "blood":
+        case "zombieblood":      str_canon = "zombie_blood";         break;
+        case "cure":             str_canon = "the_cure";             break;
+        case "monkey":
+        case "bluemonkey":       str_canon = "blue_monkey";          break;
+        case "gun":
+        case "randomgun":
+        case "randomweapon":     str_canon = "random_weapon";        break;
+        case "meat":
+        case "meatstink":        str_canon = "meat_stink";           break;
+        case "emptyclip":        str_canon = "empty_clip";           break;
+        case "loseperk":         str_canon = "lose_perk";            break;
+        case "losepoints":       str_canon = "lose_points_team";     break;
+        case "bonuspoints":      str_canon = "bonus_points_player";  break;
+        case "teampoints":       str_canon = "bonus_points_team";    break;
+        case "teller":
+        case "withdrawl":        str_canon = "teller_withdrawl";     break;
+        default:
+            return undefined;
+    }
+
+    // 🛑 "dm" is the interesting case. This mod's custom Death Machine registers
+    // as "deathmachine", but stock's own minigun powerup is "minigun" and some
+    // maps have that instead. Try the mod's name first, then fall back, so ".dm"
+    // does the obvious thing on every map rather than erroring where the custom
+    // powerup was never registered.
+    if ( str_cmd == "dm" || str_cmd == "deathmachine" )
+    {
+        if ( isdefined( level.zombie_powerups[ "deathmachine" ] ) )
+            return "deathmachine";
+    }
+
+    if ( isdefined( level.zombie_powerups[ str_canon ] ) )
+        return str_canon;
+
+    // Known short form, but this map did not register it. Return the canonical
+    // name anyway so zmqol_spawn_powerup() prints the "not on this map" hint
+    // instead of the command silently doing nothing.
+    return str_canon;
+}
+
+zmqol_list_powerups()
+{
+    self endon( "disconnect" );
+
+    if ( !isdefined( level.zombie_powerups ) )
+    {
+        self iprintln( "^1[zm_qol] ^7this map registers no power-ups" );
+        return;
+    }
+
+    a_keys = getarraykeys( level.zombie_powerups );
+
+    if ( !isdefined( a_keys ) || a_keys.size == 0 )
+    {
+        self iprintln( "^1[zm_qol] ^7this map registers no power-ups" );
+        return;
+    }
+
+    self iprintln( "^5[zm_qol] ^3.powerup <name>^7 - " + a_keys.size + " on this map:" );
+
+    // Batched three to a line, with a beat between writes. CLAUDE.md section 6:
+    // one iprintln per entry would push ~20 reliable commands in a frame and the
+    // feed expires lines on a timer anyway, so the top of the list scrolls off
+    // before the bottom arrives - the exact problem the .help panel was built to
+    // solve.
+    str_line = "";
+    n_per_line = 3;
+
+    for ( i = 0; i < a_keys.size; i++ )
+    {
+        if ( str_line != "" )
+            str_line = str_line + "^7, ";
+
+        str_line = str_line + "^3" + a_keys[i];
+
+        if ( ( i % n_per_line ) == ( n_per_line - 1 ) || i == ( a_keys.size - 1 ) )
+        {
+            self iprintln( str_line );
+            str_line = "";
+            wait 0.05;
+        }
+    }
 }
 
 // ============================================================================
