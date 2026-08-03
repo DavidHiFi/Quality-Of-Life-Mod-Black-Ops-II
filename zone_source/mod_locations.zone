@@ -288,3 +288,57 @@ fx,maps/zombie_alcatraz/fx_alcatraz_electric_cherry_player
 fx,maps/zombie_alcatraz/fx_alcatraz_electric_cherry_lg
 fx,maps/zombie/fx_zombie_tesla_shock
 fx,maps/zombie/fx_zombie_tesla_shock_secondary
+
+// ============================================================================
+//  VULTURE AID  -  the 11th perk, and the last one BO2 has
+//
+//  Buried's perk, made available on all six maps so the Wunderfizz can offer
+//  every perk in the game. The server half ships as raw GSC in mod.iwd
+//  (maps\mp\zombies\_zm_perk_vulture.gsc) exactly like PhD Flopper's, because
+//  Plutonium's Mods menu runs raw .gsc; only the CLIENT half has to be a real
+//  asset, and it comes out of zm_buried_patch.ff.
+//
+//  🛑 EVERY LINE BELOW IS MANDATORY. vulture_precache() precachemodel()s four
+//  models and loadfx()es fifteen effects, and precaching an absent model is
+//  FATAL AT LOAD - not a warning. There is no partial version of this perk:
+//  drop one asset and every map dies on startup rather than just looking wrong.
+//
+//  🛑 mod.ff now OWNS these, so BURIED loads the mod's copies of its own perk's
+//  assets. That is the asset-ownership trap from checkpoint 15, entered
+//  deliberately this time: the fx CANNOT be renamed away from it (OAT can
+//  neither dump nor compile an FxEffectDef, which is the same wall the
+//  Wunderfizz effects are stuck behind), so shipping Vulture Aid anywhere else
+//  means owning Buried's copies. They are byte-copies of Buried's own, taken
+//  from its fastfile at link time, so Buried should see no difference - but
+//  "should" is doing work there. AUDIT AFTER LINKING and check Buried
+//  specifically. Same standing risk already carried for Electric Cherry vs Mob
+//  of the Dead since v1.14.
+// ============================================================================
+script,clientscripts/mp/zombies/_zm_perk_vulture.csc
+
+xmodel,p6_zm_vending_vultureaid
+xmodel,p6_zm_vending_vultureaid_on
+xmodel,p6_zm_perk_vulture_ammo
+xmodel,p6_zm_perk_vulture_points
+xmodel,t6_wpn_zmb_perk_bottle_vulture_view
+xmodel,t6_wpn_zmb_perk_bottle_vulture_world
+weapon,zombie_perk_bottle_vulture
+material,specialty_vulture_zombies
+material,generic_filter_zombie_perk_vulture
+
+fx,maps/zombie/fx_zm_vulture_perk_stink
+fx,maps/zombie/fx_zm_vulture_perk_stink_trail
+fx,maps/zombie/fx_zm_vulture_wallbuy_rifle
+fx,maps/zombie/fx_zm_vulture_glow_question
+fx,maps/zombie/fx_zm_vulture_glow_dbltap
+fx,maps/zombie/fx_zm_vulture_glow_jugg
+fx,maps/zombie/fx_zm_vulture_glow_revive
+fx,maps/zombie/fx_zm_vulture_glow_speed
+fx,maps/zombie/fx_zm_vulture_glow_pap
+fx,maps/zombie/fx_zm_vulture_glow_mule
+fx,maps/zombie/fx_zm_vulture_glow_marathon
+fx,maps/zombie/fx_zm_vulture_glow_vulture
+fx,maps/zombie/fx_zm_vulture_glow_mystery_box
+fx,maps/zombie/fx_zm_vulture_glow_powerup
+fx,misc/fx_zombie_powerup_vulture
+fx,misc/fx_zombie_eye_vulture

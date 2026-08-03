@@ -55,6 +55,10 @@
 #include maps\mp\zombies\_zm_melee_weapon;
 #include maps\mp\zombies\_zm_net;
 #include maps\mp\zombies\_zm_perk_divetonuke;
+//  Buried's, but shipped as raw GSC in mod.iwd at maps\mp\zombies\_zm_perk_vulture.gsc
+//  so this resolves on every map. Same arrangement as _zm_perk_divetonuke above -
+//  see AI_CONTEXT rule 2 on why a map-only path here would crash the other five.
+#include maps\mp\zombies\_zm_perk_vulture;
 #include maps\mp\zombies\_zm_perks;
 #include maps\mp\zombies\_zm_pers_upgrades;
 #include maps\mp\zombies\_zm_pers_upgrades_functions;
@@ -3691,6 +3695,72 @@ perks()
     }
 
     zmqol_enable_electric_cherry();
+    zmqol_enable_vulture();
+}
+
+// ============================================================================
+//  zmqol_enable_vulture  -  the 11th and LAST perk
+//
+//  Vulture Aid is Buried's, and with it the Wunderfizz can offer every perk
+//  Black Ops II Zombies has. Enabled on the five maps that never shipped it;
+//  Buried is excluded because it enables the perk itself, and re-running the
+//  registration there would fight its own.
+//
+//  Everything about this mirrors zmqol_enable_electric_cherry() above, on
+//  purpose - it is the same problem shape and the same three traps:
+//
+//  1. 🛑 TEST FOR THE BEHAVIOUR, NOT THE STRUCT. _register_undefined_perk()
+//     creates level._custom_perks["specialty_nomotionsensor"] as a bare empty
+//     struct the moment anything so much as names the perk, and wunderfizz.gsc's
+//     getPerks() names it on every map. Guarding on the struct existing would
+//     therefore skip the real registration and leave the perk cosmetic - the
+//     exact half-dead state Electric Cherry was in. player_thread_give is the
+//     thing register_perk_threads() actually sets, so that is what is checked.
+//
+//  2. 🛑 init_vulture() MUST RUN EXACTLY ONCE. It calls registerclientfield
+//     eight times and a second call is fatal ("already registered"). Stock only
+//     ever reaches it through vulture_perk_machine_think(), which _zm_perks::init()
+//     threads - so it is called here, once, behind its own flag, and the
+//     perk_machine_thread pointer is then cleared so init() cannot call it again.
+//     Clearing that costs nothing: the machine loop only drives a physical
+//     Vulture Aid machine, and on these five maps there is none - the Wunderfizz
+//     is what hands the perk out.
+//
+//  3. 🛑 THE CLIENT MUST REGISTER THE IDENTICAL SET. Eight clientfields on the
+//     server and a different eight on the client is EXE_CLIENT_FIELD_MISMATCH
+//     for everyone before the map starts. zm_expanded.csc::zmqol_enable_vulture()
+//     is the other half and is deliberately written to the same shape, with the
+//     same map list, so the two cannot drift.
+//
+//  Called from perks(), which runs in main() - clientfields have to be
+//  registered before the first snapshot, so this cannot move to init().
+//
+//  🛑 NOT verified in game yet. Requires build_ff.bat.
+// ============================================================================
+zmqol_enable_vulture()
+{
+    map = getDvar( "mapname" );
+
+    if ( map == "zm_buried" )
+        return;
+
+    if ( !isdefined( level._custom_perks ) )
+        level._custom_perks = [];
+
+    if ( isdefined( level._custom_perks[ "specialty_nomotionsensor" ] ) &&
+         isdefined( level._custom_perks[ "specialty_nomotionsensor" ].player_thread_give ) )
+        return;
+
+    maps\mp\zombies\_zm_perk_vulture::enable_vulture_perk_for_level();
+
+    if ( !isdefined( level.zmqol_vulture_inited ) )
+    {
+        level.zmqol_vulture_inited = 1;
+        maps\mp\zombies\_zm_perk_vulture::init_vulture();
+    }
+
+    if ( isdefined( level._custom_perks[ "specialty_nomotionsensor" ] ) )
+        level._custom_perks[ "specialty_nomotionsensor" ].perk_machine_thread = undefined;
 }
 
 // ============================================================================

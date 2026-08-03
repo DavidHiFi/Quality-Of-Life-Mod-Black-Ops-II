@@ -125,6 +125,12 @@ REM --- link -------------------------------------------------------------------
 echo   Linking mod.ff ...
 if exist "%PROJ%\zone_out" rmdir /s /q "%PROJ%\zone_out"
 
+REM  zm_buried + zm_buried_patch are loaded for VULTURE AID, the same way and for
+REM  the same reasons: the vending machines, bottle weapon, ammo/points pickups,
+REM  HUD shader, vision filter and all fifteen fx are in zm_buried.ff, and the
+REM  client half of its script is in zm_buried_patch.ff. Its SERVER half is not
+REM  needed here - that ships as raw GSC in mod.iwd, like PhD Flopper's.
+REM
 REM  zm_prison + zm_prison_patch are loaded for ELECTRIC CHERRY: the perk's
 REM  models, fx, bottle weapon, HUD material and vision file are in zm_prison.ff,
 REM  and BOTH halves of its script - maps\mp\zombies\_zm_perk_electric_cherry.gsc
@@ -144,6 +150,8 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\zm_tomb.ff" ^
   --load "%BO2_DIR%\zone\all\zm_prison.ff" ^
   --load "%BO2_DIR%\zone\all\zm_prison_patch.ff" ^
+  --load "%BO2_DIR%\zone\all\zm_buried.ff" ^
+  --load "%BO2_DIR%\zone\all\zm_buried_patch.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^

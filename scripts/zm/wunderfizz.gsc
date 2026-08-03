@@ -113,19 +113,26 @@ main()
     //  precaches only its own perks' bottles, so without these the cycling
     //  bottle is a model the level never registered.
     //
-    //  ?? Exactly these six and no more. They are the perk-bottle world models
+    //  ?? Exactly these SEVEN and no more. They are the perk-bottle world models
     //  `Unlinker --list mod.ff` reports mod.ff itself carrying, so they resolve
     //  on every map because mod.ff loads on every map. Precaching a model the
     //  level does not have is fatal at load, so nothing goes in this list that
-    //  has not been confirmed present in mod.ff - in particular NOT vulture or
-    //  whoswho, which exist only in Buried / Die Rise / Mob of the Dead and are
-    //  reachable only when those maps register the perk themselves.
+    //  has not been confirmed present in mod.ff - in particular still NOT
+    //  whoswho, which exists only in Die Rise / Mob of the Dead and is reachable
+    //  only when those maps register the perk themselves.
+    //
+    //  v1.40.0: vulture JOINS the list. It used to be excluded alongside whoswho
+    //  for exactly the right reason - it was Buried-only. It is not any more:
+    //  mod_locations.zone now declares the whole Vulture Aid asset set, so
+    //  mod.ff carries the bottle on every map. Re-confirmed with Unlinker --list
+    //  rather than assumed from the fact that the zone line was added.
     precachemodel( "t6_wpn_zmb_perk_bottle_cherry_world" );
     precachemodel( "t6_wpn_zmb_perk_bottle_deadshot_world" );
     precachemodel( "t6_wpn_zmb_perk_bottle_doubletap_world" );
     precachemodel( "t6_wpn_zmb_perk_bottle_marathon_world" );
     precachemodel( "t6_wpn_zmb_perk_bottle_mule_kick_world" );
     precachemodel( "t6_wpn_zmb_perk_bottle_nuke_world" );
+    precachemodel( "t6_wpn_zmb_perk_bottle_vulture_world" );
 
     //  ?? THIS CALL IS NOT OPTIONAL. Declaring the .atr in the zone only makes
     //  the ASSET exist; without registering it here every map dies on load with

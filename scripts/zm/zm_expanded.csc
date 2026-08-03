@@ -3,6 +3,9 @@
 #include clientscripts\mp\zombies\_zm_utility;
 #include clientscripts\mp\zombies\_zm_perks;
 #include clientscripts\mp\zombies\_zm_perk_divetonuke;
+//  Buried's; mod.ff carries it now (zone_source\mod_locations.zone) so it
+//  resolves on every map, same as _zm_perk_electric_cherry.csc.
+#include clientscripts\mp\zombies\_zm_perk_vulture;
 #include clientscripts\mp\_visionset_mgr;
 #include clientscripts\mp\_ambientpackage;
 #include clientscripts\mp\_music;
@@ -281,6 +284,41 @@ perks()
 	}
 
 	zmqol_enable_electric_cherry();
+	zmqol_enable_vulture();
+}
+
+// ============================================================================
+//  zmqol_enable_vulture  (CLIENT)
+//
+//  The mandatory other half of zmqol_enable_vulture() in
+//  scripts\zm\ridgelandproject.gsc - read the full reasoning there.
+//
+//  The server registers eight clientfields for Vulture Aid on these five maps so
+//  the Wunderfizz can hand out the 11th perk. If the client does not register the
+//  identical eight, the sets disagree and everyone is dropped with
+//  EXE_CLIENT_FIELD_MISMATCH before the map even starts.
+//
+//  The map list and the guard are deliberately the same shape as the server's so
+//  the two cannot drift apart. Buried is excluded on both sides because it
+//  enables the perk itself.
+//
+//  clientscripts\mp\zombies\_zm_perk_vulture.csc is not present on these maps in
+//  stock - it ships in zm_buried_patch.ff - so mod.ff carries it now, declared in
+//  zone_source\mod_locations.zone.
+//
+//  🛑 NOT verified in game yet. Requires build_ff.bat.
+// ============================================================================
+zmqol_enable_vulture()
+{
+	map = getDvar( "mapname" );
+
+	if ( map == "zm_buried" )
+		return;
+
+	if ( isDefined( level._custom_perks ) && isDefined( level._custom_perks[ "specialty_nomotionsensor" ] ) )
+		return;
+
+	clientscripts\mp\zombies\_zm_perk_vulture::enable_vulture_perk_for_level();
 }
 
 // ============================================================================
