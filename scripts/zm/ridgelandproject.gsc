@@ -721,16 +721,26 @@ get_pack_a_punch_weapon_options( weapon )
     smiley_face_reticle_index = 1;
     base = get_base_name( weapon );
     camo_index = 39;
+
+    //  anim_pap_camo_buried / _mob / _origins, all defaulting to 1 so the
+    //  behaviour is unchanged unless someone turns one off at the console.
+    //  Camo 40 is the animated one, 39 the static default.
     if ( level.script == "zm_buried" )
     {
         if ( base == "slowgun_zm" || base == "slowgun_upgraded_zm" || ( base == "rnma_zm" || base == "rnma_upgraded_zm" ) )
             camo_index = 39;
-        else
+        else if ( getdvarintdefault( "anim_pap_camo_buried", 1 ) )
             camo_index = 40;
     }
-    else if ( level.script == "zm_prison" || level.script == "zm_tomb" )
+    else if ( level.script == "zm_prison" )
     {
-        camo_index = 40;
+        if ( getdvarintdefault( "anim_pap_camo_mob", 1 ) )
+            camo_index = 40;
+    }
+    else if ( level.script == "zm_tomb" )
+    {
+        if ( getdvarintdefault( "anim_pap_camo_origins", 1 ) )
+            camo_index = 40;
     }
     lens_index = randomintrange( 0, 6 );
     reticle_index = randomintrange( 0, 16 );
@@ -833,8 +843,34 @@ first_spawn()
     healthbar_mas setpoint( "LEFT", "BOTTOM_LEFT", 12, 17 );
     healthbar_mas settext( "+" );
     healthbar_mas.hidewheninmenu = 1;
+
+    //  All five health elements, for qol_options' hud_health_bar and
+    //  hud_color_health. The loop below owns their alpha while the player is in
+    //  afterlife, so the watcher only ever writes alpha when this loop is not.
+    self.qol_hud_health = [];
+    self.qol_hud_health[0] = healthvalue;
+    self.qol_hud_health[1] = healthbar_bg;
+    self.qol_hud_health[2] = healthbar;
+    self.qol_hud_health[3] = playername;
+    self.qol_hud_health[4] = healthbar_mas;
+
     while ( true )
     {
+        //  🛑 hud_health_bar / hud_all have to be checked HERE, not only in
+        //  qol_options' watcher. The block a few lines down restores alpha to 1
+        //  the moment it sees any element at 0, so a console toggle would be
+        //  undone within a frame - the watcher would switch the bar off and this
+        //  loop would switch it straight back on, every 0.05s.
+        if ( !( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_health_bar", 1 ) ) )
+        {
+            healthbar.alpha = 0;
+            healthvalue.alpha = 0;
+            playername.alpha = 0;
+            healthbar_bg.alpha = 0;
+            healthbar_mas.alpha = 0;
+            wait 0.25;
+            continue;
+        }
         if ( isdefined( self.e_afterlife_corpse ) )
         {
             healthbar.alpha = 0;
@@ -857,6 +893,15 @@ first_spawn()
             healthbar setshader( "progress_bar_fill", int( 100 * ( self.health / self.maxhealth ) ), 3 );
         if ( isdefined( self.health ) )
             healthvalue settext( self.health + ( "^8 / " + self.maxhealth ) );
+        //  The health-tier colouring below repaints every 0.1s, so it would
+        //  overwrite hud_color_health as fast as it was applied. Setting that
+        //  dvar to anything other than the default is taken as "I want to pick
+        //  the colour", and the tier colouring stands aside.
+        if ( getdvar( "hud_color_health" ) != "1 1 1" && getdvar( "hud_color_health" ) != "" )
+        {
+            wait 0.1;
+            continue;
+        }
         if ( self.health >= 71 && self.health <= self.maxhealth )
         {
             healthvalue.color = ( 0, 1, 0.5 );
@@ -901,6 +946,12 @@ timer()
     flag_wait( "initial_blackscreen_passed" );
     timer.alpha = 1;
     timer settimerup( 0 );
+
+    //  Stashed for qol_options::qol_opt_hud_watcher, which is what hud_timer /
+    //  hud_all / hud_color act on. Keeping the element here and only toggling
+    //  it from there is deliberate: it means the console options drive the HUD
+    //  the user already has rather than drawing a second one over the top.
+    self.qol_hud_timer = timer;
 }
 
 zombiecounter()
@@ -2934,6 +2985,9 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
     a_lines[a_lines.size] = "^3.giveperks ^7/ ^3.removeperks ^7   ^3.nozmspawns ^7toggle spawns";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
+    a_lines[a_lines.size] = "^5console: ^3rapid_fire night_mode character coop_pause no_power";
+    a_lines[a_lines.size] = "^5console: ^3hud_all hud_timer hud_health_bar hud_remaining hud_zone";
+    a_lines[a_lines.size] = "^5console: ^3hud_round_timer hud_color ^7\"1 1 1\"  ^3hud_color_health";
 
     // 🛑 The tail of this panel is GENERATED, not typed - user: "make sure that
     // the .help command always is updated to show all the custom added chat
