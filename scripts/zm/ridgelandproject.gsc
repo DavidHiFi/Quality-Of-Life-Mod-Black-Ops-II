@@ -2931,7 +2931,46 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.where^7                    print your coordinates";
     a_lines[a_lines.size] = "^3.powerups^7                 list the power-ups on this map";
     a_lines[a_lines.size] = "^3.powerup <name>^7 / ^3.drop^7   spawn one in front of you";
+    a_lines[a_lines.size] = "^3.dm^7 / ^3.deathmachine^7          drop a Death Machine";
     a_lines[a_lines.size] = "^3.dm ^7.nuke ^3.maxammo ^7.insta ^3.dp ^7.carp ^3.sale ^7...  short forms";
+
+    // 🛑 The tail of this panel is GENERATED, not typed - user: "make sure that
+    // the .help command always is updated to show all the custom added chat
+    // commands that are in my mod". A hand-written list is a second copy of the
+    // truth and drifts the moment a command is added; every power-up is its own
+    // command, so the hand-written version could never have been complete.
+    //
+    // level.zombie_powerups is the same runtime source .powerup itself resolves
+    // against, and stock only populates it with power-ups the map actually
+    // included (_zm_powerups.gsc:419 early-returns otherwise). So this prints
+    // exactly the set that will work HERE - Origins shows zombie_blood, Buried
+    // does not - and a power-up added later shows up with no edit to this
+    // function.
+    if ( isdefined( level.zombie_powerups ) )
+    {
+        a_keys = getarraykeys( level.zombie_powerups );
+
+        if ( isdefined( a_keys ) && a_keys.size > 0 )
+        {
+            a_lines[a_lines.size] = "^5every power-up below is also its own command ^7(" + a_keys.size + " here):";
+
+            str_line = "";
+            for ( i = 0; i < a_keys.size; i++ )
+            {
+                if ( str_line != "" )
+                    str_line = str_line + "^7, ";
+
+                str_line = str_line + "^3." + a_keys[i];
+
+                if ( ( i % 4 ) == 3 || i == a_keys.size - 1 )
+                {
+                    a_lines[a_lines.size] = "  " + str_line;
+                    str_line = "";
+                }
+            }
+        }
+    }
+
     return a_lines;
 }
 
@@ -3620,12 +3659,51 @@ zmqol_enable_electric_cherry()
     if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" && map != "zm_buried" )
         return;
 
-    // Already registered by something else this frame - do not double up.
-    if ( isdefined( level._custom_perks ) && isdefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) )
+    // 🛑 THIS GUARD IS WHY THE PERK WENT HALF-DEAD - user: "with electric cherry
+    // I see the visual effects but the sound effects are missing, also the
+    // zombies aren't being effected by it".
+    //
+    // It used to bail whenever level._custom_perks["specialty_grenadepulldeath"]
+    // merely EXISTED. But that entry is created by _register_undefined_perk() as
+    // a bare empty struct - any code that so much as names the perk brings it
+    // into being, with none of its behaviour attached. When that happened first,
+    // this returned and enable_electric_cherry_perk_for_level() never ran, so
+    // register_perk_threads() never set player_thread_give.
+    //
+    // The consequence is exactly the reported symptom set, because the perk
+    // splits cleanly in two. Everything the user still SEES - the bottle, the
+    // icon, the machine, the reload visuals - is clientfield-driven and comes
+    // from elsewhere. Everything they LOST lives inside
+    // electric_cherry_reload_attack(): the zmb_cherry_explode sound, the stun,
+    // the tesla shock fx and the dodamage() call. That one thread is started
+    // only by give_perk() doing [[ player_thread_give ]] (_zm_perks.gsc:2042,
+    // and our own override at give_perk() below keeps that line) - so with the
+    // pointer unset, the perk is cosmetic.
+    //
+    // So the test is now for the BEHAVIOUR being registered, not for the struct
+    // existing. Re-running enable_electric_cherry_perk_for_level() is safe:
+    // every register_* it calls is written `if ( !isdefined( ... ) )` and will
+    // not overwrite a real registration.
+    if ( !isdefined( level._custom_perks ) )
+        level._custom_perks = [];
+
+    if ( isdefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) &&
+         isdefined( level._custom_perks[ "specialty_grenadepulldeath" ].player_thread_give ) )
         return;
 
     maps\mp\zombies\_zm_perk_electric_cherry::enable_electric_cherry_perk_for_level();
-    maps\mp\zombies\_zm_perk_electric_cherry::init_electric_cherry();
+
+    // 🛑 init_electric_cherry() must still run exactly ONCE - its
+    // registerclientfield( "electric_cherry_reload_fx" ) is fatal on a second
+    // call ("Attempt to register ClientField ... already registered"), which is
+    // the crash the block above this function documents. Guard it on its own
+    // flag rather than on the perk struct, so it stays once-only even though the
+    // enable above may now run when it previously did not.
+    if ( !isdefined( level.zmqol_ec_inited ) )
+    {
+        level.zmqol_ec_inited = 1;
+        maps\mp\zombies\_zm_perk_electric_cherry::init_electric_cherry();
+    }
 
     // Stop _zm_perks::init() from threading electric_cherry_perk_machine_think(),
     // whose first line calls init_electric_cherry() a second time. See above.

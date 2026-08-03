@@ -239,11 +239,37 @@ setupWunderfizz()
 	}
 	else
 	{
-		level._effect[ "wunderfizz_loop" ]       = loadfx( "env/electrical/fx_elec_sparking_oneshot" );
-		level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie/fx_zombie_packapunch" );
-		level._effect[ "perk_machine_location" ] = loadfx( "system_elements/fx_elec_spark_emit" );
-		level._effect[ "perk_machine_steam" ]    = loadfx( "env/electrical/fx_elec_wire_spark_burst" );
+		//  🛑 v1.34.0's PICKS WERE PRESENT AND STILL INVISIBLE - a second, separate
+		//  failure from v1.30's. Availability was fixed; VISIBILITY was not.
+		//
+		//  The proof they ran: zmqol_wf_lightning() plays the location fx and then
+		//  playsound("zmb_hellhound_bolt") on the very next line. The user heard
+		//  the zap - "the zapping sound effects seem to be normal but there's none
+		//  of the electric fx to match" - so playfx executed with a valid index and
+		//  simply drew nothing anyone could see. fx_elec_spark_emit and
+		//  fx_elec_sparking_oneshot are utility effects for sparking wires and
+		//  broken fuseboxes: a handful of pixel-sized sparks, authored to be
+		//  noticed at arm's length against a dark wall, not across a barn.
+		//
+		//  So this drops the "electrical/" family entirely and takes the biggest,
+		//  brightest energy effects that exist on all six maps. The power-up set is
+		//  the right scale by construction - it is authored to make a floating orb
+		//  read as magical from across the map, which is exactly this machine's
+		//  job - and the EMP burst is the only large blue ELECTRIC discharge in the
+		//  global set, so it carries the zap the user can already hear.
+		level._effect[ "wunderfizz_loop" ]       = loadfx( "misc/fx_zombie_powerup_wave" );
+		level._effect[ "perk_machine_light" ]    = loadfx( "misc/fx_zombie_powerup_on" );
+		level._effect[ "perk_machine_location" ] = loadfx( "weapon/emp/fx_emp_explosion_equip" );
+		level._effect[ "perk_machine_steam" ]    = loadfx( "misc/fx_zombie_powerup_grab" );
 	}
+
+	//  The location fx fires at the orb's height off Origins (an EMP burst
+	//  centred on the floor would be half-buried in it), but Origins' own
+	//  identify beam is authored to rise FROM the base, so it keeps self.origin.
+	if( level.script == "zm_tomb" )
+		level.zmqol_wf_marker_z = 0;
+	else
+		level.zmqol_wf_marker_z = 72;
 
 	if(level.script == "zm_tomb")
     {
@@ -664,6 +690,20 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 		{
 			// Arrive: spin up, then settle into the powered idle, and light the
 			// ball + the marker that says "the orb is HERE".
+			//
+			// 🛑 The bottle is force-hidden on arrival. The user hit "just before
+			// I got all the perks the bottle in the machine itself disappeared,
+			// so now there's no bottle there" - and the screenshot shows the
+			// TEDDY BEAR left sitting in the case, not an empty one. That is the
+			// departure model (set at the top of the departure branch below)
+			// still in place, so the thread died somewhere between setting the
+			// bear and clearing it 10 lines later. Rather than guess which of
+			// those lines threw, make arrival authoritative: whatever the bottle
+			// was left as, it is hidden again the moment a machine goes live, so
+			// the state cannot outlive one cycle.
+			if( isdefined( self.bottle ) )
+				self.bottle setModel( "tag_origin" );
+
 			self zmqol_wf_anim( "start" );
 			wait 1;
 			self zmqol_wf_anim( "idle" );
@@ -939,11 +979,20 @@ zmqol_wf_spin_fx()
 	//  fx_activation_electric_loop() retriggers fx_tomb_dieselmagic_on every
 	//  0.1s for as long as the bottle is cycling. Both effects this resolves to
 	//  are one-shot, so retriggering is the correct - and only - way to keep
-	//  them continuously visible. 0.4s left visible gaps between sparks.
+	//  them continuously visible.
+	//
+	//  Off Origins the effect is an expanding power-up wave rather than a tight
+	//  electrical crackle, so it gets a slower beat - each wave needs room to
+	//  travel before the next one starts, and at 0.1s they overlap into a solid
+	//  ball, which is the v1.30.0 failure in a new costume.
+	n_beat = 0.25;
+	if( level.script == "zm_tomb" )
+		n_beat = 0.1;
+
 	for( ;; )
 	{
 		playfxontag( level._effect[ "wunderfizz_loop" ], self, "j_ball" );
-		wait 0.1;
+		wait n_beat;
 	}
 }
 
@@ -969,7 +1018,7 @@ zmqol_wf_lightning()
 		if( self.location != level.currentWunderfizzLocation )
 			continue;
 
-		playfx( level._effect[ "perk_machine_location" ], self.origin );
+		playfx( level._effect[ "perk_machine_location" ], self.origin + ( 0, 0, level.zmqol_wf_marker_z ) );
 
 		//  No sound on Origins: the real machine's marker is silent, and the
 		//  vortex loop is already carrying the audio.
@@ -1016,6 +1065,15 @@ zmqol_wf_departure_steam()
 
 chooseLocation(currLoc)
 {
+	//  🛑 With one location this used to spin forever - it draws until it gets a
+	//  number different from the current one, and there is no such number. The
+	//  caller guards on wunderfizz_locations > 1 today, so this is belt and
+	//  braces, but a machine stuck in here never finishes departing and the orb
+	//  never reappears anywhere, which is indistinguishable from the mod being
+	//  broken. Cheap to make impossible.
+	if( level.wunderfizz_locations < 2 )
+		return currLoc;
+
 	for(;;)
 	{
 		loc = RandomIntRange(1, level.wunderfizz_locations + 1);
