@@ -546,8 +546,35 @@ zmqol_wf_place()
 //  contain the current match string. Every fallback position is therefore a real
 //  shipped machine placement, and no coordinate is invented here.
 //
-//  On Town that leaves the two znml_perks_town spots by the bar; the nearer one
-//  wins, so the machine stays in the part of the arena it was meant to be in.
+//  🛑 v1.39.1 - "UNUSED" IS NOT ENOUGH. IT MUST BE AUTHORED FOR THIS LOCATION.
+//  v1.39.0 accepted any unused struct within 2500 units of a gametype spawn, and
+//  on Town it put the machine UNDER THE MAP - in the death barrier:
+//
+//      [zm_qol] wunderfizz: candidate 1 overlaps a perk machine - moved 752
+//                           units to a free one
+//
+//  752 units lands on (2405.1, -155, -305.5): classic TranZit's Pack-a-Punch, in
+//  the sealed bunker 393 units BELOW the Town street. It passed every test. It is
+//  a genuine authored machine spot, it is not used by zstandard_perks_town, and
+//  it is ~1078 units from a Town spawn - comfortably inside the threshold.
+//
+//  Because distance-to-spawn is a STRAIGHT LINE IN 3D and knows nothing about
+//  floors. A sealed room directly underneath the arena is metres away by that
+//  measure and unreachable in fact. Do not try to patch this with a Z tolerance:
+//  the arenas are not flat, Die Rise is stacked vertically, and the number would
+//  be a guess.
+//
+//  The structural fix is to stop asking "is it near?" and ask "was it authored
+//  for THIS LOCATION?". A script_string token is <gametype>_perks_<location>, so
+//  a token ending in "_perks_town" belongs to the Town arena whoever spawns it.
+//  Treyarch placed it inside the same playable space; no distance heuristic is
+//  needed and none is trusted. Town's alternates are now exactly the two
+//  znml_perks_town spots by the bar - both beside the live Double Tap, both
+//  demonstrably in the arena - and the classic-TranZit spots that caused this
+//  (script_string "zclassic_perks_transit", location "transit") are excluded by
+//  construction, along with every Farm, Diner and Cornfield spot.
+//
+//  The spawn-distance check is kept as a second gate, not the first one.
 //
 //  The match-string construction is stock's, copied from _zm_perks.gsc:2835-2847
 //  (scr_zm_ui_gametype + "_perks_" + location, location falling back to
@@ -574,34 +601,45 @@ zmqol_wf_clear_of_perk_machines( a_place )
 	if( !isdefined( str_loc ) )
 		return a_place;
 
-	str_match = level.scr_zm_ui_gametype + "_perks_" + str_loc;
+	str_match  = level.scr_zm_ui_gametype + "_perks_" + str_loc;
+	str_suffix = "_perks_" + str_loc;
 
 	a_taken = [];   // machines this gametype+location really spawns
-	a_free  = [];   // authored spots it leaves empty
+	a_free  = [];   // spots authored for THIS LOCATION that it leaves empty
 
 	for( i = 0; i < a_structs.size; i++ )
 	{
 		if( !isdefined( a_structs[i].origin ) )
 			continue;
 
-		b_used = 0;
-
-		if( isdefined( a_structs[i].script_string ) )
+		if( !isdefined( a_structs[i].script_string ) )
 		{
-			a_tok = strtok( a_structs[i].script_string, " " );
+			a_taken[ a_taken.size ] = a_structs[i];   // no script_string: stock spawns it everywhere
+			continue;
+		}
 
-			for( t = 0; t < a_tok.size; t++ )
+		b_used = 0;
+		b_here = 0;
+
+		a_tok = strtok( a_structs[i].script_string, " " );
+
+		for( t = 0; t < a_tok.size; t++ )
+		{
+			if( a_tok[t] == str_match )
+				b_used = 1;
+
+			//  Same location, any gametype - "znml_perks_town" when we are
+			//  zstandard_perks_town. See the 🛑 below for why this matters.
+			if( a_tok[t].size > str_suffix.size )
 			{
-				if( a_tok[t] == str_match )
-					b_used = 1;
+				if( getsubstr( a_tok[t], a_tok[t].size - str_suffix.size, a_tok[t].size ) == str_suffix )
+					b_here = 1;
 			}
 		}
-		else
-			b_used = 1;   // no script_string means stock spawns it everywhere
 
 		if( b_used )
 			a_taken[ a_taken.size ] = a_structs[i];
-		else
+		else if( b_here )
 			a_free[ a_free.size ] = a_structs[i];
 	}
 
@@ -629,9 +667,10 @@ zmqol_wf_clear_of_perk_machines( a_place )
 	return a_place;
 }
 
-//  Nearest unused spot that is itself clear of every live machine, and inside
-//  the play area - reusing the same spawn-distance test the location filter uses,
-//  so a "free" spot on the far side of the map is not offered.
+//  Nearest unused spot that is itself clear of every live machine. a_free is
+//  already restricted to structs authored for THIS location, which is what keeps
+//  the result in the arena; the spawn-distance test below is only a backstop for
+//  a location whose structs sprawl further than expected.
 zmqol_wf_nearest_free_spot( v_origin, a_free, a_taken, n_clear )
 {
 	s_best = undefined;
