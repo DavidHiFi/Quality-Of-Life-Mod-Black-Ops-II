@@ -98,13 +98,22 @@ REM  The root mod.all.sabl is a BUILD OUTPUT once this script has run; dumping f
 REM  it would feed each build its own previous output and compound. Same rule as
 REM  linking from base\mod.ff instead of the live mod.ff.
 REM
-REM  🛑 Dump the CSV and the payloads in the SAME Unlinker run. It writes files named
-REM  foo.snd.wav.wav - its own extension on top of the FileSource name - and rewrites
-REM  the CSV's FileSource column to match, so the two agree only if they come from one
-REM  run. Taking the CSV from a payload-less dump (FileSource "foo.snd.wav") and the
-REM  audio from a dump with --search-path ("foo.snd.wav.wav"), in either direction,
-REM  fails with "Unable to find a compatible file for sound ...". Do not "fix" the
-REM  doubled extension - the CSV expects it.
+REM  🛑 DO NOT "FIX" THE DOUBLED EXTENSION. The dumped files are named
+REM  foo.snd.wav.wav and the CSV's FileSource says foo.snd.wav.wav, and BOTH ARE
+REM  CORRECT - that doubled name is this bank's genuine stored value, not something the
+REM  Unlinker added. It writes the CSV out verbatim. Verified by dumping the donor two
+REM  different ways (with and without --search-path) and getting the identical string.
+REM
+REM  This was got wrong once in each direction and the check that settles it is always
+REM  the same: dump the donor and the freshly built mod.ff the SAME way and diff the
+REM  FileSource column. Zero differing rows means the table round-tripped. Anything else
+REM  means every alias whose audio lives in a stock bank - about 930 of the 1,179, since
+REM  only ~250 have a payload inside mod.all.sabl - is looking up a path that no bank
+REM  has, which is silent with no error anywhere.
+REM
+REM  Also: wipe zone_assets\sound and zone_assets\soundbank before testing a change
+REM  here. A half-stripped tree left over from a previous attempt reads as a build bug
+REM  that is not in the build.
 if not exist "%PROJ%\zone_assets\soundbank\mod.all.aliases.csv" (
     echo   Extracting the donor sound bank ^(first run only, ~250 files^) ...
     if exist "%PROJ%\zone_assets\_snd_dump" rmdir /s /q "%PROJ%\zone_assets\_snd_dump"
