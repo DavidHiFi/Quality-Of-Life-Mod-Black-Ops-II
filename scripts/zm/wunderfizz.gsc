@@ -196,10 +196,54 @@ setupWunderfizz()
 	//
 	//    _trail       a thin arc rather than a discharge ball
 	//    _secondary   tesla's smaller follow-up bolt, not the main strike
-	level._effect[ "wunderfizz_loop" ]       = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_trail" );
-	level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_trail" );
-	level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie/fx_zombie_tesla_shock_secondary" );
-	level._effect[ "perk_machine_steam" ]    = loadfx( "maps/zombie/fx_zombie_tesla_shock_ground" );
+	// ------------------------------------------------------------------------
+	//  🛑 v1.34.0 — ATTEMPTS 1-3 ABOVE ALL FAILED FOR ONE REASON NOBODY CHECKED:
+	//  THE EFFECTS ARE NOT IN THE MAP. Every fx this function used to load was
+	//  absent from five of the six maps, so off Alcatraz `loadfx` had nothing to
+	//  resolve and every playfxontag below was a no-op. That - not scale, not
+	//  looping-vs-one-shot - is why the user saw "the electric fx when you spin
+	//  also absent" on Farm.
+	//
+	//  Measured, not reasoned. `Unlinker --list <map>.ff` on all six maps plus
+	//  the always-loaded common_zm.ff / code_post_gfx_zm.ff, intersected:
+	//
+	//      fx used before          in zm_transit.ff?
+	//      electric_cherry_trail   NO      <- both the spin AND the ball glow
+	//      electric_cherry_sm      NO
+	//      tesla_shock_secondary   NO      <- the location marker
+	//      tesla_shock_ground      NO      <- the departure puff
+	//
+	//  🛑 THE REUSABLE RULE: an fx is safe off its home map only if it is in that
+	//  map's fastfile. A `loadfx` in a ZM/Core script is NOT sufficient evidence -
+	//  _zm_perk_electric_cherry.gsc loads _sm/_lg/_player/_down on paper, yet
+	//  zm_transit.ff contains none of them. This also explains the old table's
+	//  contradiction: _sm gave a "blinding blob" and _trail drew nothing, from the
+	//  same folder - _sm was present on whatever map that was tested on, _trail is
+	//  in no zombie map at all. Check the fastfile, never the script.
+	//
+	//  Only 224 effects exist on all six maps. The electric ones are:
+	//      env/electrical/fx_elec_sparking_oneshot     one-shot spark
+	//      env/electrical/fx_elec_wire_spark_burst     one-shot burst
+	//      system_elements/fx_elec_spark_emit          spark emitter
+	//      maps/zombie/fx_zombie_packapunch            LOOPING energy swirl
+	//
+	//  On Origins the machine now uses its GENUINE effects - zm_tomb.ff owns all
+	//  ten fx_tomb_dieselmagic_*, so there it is the real thing, not a stand-in.
+	// ------------------------------------------------------------------------
+	if( level.script == "zm_tomb" )
+	{
+		level._effect[ "wunderfizz_loop" ]       = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_on" );
+		level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_light" );
+		level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_identify" );
+		level._effect[ "perk_machine_steam" ]    = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_steam" );
+	}
+	else
+	{
+		level._effect[ "wunderfizz_loop" ]       = loadfx( "env/electrical/fx_elec_sparking_oneshot" );
+		level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie/fx_zombie_packapunch" );
+		level._effect[ "perk_machine_location" ] = loadfx( "system_elements/fx_elec_spark_emit" );
+		level._effect[ "perk_machine_steam" ]    = loadfx( "env/electrical/fx_elec_wire_spark_burst" );
+	}
 
 	if(level.script == "zm_tomb")
     {
@@ -830,16 +874,39 @@ zmqol_wf_anim( str_state )
 //  this to a looping effect is what caused the v1.21.0 blob.
 zmqol_wf_ball_glow()
 {
-	self endon( "zmqol_wf_ball_off" );
 	level endon( "end_game" );
 
 	self thread zmqol_wf_lightning();
 
-	for( ;; )
+	//  🛑 v1.34.0: perk_machine_light is LOOPING on BOTH branches now
+	//  (fx_tomb_dieselmagic_light on Origins, fx_zombie_packapunch elsewhere -
+	//  stock plays each exactly once and leaves it running). So it is played
+	//  ONCE here, never retriggered; retriggering a looping effect is the
+	//  v1.21.0 blob, and the old 3-4s playfxontag loop above was doing exactly
+	//  that - it only looked harmless because the effect did not exist.
+	//
+	//  It is SpawnFX rather than playfxontag because a looping effect has to be
+	//  STOPPABLE, and server-side GSC has no stopfx - the entire stock ZM dump
+	//  uses spawnfx/triggerfx and nothing else. Stock kills these from the
+	//  CLIENT (_zm_perk_random.csc calls stopfx on its own handle), which is not
+	//  reachable from here. SpawnFX yields an entity, and deleting the entity is
+	//  the only server-side "off" switch there is. With playfxontag the orb
+	//  would keep glowing on a machine the ball had already left.
+	v_ball = self gettagorigin( "j_ball" );
+	if( !isdefined( v_ball ) )
+		v_ball = self.origin + ( 0, 0, 60 );
+
+	e_glow = undefined;
+	if( isdefined( level._effect[ "perk_machine_light" ] ) )
 	{
-		playfxontag( level._effect[ "perk_machine_light" ], self, "j_ball" );
-		wait randomfloatrange( 3.0, 4.0 );
+		e_glow = SpawnFX( level._effect[ "perk_machine_light" ], v_ball, AnglesToForward( self.angles ), AnglesToUp( self.angles ) );
+		TriggerFX( e_glow );
 	}
+
+	self waittill( "zmqol_wf_ball_off" );
+
+	if( isdefined( e_glow ) )
+		e_glow Delete();
 }
 
 //  "there's electrical effects all around it in origins and the lightning
@@ -865,10 +932,18 @@ zmqol_wf_spin_fx()
 	self endon( "zmqol_wf_ball_off" );
 	level endon( "end_game" );
 
+	if( !isdefined( level._effect[ "wunderfizz_loop" ] ) )
+		return;
+
+	//  Cadence copied from stock rather than guessed: _zm_perk_random.csc's
+	//  fx_activation_electric_loop() retriggers fx_tomb_dieselmagic_on every
+	//  0.1s for as long as the bottle is cycling. Both effects this resolves to
+	//  are one-shot, so retriggering is the correct - and only - way to keep
+	//  them continuously visible. 0.4s left visible gaps between sparks.
 	for( ;; )
 	{
 		playfxontag( level._effect[ "wunderfizz_loop" ], self, "j_ball" );
-		wait 0.4;
+		wait 0.1;
 	}
 }
 
@@ -877,15 +952,29 @@ zmqol_wf_lightning()
 	self endon( "zmqol_wf_ball_off" );
 	level endon( "end_game" );
 
+	if( !isdefined( level._effect[ "perk_machine_location" ] ) )
+		return;
+
+	//  Stock's fx_location_indicator (_zm_perk_random.csc:205) fires at
+	//  self.origin on a randomfloatrange( 3.0, 4.0 ) beat. Both are copied here
+	//  rather than invented: the old 7-11s spacing was chosen when the effect was
+	//  a tesla shock that read as noise, and the +90 lift was there to get that
+	//  shock clear of the machine. Origins' real marker (dieselmagic_identify) is
+	//  a beam authored to start at the machine's base, so it wants the true
+	//  origin.
 	for( ;; )
 	{
-		wait randomfloatrange( 7.0, 11.0 );
+		wait randomfloatrange( 3.0, 4.0 );
 
 		if( self.location != level.currentWunderfizzLocation )
 			continue;
 
-		playfx( level._effect[ "perk_machine_location" ], self.origin + ( 0, 0, 90 ) );
-		self playsound( "zmb_hellhound_bolt" );
+		playfx( level._effect[ "perk_machine_location" ], self.origin );
+
+		//  No sound on Origins: the real machine's marker is silent, and the
+		//  vortex loop is already carrying the audio.
+		if( level.script != "zm_tomb" )
+			self playsound( "zmb_hellhound_bolt" );
 	}
 }
 
@@ -896,6 +985,24 @@ zmqol_wf_lightning()
 zmqol_wf_departure_steam()
 {
 	level endon( "end_game" );
+
+	if( !isdefined( level._effect[ "perk_machine_steam" ] ) )
+		return;
+
+	//  On Origins this is stock's own fx_tomb_dieselmagic_steam, so it gets
+	//  stock's own cadence - 0.1s for 5 seconds. Off Origins it is an electrical
+	//  burst instead of steam, and 50 of those in 5 seconds is a strobe, so that
+	//  branch keeps the slower beat.
+	if( level.script == "zm_tomb" )
+	{
+		n_end = GetTime() + 5000;
+		while( GetTime() < n_end )
+		{
+			playfxontag( level._effect[ "perk_machine_steam" ], self, "tag_origin" );
+			wait 0.1;
+		}
+		return;
+	}
 
 	n_ticks = 0;
 
@@ -974,11 +1081,24 @@ perk_bottle_motion()
 // ============================================================================
 wunderfizzSounds()
 {
-	if ( level.script == "zm_tomb" )
+	// ------------------------------------------------------------------------
+	//  🛑 v1.34.0 — THE ORIGINS BRANCH HAD NEVER WORKED EITHER, AND NOT FOR THE
+	//  REASON THIS HEADER CLAIMS. zmb_rand_perk_start / _loop / _stop are not
+	//  stock alias names. They appear NOWHERE in the 2,093-file stock dump - they
+	//  came in with the upstream wunderfizz mod and were taken on trust here.
+	//  So the machine was silent on Origins too, not just off it.
+	//
+	//  The real machine's audio is CLIENT-side, in Origins'
+	//  _zm_perk_random.csc, and it is two aliases:
+	//      zmb_rand_perk_vortex_sparks   one-shot, on spin up AND spin down
+	//      zmb_rand_perk_vortex          the loop, via soundloopemitter
+	//  (_zm_perk_random.csc:119-131). Those are what Origins uses now.
+	// ------------------------------------------------------------------------
+	if ( level.script == "zm_tomb" || getdvarintdefault( "zmqol_wf_sound", 0 ) == 1 )
 	{
-		str_start = "zmb_rand_perk_start";
-		str_loop  = "zmb_rand_perk_loop";
-		str_stop  = "zmb_rand_perk_stop";
+		str_start = "zmb_rand_perk_vortex_sparks";
+		str_loop  = "zmb_rand_perk_vortex";
+		str_stop  = "zmb_rand_perk_vortex_sparks";
 	}
 	else
 	{
@@ -993,18 +1113,51 @@ wunderfizzSounds()
 		// idea: its source is zmb\level\zm_tomb\zombie_blood\loop, i.e. Origins'
 		// bank, and it would be silent everywhere else - the exact bug this
 		// whole branch exists to work around.
+		//  🛑 v1.34.0 REVERTS v1.32.0's zmb_tombstone_looper. It was picked out of
+		//  BO2-Reimagined's mod.all.aliases.csv on the assumption that the file was
+		//  a dictionary of stock aliases. It is not - it is the alias table of
+		//  Reimagined's OWN bank, so an entry there says nothing about what stock
+		//  ships, and the user got silence. All three below are aliases this mod
+		//  has actually been HEARD playing in game.
+		//
+		//  This cannot be settled offline: alias names are stored HASHED inside
+		//  the .sabl banks (grepping cmn_root.all.sabl for a known-good alias
+		//  finds nothing), and the fastfiles carry no `sound` asset type at all.
+		//  There is no way to list a bank's aliases with the tooling here - only
+		//  playing one and listening.
+		//
+		//  So `zmqol_wf_sound 1` in console switches these to Origins' real vortex
+		//  pair, to find out in ONE session whether they live in a globally-loaded
+		//  bank rather than in zmb_tomb.all. If they do, drop this branch.
 		str_start = "zmb_perks_packa_upgrade";
-		str_loop  = "zmb_tombstone_looper";
+		str_loop  = "zmb_perks_packa_ticktock";
 		str_stop  = "zmb_perks_packa_ready";
 	}
 
-	sound_ent = spawn("script_origin", self.origin);
-	sound_ent StopSounds();
+	sound_ent = spawn( "script_origin", self.origin );
+
+	//  StopSounds() on a just-spawned entity was a no-op and is gone.
 	sound_ent PlaySound( str_start );
 	sound_ent PlayLoopSound( str_loop, 0.5 );
-	level waittill("wunderSpinStop");
-	sound_ent StopLoopSound(1);
+
+	//  🛑 Was `level waittill("wunderSpinStop")`. Two bugs in one line:
+	//
+	//  1. wunderSpinStop is only notified AFTER the 7-second "Hold F for X"
+	//     offer window (or on departure), so the loop kept droning for up to ten
+	//     seconds after the bottle had stopped moving. Stock ties the vortex
+	//     exactly to the cycling - its clientfield goes 0 the moment the bottle
+	//     settles - and done_cycling is this file's equivalent notify.
+	//  2. It waited on LEVEL while the notify that matters is on the machine.
+	//     With more than one machine that is cross-talk between locations.
+	self waittill( "done_cycling" );
+
+	sound_ent StopLoopSound( 1 );
 	sound_ent PlaySound( str_stop );
+
+	//  🛑 Deleting the emitter in the same frame as PlaySound cut the stop sound
+	//  off before a single sample of it reached anyone - the old code did exactly
+	//  that. Outlive the one-shot, then clean up.
+	wait 2;
 	sound_ent Delete();
 }
 
