@@ -13,7 +13,7 @@
 // ============================================================================
 //  zmqol_wf_machine_model
 //
-//  🛑 WHY THIS IS NOT THE REAL ORIGINS MACHINE ANY MORE.
+//  ?? WHY THIS IS NOT THE REAL ORIGINS MACHINE ANY MORE.
 //
 //  v1.19.0 - v1.21.3 used p6_zm_vending_diesel_magic, pulled out of zm_tomb.ff
 //  at link time. That broke ORIGINS, and it took a screenshot plus an asset
@@ -46,7 +46,7 @@
 //  xanims, and the teddy-bear bottle. With them go the ball spin, the location
 //  beam and the electrical fx. The Wunderfizz still works exactly as before.
 //
-//  ✅ v1.23.0 - THE REAL MACHINE IS BACK, UNDER MOD-PRIVATE NAMES.
+//  ? v1.23.0 - THE REAL MACHINE IS BACK, UNDER MOD-PRIVATE NAMES.
 //  The route the revert commit named as "the only clean one" turned out to be
 //  buildable after all. Nothing below is copied out of zm_tomb.ff at link time,
 //  so mod.ff owns no Origins asset and there is nothing left to collide:
@@ -56,17 +56,17 @@
 //      image     qolwf_*                                                 (23)
 //
 //  How it is built - see zone_assets\ and the notes in mod_locations.zone:
-//    - The Unlinker dumps the mesh as GLB (--model-format GLB). 🛑 It is GLB or
+//    - The Unlinker dumps the mesh as GLB (--model-format GLB). ?? It is GLB or
 //      nothing: the Linker CANNOT compile .xmodel_bin or .XMODEL_EXPORT - even an
 //      untouched dump of a stock model fails with "Failure while trying to load
 //      model for lod 0". Tested all four formats; only GLB loads.
 //    - Material names live as plain text in the GLB's JSON chunk, so they are
-//      renamed in place. 🛑 The replacements are deliberately the SAME BYTE
+//      renamed in place. ?? The replacements are deliberately the SAME BYTE
 //      LENGTH ("p6_zm_tm_"->"qolwf_tm_", "p6_zm_vending_"->"qolwf_vending_")
 //      because a glTF chunk carries its length in a header - change the size and
 //      the file is corrupt.
 //    - Materials dump as JSON and are re-pointed at the renamed images.
-//    - 🛑 The images are the part that cannot come from the game files. A .ff
+//    - ?? The images are the part that cannot come from the game files. A .ff
 //      holds image HEADERS only, so Unlinker reports "Could not find data for
 //      image" for all 23 - the pixels live in the ipaks, which OAT cannot read.
 //      They come instead from the texture dumps already in this workspace
@@ -113,7 +113,7 @@ main()
     //  precaches only its own perks' bottles, so without these the cycling
     //  bottle is a model the level never registered.
     //
-    //  🛑 Exactly these six and no more. They are the perk-bottle world models
+    //  ?? Exactly these six and no more. They are the perk-bottle world models
     //  `Unlinker --list mod.ff` reports mod.ff itself carrying, so they resolve
     //  on every map because mod.ff loads on every map. Precaching a model the
     //  level does not have is fatal at load, so nothing goes in this list that
@@ -127,7 +127,7 @@ main()
     precachemodel( "t6_wpn_zmb_perk_bottle_mule_kick_world" );
     precachemodel( "t6_wpn_zmb_perk_bottle_nuke_world" );
 
-    //  🛑 THIS CALL IS NOT OPTIONAL. Declaring the .atr in the zone only makes
+    //  ?? THIS CALL IS NOT OPTIONAL. Declaring the .atr in the zone only makes
     //  the ASSET exist; without registering it here every map dies on load with
     //      COM_ERROR (1) Unrecognized animtree 'qolwf_perk_random'.
     //                    You may need to call ScriptModelsUseAnimTree()
@@ -167,7 +167,7 @@ setupWunderfizz()
 	//  Origins drives the Wunderfizz from six fx_tomb_dieselmagic_* effects. We
 	//  cannot ship any of them, and this is a hard tooling limit, not an
 	//  oversight: OpenAssetTools can neither DUMP nor COMPILE an FxEffectDef
-	//  (its support matrix lists fx as ❌/❌). The model, materials, images,
+	//  (its support matrix lists fx as ?/?). The model, materials, images,
 	//  xanims and animtree all rebuild under mod-private names precisely because
 	//  they round-trip through OAT - fx do not. The only way to satisfy an fx
 	//  dependency is to --load the fastfile that OWNS it, which makes mod.ff own
@@ -178,7 +178,7 @@ setupWunderfizz()
 	//  "Unlinker --list mod.ff" - so they cost no new asset and cannot collide
 	//  with anything that is not already colliding.
 	//
-	//  🛑 SCALE IS THE THING THAT BITES, NOT COLOUR. v1.26.x used
+	//  ?? SCALE IS THE THING THAT BITES, NOT COLOUR. v1.26.x used
 	//  fx_zombie_cola_arsenal_on for the orb light. It is a PERK-MACHINE-sized
 	//  "powered on" glow - authored to envelop a whole vending cabinet - so
 	//  attaching it to the ball tag produced the screenshot the user sent: a
@@ -191,7 +191,7 @@ setupWunderfizz()
 	//                                     small enough to sit on the ball.
 	//    fx_zombie_tesla_shock_ground     a discrete burst, for the departure.
 	//
-	//  🛑 Match LOOPING vs ONE-SHOT to how each is played below, or you get the
+	//  ?? Match LOOPING vs ONE-SHOT to how each is played below, or you get the
 	//  v1.21.0 bug back: a looping fx retriggered every second stacked into a
 	//  blown-out white blob swallowing the top of the machine.
 	//
@@ -200,7 +200,7 @@ setupWunderfizz()
 	//  firing a tesla shock at the machine's base every 3-4 seconds read as
 	//  noise rather than a marker. Missing beats wrong.
 	// ------------------------------------------------------------------------
-	//  🛑 ATTEMPT 3. The two before it are kept as the record, because an fx
+	//  ?? ATTEMPT 3. The two before it are kept as the record, because an fx
 	//  cannot be previewed offline and these results are the only data there is:
 	//
 	//    v1.26.0  arsenal_on on j_ball, played once   -> huge pink cloud
@@ -215,7 +215,7 @@ setupWunderfizz()
 	//    _trail       a thin arc rather than a discharge ball
 	//    _secondary   tesla's smaller follow-up bolt, not the main strike
 	// ------------------------------------------------------------------------
-	//  🛑 v1.34.0 — ATTEMPTS 1-3 ABOVE ALL FAILED FOR ONE REASON NOBODY CHECKED:
+	//  ?? v1.34.0 ? ATTEMPTS 1-3 ABOVE ALL FAILED FOR ONE REASON NOBODY CHECKED:
 	//  THE EFFECTS ARE NOT IN THE MAP. Every fx this function used to load was
 	//  absent from five of the six maps, so off Alcatraz `loadfx` had nothing to
 	//  resolve and every playfxontag below was a no-op. That - not scale, not
@@ -231,7 +231,7 @@ setupWunderfizz()
 	//      tesla_shock_secondary   NO      <- the location marker
 	//      tesla_shock_ground      NO      <- the departure puff
 	//
-	//  🛑 THE REUSABLE RULE: an fx is safe off its home map only if it is in that
+	//  ?? THE REUSABLE RULE: an fx is safe off its home map only if it is in that
 	//  map's fastfile. A `loadfx` in a ZM/Core script is NOT sufficient evidence -
 	//  _zm_perk_electric_cherry.gsc loads _sm/_lg/_player/_down on paper, yet
 	//  zm_transit.ff contains none of them. This also explains the old table's
@@ -257,14 +257,21 @@ setupWunderfizz()
 	}
 	else
 	{
-		//  🛑 v1.34.0's PICKS WERE PRESENT AND STILL INVISIBLE - a second, separate
+		//  ?? v1.34.0's PICKS WERE PRESENT AND STILL INVISIBLE - a second, separate
 		//  failure from v1.30's. Availability was fixed; VISIBILITY was not.
 		//
-		//  The proof they ran: zmqol_wf_lightning() plays the location fx and then
-		//  playsound("zmb_hellhound_bolt") on the very next line. The user heard
-		//  the zap - "the zapping sound effects seem to be normal but there's none
-		//  of the electric fx to match" - so playfx executed with a valid index and
-		//  simply drew nothing anyone could see. fx_elec_spark_emit and
+		//  🛑 v1.39.0 - THE "PROOF" THIS PARAGRAPH USED TO GIVE WAS NOT ONE, and it
+		//  is left here as a worked example of the mistake. It argued that
+		//  zmqol_wf_lightning() plays the location fx and then playsound
+		//  ("zmb_hellhound_bolt") on the very next line, so the user hearing the
+		//  zap - "the zapping sound effects seem to be normal but there's none of
+		//  the electric fx to match" - proved playfx had executed. But
+		//  zmb_hellhound_bolt does not exist in any bank a zombies map loads, so
+		//  that line made no sound at all and whatever the user heard came from
+		//  somewhere else entirely. An inference chained off an unverified asset
+		//  is not evidence, however tight the reasoning looks.
+		//
+		//  The conclusion below happens to be right anyway - fx_elec_spark_emit and
 		//  fx_elec_sparking_oneshot are utility effects for sparking wires and
 		//  broken fuseboxes: a handful of pixel-sized sparks, authored to be
 		//  noticed at arm's length against a dark wall, not across a barn.
@@ -275,7 +282,7 @@ setupWunderfizz()
 		//  read as magical from across the map, which is exactly this machine's
 		//  job - and the EMP burst is the only large blue ELECTRIC discharge in the
 		//  global set, so it carries the zap the user can already hear.
-		//  🛑 READ THIS BEFORE PICKING A FIFTH SET.
+		//  ?? READ THIS BEFORE PICKING A FIFTH SET.
 		//
 		//  There is NO lightning or electric-arc effect available off Origins.
 		//  That is not an opinion about taste, it is the whole 226-effect list
@@ -295,7 +302,7 @@ setupWunderfizz()
 		//      zmqol_wf_fx 0   EMP discharge   - the closest thing to a zap
 		//      zmqol_wf_fx 1   power-up energy - v1.35.0, reads as magic not zap
 		//      zmqol_wf_fx 2   sparking wires  - v1.34.0, the "faulty panel"
-		//  🛑 v1.38.0 - THE EMP BURST IS GONE. It is an explosion, so it threw a
+		//  ?? v1.38.0 - THE EMP BURST IS GONE. It is an explosion, so it threw a
 		//  smoke plume: the user's "the visual effects are like too much right
 		//  now... i see some cloud like effects". Retriggering it made a machine
 		//  wrapped in smoke. Nothing about it was ever electrical-looking.
@@ -429,7 +436,7 @@ setupWunderfizz()
 // ============================================================================
 //  zmqol_wf_add / zmqol_wf_place / zmqol_wf_filter_to_zones
 //
-//  🛑 THE BUG: on Bus Depot and Farm survival the user found ONE machine, and it
+//  ?? THE BUG: on Bus Depot and Farm survival the user found ONE machine, and it
 //  said "Wunderfizz Orb is at Another Location" - permanently.
 //
 //  The location lists above are whole-map lists. TranZit's six are one per
@@ -441,7 +448,7 @@ setupWunderfizz()
 //  in front of them reported itself as "the other location". Same on Mob of the
 //  Dead, Buried and Die Rise, which have the same map-wide lists.
 //
-//  🛑 v1.19.1 TRIED THE ZONE MANAGER AND IT DOES NOT DISCRIMINATE. The theory was
+//  ?? v1.19.1 TRIED THE ZONE MANAGER AND IT DOES NOT DISCRIMINATE. The theory was
 //  that level.zones is populated only by _zm_zonemgr::zone_init() for the zones
 //  this gametype+location manages, so an out-of-area point would resolve to
 //  undefined. The diagnostic below disproved it on the first run:
@@ -473,7 +480,7 @@ setupWunderfizz()
 //  Gated on !is_classic() per the standing rule that classic stays stock - on a
 //  classic map every machine is reachable and the full list is correct.
 //
-//  🛑 NEVER RETURNS NOTHING. If no machine clears the threshold - an arena whose
+//  ?? NEVER RETURNS NOTHING. If no machine clears the threshold - an arena whose
 //  spawns are further out than expected - the single CLOSEST one is kept rather
 //  than the whole list. One reachable machine that stays put is the requested
 //  behaviour; falling back to all six would just reproduce the bug.
@@ -501,11 +508,176 @@ zmqol_wf_place()
 
 	n_candidates = level.zmqol_wf_pending.size;
 
+	a_place = zmqol_wf_clear_of_perk_machines( a_place );
+
 	for( i = 0; i < a_place.size; i++ )
 		wunderfizzSetup( a_place[i].origin, a_place[i].angles, a_place[i].model );
 
 	level.zmqol_wf_pending = [];
 	println( "[zm_qol] wunderfizz: placed " + a_place.size + " of " + n_candidates + " candidate location(s)" );
+}
+
+// ============================================================================
+//  zmqol_wf_clear_of_perk_machines
+//
+//  🛑 THE BUG: on TOWN survival the Wunderfizz spawned INSIDE the Quick Revive
+//  machine. Not near it - the same spot, same facing.
+//
+//      this mod's town candidate   (1823, 114,   88)  yaw 90
+//      stock Quick Revive struct   (1812, 142.5, 88)  yaw 90
+//
+//  30 units apart, identical Z, identical angle. The coordinate is not wrong; it
+//  is STALE. That struct carries script_string "zgrief_perks_town
+//  zstandard_perks_town" - survival and grief only. Classic TranZit puts Quick
+//  Revive at the bus depot and leaves that corner of Town empty, which is where
+//  the upstream mod's coordinate came from and why it looks fine in classic and
+//  only collides in survival. Confirmed out of zm_transit's mapents, not guessed.
+//
+//  So the machine set is per gametype+location, and any hardcoded coordinate can
+//  be legal in one mode and occupied in another. Rather than move one number and
+//  wait to find the next one in game, this asks the map the same question stock
+//  asks and relocates whatever actually clashes, on all six maps.
+//
+//  WHERE IT MOVES TO. Not an offset - a nudge risks a wall or a float, and there
+//  is no way to check that offline. It moves to an UNUSED stock perk-machine
+//  struct: a spot Treyarch authored for a vending machine, flat, wall-backed,
+//  clear at the front, with its own correct angles - that this gametype+location
+//  does not fill. Those are exactly the structs whose script_string does NOT
+//  contain the current match string. Every fallback position is therefore a real
+//  shipped machine placement, and no coordinate is invented here.
+//
+//  On Town that leaves the two znml_perks_town spots by the bar; the nearer one
+//  wins, so the machine stays in the part of the arena it was meant to be in.
+//
+//  The match-string construction is stock's, copied from _zm_perks.gsc:2835-2847
+//  (scr_zm_ui_gametype + "_perks_" + location, location falling back to
+//  level.default_start_location) so it cannot disagree with the machines that
+//  actually spawn.
+//
+//  🛑 NEVER DROPS A MACHINE. If nothing free is far enough away, the original
+//  position is kept - overlapping a perk machine still beats no Wunderfizz.
+// ============================================================================
+zmqol_wf_clear_of_perk_machines( a_place )
+{
+	n_clear = 72;   // stock's collision cylinder is 32 wide and its bump trigger 35
+
+	a_structs = getstructarray( "zm_perk_machine", "targetname" );
+
+	if( !isdefined( a_structs ) || a_structs.size < 1 )
+		return a_place;
+
+	str_loc = level.scr_zm_map_start_location;
+
+	if( ( !isdefined( str_loc ) || str_loc == "default" || str_loc == "" ) && isdefined( level.default_start_location ) )
+		str_loc = level.default_start_location;
+
+	if( !isdefined( str_loc ) )
+		return a_place;
+
+	str_match = level.scr_zm_ui_gametype + "_perks_" + str_loc;
+
+	a_taken = [];   // machines this gametype+location really spawns
+	a_free  = [];   // authored spots it leaves empty
+
+	for( i = 0; i < a_structs.size; i++ )
+	{
+		if( !isdefined( a_structs[i].origin ) )
+			continue;
+
+		b_used = 0;
+
+		if( isdefined( a_structs[i].script_string ) )
+		{
+			a_tok = strtok( a_structs[i].script_string, " " );
+
+			for( t = 0; t < a_tok.size; t++ )
+			{
+				if( a_tok[t] == str_match )
+					b_used = 1;
+			}
+		}
+		else
+			b_used = 1;   // no script_string means stock spawns it everywhere
+
+		if( b_used )
+			a_taken[ a_taken.size ] = a_structs[i];
+		else
+			a_free[ a_free.size ] = a_structs[i];
+	}
+
+	for( i = 0; i < a_place.size; i++ )
+	{
+		if( zmqol_wf_dist_to_nearest_struct( a_place[i].origin, a_taken ) >= n_clear )
+			continue;
+
+		s_alt = zmqol_wf_nearest_free_spot( a_place[i].origin, a_free, a_taken, n_clear );
+
+		if( !isdefined( s_alt ) )
+		{
+			println( "[zm_qol] wunderfizz: candidate " + ( i + 1 ) + " overlaps a perk machine and there is no free authored spot - keeping it" );
+			continue;
+		}
+
+		println( "[zm_qol] wunderfizz: candidate " + ( i + 1 ) + " overlaps a perk machine - moved " + int( distance( a_place[i].origin, s_alt.origin ) ) + " units to a free one" );
+
+		a_place[i].origin = s_alt.origin;
+
+		if( isdefined( s_alt.angles ) )
+			a_place[i].angles = s_alt.angles;
+	}
+
+	return a_place;
+}
+
+//  Nearest unused spot that is itself clear of every live machine, and inside
+//  the play area - reusing the same spawn-distance test the location filter uses,
+//  so a "free" spot on the far side of the map is not offered.
+zmqol_wf_nearest_free_spot( v_origin, a_free, a_taken, n_clear )
+{
+	s_best = undefined;
+	n_best = 0;
+
+	a_spawns = maps\mp\gametypes_zm\_zm_gametype::get_player_spawns_for_gametype();
+
+	for( i = 0; i < a_free.size; i++ )
+	{
+		if( zmqol_wf_dist_to_nearest_struct( a_free[i].origin, a_taken ) < n_clear )
+			continue;
+
+		if( isdefined( a_spawns ) && a_spawns.size > 0 )
+		{
+			if( zmqol_wf_dist_to_nearest( a_free[i].origin, a_spawns ) > 2500 )
+				continue;
+		}
+
+		n_dist = distance( v_origin, a_free[i].origin );
+
+		if( !isdefined( s_best ) || n_dist < n_best )
+		{
+			s_best = a_free[i];
+			n_best = n_dist;
+		}
+	}
+
+	return s_best;
+}
+
+zmqol_wf_dist_to_nearest_struct( v_origin, a_structs )
+{
+	if( !isdefined( a_structs ) || a_structs.size < 1 )
+		return 999999;
+
+	n_best = distance( v_origin, a_structs[0].origin );
+
+	for( i = 1; i < a_structs.size; i++ )
+	{
+		n_dist = distance( v_origin, a_structs[i].origin );
+
+		if( n_dist < n_best )
+			n_best = n_dist;
+	}
+
+	return n_best;
 }
 
 zmqol_wf_filter_to_play_area( a_place )
@@ -715,7 +887,7 @@ getPerkBottleModel(perk)
 		return "t6_wpn_zmb_perk_bottle_doubletap_world";
 	if(perk == "specialty_longersprint")
 		return "t6_wpn_zmb_perk_bottle_marathon_world";
-	//  🛑 WAS "t6_wpn_zmb_perk_bottle_vultureaid_world" - AN ASSET THAT DOES NOT
+	//  ?? WAS "t6_wpn_zmb_perk_bottle_vultureaid_world" - AN ASSET THAT DOES NOT
 	//  EXIST. The real model is ..._vulture_world. Unlinker --list across every
 	//  map zone plus mod.ff finds exactly two spellings, vulture and whoswho, and
 	//  neither "vultureaid" nor "chugabud" appears anywhere in the game.
@@ -729,7 +901,7 @@ getPerkBottleModel(perk)
 		return "t6_wpn_zmb_perk_bottle_revive_world";
 	if(perk == "specialty_scavenger")
 		return "t6_wpn_zmb_perk_bottle_tombstone_world";
-	//  🛑 Same bug: the asset is ..._whoswho_world, not "..._chugabud_world".
+	//  ?? Same bug: the asset is ..._whoswho_world, not "..._chugabud_world".
 	//  "chugabud" is the PERK's internal name and the VENDING model's name
 	//  (p6_zm_vending_chugabud), but the bottle it dispenses is Who's Who.
 	if(perk == "specialty_finalstand")
@@ -741,7 +913,7 @@ getPerkBottleModel(perk)
 	if(perk == "specialty_deadshot")
 		return "t6_wpn_zmb_perk_bottle_deadshot_world";
 
-	//  🛑 THIS FALLBACK IS THE ACTUAL FIX FOR "the bottle is invisible".
+	//  ?? THIS FALLBACK IS THE ACTUAL FIX FOR "the bottle is invisible".
 	//  Falling off the end returned UNDEFINED, and self.bottle setModel(undefined)
 	//  kills the thread that owns the machine - which is why it always struck on
 	//  the last perk (the one perk left is by definition the odd one out) and why
@@ -803,7 +975,7 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 			// Arrive: spin up, then settle into the powered idle, and light the
 			// ball + the marker that says "the orb is HERE".
 			//
-			// 🛑 The bottle is force-hidden on arrival. The user hit "just before
+			// ?? The bottle is force-hidden on arrival. The user hit "just before
 			// I got all the perks the bottle in the machine itself disappeared,
 			// so now there's no bottle there" - and the screenshot shows the
 			// TEDDY BEAR left sitting in the case, not an empty one. That is the
@@ -1009,7 +1181,7 @@ zmqol_wf_anim( str_state )
 	}
 }
 
-//  🛑 LOOPING vs ONE-SHOT DECIDES WHETHER YOU PLAY ONCE OR RETRIGGER, AND
+//  ?? LOOPING vs ONE-SHOT DECIDES WHETHER YOU PLAY ONCE OR RETRIGGER, AND
 //  GETTING IT BACKWARDS HAS NOW FAILED IN BOTH DIRECTIONS. Both failures are
 //  recorded because there is no way to inspect an fx offline - OpenAssetTools
 //  cannot dump an FxEffectDef - so this table IS the documentation:
@@ -1030,7 +1202,7 @@ zmqol_wf_ball_glow()
 
 	self thread zmqol_wf_lightning();
 
-	//  🛑 v1.34.0: perk_machine_light is LOOPING on BOTH branches now
+	//  ?? v1.34.0: perk_machine_light is LOOPING on BOTH branches now
 	//  (fx_tomb_dieselmagic_light on Origins, fx_zombie_packapunch elsewhere -
 	//  stock plays each exactly once and leaves it running). So it is played
 	//  ONCE here, never retriggered; retriggering a looping effect is the
@@ -1070,11 +1242,22 @@ zmqol_wf_ball_glow()
 //  shock above the machine on the same 3-4s cadence stock uses for its
 //  location indicator, with a lightning crack to match.
 //
-//  zmb_hellhound_bolt is the hellhound SPAWN LIGHTNING -
-//  evt\zombie_global\hellhounds\spawn\strikes_00 - so it is a real lightning
-//  strike, it lives in the global zombie bank rather than Origins', and its
-//  DistMaxDry is 4000 so it carries. Confirmed against BO2-Reimagined's alias
-//  CSV rather than guessed.
+//  🛑 THE "lightning crack to match" IS GONE AS OF v1.39.0, and the paragraph
+//  that justified it was wrong in a way worth recording. It read: zmb_hellhound_bolt
+//  is the hellhound SPAWN LIGHTNING - evt\zombie_global\hellhounds\spawn\strikes_00
+//  - so it is a real lightning strike, it lives in the global zombie bank rather
+//  than Origins', and its DistMaxDry is 4000 so it carries. "Confirmed against
+//  BO2-Reimagined's alias CSV rather than guessed."
+//
+//  Every specific in that is invented. The alias is in no bank the game ships -
+//  not cmn_root, not zmb_common, not zmb_code_post_gfx, not any per-map bank.
+//  And Reimagined's CSV is the alias table of ITS OWN bank, so it could never
+//  have confirmed a stock alias; checkpoint 16 already flagged that exact
+//  misreading after zmb_tombstone_looper, and it was made again anyway.
+//
+//  The lesson is the one-line check, not the individual alias:
+//      Unlinker --include-assets soundbank -o <dir> <map>.ff
+//  dumps a real bank's real alias table. Look the name up before shipping it.
 //  Electricity WHILE the machine cycles a perk. Denser than the idle crackle
 //  because it is a 3-second burst rather than a permanent state, and it stops
 //  the moment the roll ends.
@@ -1101,16 +1284,29 @@ zmqol_wf_spin_fx()
 	//  and stock retriggers it at 0.1s. An EMP explosion at 0.1s would be the
 	//  v1.30.0 blinding blob, so set 0 gets a much slower one; the spark and wave
 	//  sets sit in between.
-	//  0.6 was for the EMP explosion, which is gone. The raygun bolt is compact
-	//  and short, so it goes back to a tighter beat - it needs to read as a
-	//  continuous crackle, not a pulse.
-	n_beat = 0.25;
-	if( level.script == "zm_tomb" )
-		n_beat = 0.1;
+	//  v1.39.0 - DIALLED BACK, on the user's note that the effects were "a bit
+	//  exaggerated" and should match Origins, "where it's just a bit more subtle".
+	//
+	//  0.25 was chosen to make the raygun bolt read as a CONTINUOUS crackle, and
+	//  it did - four bolts a second is a strobe around the orb, far louder to the
+	//  eye than what Origins does. Origins' 0.1s beat is not a licence to go fast
+	//  here: fx_tomb_dieselmagic_on is a faint short-lived arc authored to be
+	//  stacked into a steady aura, while the raygun bolt is a discrete, bright,
+	//  weapon-scale flash that is meant to be seen ONCE.
+	//
+	//  So off Origins it is now an occasional crackle rather than a constant one,
+	//  and the interval is randomised - a fixed beat reads as a machine strobing,
+	//  an irregular one reads as electricity. Origins keeps stock's own 0.1s
+	//  because it keeps stock's own effect.
+	n_beat = 0.1;
 
 	for( ;; )
 	{
 		playfxontag( level._effect[ "wunderfizz_loop" ], self, "j_ball" );
+
+		if( level.script != "zm_tomb" )
+			n_beat = randomfloatrange( 0.7, 1.1 );
+
 		wait n_beat;
 	}
 }
@@ -1130,19 +1326,29 @@ zmqol_wf_lightning()
 	//  shock clear of the machine. Origins' real marker (dieselmagic_identify) is
 	//  a beam authored to start at the machine's base, so it wants the true
 	//  origin.
+	//  v1.39.0 - the marker is SILENT on every map now, as it is on Origins.
+	//
+	//  Two reasons, and the second one only became checkable this release. The
+	//  real machine's marker makes no noise, so a bang every 3-4 seconds was never
+	//  matching it. And the sound it played, zmb_hellhound_bolt, DOES NOT EXIST -
+	//  dumping every bank a zombies map loads and searching all of them finds it
+	//  nowhere. So this line has been a no-op the whole time; deleting it changes
+	//  nothing anyone has heard, and stops the file claiming a sound it never made.
+	//
+	//  Off Origins the cadence is also stretched. Stock's 3-4s suits a soft
+	//  identify beam; a hellhound lightning strike or a raygun impact on that beat
+	//  is the "exaggerated" part the user pointed at, so those get room to breathe.
 	for( ;; )
 	{
-		wait randomfloatrange( 3.0, 4.0 );
+		if( level.script == "zm_tomb" )
+			wait randomfloatrange( 3.0, 4.0 );
+		else
+			wait randomfloatrange( 7.0, 10.0 );
 
 		if( self.location != level.currentWunderfizzLocation )
 			continue;
 
 		playfx( level._effect[ "perk_machine_location" ], self.origin + ( 0, 0, level.zmqol_wf_marker_z ) );
-
-		//  No sound on Origins: the real machine's marker is silent, and the
-		//  vortex loop is already carrying the audio.
-		if( level.script != "zm_tomb" )
-			self playsound( "zmb_hellhound_bolt" );
 	}
 }
 
@@ -1184,7 +1390,7 @@ zmqol_wf_departure_steam()
 
 chooseLocation(currLoc)
 {
-	//  🛑 With one location this used to spin forever - it draws until it gets a
+	//  ?? With one location this used to spin forever - it draws until it gets a
 	//  number different from the current one, and there is no such number. The
 	//  caller guards on wunderfizz_locations > 1 today, so this is belt and
 	//  braces, but a machine stuck in here never finishes departing and the orb
@@ -1225,110 +1431,46 @@ perk_bottle_motion()
 // ============================================================================
 //  wunderfizzSounds
 //
-//  🛑 THE REAL ALIASES ONLY EXIST ON ORIGINS, AND THAT CANNOT BE FIXED FROM
-//  SCRIPT OR FROM THE ZONE.
+//  ? v1.39.0 ? THE MACHINE HAS ITS REAL VOICE ON EVERY MAP. Six releases of
+//  substitutes are deleted, and so is the claim they were unavoidable.
 //
-//  zmb_rand_perk_start / _loop / _stop live in zmb_tomb.all, which is Origins'
-//  bank. console_zm.log lists every bank a map loads and that one is absent
-//  everywhere else, so on five of six maps these calls resolved to nothing and
-//  the machine was silent.
+//  What was believed, and repeated in this header through v1.38.0: that
+//  zmb_rand_perk_start / _loop / _stop live in Origins' zmb_tomb.all, that no
+//  tool here can create a sound alias, and that a substitute was therefore the
+//  best available. The first half is true. The conclusion was wrong.
 //
-//  Routes that are closed, so nobody re-walks them:
-//    - "soundbank,zmb_tomb.all" in the zone made Origins UNBOOTABLE in v1.19.0:
-//        COM_ERROR Attempting to override asset 'zmb_tomb.all'
-//                  from zone 'mod' with zone 'zm_tomb'
-//      mod.ff loads first, the map's own copy is refused, and a duplicate
-//      soundbank asset is fatal. There is no conditional form.
-//    - No GSC builtin loads a soundbank at runtime (checked the whole dump).
-//    - Building the aliases into the mod's own mod.all needs a tool that can
-//      CREATE aliases. Black Ops II Sound Studio Extended cannot: it is a
-//      payload REPLACER (its table is Name/Offset/Size/Format/Hash/Replaced
-//      with a Replace Manager, and it shows a custom bank's entries as
-//      "Sound #1.flac" because it cannot resolve their names). No alias
-//      builder exists on this machine.
+//  ?? THE MISSED TOOL WAS THE ONE ALREADY IN THE BUILD. OpenAssetTools reads and
+//  writes soundbanks:
+//      Unlinker --include-assets soundbank --search-path <dir> <any .ff>
+//        -> the bank's ENTIRE alias table as a 60-column CSV, and every payload
+//           as .wav/.flac, for any fastfile in the game
+//      Linker    with soundbank\<name>.aliases.csv + the audio under sound\
+//        -> rebuilds that bank: the alias table into mod.ff AND the audio into
+//           mod.all.sabl / .sabs
+//  So the aliases below are not substitutes and not approximations. They are
+//  Origins' own audio, lifted out of zmb_tomb.all, with Treyarch's own 60 field
+//  values for volume, distance, bus, ducking and looping - only the Name column
+//  differs. See build_ff.bat for the pipeline and .agents\ for the write-up.
 //
-//  So: substitute aliases that ship in evt\zombie_global\pap\ - the
-//  Pack-a-Punch machine set, present on all six maps because every map has a
-//  PaP, and already proven here (the mod plays packa_ready and packa_upgrade
-//  elsewhere without trouble). Same trade as the fx substitutes: a machine
-//  that sounds like a machine beats a silent one.
+//  ?? THEY ARE DELIBERATELY RENAMED zmqol_*, AND MUST STAY RENAMED. Defining
+//  zmb_rand_perk_loop in mod.all would put a second definition of a live alias
+//  in front of Origins, which already ships its own in zmb_tomb.all - the exact
+//  duplicate-asset shape that made Origins unbootable in v1.19.0. A mod-private
+//  name cannot collide on any map. Same discipline as the qolwf_* xmodel and
+//  material rename in v1.23.0, and for the same reason.
 //
-//  Origins still gets its authentic audio, because there the real aliases
-//  resolve. Do not "simplify" this by dropping the branch.
+//  One consequence worth keeping: there is no per-map branch any more. Origins
+//  and the other five now play the identical audio through the identical path,
+//  so anything heard on one is true of all six.
 // ============================================================================
 wunderfizzSounds()
 {
-	// ------------------------------------------------------------------------
-	//  🛑 v1.34.0 — THE ORIGINS BRANCH HAD NEVER WORKED EITHER, AND NOT FOR THE
-	//  REASON THIS HEADER CLAIMS. zmb_rand_perk_start / _loop / _stop are not
-	//  stock alias names. They appear NOWHERE in the 2,093-file stock dump - they
-	//  came in with the upstream wunderfizz mod and were taken on trust here.
-	//  So the machine was silent on Origins too, not just off it.
-	//
-	//  The real machine's audio is CLIENT-side, in Origins'
-	//  _zm_perk_random.csc, and it is two aliases:
-	//      zmb_rand_perk_vortex_sparks   one-shot, on spin up AND spin down
-	//      zmb_rand_perk_vortex          the loop, via soundloopemitter
-	//  (_zm_perk_random.csc:119-131). Those are what Origins uses now.
-	// ------------------------------------------------------------------------
-	if ( level.script == "zm_tomb" || getdvarintdefault( "zmqol_wf_sound", 0 ) == 1 )
-	{
-		str_start = "zmb_rand_perk_vortex_sparks";
-		str_loop  = "zmb_rand_perk_vortex";
-		str_stop  = "zmb_rand_perk_vortex_sparks";
-	}
-	else
-	{
-		// 🛑 The loop is the one the user called "kinda off", and packa_ticktock
-		// is why: it is the Pack-a-Punch CLOCK TICK (evt\zombie_global\pap\loop),
-		// which reads as a countdown rather than a spinning orb.
-		// zmb_tombstone_looper is the POWERUP swirl
-		// (evt\zombie_global\powerup\loop\loop_00) - an energy loop, and still
-		// zombie_global so it is on every map.
-		//
-		// 🛑 Do NOT reach for zmb_zombieblood_loop, which sounds like the right
-		// idea: its source is zmb\level\zm_tomb\zombie_blood\loop, i.e. Origins'
-		// bank, and it would be silent everywhere else - the exact bug this
-		// whole branch exists to work around.
-		//  🛑 v1.34.0 REVERTS v1.32.0's zmb_tombstone_looper. It was picked out of
-		//  BO2-Reimagined's mod.all.aliases.csv on the assumption that the file was
-		//  a dictionary of stock aliases. It is not - it is the alias table of
-		//  Reimagined's OWN bank, so an entry there says nothing about what stock
-		//  ships, and the user got silence. All three below are aliases this mod
-		//  has actually been HEARD playing in game.
-		//
-		//  This cannot be settled offline: alias names are stored HASHED inside
-		//  the .sabl banks (grepping cmn_root.all.sabl for a known-good alias
-		//  finds nothing), and the fastfiles carry no `sound` asset type at all.
-		//  There is no way to list a bank's aliases with the tooling here - only
-		//  playing one and listening.
-		//
-		//  So `zmqol_wf_sound 1` in console switches these to Origins' real vortex
-		//  pair, to find out in ONE session whether they live in a globally-loaded
-		//  bank rather than in zmb_tomb.all. If they do, drop this branch.
-		//  🛑 v1.38.0: the START is now zmb_hellhound_bolt, the electrical strike.
-		//  It is one of only five aliases confirmed audible off Origins by
-		//  actually being heard in game, and it is the SAME sound the location
-		//  marker plays - which now draws real lightning on TranZit - so the
-		//  spin finally opens with a zap that matches what is on screen.
-		//
-		//  The loop stays packa_ticktock, and it is still not Origins' vortex.
-		//  It cannot be: zmb_rand_perk_vortex lives in Origins' own bank and
-		//  _zm_perk_random exists nowhere else in the entire stock dump. No
-		//  choice of alias fixes this - the audio has to be PUT somewhere the
-		//  other maps load, and the only such place is mod.all.sabl.
-		str_start = "zmb_hellhound_bolt";
-		str_loop  = "zmb_perks_packa_ticktock";
-		str_stop  = "zmb_perks_packa_ready";
-	}
-
 	sound_ent = spawn( "script_origin", self.origin );
 
-	//  StopSounds() on a just-spawned entity was a no-op and is gone.
-	sound_ent PlaySound( str_start );
-	sound_ent PlayLoopSound( str_loop, 0.5 );
+	sound_ent PlaySound( "zmqol_wf_start" );
+	sound_ent PlayLoopSound( "zmqol_wf_loop", 0.5 );
 
-	//  🛑 Was `level waittill("wunderSpinStop")`. Two bugs in one line:
+	//  ?? Was `level waittill("wunderSpinStop")`. Two bugs in one line:
 	//
 	//  1. wunderSpinStop is only notified AFTER the 7-second "Hold F for X"
 	//     offer window (or on departure), so the loop kept droning for up to ten
@@ -1340,9 +1482,9 @@ wunderfizzSounds()
 	self waittill( "done_cycling" );
 
 	sound_ent StopLoopSound( 1 );
-	sound_ent PlaySound( str_stop );
+	sound_ent PlaySound( "zmqol_wf_stop" );
 
-	//  🛑 Deleting the emitter in the same frame as PlaySound cut the stop sound
+	//  ?? Deleting the emitter in the same frame as PlaySound cut the stop sound
 	//  off before a single sample of it reached anyone - the old code did exactly
 	//  that. Outlive the one-shot, then clean up.
 	wait 2;

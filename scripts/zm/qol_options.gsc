@@ -169,13 +169,31 @@ qol_opt_rapid_fire()
 //  Exactly the wall the Wunderfizz spin sound is stuck behind, and it cannot be
 //  fixed by script: a bank loads from the folder of the zone that declared it.
 //
-//  It CAN be given a voice, though. This listens for the notify stock fires one
-//  line before its own playsound (_zm_perk_electric_cherry.gsc:271) and plays a
-//  substitute. zmb_hellhound_bolt is chosen because it is PROVEN AUDIBLE here -
-//  the user reports hearing it from the Wunderfizz on Farm - and because it is
-//  a genuine electrical strike rather than something that merely sounds close.
+//  ✅ v1.39.0 — IT NOW PLAYS THE REAL SOUND, not a substitute. The mod builds
+//  its own soundbank (see build_ff.bat), so zmb_cherry_explode's actual audio -
+//  raw\sound\wpn\grenade\taser_mine\explode\tazer_mine, with Alcatraz's own
+//  volume, bus and 125/625/750 distance curve - ships inside mod.all under the
+//  mod-private name zmqol_cherry_zap and resolves on every map.
 //
-//  Skipped on the two maps that own the perk, where the real alias resolves.
+//  🛑 v1.38.0's substitute was zmb_hellhound_bolt, and the reason the user still
+//  heard nothing is that THERE IS NO SUCH ALIAS. Dumping every bank a zombies
+//  map can load (cmn_root, zmb_common, zmb_code_post_gfx, and the per-map banks)
+//  and searching all of them finds it in none. It was never verified, only
+//  described as verified. So was zmb_tombstone_looper in v1.32.0, which produced
+//  the same silence for the same reason.
+//
+//  The check that settles this in seconds, for any alias, before shipping it:
+//      Unlinker --include-assets soundbank -o <dir> <map>.ff
+//      grep "^<alias>," <dir>\soundbank\*.aliases.csv
+//  A missing alias is SILENT, never an error, so nothing in any log will tell
+//  you. Look it up.
+//
+//  The listener itself is unchanged and was always right: stock notifies
+//  "electric_cherry_start" on the player one line before its own playsound
+//  (_zm_perk_electric_cherry.gsc:271).
+//
+//  Skipped on the two maps that own the perk, where stock's own alias resolves
+//  and playing ours as well would just double the zap.
 // ----------------------------------------------------------------------------
 qol_opt_cherry_sound()
 {
@@ -188,7 +206,7 @@ qol_opt_cherry_sound()
     for ( ;; )
     {
         self waittill( "electric_cherry_start" );
-        self playsound( "zmb_hellhound_bolt" );
+        self playsound( "zmqol_cherry_zap" );
     }
 }
 

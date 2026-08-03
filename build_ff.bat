@@ -84,6 +84,43 @@ echo   Staging current .csc sources into zone_assets ...
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$proj='%PROJ%'; $n=0; Get-ChildItem -LiteralPath (Join-Path $proj 'scripts') -Recurse -Filter *.csc | ForEach-Object { $rel=$_.FullName.Substring($proj.Length+1); $dst=Join-Path (Join-Path $proj 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [stage] ' + $rel); $n++ }; Write-Host ('    ' + $n + ' client script(s) staged')"
 if errorlevel 1 ( echo   ERROR: could not stage .csc sources. & exit /b 1 )
 
+REM --- stage the sound bank source --------------------------------------------
+REM  A T6 sound alias is built from a 60-column CSV plus the WAV/FLAC it names in
+REM  its FileSource column. To add ONE alias the Linker still has to rebuild the
+REM  WHOLE bank, so it needs the full table and every payload the donor already
+REM  had - 1,691 aliases over 249 distinct audio files.
+REM
+REM  Both come straight back out of the donor, so none of it is checked in:
+REM      Unlinker --include-assets soundbank --search-path <base>  ->  the CSV
+REM                                                                    AND the audio
+REM  🛑 --search-path must point at zone_source\base, never at the project root.
+REM  The root mod.all.sabl is a BUILD OUTPUT once this script has run; dumping from
+REM  it would feed each build its own previous output and compound. Same rule as
+REM  linking from base\mod.ff instead of the live mod.ff.
+REM
+REM  🛑 Dump the CSV and the payloads in the SAME Unlinker run. It writes files named
+REM  foo.snd.wav.wav - its own extension on top of the FileSource name - and rewrites
+REM  the CSV's FileSource column to match, so the two agree only if they come from one
+REM  run. Taking the CSV from a payload-less dump (FileSource "foo.snd.wav") and the
+REM  audio from a dump with --search-path ("foo.snd.wav.wav"), in either direction,
+REM  fails with "Unable to find a compatible file for sound ...". Do not "fix" the
+REM  doubled extension - the CSV expects it.
+if not exist "%PROJ%\zone_assets\soundbank\mod.all.aliases.csv" (
+    echo   Extracting the donor sound bank ^(first run only, ~250 files^) ...
+    if exist "%PROJ%\zone_assets\_snd_dump" rmdir /s /q "%PROJ%\zone_assets\_snd_dump"
+    "%OAT_BASE%\Unlinker.exe" --include-assets soundbank --search-path "%PROJ%\zone_source\base" -o "%PROJ%\zone_assets\_snd_dump" "%PROJ%\zone_source\base\mod.ff" >nul
+    if errorlevel 1 ( echo   ERROR: could not extract the donor sound bank. & exit /b 1 )
+    "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$p='%PROJ%'; $d=Join-Path $p 'zone_assets\_snd_dump'; New-Item -ItemType Directory -Force -Path (Join-Path $p 'zone_assets\soundbank') | Out-Null; Copy-Item (Join-Path $d 'soundbank\mod.all.aliases.csv') (Join-Path $p 'zone_assets\soundbank\mod.all.aliases.csv') -Force; $n=0; Get-ChildItem -LiteralPath (Join-Path $d 'sound') -Recurse -File | ForEach-Object { $rel=$_.FullName.Substring((Join-Path $d '').Length); $dst=Join-Path (Join-Path $p 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; $n++ }; Write-Host ('    ' + $n + ' donor sound payload(s) extracted')"
+    if errorlevel 1 ( echo   ERROR: could not lay out the donor sound payloads. & exit /b 1 )
+    rmdir /s /q "%PROJ%\zone_assets\_snd_dump"
+)
+
+REM  Now overlay what THIS project adds, every run, so an edit to either always
+REM  takes: the extra alias rows, then the WAVs they point at.
+echo   Staging this mod's own sounds ...
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$p='%PROJ%'; $base=Join-Path $p 'zone_assets\soundbank\mod.all.aliases.csv'; $add=Join-Path $p 'soundbank\mod.all.aliases.additions.csv'; $rows=@(Get-Content $base); $names=@{}; foreach($r in $rows[1..($rows.Count-1)]){ $names[($r -split ',')[0]] = $true }; $n=0; if(Test-Path $add){ foreach($r in @(Get-Content $add)[1..((@(Get-Content $add)).Count-1)]){ if($r.Trim() -eq ''){continue}; $nm=($r -split ',')[0]; if(-not $names.ContainsKey($nm)){ $rows += $r; $names[$nm]=$true; $n++ } } }; Set-Content -LiteralPath $base -Value $rows -Encoding ASCII; Write-Host ('    ' + $n + ' alias row(s) added, ' + ($rows.Count-1) + ' total'); $m=0; $src=Join-Path $p 'sound'; if(Test-Path $src){ Get-ChildItem -LiteralPath $src -Recurse -File | ForEach-Object { $rel=$_.FullName.Substring($p.Length+1); $dst=Join-Path (Join-Path $p 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; $m++ } }; Write-Host ('    ' + $m + ' sound payload(s) staged')"
+if errorlevel 1 ( echo   ERROR: could not stage this mod's sounds. & exit /b 1 )
+
 REM --- link -------------------------------------------------------------------
 echo   Linking mod.ff ...
 if exist "%PROJ%\zone_out" rmdir /s /q "%PROJ%\zone_out"
@@ -125,6 +162,31 @@ if not exist "%PROJ%\zone_out\mod.ff" (
 )
 
 copy /y "%PROJ%\zone_out\mod.ff" "%PROJ%\mod.ff" >nul
+
+REM --- the sound banks --------------------------------------------------------
+REM  🛑 THE LINKER BUILDS THE SOUND BANKS TOO, and until v1.39.0 this script threw
+REM  them away with the rest of zone_out. That is why "you cannot add a sound to
+REM  this mod" was believed for six releases.
+REM
+REM  A T6 sound is TWO halves and they live in different files:
+REM      the ALIAS (name, volume, distances, looping) -> the soundbank asset in mod.ff
+REM      the PAYLOAD (the actual audio)               -> mod.all.sabl / .sabs
+REM  Both are generated from zone_assets\soundbank\mod.all.aliases.csv plus the
+REM  WAV/FLAC tree under zone_assets\sound\, so BOTH have to be kept or the alias
+REM  resolves to nothing and the sound is silent with no error logged.
+REM
+REM  Only mod.all is rebuilt. deathmachine_zm.all has no CSV in zone_assets, so the
+REM  Linker copies it out of the donor untouched ("src: mod" in the link output)
+REM  and deathmachine_zm.all.sabl at the project root is never regenerated.
+for %%B in (mod.all.sabl mod.all.sabs) do (
+    if exist "%PROJ%\zone_out\%%B" (
+        copy /y "%PROJ%\zone_out\%%B" "%PROJ%\%%B" >nul
+        for %%F in ("%PROJ%\%%B") do echo   %%B rebuilt: %%~zF bytes
+    ) else (
+        echo   NOTE: the Linker produced no %%B - the existing one is kept.
+    )
+)
+
 rmdir /s /q "%PROJ%\zone_out"
 
 for %%F in ("%PROJ%\mod.ff") do echo   mod.ff rebuilt: %%~zF bytes

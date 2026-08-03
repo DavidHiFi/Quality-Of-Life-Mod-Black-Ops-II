@@ -1,159 +1,113 @@
-# Wunderfizz sound — the one job that needs Sound Studio
+# Adding a sound to this mod
 
-**Goal:** make the Wunderfizz machine audible on all six maps. It is silent everywhere except
-Origins today, and no amount of GSC or zone work can fix that — see "Why" below.
+**This is a solved problem as of v1.39.0.** It is a normal build step now — edit a CSV, drop an
+audio file, run `build_ff.bat`. No GUI, no Sound Studio, no manual step.
 
-**Who does what:** everything that can be done offline is done. What is left is a GUI import in
-**Black Ops II Sound Studio Extended**, which has no CLI, so it has to be you.
+Everything this file used to say is superseded. It described a hand import in **Black Ops II Sound
+Studio Extended** as the one thing that could not be automated. That was wrong twice over: Sound
+Studio cannot create aliases at all (it is a payload replacer), and the tool that *can* was already
+in the build.
 
 ---
 
-## What is already done
+## The mechanism
+
+**OpenAssetTools reads and writes soundbanks.** That is the whole answer, and it went unnoticed for
+six releases while the mod shipped substitute sounds.
+
+A T6 sound is two halves, in two files:
+
+| half | what it is | where it ships |
+|---|---|---|
+| the **alias** | name, volume, bus, distance curve, looping, ~60 fields | the `soundbank` asset inside `mod.ff` |
+| the **payload** | the actual audio | `mod.all.sabl` (loaded) / `mod.all.sabs` (streamed) |
+
+Both are generated from the same two inputs, and `build_ff.bat` keeps all of it in step:
+
+```
+zone_assets\soundbank\mod.all.aliases.csv   the full alias table
+zone_assets\sound\**                        the audio each row's FileSource names
+```
+
+Neither is checked in. `build_ff.bat` regenerates them from `zone_source\base\` on first run — the
+donor's 1,691 rows and 249 payloads come straight back out with
+
+```
+Unlinker --include-assets soundbank --search-path zone_source\base -o <dir> zone_source\base\mod.ff
+```
+
+then overlays this project's own additions on top, every build.
+
+## What IS source, and all you edit
 
 | | |
 |---|---|
-| Source audio | `source\*.flac` — already extracted, you do **not** need to pull it out of a `.sabs` yourself |
-| WAVs, in place | `<project>\sound\zmb\level\zm_tomb\random_perk_machine\*.wav` — the exact tree `FileSource` points at |
-| Alias rows | `mod.all.aliases.additions.csv` — 4 rows, 60 columns, ready to import |
-| Field values | copied verbatim from a **known-good shipping alias**, not invented (see below) |
+| `soundbank\mod.all.aliases.additions.csv` | the rows this mod adds |
+| `sound\**` | the audio those rows point at |
 
-## The folder layout (verified against BO2-Reimagined)
+## To add a sound
 
-This mod now mirrors Reimagined's, because Reimagined is the working reference for exactly this job:
+1. **Find it in a real bank** and take Treyarch's own row and audio — never invent field values:
+   ```
+   Unlinker --include-assets soundbank --search-path "<BO2>\sound" -o dump "<BO2>\zone\all\zm_tomb.ff"
+   grep "^<alias>," dump\soundbank\*.aliases.csv
+   ```
+   The payloads land under `dump\sound\...` at the exact path the CSV's `FileSource` names.
+2. **Copy the row into `mod.all.aliases.additions.csv` and rename the `Name` column** to `zmqol_*`.
+3. **Copy the payload into `sound\`**, at its `FileSource` path minus the `raw\` prefix.
+4. `build_ff.bat`, then `build.bat`.
+
+### 🛑 Rename every alias `zmqol_*`
+
+Shipping `zmb_rand_perk_loop` under its own name would put a second definition of a live alias in
+front of Origins, which ships its own in `zmb_tomb.all` — the duplicate-asset shape that made Origins
+unbootable in v1.19.0. A mod-private name cannot collide on any map. Same rule as the `qolwf_*`
+xmodel/material rename in v1.23.0.
+
+### 🛑 Check an alias exists before you use it
+
+A missing alias is **silent, never an error** — nothing in any log will tell you. Two releases were
+lost to aliases that were described as verified and did not exist anywhere: `zmb_tombstone_looper`
+(v1.32.0) and `zmb_hellhound_bolt` (v1.38.0). One command settles it:
 
 ```
-soundbank\   the alias CSVs        - what Sound Studio imports
-sound\       the raw WAV tree      - what FileSource resolves against
+Unlinker --include-assets soundbank -o dump <map>.ff   &&   grep "^<alias>," dump\soundbank\*.csv
 ```
 
-**`FileSource` drops the `raw\` prefix and resolves from the project root.** Confirmed by example:
-Reimagined's `zmb_perks_packa_ticktock` has
-`FileSource = raw\sound\evt\zombie_global\pap\loop.LL55.pc.snd.wav`, and the file sits at
-`BO2-Reimagined\sound\evt\zombie_global\pap\loop.LL55.pc.snd.wav`. So `raw\sound\...` → `<project>\sound\...`.
+**`BO2-Reimagined\soundbank\mod.all.aliases.csv` cannot confirm a stock alias** — it is the alias
+table of Reimagined's *own* bank. It is still an excellent source of realistic field values.
 
-**Neither folder ships.** Reimagined's `build.bat` copies only `ff, iwd, sabs, sabl, json`, and this
-project's `pack_iwd.ps1` packs only `attachmentunique, character, images, maps, scripts, ui_mp,
-weapons`. They are build-time source, like `zone_assets\`. Importing a WAV into `sound\` therefore
-does **not** by itself put the sound in the game — Sound Studio still has to build it into
-`mod.all.sabl`. That is the step that cannot be automated.
+### 🛑 Dump the CSV and the payloads in one Unlinker run
+
+It writes files as `foo.snd.wav.wav` — its own extension on top of the `FileSource` name — and
+rewrites the CSV's `FileSource` column to match. Mix a CSV from one run with audio from another and
+the link fails with `Unable to find a compatible file for sound ...`. Do not "fix" the doubled
+extension; the CSV expects it.
+
+### `Storage` decides which bank it lands in
+
+`loaded` → `mod.all.sabl`, `streamed` → `mod.all.sabs`. Both are rebuilt and both must deploy.
+**`build.bat` has printed `[ok]` for a bank it did not actually copy** — verify the deployed file
+sizes afterwards, or a streamed sound is silent while everything looks fine.
 
 ---
 
-## Why this is needed at all
+## What ships today
 
-`wunderfizz.gsc::wunderfizzSounds()` plays `zmb_rand_perk_start` / `_loop` / `_stop`. Those aliases
-live **only in `zmb_tomb.all`**, which is Origins' bank and is not loaded on any other map.
-`console_zm.log` confirms it: a Nuketown run loads `zmb_patch.all`, `cmn_root.all`,
-`zmb_code_post_gfx.all`, `zmb_patch_ui.all`, `zmb_common.all`, `zmb_nuked_real.all`, `mod.all`,
-`deathmachine_zm.all` — and nothing else.
+| alias | source | storage |
+|---|---|---|
+| `zmqol_wf_start` | Origins `zmb_rand_perk_start` | streamed |
+| `zmqol_wf_loop` | Origins `zmb_rand_perk_loop` (looping) | streamed |
+| `zmqol_wf_stop` | Origins `zmb_rand_perk_stop` | streamed |
+| `zmqol_wf_leave` | Origins `zmb_rand_perk_leave` | streamed |
+| `zmqol_cherry_zap` | Alcatraz `zmb_cherry_explode` | loaded |
 
-**🛑 Declaring `soundbank,zmb_tomb.all` in the zone does NOT work.** That was tried in v1.19.0 and it
-made Origins unbootable:
+All five carry Treyarch's own 60 field values; only `Name` (and, for the zap, `FileSource`) differs.
 
-```
-COM_ERROR (1) Attempting to override asset 'zmb_tomb.all'
-              from zone 'mod' with zone 'zm_tomb'
-```
+## Still true, and still the reason all this was needed
 
-`mod.ff` loads first, so the map's own copy is refused, and T6 treats a duplicate soundbank asset as
-fatal. Reverted in v1.21.2. There is no conditional form — one `mod.ff`, every map.
-
-The remaining route is the mod's own `mod.all`, which already loads on every map and collides with
-nothing.
-
-### This is the EASY case, and that matters
-
-The open question in `.agents\sound_work_notes.md` was whether a mod bank's alias can **override** a
-stock one. **That question does not apply here.** `zmb_rand_perk_*` does not exist in any bank loaded
-off Origins, so we are **adding** an alias, not shadowing one — exactly what
-`deathmachine_zm.all` already proves works (it is how the Death Machine gets its firing sound).
-
-So this should work. If it does, it also settles the shadowing question separately later.
-
----
-
-## The aliases
-
-| alias | source file | looping | used by |
-|---|---|---|---|
-| `zmb_rand_perk_start` | `rand_perk_mach_start.flac` | nonlooping | `wunderfizzSounds()` |
-| `zmb_rand_perk_loop` | `rand_perk_mach_loop.flac` | **looping** | `wunderfizzSounds()` |
-| `zmb_rand_perk_stop` | `rand_perk_mach_stop.flac` | nonlooping | `wunderfizzSounds()` |
-| `zmb_rand_perk_leave` | `rand_perk_mach_leave.flac` | nonlooping | stock only — optional, include for completeness |
-
-All four are small (105–704 KB), so they are set `Storage=loaded` and go in **`mod.all.sabl`** only.
-`mod.all.sabs` does not need rebuilding.
-
-### Where the field values came from
-
-Every column except `Name`, `FileSource` and `Looping` is copied **byte-for-byte** from
-`zmb_perks_packa_ticktock` in `BO2-Reimagined\soundbank\mod.all.aliases.csv` — a *looping
-perk-machine* sound in a shipping mod. Verified by diff: only those three fields differ.
-
-That means the distances, bus, volume group, ducking and priority are all values Treyarch actually
-uses for a perk machine, not guesses. Relevant ones:
-
-```
-Storage=loaded   Bus=bus_fx        VolumeGroup=grp_ambience   DuckGroup=snp_ambience
-VolMin/Max=75    DistMin=75        DistMaxDry=250             DistMaxWet=325
-PanType=3d       Looping=looping   Pauseable=yes              Timescale=yes
-```
-
-`DistMaxDry=250` means audible within ~250 units — same as the Pack-a-Punch tick. If the Wunderfizz
-turns out too quiet from across a room, raise `DistMaxDry`/`DistMaxWet` and rebuild; nothing else
-depends on those numbers.
-
----
-
-## Steps
-
-1. ~~Convert the FLACs to WAV~~ — **done**, and the WAVs are already sitting at
-   `<project>\sound\zmb\level\zm_tomb\random_perk_machine\`, which is exactly where the CSV's
-   `FileSource` column points. Nothing to move.
-
-2. **🛑 Open `mod.all.sabl`, NOT `mod.all.sabs`.** The CSV sets `Storage=loaded`, and loaded aliases
-   live in the `.sabl`. The mod ships both banks and the game loads both — the log shows
-   `Soundbank mod.all has load asset bank mod.all.sabl` *and* `stream asset bank mod.all.sabs` — so
-   either would work, but the file has to match the field.
-   If you would rather use the `.sabs`, that is fine: change `Storage` from `loaded` to `streamed`
-   in all four rows and use `mod.all.sabs` instead. That single field is the only edit needed.
-   Work on a copy either way.
-
-3. **Import `mod.all.aliases.additions.csv`.** These are *additions* — do not replace the existing
-   alias table or you will lose the Death Machine and every other sound the mod already ships.
-
-4. **Rebuild the bank** and put it back at the project root, overwriting the old one.
-
-5. **`build.bat`** — it copies the bank to `build\zm_qol\` and the Plutonium mods folder. No
-   `build_ff.bat` needed; the zone already declares `soundbank,mod.all` and that line does not change.
-
----
-
-## Verifying it worked
-
-1. Load **Farm** (not Origins — Origins has the sounds natively and proves nothing).
-2. Buy from the Wunderfizz. You should hear the spin start, loop while it cycles, and stop.
-3. If silent, check `console_zm.log`:
-   - `Attempting to load soundbank mod.all` should be present (it always is).
-   - A missing alias is silent, not an error, so absence of errors means nothing here.
-
-If it is still silent, the likely causes in order: the alias name is misspelled, the WAV was not
-found at import time so the alias has no payload, or `Storage` was left `streamed` (it must be
-`loaded` for `mod.all.sabl`).
-
----
-
-## While you are in there — two other things
-
-Both are separate from the Wunderfizz and neither is set up yet; mentioned so one GUI session can
-cover them if you want.
-
-- **`zmb_cherry_explode`** — Electric Cherry's reload sound, same problem, same fix. Source:
-  `BO2 Files Organized By Volkz\Sounds\zmb_alcatraz.all.sabs\...\cherry_jingle.flac`. Nothing in
-  this mod's GSC plays it directly (stock's Electric Cherry code does), so it only matters on the
-  maps where we add that perk.
-- **Menu music looping** — a *different* class of problem. Looping is an **alias field** (`Looping`,
-  column 32), not a property of the audio, so replacing a `.snd` payload never makes a track loop.
-  That one needs an alias edit, which is also Extended-only. See `.agents\sound_work_notes.md` §2 —
-  and note its open question: a Plutonium mod loads when a match starts, so it may not be able to
-  touch front-end music at all.
+**`soundbank,<stock name>` in the zone is fatal.** `zmb_tomb.all` there made Origins unbootable:
+`COM_ERROR Attempting to override asset 'zmb_tomb.all' from zone 'mod' with zone 'zm_tomb'`.
+**And a mod-folder file does not override a stock bank** — a bank loads from the folder of the zone
+that declared it, proven across three staged locations and three logs with `cmn_root.all.sabl`.
+The mod's own `mod.all` was always the only channel. It just turned out to be a fully usable one.
