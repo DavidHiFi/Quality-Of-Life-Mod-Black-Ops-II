@@ -855,15 +855,62 @@ perk_bottle_motion()
 	self.bottle rotateyaw( 90, putbacktime, putbacktime * 0.5 );
 }
 
+// ============================================================================
+//  wunderfizzSounds
+//
+//  🛑 THE REAL ALIASES ONLY EXIST ON ORIGINS, AND THAT CANNOT BE FIXED FROM
+//  SCRIPT OR FROM THE ZONE.
+//
+//  zmb_rand_perk_start / _loop / _stop live in zmb_tomb.all, which is Origins'
+//  bank. console_zm.log lists every bank a map loads and that one is absent
+//  everywhere else, so on five of six maps these calls resolved to nothing and
+//  the machine was silent.
+//
+//  Routes that are closed, so nobody re-walks them:
+//    - "soundbank,zmb_tomb.all" in the zone made Origins UNBOOTABLE in v1.19.0:
+//        COM_ERROR Attempting to override asset 'zmb_tomb.all'
+//                  from zone 'mod' with zone 'zm_tomb'
+//      mod.ff loads first, the map's own copy is refused, and a duplicate
+//      soundbank asset is fatal. There is no conditional form.
+//    - No GSC builtin loads a soundbank at runtime (checked the whole dump).
+//    - Building the aliases into the mod's own mod.all needs a tool that can
+//      CREATE aliases. Black Ops II Sound Studio Extended cannot: it is a
+//      payload REPLACER (its table is Name/Offset/Size/Format/Hash/Replaced
+//      with a Replace Manager, and it shows a custom bank's entries as
+//      "Sound #1.flac" because it cannot resolve their names). No alias
+//      builder exists on this machine.
+//
+//  So: substitute aliases that ship in evt\zombie_global\pap\ - the
+//  Pack-a-Punch machine set, present on all six maps because every map has a
+//  PaP, and already proven here (the mod plays packa_ready and packa_upgrade
+//  elsewhere without trouble). Same trade as the fx substitutes: a machine
+//  that sounds like a machine beats a silent one.
+//
+//  Origins still gets its authentic audio, because there the real aliases
+//  resolve. Do not "simplify" this by dropping the branch.
+// ============================================================================
 wunderfizzSounds()
 {
+	if ( level.script == "zm_tomb" )
+	{
+		str_start = "zmb_rand_perk_start";
+		str_loop  = "zmb_rand_perk_loop";
+		str_stop  = "zmb_rand_perk_stop";
+	}
+	else
+	{
+		str_start = "zmb_perks_packa_upgrade";
+		str_loop  = "zmb_perks_packa_ticktock";
+		str_stop  = "zmb_perks_packa_ready";
+	}
+
 	sound_ent = spawn("script_origin", self.origin);
 	sound_ent StopSounds();
-	sound_ent PlaySound( "zmb_rand_perk_start");
-	sound_ent PlayLoopSound("zmb_rand_perk_loop", 0.5);
+	sound_ent PlaySound( str_start );
+	sound_ent PlayLoopSound( str_loop, 0.5 );
 	level waittill("wunderSpinStop");
 	sound_ent StopLoopSound(1);
-	sound_ent PlaySound("zmb_rand_perk_stop");
+	sound_ent PlaySound( str_stop );
 	sound_ent Delete();
 }
 
