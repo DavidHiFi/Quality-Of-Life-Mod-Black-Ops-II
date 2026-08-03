@@ -2607,9 +2607,21 @@ zmqol_dev_command_listener()
         }
         else if ( cmd == "where" )
         {
+            //  v1.40.1: reports YAW as well as position. A coordinate alone is
+            //  half an answer when the thing being placed is a machine - it has
+            //  to face out of the wall, and "back left corner" in a screenshot
+            //  cannot be resolved without knowing which way the camera was
+            //  pointing. Stand where you want it, face the way it should face,
+            //  and this one line is now the whole spec.
             v_pos = player.origin;
-            player iprintln( "^2[zm_qol] ^7x " + int( v_pos[0] ) + "  y " + int( v_pos[1] ) + "  z " + int( v_pos[2] ) );
-            println( "[zm_qol] WHERE " + level.script + " (" + v_pos[0] + ", " + v_pos[1] + ", " + v_pos[2] + ")" );
+            v_ang = player getplayerangles();
+            n_yaw = int( v_ang[1] );
+
+            if ( n_yaw < 0 )
+                n_yaw += 360;
+
+            player iprintln( "^2[zm_qol] ^7x " + int( v_pos[0] ) + "  y " + int( v_pos[1] ) + "  z " + int( v_pos[2] ) + "  ^2yaw ^7" + n_yaw );
+            println( "[zm_qol] WHERE " + level.script + " (" + v_pos[0] + ", " + v_pos[1] + ", " + v_pos[2] + ") yaw " + n_yaw );
         }
         else if ( cmd == "giveperks" )
         {
