@@ -13,8 +13,29 @@ Origins today, and no amount of GSC or zone work can fix that — see "Why" belo
 | | |
 |---|---|
 | Source audio | `source\*.flac` — already extracted, you do **not** need to pull it out of a `.sabs` yourself |
+| WAVs, in place | `<project>\sound\zmb\level\zm_tomb\random_perk_machine\*.wav` — the exact tree `FileSource` points at |
 | Alias rows | `mod.all.aliases.additions.csv` — 4 rows, 60 columns, ready to import |
 | Field values | copied verbatim from a **known-good shipping alias**, not invented (see below) |
+
+## The folder layout (verified against BO2-Reimagined)
+
+This mod now mirrors Reimagined's, because Reimagined is the working reference for exactly this job:
+
+```
+soundbank\   the alias CSVs        - what Sound Studio imports
+sound\       the raw WAV tree      - what FileSource resolves against
+```
+
+**`FileSource` drops the `raw\` prefix and resolves from the project root.** Confirmed by example:
+Reimagined's `zmb_perks_packa_ticktock` has
+`FileSource = raw\sound\evt\zombie_global\pap\loop.LL55.pc.snd.wav`, and the file sits at
+`BO2-Reimagined\sound\evt\zombie_global\pap\loop.LL55.pc.snd.wav`. So `raw\sound\...` → `<project>\sound\...`.
+
+**Neither folder ships.** Reimagined's `build.bat` copies only `ff, iwd, sabs, sabl, json`, and this
+project's `pack_iwd.ps1` packs only `attachmentunique, character, images, maps, scripts, ui_mp,
+weapons`. They are build-time source, like `zone_assets\`. Importing a WAV into `sound\` therefore
+does **not** by itself put the sound in the game — Sound Studio still has to build it into
+`mod.all.sabl`. That is the step that cannot be automated.
 
 ---
 
@@ -86,27 +107,24 @@ depends on those numbers.
 
 ## Steps
 
-1. **Convert the FLACs to WAV.** Sound Studio wants WAV. Any converter; keep the sample rate.
-   Name them exactly as in the table, `.wav`.
+1. ~~Convert the FLACs to WAV~~ — **done**, and the WAVs are already sitting at
+   `<project>\sound\zmb\level\zm_tomb\random_perk_machine\`, which is exactly where the CSV's
+   `FileSource` column points. Nothing to move.
 
-2. **Place them where `FileSource` points.** The CSV uses the stock tree:
-   ```
-   raw\sound\zmb\level\zm_tomb\random_perk_machine\rand_perk_mach_start.wav
-   ```
-   ⚠️ This is the one thing I could not verify offline — how Sound Studio Extended resolves
-   `FileSource` relative to its project root. If it does not find them, either move the WAVs to
-   match, or edit the `FileSource` column to whatever path the tool expects. The path is cosmetic;
-   only the **alias names** must be exact.
+2. **🛑 Open `mod.all.sabl`, NOT `mod.all.sabs`.** The CSV sets `Storage=loaded`, and loaded aliases
+   live in the `.sabl`. The mod ships both banks and the game loads both — the log shows
+   `Soundbank mod.all has load asset bank mod.all.sabl` *and* `stream asset bank mod.all.sabs` — so
+   either would work, but the file has to match the field.
+   If you would rather use the `.sabs`, that is fine: change `Storage` from `loaded` to `streamed`
+   in all four rows and use `mod.all.sabs` instead. That single field is the only edit needed.
+   Work on a copy either way.
 
-3. **Open `mod.all` in Sound Studio Extended** — the mod's existing bank, at the project root
-   (`H:\Claude\Projects Sources\zm_qol\mod.all.sabl`). Work on a copy first.
-
-4. **Import `mod.all.aliases.additions.csv`.** These are *additions* — do not replace the existing
+3. **Import `mod.all.aliases.additions.csv`.** These are *additions* — do not replace the existing
    alias table or you will lose the Death Machine and every other sound the mod already ships.
 
-5. **Rebuild `mod.all.sabl`** and put it back at the project root, overwriting the old one.
+4. **Rebuild the bank** and put it back at the project root, overwriting the old one.
 
-6. **`build.bat`** — it copies the bank to `build\zm_qol\` and the Plutonium mods folder. No
+5. **`build.bat`** — it copies the bank to `build\zm_qol\` and the Plutonium mods folder. No
    `build_ff.bat` needed; the zone already declares `soundbank,mod.all` and that line does not change.
 
 ---
