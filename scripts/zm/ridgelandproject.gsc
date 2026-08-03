@@ -2486,7 +2486,7 @@ zmqol_dev_command_listener()
             {
                 player.zmqol_fly = 1;
                 player thread zmqol_fly_think();
-                player iprintln( "^2[zm_qol] fly ON ^7- MELEE fwd, ADS back, JUMP up, STANCE down, SPRINT boost" );
+                player iprintln( "^2[zm_qol] fly ON ^7- WASD to move, JUMP up, STANCE down, SPRINT boost" );
             }
         }
         else if ( cmd == "infiniteammo" || cmd == "infammo" )
@@ -2887,7 +2887,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.god^7                      toggle godmode";
     a_lines[a_lines.size] = "^3.ghost^7                    toggle - zombies ignore you";
     a_lines[a_lines.size] = "^3.afk^7                      toggle - ghost + godmode";
-    a_lines[a_lines.size] = "^3.fly^7                      noclip: melee=fwd ads=back jump/stance=up/down";
+    a_lines[a_lines.size] = "^3.fly^7                      noclip: WASD to move, jump/stance = up/down";
     a_lines[a_lines.size] = "^3.infiniteammo^7 / ^3.infammo^7  toggle - never run dry";
     a_lines[a_lines.size] = "^3.reload^7                   refill all weapons + equipment";
     a_lines[a_lines.size] = "^3.pack^7                     Pack-a-Punch the held weapon";
@@ -3034,6 +3034,72 @@ zmqol_infinite_ammo_think()
 //  So movement is: hold a button, fly the way you are looking. anglestoforward()
 //  carries view PITCH, so looking up and holding forward climbs - jump/stance are
 //  only there for fine vertical trim.
+// ============================================================================
+//  zmqol_fly_bind_wasd  -  REAL WASD, without reading movement state
+//
+//  getnormalizedmovement() is undefined in this build (see the block above
+//  zmqol_fly_think), so WASD cannot be POLLED. But it can be SUBSCRIBED to:
+//  notifyonplayercommand( notify, command ) fires a GSC notify when the client
+//  issues a console command, and the movement keys are bound to the ordinary
+//  console commands +forward / +back / +moveleft / +moveright.
+//
+//  🛑 The RELEASE form works too, and that is what makes held-state possible -
+//  "-forward" fires on key-up. Confirmed in shipped code, not assumed:
+//  Plutonium-T6-Scripts uses notifyonplayercommand("close_scores", "-scores")
+//  alongside ("open_scores", "+scores"). Other shipped binds in the workspace
+//  cover "+attack", "+melee", "+gostand", "+activate", "+speed_throw".
+//
+//  So each axis gets two one-line watcher threads - one sets the flag on press,
+//  one clears it on release. Two separate watchers rather than a single
+//  down-then-up loop on purpose: a loop that waits for "down" then "up" can
+//  desync permanently if either notify is ever missed, and then the key sticks.
+//
+//  Bound once per player and guarded, because re-registering the same command
+//  on every .fly toggle would stack duplicate notifies.
+// ============================================================================
+zmqol_fly_bind_wasd()
+{
+    if ( isdefined( self.zmqol_fly_bound ) )
+        return;
+
+    self.zmqol_fly_bound = 1;
+    self.zmqol_fly_keys = [];
+    self.zmqol_fly_keys["f"] = 0;
+    self.zmqol_fly_keys["b"] = 0;
+    self.zmqol_fly_keys["l"] = 0;
+    self.zmqol_fly_keys["r"] = 0;
+
+    self notifyonplayercommand( "zmqol_fly_f_dn", "+forward" );
+    self notifyonplayercommand( "zmqol_fly_f_up", "-forward" );
+    self notifyonplayercommand( "zmqol_fly_b_dn", "+back" );
+    self notifyonplayercommand( "zmqol_fly_b_up", "-back" );
+    self notifyonplayercommand( "zmqol_fly_l_dn", "+moveleft" );
+    self notifyonplayercommand( "zmqol_fly_l_up", "-moveleft" );
+    self notifyonplayercommand( "zmqol_fly_r_dn", "+moveright" );
+    self notifyonplayercommand( "zmqol_fly_r_up", "-moveright" );
+
+    self thread zmqol_fly_key_watch( "zmqol_fly_f_dn", "f", 1 );
+    self thread zmqol_fly_key_watch( "zmqol_fly_f_up", "f", 0 );
+    self thread zmqol_fly_key_watch( "zmqol_fly_b_dn", "b", 1 );
+    self thread zmqol_fly_key_watch( "zmqol_fly_b_up", "b", 0 );
+    self thread zmqol_fly_key_watch( "zmqol_fly_l_dn", "l", 1 );
+    self thread zmqol_fly_key_watch( "zmqol_fly_l_up", "l", 0 );
+    self thread zmqol_fly_key_watch( "zmqol_fly_r_dn", "r", 1 );
+    self thread zmqol_fly_key_watch( "zmqol_fly_r_up", "r", 0 );
+}
+
+zmqol_fly_key_watch( str_notify, str_key, n_val )
+{
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    for ( ;; )
+    {
+        self waittill( str_notify );
+        self.zmqol_fly_keys[str_key] = n_val;
+    }
+}
+
 zmqol_fly_think()
 {
     level endon( "game_ended" );
@@ -3049,6 +3115,7 @@ zmqol_fly_think()
     // reads as "the controls broke". v1.19.0 omitted this.
     e_mover.angles = self.angles;
 
+    self zmqol_fly_bind_wasd();
     self playerlinkto( e_mover );
 
     // 🛑 WITHOUT THIS, FLYING KILLS YOU, AND IT READS AS "FLY IS BROKEN".
@@ -3159,59 +3226,58 @@ zmqol_fly_move( e_mover )
         v_pos = e_mover.origin;
         b_moved = 0;
 
-        b_sprint = self sprintbuttonpressed();
-        b_use    = self usebuttonpressed();
-        b_attack = self attackbuttonpressed();
-        b_melee  = self meleebuttonpressed();
-        b_ads    = self adsbuttonpressed();
-        b_frag   = self fragbuttonpressed();
-        b_jump   = self jumpbuttonpressed();
-        b_stance = self stancebuttonpressed();
+        // WASD, from the notifyonplayercommand binds set up in
+        // zmqol_fly_bind_wasd(). Mouse buttons are deliberately NOT used any
+        // more - the user asked for plain WASD like the console `ufo` command,
+        // and driving forward off +attack meant flying and shooting were the
+        // same key.
+        n_fwd = 0;
+        n_rgt = 0;
 
-        // PROBE - remove once the button set is settled. Prints what the engine
-        // actually reports while LINKED, for the first ~5s of a flight.
+        if ( self.zmqol_fly_keys["f"] ) n_fwd = n_fwd + 1;
+        if ( self.zmqol_fly_keys["b"] ) n_fwd = n_fwd - 1;
+        if ( self.zmqol_fly_keys["r"] ) n_rgt = n_rgt + 1;
+        if ( self.zmqol_fly_keys["l"] ) n_rgt = n_rgt - 1;
+
+        // Sprint is now a BOOST, not a requirement. Previously forward was
+        // OR-ed onto sprint, so flying at all meant holding shift.
+        n_step = n_speed;
+        if ( self sprintbuttonpressed() )
+            n_step = n_speed * 2.5;
+
+        // PROBE - remove once WASD is confirmed. If these stay 0 0 while the
+        // keys are held, the client does not emit +forward/+moveright while
+        // playerlinkto'd and the notify route is dead too - at which point the
+        // only remaining answer is t6-gsc-utils' native ufo().
         if ( n_probe < 100 )
         {
-            println( "[zm_qol] fly buttons: sprint=" + b_sprint + " use=" + b_use + " attack=" + b_attack
-                     + " melee=" + b_melee + " ads=" + b_ads + " frag=" + b_frag
-                     + " jump=" + b_jump + " stance=" + b_stance );
+            println( "[zm_qol] fly wasd: f=" + self.zmqol_fly_keys["f"] + " b=" + self.zmqol_fly_keys["b"]
+                     + " l=" + self.zmqol_fly_keys["l"] + " r=" + self.zmqol_fly_keys["r"]
+                     + " -> fwd=" + n_fwd + " rgt=" + n_rgt );
             n_probe++;
         }
 
-        // 🛑 FORWARD/BACK ARE OR-ed ACROSS SEVERAL BUTTONS ON PURPOSE.
-        // v1.23.0 drove forward from melee and back from ads, and the user got
-        // NO horizontal movement at all while jump and stance worked fine. So
-        // WEAPON-ACTION buttons (melee, ads, and presumably attack) are
-        // suppressed while playerlinkto'd; movement-ish ones are not.
-        //
-        // That also explains why chat_command_ufo_mode.gsc gets away with melee:
-        // it reads the button while UNLINKED and only links for the frames the
-        // button is held. We stay linked the whole flight, so we cannot.
-        //
-        // Rather than bet the release on one replacement, every plausible button
-        // drives the same axis - whichever the engine reports, flight works. The
-        // probe above says which ones those are so this can be narrowed later.
-        if ( b_sprint || b_attack || b_melee )
+        if ( n_fwd != 0 )
         {
-            v_pos = v_pos + ( anglestoforward( v_angles ) * n_speed );
+            v_pos = v_pos + ( anglestoforward( v_angles ) * ( n_fwd * n_step ) );
             b_moved = 1;
         }
 
-        if ( b_use || b_ads || b_frag )
+        if ( n_rgt != 0 )
         {
-            v_pos = v_pos - ( anglestoforward( v_angles ) * n_speed );
+            v_pos = v_pos + ( anglestoright( v_angles ) * ( n_rgt * n_step ) );
             b_moved = 1;
         }
 
-        if ( b_jump )
+        if ( self jumpbuttonpressed() )
         {
-            v_pos = v_pos + ( ( 0, 0, 1 ) * n_speed );
+            v_pos = v_pos + ( ( 0, 0, 1 ) * n_step );
             b_moved = 1;
         }
 
-        if ( b_stance )
+        if ( self stancebuttonpressed() )
         {
-            v_pos = v_pos - ( ( 0, 0, 1 ) * n_speed );
+            v_pos = v_pos - ( ( 0, 0, 1 ) * n_step );
             b_moved = 1;
         }
 

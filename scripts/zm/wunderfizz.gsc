@@ -182,9 +182,23 @@ setupWunderfizz()
 	//  firing a tesla shock at the machine's base every 3-4 seconds read as
 	//  noise rather than a marker. Missing beats wrong.
 	// ------------------------------------------------------------------------
-	level._effect[ "wunderfizz_loop" ]       = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_sm" );
-	level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_sm" );
-	level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie/fx_zombie_tesla_shock" );
+	//  🛑 ATTEMPT 3. The two before it are kept as the record, because an fx
+	//  cannot be previewed offline and these results are the only data there is:
+	//
+	//    v1.26.0  arsenal_on on j_ball, played once   -> huge pink cloud
+	//    v1.28.0  electric_cherry_sm, played once     -> invisible, bare machine
+	//    v1.30.0  electric_cherry_sm every 0.5s       -> blinding white-blue blob
+	//
+	//  v1.30.0 proves electric_cherry_sm is neither small nor short: at a 0.5s
+	//  cadence its copies overlap into a blown-out ball. So this drops to the
+	//  THINNEST effects mod.ff owns and stretches the cadence by ~6x, which are
+	//  the only two levers available - an fx cannot be scaled from script.
+	//
+	//    _trail       a thin arc rather than a discharge ball
+	//    _secondary   tesla's smaller follow-up bolt, not the main strike
+	level._effect[ "wunderfizz_loop" ]       = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_trail" );
+	level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_trail" );
+	level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie/fx_zombie_tesla_shock_secondary" );
 	level._effect[ "perk_machine_steam" ]    = loadfx( "maps/zombie/fx_zombie_tesla_shock_ground" );
 
 	if(level.script == "zm_tomb")
@@ -815,7 +829,7 @@ zmqol_wf_ball_glow()
 	for( ;; )
 	{
 		playfxontag( level._effect[ "perk_machine_light" ], self, "j_ball" );
-		wait 0.5;
+		wait randomfloatrange( 3.0, 4.0 );
 	}
 }
 
@@ -840,7 +854,7 @@ zmqol_wf_lightning()
 
 	for( ;; )
 	{
-		wait randomfloatrange( 3.0, 5.0 );
+		wait randomfloatrange( 7.0, 11.0 );
 
 		if( self.location != level.currentWunderfizzLocation )
 			continue;
