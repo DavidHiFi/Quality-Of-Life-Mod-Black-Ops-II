@@ -106,6 +106,29 @@ xmodel,zm_collision_transit_diner_survival
 // ----------------------------------------------------------------------------
 xmodel,qolwf_vending_diesel_magic
 
+// ----------------------------------------------------------------------------
+//  ...and the BALL SPIN, same trick. v1.23.0 restored the model but left the
+//  machine standing still; these are the animation half.
+//
+//  🛑 Both the animtree and the xanims are renamed. xanim assets are identified
+//  purely by FILENAME (nothing inside references their own name), and the .atr
+//  is plain text listing the anim names - so unlike an fx, both rename cleanly
+//  and collide with nothing. Verified: the Linker compiles all five from disk.
+//
+//  🛑 A rawfile only reaches the game through mod.ff - mod.iwd serves scripts
+//  but NOT .atr/.txt/.asd - so the animtree MUST be declared here.
+//
+//  🛑 Declaring the tree only makes the ASSET exist. wunderfizz.gsc must also
+//  call scriptmodelsuseanimtree( #animtree ) at runtime or every map dies on
+//  load with "Unrecognized animtree". v1.21.0 shipped without it and did not
+//  boot. See the comment above main() in wunderfizz.gsc.
+// ----------------------------------------------------------------------------
+rawfile,animtrees/qolwf_perk_random.atr
+xanim,qolwf_diesel_turn_on
+xanim,qolwf_diesel_turn_off
+xanim,qolwf_diesel_on_idle
+xanim,qolwf_diesel_ballspin_loop
+
 // REMOVED v1.22.0 (owned Origins' assets): xmodel,p6_zm_vending_diesel_magic
 // REMOVED v1.22.0 (owned Origins' assets): xmodel,t6_wpn_zmb_perk_bottle_bear_world
 // REMOVED v1.22.0 (owned Origins' assets): fx,maps/zombie_tomb/fx_tomb_dieselmagic_on

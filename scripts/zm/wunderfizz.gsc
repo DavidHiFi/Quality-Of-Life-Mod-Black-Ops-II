@@ -4,6 +4,11 @@
 #include maps\mp\gametypes_zm\_hud_util;
 #include maps\mp\gametypes_zm\_hud_message;
 
+//  The mod's OWN copy of Origins' zm_perk_random tree, renamed so mod.ff owns no
+//  Origins asset. Declared in zone_source\mod_locations.zone; the four anims it
+//  lists are zone_assets\xanim\qolwf_diesel_*.
+#using_animtree("qolwf_perk_random");
+
 
 // ============================================================================
 //  zmqol_wf_machine_model
@@ -103,6 +108,23 @@ main()
 {
     precachemodel( "zombie_teddybear" );
     precachemodel( zmqol_wf_machine_model() );
+
+    //  🛑 THIS CALL IS NOT OPTIONAL. Declaring the .atr in the zone only makes
+    //  the ASSET exist; without registering it here every map dies on load with
+    //      COM_ERROR (1) Unrecognized animtree 'qolwf_perk_random'.
+    //                    You may need to call ScriptModelsUseAnimTree()
+    //  v1.21.0 shipped the ball spin with useanimtree() alone - on the reasoning
+    //  that scriptmodelsuseanimtree() sets ONE global default tree and would
+    //  break other maps' animated script models - and did not boot. That
+    //  reasoning was wrong: it REGISTERS a tree for script-model use and is
+    //  CUMULATIVE. Stock calls it several times per map with different trees
+    //  (Origins alone from zm_tomb_capture_zones, zm_tomb_giant_robot,
+    //  zm_tomb_quest_fire, zm_tomb_tank and _zm_perk_random). useanimtree() then
+    //  selects which registered tree a given entity animates on - both are
+    //  needed, in that order, exactly as stock does it
+    //  (_zm_perk_random.gsc:174-177). The per-entity useanimtree() is in
+    //  wunderfizzSetup().
+    scriptmodelsuseanimtree( #animtree );
 }
 
 init()
@@ -121,10 +143,38 @@ setupWunderfizz()
 		level.currentWunderfizzLocation = 0;
 	else
 		level.currentWunderfizzLocation = 1;
-	// 🛑 NO fx_tomb_dieselmagic_on ANY MORE - see zmqol_wf_machine_model() below
-	// for why every Origins-derived asset had to leave mod.ff. Every use of
-	// level._effect["wunderfizz_loop"] is guarded on isdefined, so leaving the key
-	// unset simply means the machine runs without its swirl. Origins keeps its own.
+	// ------------------------------------------------------------------------
+	//  THE EFFECTS - SUBSTITUTES, NOT ORIGINS' OWN. Read before "fixing" these.
+	//
+	//  Origins drives the Wunderfizz from six fx_tomb_dieselmagic_* effects. We
+	//  cannot ship any of them, and this is a hard tooling limit, not an
+	//  oversight: OpenAssetTools can neither DUMP nor COMPILE an FxEffectDef
+	//  (its support matrix lists fx as ❌/❌). The model, materials, images,
+	//  xanims and animtree all rebuild under mod-private names precisely because
+	//  they round-trip through OAT - fx do not. The only way to satisfy an fx
+	//  dependency is to --load the fastfile that OWNS it, which makes mod.ff own
+	//  it too, which is exactly the collision that broke Origins in v1.19-v1.21.
+	//  So: no renaming escape hatch exists for fx. Do not go looking for a .efx.
+	//
+	//  Instead these are effects mod.ff ALREADY owns - verified against
+	//  "Unlinker --list mod.ff" - so they cost no new asset and cannot collide
+	//  with anything that is not already colliding.
+	//
+	//    fx_zombie_cola_arsenal_on   a perk-machine "powered on" glow. LOOPING,
+	//                                which is what the orb light needs.
+	//    fx_zombie_tesla_shock       a discrete electrical burst. One-shot, so
+	//                                it is safe to retrigger on a timer.
+	//    fx_alcatraz_electric_cherry_lg  the big electric-cherry discharge, used
+	//                                for the swirl while the machine cycles.
+	//
+	//  🛑 Match LOOPING vs ONE-SHOT to how each is played below, or you get the
+	//  v1.21.0 bug back: a looping fx retriggered every second stacked into a
+	//  blown-out white blob swallowing the top of the machine.
+	// ------------------------------------------------------------------------
+	level._effect[ "wunderfizz_loop" ]       = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_lg" );
+	level._effect[ "perk_machine_light" ]    = loadfx( "maps/misc/fx_zombie_cola_arsenal_on" );
+	level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie/fx_zombie_tesla_shock" );
+	level._effect[ "perk_machine_steam" ]    = loadfx( "maps/zombie/fx_zombie_tesla_shock_ground" );
 
 	if(level.script == "zm_tomb")
     {
@@ -505,6 +555,9 @@ wunderfizzSetup(origin, angles, model)
 	wunderfizzMachine = spawn("script_model", origin);
 	wunderfizzMachine setModel(model);
 	wunderfizzMachine rotateTo(angles, .1);
+	// Selects which registered tree this entity animates on. main() must already
+	// have run scriptmodelsuseanimtree() or this throws "Unrecognized animtree".
+	wunderfizzMachine useanimtree( #animtree );
 	wunderfizzBottle = spawn("script_model", origin);
 	wunderfizzBottle setModel("tag_origin");
 	wunderfizzBottle.angles = angles;
@@ -541,7 +594,11 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 		if(level.currentWunderfizzLocation == self.location)
 		{
 			// Arrive: spin up, then settle into the powered idle, and light the
-			// ball + the beam that says "the orb is HERE".
+			// ball + the marker that says "the orb is HERE".
+			self zmqol_wf_anim( "start" );
+			wait 1;
+			self zmqol_wf_anim( "idle" );
+			self thread zmqol_wf_ball_glow();
 			for(;;)
 			{
 				trig SetHintString("Hold ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
@@ -562,6 +619,8 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 								if( isdefined( level._effect[ "wunderfizz_loop" ] ) )
 									wunderfx = SpawnFX(level._effect["wunderfizz_loop"], self.origin,AnglesToForward(angles),AnglesToUp(angles));
 							if( isdefined( wunderfx ) ) TriggerFX(wunderfx);
+							// Spin the ball while it picks a perk - stock's "in_use".
+							self zmqol_wf_anim( "in_use" );
 							self thread perk_bottle_motion();
 							wait .1;
 							while(rtime>0)
@@ -590,8 +649,12 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 								self.bottle setModel("zombie_teddybear");
 								level notify("wunderSpinStop");
 								if( isdefined( wunderfx ) ) wunderfx Delete();
-								// Departing: shut the ball down and puff steam,
-								// stock's fx_departure_steam.
+								// Departing: kill the orb light, wind the ball down,
+								// and puff on the way out - stock's shut_down plus
+								// fx_departure_steam.
+								self notify( "zmqol_wf_ball_off" );
+								self zmqol_wf_anim( "shut_down" );
+								self thread zmqol_wf_departure_steam();
 								wait 7;
 								self.bottle setModel("tag_origin");
 								level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
@@ -673,6 +736,103 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 	}
 }
 
+
+// ============================================================================
+//  BALL SPIN + EFFECTS
+//
+//  Stock splits these: the ANIMATION is server-side (setanim,
+//  _zm_perk_random.gsc:609-634) and the FX are client-side, driven by five
+//  clientfields that _zm_perk_random.csc listens on.
+//
+//  The animation half is a straight port, on the mod's own renamed animtree.
+//  The fx half is deliberately NOT ported as clientfields: five more
+//  registrations from a root script running on six maps is the most reliable
+//  way to drop everyone with EXE_CLIENT_FIELD_MISMATCH, and this project has
+//  already lost a release to exactly that. playfx / playfxontag work
+//  server-side with no registration, so the effects are spawned from here
+//  instead, at the same tags stock uses - just with the substitute effects set
+//  up in setupWunderfizz(), since Origins' own cannot ship.
+// ============================================================================
+
+//  Stock's update_animation(), verbatim in behaviour (_zm_perk_random.gsc:609).
+zmqol_wf_anim( str_state )
+{
+	if( str_state == "start" )
+	{
+		self clearanim( %root, 0.2 );
+		self setanim( %qolwf_diesel_turn_on, 1, 0.2, 1 );
+	}
+	else if( str_state == "shut_down" )
+	{
+		self clearanim( %root, 0.2 );
+		self setanim( %qolwf_diesel_turn_off, 1, 0.2, 1 );
+	}
+	else if( str_state == "in_use" )
+	{
+		self clearanim( %root, 0.2 );
+		self setanim( %qolwf_diesel_ballspin_loop, 1, 0.2, 1 );
+	}
+	else
+	{
+		self clearanim( %root, 0.2 );
+		self setanim( %qolwf_diesel_on_idle, 1, 0.2, 1 );
+	}
+}
+
+//  The "the orb is HERE" marker. Stock's fx_location_indicator
+//  (_zm_perk_random.csc:205) re-plays a ONE-SHOT every 3-4 seconds rather than
+//  holding a looping handle, so this does the same. fx_zombie_tesla_shock is
+//  likewise one-shot, so retriggering it is safe - unlike the orb light below.
+zmqol_wf_location_beam()
+{
+	self endon( "zmqol_wf_ball_off" );
+	level endon( "end_game" );
+
+	for( ;; )
+	{
+		if( self.location == level.currentWunderfizzLocation )
+			playfx( level._effect[ "perk_machine_location" ], self.origin );
+
+		wait randomfloatrange( 3.0, 4.0 );
+	}
+}
+
+//  The glow on the orb itself, on tag j_ball exactly where stock puts it
+//  (turn_on_active_ball_light, _zm_perk_random.csc:88), plus the marker.
+//
+//  🛑 PLAYED ONCE, NOT ON A LOOP. v1.21.0 retriggered this every second and the
+//  screenshot showed the result: a blown-out white-blue blob swallowing the
+//  whole top of the machine, because the effect is LOOPING and every retrigger
+//  stacked another copy on the same tag. Stock plays it once and keeps the
+//  handle. The marker above is the opposite case - a one-shot stock deliberately
+//  re-fires - which is why only that one loops.
+zmqol_wf_ball_glow()
+{
+	self endon( "zmqol_wf_ball_off" );
+	level endon( "end_game" );
+
+	self thread zmqol_wf_location_beam();
+
+	playfxontag( level._effect[ "perk_machine_light" ], self, "j_ball" );
+}
+
+//  Stock's fx_departure_steam (_zm_perk_random.csc:193) puffs for 5 seconds as
+//  the orb leaves. Stock retriggers every 0.1s because its steam fx is a short
+//  one-shot; ours is a discrete electrical burst, so it fires on a slower beat -
+//  50 shocks in 5 seconds would be a strobe, not a departure.
+zmqol_wf_departure_steam()
+{
+	level endon( "end_game" );
+
+	n_ticks = 0;
+
+	while( n_ticks < 7 )
+	{
+		playfxontag( level._effect[ "perk_machine_steam" ], self, "tag_origin" );
+		wait 0.7;
+		n_ticks++;
+	}
+}
 
 chooseLocation(currLoc)
 {
