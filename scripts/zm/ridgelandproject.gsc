@@ -2028,54 +2028,83 @@ prone_bonus_monitor()
     }
 }
 
+// 🛑 THE 128-UNIT DEDUPE USED TO BE GLOBAL, AND THAT IS WHY MULE KICK PAID
+// NOTHING. The radius exists so one machine represented by TWO entities (the
+// trigger and the model) only pays once. But it was checked against every
+// origin claimed so far, regardless of which perk it belonged to - so any
+// machine standing within 128 units of one already claimed was silently
+// skipped. On maps where the mod packs several perks together (Farm is the
+// reported case) that is a normal spacing, so Mule Kick lost its 100 points to
+// whichever neighbour the player happened to prone at first.
+//
+// The dedupe is now PER MACHINE NAME. Mule Kick's trigger and model still
+// cancel each other out; an adjacent Tombstone no longer cancels Mule Kick.
 prone_bonus_try_award()
 {
-    machines = get_perk_machine_ents();
-    for ( i = 0; i < machines.size; i++ )
+    names = get_perk_machine_names();
+
+    for ( n = 0; n < names.size; n++ )
     {
-        machine = machines[i];
-        if ( !isdefined( machine ) || !isdefined( machine.origin ) )
-            continue;
-        // once-per-machine by entity number (stable even when it moves)...
-        claim_key = "machine_" + machine getentitynumber();
-        if ( isdefined( self.perk_prone_claimed[claim_key] ) )
-            continue;
-        // ...and by origin, so a machine represented by several entities
-        // (trigger + model) only pays once.
-        if ( self origin_already_claimed( machine.origin ) )
-            continue;
-        // 96 = AWARD_RANGE
-        if ( distance( self.origin, machine.origin ) > 96 )
-            continue;
-        self.perk_prone_claimed[claim_key] = 1;
-        self mark_origin_claimed( machine.origin );
-        self maps\mp\zombies\_zm_score::add_to_player_score( 100 );
-        self playsound( "zmb_cha_ching" );
-        break;
+        machines = [];
+        machines = add_ent_array( machines, getentarray( names[n], "target" ) );
+        machines = add_ent_array( machines, getentarray( names[n], "targetname" ) );
+
+        for ( i = 0; i < machines.size; i++ )
+        {
+            machine = machines[i];
+            if ( !isdefined( machine ) || !isdefined( machine.origin ) )
+                continue;
+            // once-per-machine by entity number (stable even when it moves)...
+            claim_key = "machine_" + machine getentitynumber();
+            if ( isdefined( self.perk_prone_claimed[claim_key] ) )
+                continue;
+            // ...and by origin WITHIN THIS PERK, so the trigger and the model of
+            // the same machine only pay once.
+            if ( self origin_already_claimed( names[n], machine.origin ) )
+                continue;
+            // 96 = AWARD_RANGE
+            if ( distance( self.origin, machine.origin ) > 96 )
+                continue;
+            self.perk_prone_claimed[claim_key] = 1;
+            self mark_origin_claimed( names[n], machine.origin );
+            self maps\mp\zombies\_zm_score::add_to_player_score( 100 );
+            self playsound( "zmb_cha_ching" );
+            return;
+        }
     }
 }
 
-origin_already_claimed( check_origin )
+origin_already_claimed( str_name, check_origin )
 {
     if ( !isdefined( self.perk_prone_claimed_origins ) )
         self.perk_prone_claimed_origins = [];
-    for ( i = 0; i < self.perk_prone_claimed_origins.size; i++ )
+    if ( !isdefined( self.perk_prone_claimed_origins[str_name] ) )
+        return 0;
+
+    a_origins = self.perk_prone_claimed_origins[str_name];
+
+    for ( i = 0; i < a_origins.size; i++ )
     {
-        // 128 = SAME_MACHINE_DIST
-        if ( distance( self.perk_prone_claimed_origins[i], check_origin ) < 128 )
+        // 128 = SAME_MACHINE_DIST, now only ever compared within one perk
+        if ( distance( a_origins[i], check_origin ) < 128 )
             return 1;
     }
     return 0;
 }
 
-mark_origin_claimed( check_origin )
+mark_origin_claimed( str_name, check_origin )
 {
     if ( !isdefined( self.perk_prone_claimed_origins ) )
         self.perk_prone_claimed_origins = [];
-    self.perk_prone_claimed_origins[self.perk_prone_claimed_origins.size] = check_origin;
+    if ( !isdefined( self.perk_prone_claimed_origins[str_name] ) )
+        self.perk_prone_claimed_origins[str_name] = [];
+
+    a_origins = self.perk_prone_claimed_origins[str_name];
+    a_origins[a_origins.size] = check_origin;
+    self.perk_prone_claimed_origins[str_name] = a_origins;
 }
 
-get_perk_machine_ents()
+get_perk_machine_names()
 {
     // Every perk vending targetname zm_expanded / the maps use.
     // (vending_packapunch is intentionally excluded - it isn't a perk.)
@@ -2089,7 +2118,15 @@ get_perk_machine_ents()
     // "vending_vulture" (see zm_buried\zm_buried.gsc), which took it straight back
     // out of this list - so Borough's Vulture Aid stopped paying the 100 points.
     // Both halves are needed: the correct tag AND this entry.
-    names = array( "vending_jugg", "vending_sleight", "vending_doubletap", "vending_doubletap2", "vending_revive", "vending_marathon", "vending_three_gun", "vending_additionalprimaryweapon", "vending_ads", "vending_deadshot", "vending_nuke", "vending_divetonuke", "vending_tombstone", "vending_chugabud", "vending_vulture" );
+    // vending_deadshot_model is stock's OWN tag for Deadshot - _zm_perks.gsc:3051
+    // assigns it, not "vending_ads" or "vending_deadshot". Same class of bug as
+    // the vending_vulture note above; harmless to list all three.
+    return array( "vending_jugg", "vending_sleight", "vending_doubletap", "vending_doubletap2", "vending_revive", "vending_marathon", "vending_three_gun", "vending_additionalprimaryweapon", "vending_ads", "vending_deadshot", "vending_deadshot_model", "vending_nuke", "vending_divetonuke", "vending_tombstone", "vending_chugabud", "vending_vulture" );
+}
+
+get_perk_machine_ents()
+{
+    names = get_perk_machine_names();
     machines = [];
     for ( i = 0; i < names.size; i++ )
     {

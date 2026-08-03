@@ -182,9 +182,10 @@ setupWunderfizz()
 	//  firing a tesla shock at the machine's base every 3-4 seconds read as
 	//  noise rather than a marker. Missing beats wrong.
 	// ------------------------------------------------------------------------
-	level._effect[ "wunderfizz_loop" ]    = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_sm" );
-	level._effect[ "perk_machine_light" ] = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_sm" );
-	level._effect[ "perk_machine_steam" ] = loadfx( "maps/zombie/fx_zombie_tesla_shock_ground" );
+	level._effect[ "wunderfizz_loop" ]       = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_sm" );
+	level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie_alcatraz/fx_alcatraz_electric_cherry_sm" );
+	level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie/fx_zombie_tesla_shock" );
+	level._effect[ "perk_machine_steam" ]    = loadfx( "maps/zombie/fx_zombie_tesla_shock_ground" );
 
 	if(level.script == "zm_tomb")
     {
@@ -789,21 +790,64 @@ zmqol_wf_anim( str_state )
 	}
 }
 
-//  The glow on the orb itself, on tag j_ball exactly where stock puts it
-//  (turn_on_active_ball_light, _zm_perk_random.csc:88), plus the marker.
+//  🛑 LOOPING vs ONE-SHOT DECIDES WHETHER YOU PLAY ONCE OR RETRIGGER, AND
+//  GETTING IT BACKWARDS HAS NOW FAILED IN BOTH DIRECTIONS. Both failures are
+//  recorded because there is no way to inspect an fx offline - OpenAssetTools
+//  cannot dump an FxEffectDef - so this table IS the documentation:
 //
-//  🛑 PLAYED ONCE, NOT ON A LOOP. v1.21.0 retriggered this every second and the
-//  screenshot showed the result: a blown-out white-blue blob swallowing the
-//  whole top of the machine, because the effect is LOOPING and every retrigger
-//  stacked another copy on the same tag. Stock plays it once and keeps the
-//  handle. The marker above is the opposite case - a one-shot stock deliberately
-//  re-fires - which is why only that one loops.
+//    fx_zombie_cola_arsenal_on           LOOPING and cabinet-scale. v1.26.0
+//        played it once on j_ball and it swallowed the machine in a pink cloud.
+//    fx_alcatraz_electric_cherry_sm      ONE-SHOT. v1.28.0 "fixed" the above by
+//        swapping to this and still playing it ONCE - so it flashed for an
+//        instant and the machine was bare from then on, which is the state the
+//        user screenshotted.
+//
+//  A one-shot must be RETRIGGERED to be continuously visible, and retriggering
+//  is only safe BECAUSE it is one-shot - each copy expires on its own. Doing
+//  this to a looping effect is what caused the v1.21.0 blob.
 zmqol_wf_ball_glow()
 {
 	self endon( "zmqol_wf_ball_off" );
 	level endon( "end_game" );
 
-	playfxontag( level._effect[ "perk_machine_light" ], self, "j_ball" );
+	self thread zmqol_wf_lightning();
+
+	for( ;; )
+	{
+		playfxontag( level._effect[ "perk_machine_light" ], self, "j_ball" );
+		wait 0.5;
+	}
+}
+
+//  "there's electrical effects all around it in origins and the lightning
+//  coming down from above and also there's a electric zap sound effect" - the
+//  user, comparing against real Origins.
+//
+//  Stock's beam is fx_tomb_dieselmagic_identify, which cannot ship (fx cannot
+//  be renamed and owning Origins' copy breaks Origins). This fires a tesla
+//  shock above the machine on the same 3-4s cadence stock uses for its
+//  location indicator, with a lightning crack to match.
+//
+//  zmb_hellhound_bolt is the hellhound SPAWN LIGHTNING -
+//  evt\zombie_global\hellhounds\spawn\strikes_00 - so it is a real lightning
+//  strike, it lives in the global zombie bank rather than Origins', and its
+//  DistMaxDry is 4000 so it carries. Confirmed against BO2-Reimagined's alias
+//  CSV rather than guessed.
+zmqol_wf_lightning()
+{
+	self endon( "zmqol_wf_ball_off" );
+	level endon( "end_game" );
+
+	for( ;; )
+	{
+		wait randomfloatrange( 3.0, 5.0 );
+
+		if( self.location != level.currentWunderfizzLocation )
+			continue;
+
+		playfx( level._effect[ "perk_machine_location" ], self.origin + ( 0, 0, 90 ) );
+		self playsound( "zmb_hellhound_bolt" );
+	}
 }
 
 //  Stock's fx_departure_steam (_zm_perk_random.csc:193) puffs for 5 seconds as
