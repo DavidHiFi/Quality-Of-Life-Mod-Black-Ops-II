@@ -803,6 +803,20 @@ zmqol_wf_corner_snap( s_place )
 	//  Re-measure the floor AT the corner; a room's floor is not always level.
 	s_place.origin = ( v_corner[0], v_corner[1], zmqol_wf_trace_floor( v_corner ) );
 
+	//  🛑 v1.40.4 - SQUARE TO A WALL, NOT DIAGONAL ACROSS THE CORNER.
+	//  v1.40.2 faced it 45 degrees out of the corner, reasoning that a machine in
+	//  a corner should face the room. In game that reads as a machine shoved in at
+	//  an angle - the user: "it's just not aligned with the wall right it's on an
+	//  angle". Stock never does this; every vending machine in the game sits flat
+	//  against one wall. So it backs onto the wall it was traced against on Y and
+	//  faces straight out along +Y.
+	//
+	//  Overridable in console because which of the two walls looks right is a
+	//  judgement I cannot make from the map data - zmqol_wf_town_yaw 0 backs it
+	//  onto the other wall (the X one) instead, and any other yaw works too. One
+	//  console command beats another build-and-relaunch cycle.
+	s_place.angles = ( 0, getdvarintdefault( "zmqol_wf_town_yaw", 90 ), 0 );
+
 	println( "[zm_qol] wunderfizz: corner snap (" + int( v_seed[0] ) + "," + int( v_seed[1] ) + "," + int( v_seed[2] ) + ") -> (" + int( s_place.origin[0] ) + "," + int( s_place.origin[1] ) + "," + int( s_place.origin[2] ) + ")" );
 
 	return s_place;
