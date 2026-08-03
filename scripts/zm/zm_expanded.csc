@@ -11,8 +11,36 @@
 #include clientscripts\mp\_filter;
 #include clientscripts\mp\zombies\_zm;
 
+//  CLIENT HALF OF THE WUNDERFIZZ BALL SPIN. Must mirror wunderfizz.gsc exactly.
+#using_animtree("qolwf_perk_random");
+
 main()
 {
+	// 🛑 THIS IS NOT OPTIONAL AND ITS POSITION MATTERS. v1.26.0 registered this
+	// tree on the SERVER only and every map died on load with:
+	//
+	//   Error - script mover animtrees registered in different order
+	//           server <qolwf_perk_random> client <zombie_bus>      (TranZit)
+	//           server <qolwf_perk_random> client <zm_tomb_tank>    (Origins)
+	//
+	// scriptmodelsuseanimtree() does not just register a tree - it appends to an
+	// ORDERED list, and the server's list and the client's must match INDEX FOR
+	// INDEX. The v1.21.1 commit message called it "cumulative" and stopped there;
+	// that was the missing half. Registering server-side alone puts our tree at
+	// server[0] while client[0] is whatever tree the map registers first, and the
+	// engine drops the client before the map starts.
+	//
+	// Stock does it in exactly this pair - _zm_perk_random.gsc:176 registers
+	// zm_perk_random on the server and _zm_perk_random.csc:24 registers it on the
+	// client. This is the same pairing for the mod's own renamed copy.
+	//
+	// It sits FIRST in main() because the mod's root scripts run before the map's
+	// on both sides: the server crash proved our tree lands at index 0 there, so
+	// the client call has to be equally early to land at index 0 too. Do not move
+	// it below the replaceFuncs, and do not add another scriptmodelsuseanimtree()
+	// anywhere in this mod without adding the matching call on the other side.
+	scriptmodelsuseanimtree( #animtree );
+
 	replaceFunc( clientscripts\mp\zombies\_zm_perks::perks_register_clientfield, ::perks_register_clientfield );
 	replaceFunc( clientscripts\mp\zombies\_zm::init_client_flag_callback_funcs, ::init_client_flag_callback_funcs);
 
