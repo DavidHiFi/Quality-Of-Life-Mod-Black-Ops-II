@@ -99,6 +99,7 @@ qol_opt_player_init()
 
         b_first = 0;
 
+        self thread qol_opt_cherry_sound();
         self thread qol_opt_rapid_fire();
         self thread qol_opt_player_quotes();
         self thread qol_opt_night_mode();
@@ -152,6 +153,42 @@ qol_opt_rapid_fire()
             self setspawnweapon( str_fired );
             break;
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+//  Electric Cherry's missing zap
+// ----------------------------------------------------------------------------
+//  v1.35.0 fixed the perk's DAMAGE - the guard bug that left player_thread_give
+//  unset, so electric_cherry_reload_attack() never started. The sound did not
+//  come back with it, and this is why: that function plays
+//  "zmb_cherry_explode", and Electric Cherry is a Mob of the Dead perk, so its
+//  aliases live in Mob of the Dead's soundbank. On Farm the loaded banks are
+//  cmn_root, zmb_common, zmb_patch and zmb_survival_transit - none of them
+//  Alcatraz's - so the alias resolves to nothing and the perk fires silently.
+//  Exactly the wall the Wunderfizz spin sound is stuck behind, and it cannot be
+//  fixed by script: a bank loads from the folder of the zone that declared it.
+//
+//  It CAN be given a voice, though. This listens for the notify stock fires one
+//  line before its own playsound (_zm_perk_electric_cherry.gsc:271) and plays a
+//  substitute. zmb_hellhound_bolt is chosen because it is PROVEN AUDIBLE here -
+//  the user reports hearing it from the Wunderfizz on Farm - and because it is
+//  a genuine electrical strike rather than something that merely sounds close.
+//
+//  Skipped on the two maps that own the perk, where the real alias resolves.
+// ----------------------------------------------------------------------------
+qol_opt_cherry_sound()
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+
+    if ( level.script == "zm_prison" || level.script == "zm_tomb" )
+        return;
+
+    for ( ;; )
+    {
+        self waittill( "electric_cherry_start" );
+        self playsound( "zmb_hellhound_bolt" );
     }
 }
 
@@ -427,8 +464,12 @@ qol_opt_hud_watcher()
 
     flag_wait( "initial_blackscreen_passed" );
 
-    str_prev_color = "";
-    str_prev_health = "";
+    //  🛑 SEEDED WITH THE DEFAULT, NOT "". Seeding empty made the first pass see
+    //  a "change" from "" to "1 1 1" and tint everything white on spawn - which
+    //  turned the health bar's dark backing plate into the thick white border
+    //  the user reported and never asked for. Nothing may be recoloured until
+    //  the value actually differs from the default.
+    str_prev_color = "1 1 1";
 
     for ( ;; )
     {
@@ -437,13 +478,12 @@ qol_opt_hud_watcher()
         self qol_opt_show( self.qol_hud_timer, b_all || getdvarintdefault( "hud_timer", 1 ) );
         self qol_opt_show( self.zombietext,    b_all || getdvarintdefault( "hud_remaining", 1 ) );
 
-        b_health = b_all || getdvarintdefault( "hud_health_bar", 1 );
-
-        if ( isdefined( self.qol_hud_health ) )
-        {
-            for ( i = 0; i < self.qol_hud_health.size; i++ )
-                self qol_opt_show( self.qol_hud_health[i], b_health );
-        }
+        //  🛑 The health HUD is deliberately NOT touched here. ridgelandproject's
+        //  own health loop already owns its alpha (it restores it the instant it
+        //  sees a 0) and its colour (it repaints per health tier every 0.1s).
+        //  Two threads writing the same five elements is what produced the white
+        //  bar, so there is exactly one owner now: that loop reads hud_health_bar
+        //  and hud_color_health itself.
 
         self qol_opt_zone_hud( b_all || getdvarintdefault( "hud_zone", 0 ) );
         self qol_opt_round_timer_hud( b_all || getdvarintdefault( "hud_round_timer", 0 ) );
@@ -464,20 +504,6 @@ qol_opt_hud_watcher()
                 self qol_opt_tint( self.zombietext, v_color );
                 self qol_opt_tint( self.qol_hud_zone, v_color );
                 self qol_opt_tint( self.qol_hud_roundtimer, v_color );
-            }
-        }
-
-        str_health = getdvar( "hud_color_health" );
-
-        if ( str_health != str_prev_health )
-        {
-            str_prev_health = str_health;
-            v_color = qol_opt_parse_color( str_health );
-
-            if ( isdefined( v_color ) && isdefined( self.qol_hud_health ) )
-            {
-                for ( i = 0; i < self.qol_hud_health.size; i++ )
-                    self qol_opt_tint( self.qol_hud_health[i], v_color );
             }
         }
 

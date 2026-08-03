@@ -295,6 +295,30 @@ setupWunderfizz()
 		//      zmqol_wf_fx 0   EMP discharge   - the closest thing to a zap
 		//      zmqol_wf_fx 1   power-up energy - v1.35.0, reads as magic not zap
 		//      zmqol_wf_fx 2   sparking wires  - v1.34.0, the "faulty panel"
+		//  🛑 v1.38.0 - THE EMP BURST IS GONE. It is an explosion, so it threw a
+		//  smoke plume: the user's "the visual effects are like too much right
+		//  now... i see some cloud like effects". Retriggering it made a machine
+		//  wrapped in smoke. Nothing about it was ever electrical-looking.
+		//
+		//  What replaced it was found by asking a better question. The earlier
+		//  search intersected all six maps and concluded no arc effect existed.
+		//  That was true of the intersection and WRONG as a conclusion, because
+		//  the machine does not need one effect - it needs the best effect ON
+		//  EACH MAP. Measured per map, against every zone each one loads:
+		//
+		//    zm_tomb     fx_tomb_dieselmagic_on            the genuine article
+		//    zm_transit  fx_zombie_dog_lightning_spawn     REAL lightning bolts,
+		//                  from so_zsurvival_zm_transit.ff - and it is already
+		//                  paired with zmb_hellhound_bolt below, the same
+		//                  hellhound-spawn strike, so picture and sound finally
+		//                  come from the same event
+		//    zm_prison   fx_zombie_tesla_shock             tesla arcs
+		//    everywhere   weapon/raygun2/fx_zm_raygun2_bolt_emit
+		//
+		//  The Ray Gun Mark II bolt is the find: a compact BLUE ELECTRICAL bolt
+		//  present on all six maps. Weapon-scale rather than explosion-scale, so
+		//  it cannot produce the cloud, and it is the closest thing the game has
+		//  to Origins' arcs outside Origins.
 		n_set = getdvarintdefault( "zmqol_wf_fx", 0 );
 
 		if( n_set == 2 )
@@ -313,16 +337,17 @@ setupWunderfizz()
 		}
 		else
 		{
-			//  The EMP burst carries the spin, because a blue electrical
-			//  discharge is the nearest thing in the global set to an arc. It is
-			//  an explosion, so it gets a much slower beat than a spark would -
-			//  stacking explosions is how v1.30.0 produced its blinding blob.
-			//  The orb keeps the power-up aura: it is the one LOOPING glow at
-			//  orb scale, and it is what made the machine "look a bit better".
-			level._effect[ "wunderfizz_loop" ]       = loadfx( "weapon/emp/fx_emp_explosion_equip" );
-			level._effect[ "perk_machine_light" ]    = loadfx( "misc/fx_zombie_powerup_on" );
-			level._effect[ "perk_machine_location" ] = loadfx( "weapon/emp/fx_emp_explosion_equip" );
-			level._effect[ "perk_machine_steam" ]    = loadfx( "misc/fx_zombie_powerup_grab" );
+			level._effect[ "wunderfizz_loop" ]    = loadfx( "weapon/raygun2/fx_zm_raygun2_bolt_emit" );
+			level._effect[ "perk_machine_light" ] = loadfx( "misc/fx_zombie_powerup_on" );
+			level._effect[ "perk_machine_steam" ] = loadfx( "misc/fx_zombie_powerup_grab" );
+
+			//  The periodic marker zap - the one with the bolt sound on it.
+			if( level.script == "zm_transit" )
+				level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie/fx_zombie_dog_lightning_spawn" );
+			else if( level.script == "zm_prison" )
+				level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie/fx_zombie_tesla_shock" );
+			else
+				level._effect[ "perk_machine_location" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_impact" );
 		}
 
 		level.zmqol_wf_fx_set = n_set;
@@ -331,7 +356,11 @@ setupWunderfizz()
 	//  The location fx fires at the orb's height off Origins (an EMP burst
 	//  centred on the floor would be half-buried in it), but Origins' own
 	//  identify beam is authored to rise FROM the base, so it keeps self.origin.
-	if( level.script == "zm_tomb" )
+	//  Origins' identify beam and TranZit's hellhound strike are both authored to
+	//  rise FROM the ground, so they want the true origin; a bolt lifted 72 units
+	//  would start in mid-air. The raygun impact used elsewhere is a point burst
+	//  and wants to be up at the orb.
+	if( level.script == "zm_tomb" || level.script == "zm_transit" )
 		level.zmqol_wf_marker_z = 0;
 	else
 		level.zmqol_wf_marker_z = 72;
@@ -1072,11 +1101,12 @@ zmqol_wf_spin_fx()
 	//  and stock retriggers it at 0.1s. An EMP explosion at 0.1s would be the
 	//  v1.30.0 blinding blob, so set 0 gets a much slower one; the spark and wave
 	//  sets sit in between.
+	//  0.6 was for the EMP explosion, which is gone. The raygun bolt is compact
+	//  and short, so it goes back to a tighter beat - it needs to read as a
+	//  continuous crackle, not a pulse.
 	n_beat = 0.25;
 	if( level.script == "zm_tomb" )
 		n_beat = 0.1;
-	else if( isdefined( level.zmqol_wf_fx_set ) && level.zmqol_wf_fx_set == 0 )
-		n_beat = 0.6;
 
 	for( ;; )
 	{
@@ -1276,7 +1306,18 @@ wunderfizzSounds()
 		//  So `zmqol_wf_sound 1` in console switches these to Origins' real vortex
 		//  pair, to find out in ONE session whether they live in a globally-loaded
 		//  bank rather than in zmb_tomb.all. If they do, drop this branch.
-		str_start = "zmb_perks_packa_upgrade";
+		//  🛑 v1.38.0: the START is now zmb_hellhound_bolt, the electrical strike.
+		//  It is one of only five aliases confirmed audible off Origins by
+		//  actually being heard in game, and it is the SAME sound the location
+		//  marker plays - which now draws real lightning on TranZit - so the
+		//  spin finally opens with a zap that matches what is on screen.
+		//
+		//  The loop stays packa_ticktock, and it is still not Origins' vortex.
+		//  It cannot be: zmb_rand_perk_vortex lives in Origins' own bank and
+		//  _zm_perk_random exists nowhere else in the entire stock dump. No
+		//  choice of alias fixes this - the audio has to be PUT somewhere the
+		//  other maps load, and the only such place is mod.all.sabl.
+		str_start = "zmb_hellhound_bolt";
 		str_loop  = "zmb_perks_packa_ticktock";
 		str_stop  = "zmb_perks_packa_ready";
 	}

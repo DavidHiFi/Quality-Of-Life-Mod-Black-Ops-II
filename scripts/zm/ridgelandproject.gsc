@@ -893,12 +893,30 @@ first_spawn()
             healthbar setshader( "progress_bar_fill", int( 100 * ( self.health / self.maxhealth ) ), 3 );
         if ( isdefined( self.health ) )
             healthvalue settext( self.health + ( "^8 / " + self.maxhealth ) );
-        //  The health-tier colouring below repaints every 0.1s, so it would
-        //  overwrite hud_color_health as fast as it was applied. Setting that
-        //  dvar to anything other than the default is taken as "I want to pick
-        //  the colour", and the tier colouring stands aside.
-        if ( getdvar( "hud_color_health" ) != "1 1 1" && getdvar( "hud_color_health" ) != "" )
+        //  hud_color_health, handled HERE and nowhere else. This loop repaints
+        //  the tier colour every 0.1s, so any other thread tinting these
+        //  elements loses the race - which is exactly what put a white border on
+        //  the bar in v1.37.0. Setting the dvar to something other than the
+        //  default means "I pick the colour" and the tier colouring stands
+        //  aside; leaving it alone keeps stock behaviour exactly.
+        //
+        //  🛑 healthbar_bg is never recoloured either way. It is the dark
+        //  backing plate behind the bar, not a readout - painting it is what
+        //  produced the "thick-ish white line" the user reported.
+        str_hc = getdvar( "hud_color_health" );
+
+        if ( str_hc != "1 1 1" && str_hc != "" )
         {
+            a_hc = strtok( str_hc, " " );
+
+            if ( isdefined( a_hc ) && a_hc.size == 3 )
+            {
+                v_hc = ( string_to_float( a_hc[0] ), string_to_float( a_hc[1] ), string_to_float( a_hc[2] ) );
+                healthvalue.color = v_hc;
+                healthbar_mas.color = v_hc;
+                healthbar.color = v_hc;
+            }
+
             wait 0.1;
             continue;
         }
