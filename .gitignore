@@ -24,6 +24,14 @@ zone_assets/scripts/
 *.bak-*
 *.bak
 
+# Replacement stock soundbanks (Carbon BO2 Sound Remaster), deployed by
+# build.bat's %OPTFILES% but NOT tracked: cmn_root.all.sabl is 267 MB, well over
+# GitHub's 100 MB per-file hard limit, and unlike mod.all.sabl it is not ours and
+# is re-downloadable. A clone without it builds fine and plays stock weapon audio.
+# Source: H:\Claude\Carbon Black Ops 2 Sound Remaster\
+cmn_root.all.sabl
+cmn_root.all.sabs
+
 # Windows/editor cruft
 Thumbs.db
 desktop.ini

@@ -14,6 +14,20 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 set "MOD_NAME=zm_qol"
 set "FILES=mod.ff mod.iwd mod.json mod.all.sabl mod.all.sabs deathmachine_zm.all.sabl"
+
+REM  OPTIONAL replacement soundbanks - deployed only if present, never required.
+REM
+REM  These are stock bank FILES shipped alongside the mod so Plutonium loads the
+REM  mod's copy instead of the base game's. They are deliberately NOT in %FILES%
+REM  and NOT in the zone:
+REM    - code_post_gfx_zm.ff already OWNS "soundbank,cmn_root.all" and loads on
+REM      every ZM map, so declaring it in mod_locations.zone is the fatal
+REM      "Attempting to override asset ... from zone 'mod'" COM_ERROR that made
+REM      Origins unbootable in v1.21.0. This overrides the FILE, not the ASSET.
+REM    - cmn_root.all.sabl is 267 MB, over GitHub's 100 MB per-file limit, so it
+REM      is gitignored. A fresh clone simply builds without it and plays stock
+REM      weapon audio.
+set "OPTFILES=cmn_root.all.sabl"
 set "STAMP_FILES=%FILES%"
 
 REM --- find PowerShell (fall back to the full system path if not on PATH) ---
@@ -94,6 +108,13 @@ if not exist "%DEST%" ( echo    [FAILED] could not create the folder & exit /b 1
 for %%F in (%FILES%) do (
     copy /Y "%~dp0%%F" "%DEST%\%%F" >nul 2>nul
     if exist "%DEST%\%%F" ( echo    [ok] %%F ) else ( echo    [FAILED] %%F & exit /b 1 )
+)
+REM optional banks: copy when present, stay silent when not
+for %%F in (%OPTFILES%) do (
+    if exist "%~dp0%%F" (
+        copy /Y "%~dp0%%F" "%DEST%\%%F" >nul 2>nul
+        if exist "%DEST%\%%F" ( echo    [ok] %%F ^(optional^) ) else ( echo    [FAILED] %%F & exit /b 1 )
+    )
 )
 REM stamp all 6 with the current time - paths passed via env vars so any
 REM username/path (spaces, apostrophes, etc.) is safe
