@@ -342,3 +342,22 @@ fx,maps/zombie/fx_zm_vulture_glow_mystery_box
 fx,maps/zombie/fx_zm_vulture_glow_powerup
 fx,misc/fx_zombie_powerup_vulture
 fx,misc/fx_zombie_eye_vulture
+
+// ----------------------------------------------------------------------------
+//  VULTURE AID - the STINK HUD, and the checkerboard it caused
+//
+//  🛑 These three are NOT referenced by any GSC or CSC. They are named only
+//  inside the perk HUD's LUI, ui_mp\t6\zombie\hudperkszombie.lua, which is why
+//  reading the perk scripts for missing assets never found them. They were found
+//  by dumping patch_ui_zm.ff and grepping the compiled LuaJIT for "vulture":
+//  material names survive in the bytecode's constant table even though the code
+//  does not.
+//
+//  Without them the Vulture Aid perk icon renders as a blue checkerboard for
+//  exactly as long as the player is standing in the green mist, and looks
+//  correct the rest of the time - which is precisely what was reported, and what
+//  I twice mis-attributed to the perk icon's own material.
+// ----------------------------------------------------------------------------
+material,zm_hud_stink_ani_black
+material,zm_hud_stink_ani_green
+material,zm_hud_stink_perk_glow

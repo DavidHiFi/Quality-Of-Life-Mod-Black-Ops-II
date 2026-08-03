@@ -788,7 +788,20 @@ zmqol_wf_wall_snap( s_place )
 	s_place.origin = ( v_at[0], v_at[1], zmqol_wf_trace_floor( v_at ) );
 
 	//  Face back down the line, i.e. out of the wall into the room.
-	s_place.angles = ( 0, n_yaw + 180, 0 );
+	//
+	//  🛑 PLUS 90, BECAUSE THE MODEL'S FRONT IS NOT ITS +X. v1.41.0 set the yaw to
+	//  exactly n_yaw+180 - geometrically "away from the wall" - and the machine
+	//  stood side-on. The convention comes off an earlier screenshot: at the
+	//  relocated (1967,-1297.8,-54.2) spot the struct angle was yaw 0 and the
+	//  machine presented its FRONT to a player looking north, i.e. at yaw 0 the
+	//  front faces -Y. So front direction = placement yaw - 90, and to point the
+	//  front along n_yaw+180 the placement yaw has to be n_yaw+270.
+	//
+	//  Left as a dvar because it is derived from one screenshot rather than from
+	//  the model, and 0/90/180/270 in console beats another build to test the
+	//  other three. It only affects this traced placement - the five hand-placed
+	//  maps keep their own angles.
+	s_place.angles = ( 0, n_yaw + 180 + getdvarintdefault( "zmqol_wf_yaw_off", 90 ), 0 );
 
 	println( "[zm_qol] wunderfizz: wall snap (" + int( v_seed[0] ) + "," + int( v_seed[1] ) + "," + int( v_seed[2] ) + ") yaw " + n_yaw + " -> (" + int( s_place.origin[0] ) + "," + int( s_place.origin[1] ) + "," + int( s_place.origin[2] ) + ") facing " + int( n_yaw + 180 ) + ", wall was " + int( distance( v_from, v_hit ) ) + " away" );
 

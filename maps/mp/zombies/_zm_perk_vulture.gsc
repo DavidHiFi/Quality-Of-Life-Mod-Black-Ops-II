@@ -914,6 +914,21 @@ is_valid_ammo_bonus_weapon( str_weapon )
 _play_vulture_drop_pickup_fx()
 {
     self vulture_clientfield_scriptmover_set( "vulture_drop_pickup" );
+
+    //  zm_qol v1.41.1 - THE PICKUP CHIME, which is why the ammo drop "had the
+    //  wrong sound effect".
+    //
+    //  Buried plays TWO sounds when you take a drop, and they come from opposite
+    //  sides. zmb_vulture_drop_pickup_ammo is the server's, and it is only a
+    //  generic weapon-pickup rustle (fly\pickups\weapon\fly_weapon_pickup_01) -
+    //  porting that one alone got the foley and lost the part that actually
+    //  sounds like Vulture Aid. The distinctive chime is
+    //  zmb_vulture_drop_pickup, played CLIENT-side off this very clientfield,
+    //  and Buried-only, so off Buried it was silent and the drop sounded wrong.
+    //
+    //  Found by noticing zmb\powerup\vulture\pickup.wav sitting in the extracted
+    //  payloads with no alias of mine pointing at it.
+    self playsound( "zmqol_vult_pickup" );
 }
 
 give_bonus_points( v_fx_origin )
