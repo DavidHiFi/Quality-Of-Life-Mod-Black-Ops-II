@@ -36,3 +36,9 @@ cmn_root.all.sabs
 Thumbs.db
 desktop.ini
 *.swp
+
+# Sound Studio working copies. The real banks (mod.all.sabl/.sabs,
+# deathmachine_zm.all.sabl) ARE tracked - these are scratch duplicates made
+# before an alias import and would just bloat history.
+*- Copy.sab*
+* - Copy.*
