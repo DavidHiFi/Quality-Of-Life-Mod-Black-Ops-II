@@ -236,6 +236,7 @@ init()
 {
     zmqol_restore_perk_bottles_on_survival();
     zmqol_register_divetonuke_visionset();
+    zmqol_register_vulture_visionset();
     zmqol_dev_commands();
     level thread zmqol_credits_banner();
 
@@ -3693,6 +3694,56 @@ zmqol_register_divetonuke_visionset()
         return;
 
     maps\mp\_visionset_mgr::vsmgr_register_info( "visionset", "zm_perk_divetonuke", 9000, 400, 5, 1 );
+}
+
+// ============================================================================
+//  zmqol_register_vulture_visionset  -  the half of init_vulture() that CANNOT
+//  run in main(), and the cause of v1.40.2's EXE_CLIENT_FIELD_MISMATCH
+//
+//  Town would not launch:
+//      Clientfield 'overlay_lerp' in set [toplayer] ... [CLIENT : 12000  SERVER : 1]
+//      Clientfield 'overlay_slot' ... bit count [CLIENT: 2  SERVER : 1]
+//      Server Disconnected - EXE_CLIENT_FIELD_MISMATCH
+//
+//  Note what mismatched: NOT any vulture_* field. Every one of those matched.
+//  overlay_lerp and overlay_slot are the visionset manager's own fields, and
+//  their BIT COUNTS are derived from how many overlays are registered. The
+//  client had one more than the server, so the two sides sized the same fields
+//  differently and the connection was refused.
+//
+//  🛑 THE CAUSE IS A TIMING RULE THIS PROJECT ALREADY KNEW AND I BROKE ANYWAY:
+//  registerclientfield() must run in main(), but vsmgr_register_info() must run
+//  in init() - _visionset_mgr has not built level.vsmgr yet during main(), so
+//  the call silently does nothing. Stock's init_vulture() does BOTH: seven
+//  registerclientfield calls and one vsmgr_register_info. v1.40.2 called it once
+//  from perks(), in main(). The clientfields registered; the overlay did not.
+//  Meanwhile the client's enable_vulture_perk_for_level() registered its
+//  overlay style filter with no such constraint, and the sides diverged.
+//
+//  Splitting it is exactly what zmqol_register_divetonuke_visionset() above
+//  already does for PhD Flopper, for exactly this reason. It is the same
+//  function shape on purpose.
+//
+//  Arguments are copied verbatim from _zm_perk_vulture.gsc's own call so the two
+//  cannot disagree: ( "overlay", "vulture_stink_overlay", 12000, 120, 31, 1 ).
+//  The version 12000 in the error message is this registration's, which is how
+//  it was identified.
+// ============================================================================
+zmqol_register_vulture_visionset()
+{
+    if ( getDvar( "mapname" ) == "zm_buried" )
+        return;
+
+    // Degrade to "not registered" rather than erroring out of init() if the
+    // ordering ever changes and _visionset_mgr::init() has not run yet.
+    if ( !isdefined( level.vsmgr ) || !isdefined( level.vsmgr[ "overlay" ] ) )
+        return;
+
+    // Don't double-register if init_vulture()'s own call did land after all.
+    if ( isdefined( level.vsmgr[ "overlay" ].info ) && isdefined( level.vsmgr[ "overlay" ].info[ "vulture_stink_overlay" ] ) )
+        return;
+
+    maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, 31, 1 );
 }
 
 perks()
