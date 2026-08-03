@@ -414,7 +414,28 @@ setupWunderfizz()
     	zmqol_wf_add((-11824,-1495,228), (0,90,0), zmqol_wf_machine_model());
     	zmqol_wf_add((-5043,-7772,-61), (0,180,0), zmqol_wf_machine_model());
     	zmqol_wf_add((8371,-5408,264), (0,180,0), zmqol_wf_machine_model());
-    	zmqol_wf_add((1823,114,88), (0,90,0), zmqol_wf_machine_model());
+
+    	//  TOWN - inside the barber shop, the room with the Semtex wallbuy, in
+    	//  its back corner. Asked for by name after the machine had been outdoors
+    	//  against the graffiti wall.
+    	//
+    	//  🛑 THIS IS A SEED, NOT THE FINAL POSITION. (948,-1457,-44) is where the
+    	//  user was standing when they photographed the room, so it is the one
+    	//  point in here that is PROVEN to be inside it and on the floor. The
+    	//  corner itself is then measured at runtime by tracing to the walls -
+    	//  see zmqol_wf_corner_snap(). The room's wall positions are not in the
+    	//  entity data at all (mapents has the Semtex wallbuy, the door and two
+    	//  wall lights, and nothing that bounds the west or south side), so a
+    	//  hardcoded corner would be a guess that floats or clips. The engine
+    	//  knows where the walls are; ask it.
+    	//
+    	//  The old outdoor coordinate (1823,114,88) is gone. In survival it was
+    	//  30 units inside the Quick Revive machine - see
+    	//  zmqol_wf_clear_of_perk_machines() - and the automatic relocation that
+    	//  fixed that put it somewhere nobody asked for. An explicit position
+    	//  beats both.
+    	zmqol_wf_add((948,-1457,-44), (0,45,0), zmqol_wf_machine_model());
+    	level.zmqol_wf_pending[ level.zmqol_wf_pending.size - 1 ].corner_snap = 1;
     }
     else if(level.script == "zm_highrise")
     {
@@ -516,6 +537,12 @@ zmqol_wf_place()
 	n_candidates = level.zmqol_wf_pending.size;
 
 	a_place = zmqol_wf_clear_of_perk_machines( a_place );
+
+	for( i = 0; i < a_place.size; i++ )
+	{
+		if( isdefined( a_place[i].corner_snap ) )
+			a_place[i] = zmqol_wf_corner_snap( a_place[i] );
+	}
 
 	for( i = 0; i < a_place.size; i++ )
 		wunderfizzSetup( a_place[i].origin, a_place[i].angles, a_place[i].model );
@@ -706,6 +733,102 @@ zmqol_wf_nearest_free_spot( v_origin, a_free, a_taken, n_clear )
 	}
 
 	return s_best;
+}
+
+// ============================================================================
+//  zmqol_wf_corner_snap  -  MEASURE the corner instead of guessing it
+//
+//  Takes a seed point known to be inside a room and on its floor, and returns
+//  the back corner of that room, backed off far enough for the machine to sit
+//  flush, at the real floor height, facing diagonally out of the corner.
+//
+//  WHY THIS EXISTS. The Town machine has to go in the barber shop's back corner,
+//  and the room's walls are not in the entity data - mapents gives the Semtex
+//  wallbuy, the door and two wall lights, and nothing bounding the west or south
+//  side. Every number I could write for that corner would be inferred. The
+//  engine already knows exactly where the walls are, and bullettrace will tell
+//  us, on the real geometry, at runtime. Measured beats inferred.
+//
+//  This is also the general answer to the failure that produced v1.39.1: a
+//  position chosen from coordinates alone can be under the map, inside a wall or
+//  floating, and none of that is visible offline. A traced position cannot be
+//  any of those things, because it is derived from the surfaces themselves.
+//
+//  🛑 IT NEVER RETURNS SOMETHING WORSE THAN THE SEED. Each measurement is taken
+//  only if its trace actually hit a surface, and the result is rejected wholesale
+//  if the path from the seed to the corner is blocked - which is what a wall
+//  jutting between them would look like. Any failure falls back to the seed,
+//  which is a spot a player was demonstrably standing on.
+//
+//  Directions are -X and -Y because "back left" from the barber shop door - the
+//  only way into the room, on its east side at (1123,-1446) - is the far corner
+//  on the west and south side. The 45 degree yaw faces the machine out of that
+//  corner into the room rather than flat along one wall.
+// ============================================================================
+zmqol_wf_corner_snap( s_place )
+{
+	v_seed    = s_place.origin;
+	n_clear   = 38;    // the machine's collision cylinder is 32 wide
+	n_reach   = 700;   // further than any room here is wide
+	n_probe_z = 40;    // trace at knee/waist height, over floor clutter
+
+	n_floor = zmqol_wf_trace_floor( v_seed );
+	v_probe = ( v_seed[0], v_seed[1], n_floor + n_probe_z );
+
+	n_x = zmqol_wf_trace_axis( v_probe, ( v_probe[0] - n_reach, v_probe[1], v_probe[2] ), 0 );
+	n_y = zmqol_wf_trace_axis( v_probe, ( v_probe[0], v_probe[1] - n_reach, v_probe[2] ), 1 );
+
+	if( !isdefined( n_x ) || !isdefined( n_y ) )
+	{
+		println( "[zm_qol] wunderfizz: corner snap found no wall - keeping the seed" );
+		return s_place;
+	}
+
+	v_corner = ( n_x + n_clear, n_y + n_clear, n_floor );
+
+	//  Is the corner actually reachable from the seed, or is there something in
+	//  between? A blocked path means the two walls we measured are not the two
+	//  walls of one corner.
+	v_a = ( v_seed[0], v_seed[1], n_floor + n_probe_z );
+	v_b = ( v_corner[0], v_corner[1], n_floor + n_probe_z );
+
+	trace = bullettrace( v_a, v_b, 0, undefined );
+
+	if( trace[ "fraction" ] < 0.97 )
+	{
+		println( "[zm_qol] wunderfizz: corner snap path blocked at " + trace[ "fraction" ] + " - keeping the seed" );
+		return s_place;
+	}
+
+	//  Re-measure the floor AT the corner; a room's floor is not always level.
+	s_place.origin = ( v_corner[0], v_corner[1], zmqol_wf_trace_floor( v_corner ) );
+
+	println( "[zm_qol] wunderfizz: corner snap (" + int( v_seed[0] ) + "," + int( v_seed[1] ) + "," + int( v_seed[2] ) + ") -> (" + int( s_place.origin[0] ) + "," + int( s_place.origin[1] ) + "," + int( s_place.origin[2] ) + ")" );
+
+	return s_place;
+}
+
+//  Straight down from well above the point, to well below it.
+zmqol_wf_trace_floor( v_pos )
+{
+	trace = bullettrace( v_pos + ( 0, 0, 72 ), v_pos - ( 0, 0, 160 ), 0, undefined );
+
+	if( trace[ "fraction" ] >= 1 )
+		return v_pos[2];
+
+	return trace[ "position" ][2];
+}
+
+//  n_axis: 0 = return the X we hit, 1 = return the Y. Undefined if nothing was
+//  hit, which means the trace left through a doorway rather than finding a wall.
+zmqol_wf_trace_axis( v_from, v_to, n_axis )
+{
+	trace = bullettrace( v_from, v_to, 0, undefined );
+
+	if( trace[ "fraction" ] >= 1 )
+		return undefined;
+
+	return trace[ "position" ][ n_axis ];
 }
 
 zmqol_wf_dist_to_nearest_struct( v_origin, a_structs )
