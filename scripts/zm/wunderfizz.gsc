@@ -267,7 +267,7 @@ setupWunderfizz()
 		//  ?? v1.34.0's PICKS WERE PRESENT AND STILL INVISIBLE - a second, separate
 		//  failure from v1.30's. Availability was fixed; VISIBILITY was not.
 		//
-		//  🛑 v1.39.0 - THE "PROOF" THIS PARAGRAPH USED TO GIVE WAS NOT ONE, and it
+		//  ?? v1.39.0 - THE "PROOF" THIS PARAGRAPH USED TO GIVE WAS NOT ONE, and it
 		//  is left here as a worked example of the mistake. It argued that
 		//  zmqol_wf_lightning() plays the location fx and then playsound
 		//  ("zmb_hellhound_bolt") on the very next line, so the user hearing the
@@ -415,27 +415,26 @@ setupWunderfizz()
     	zmqol_wf_add((-5043,-7772,-61), (0,180,0), zmqol_wf_machine_model());
     	zmqol_wf_add((8371,-5408,264), (0,180,0), zmqol_wf_machine_model());
 
-    	//  TOWN - inside the barber shop, the room with the Semtex wallbuy, in
-    	//  its back corner. Asked for by name after the machine had been outdoors
-    	//  against the graffiti wall.
+    	//  TOWN - in the BAR, on the wall by the pool table.
     	//
-    	//  🛑 THIS IS A SEED, NOT THE FINAL POSITION. (948,-1457,-44) is where the
-    	//  user was standing when they photographed the room, so it is the one
-    	//  point in here that is PROVEN to be inside it and on the floor. The
-    	//  corner itself is then measured at runtime by tracing to the walls -
-    	//  see zmqol_wf_corner_snap(). The room's wall positions are not in the
-    	//  entity data at all (mapents has the Semtex wallbuy, the door and two
-    	//  wall lights, and nothing that bounds the west or south side), so a
-    	//  hardcoded corner would be a guess that floats or clips. The engine
-    	//  knows where the walls are; ask it.
+    	//  ?? THIS IS A SEED PLUS AN AIM, NOT THE FINAL POSITION. Both numbers come
+    	//  straight off a screenshot: the user stood at (2117,593,-55) with yaw 184
+    	//  and put their crosshair on the wall they wanted. zmqol_wf_wall_snap()
+    	//  traces that exact line at eye height, finds the wall, backs the machine
+    	//  off it and turns it around to face the room. So the machine ends up
+    	//  where the crosshair was pointing, measured on the real geometry.
     	//
-    	//  The old outdoor coordinate (1823,114,88) is gone. In survival it was
-    	//  30 units inside the Quick Revive machine - see
-    	//  zmqol_wf_clear_of_perk_machines() - and the automatic relocation that
-    	//  fixed that put it somewhere nobody asked for. An explicit position
-    	//  beats both.
-    	zmqol_wf_add((948,-1457,-44), (0,45,0), zmqol_wf_machine_model());
-    	level.zmqol_wf_pending[ level.zmqol_wf_pending.size - 1 ].corner_snap = 1;
+    	//  Why traced rather than written down, again: the barber-shop attempt
+    	//  before this one had no wall data in mapents either, and the attempt
+    	//  before THAT (a hardcoded coordinate) put the machine in a sealed bunker
+    	//  under the street. The engine knows where the walls are; ask it.
+    	//
+    	//  Previous positions, all superseded: (1823,114,88) was 30 units inside
+    	//  Quick Revive in survival; the automatic relocation that fixed it landed
+    	//  somewhere nobody asked for; the barber shop corner was right but not
+    	//  where the machine was wanted.
+    	zmqol_wf_add((2117,593,-55), (0,4,0), zmqol_wf_machine_model());
+    	level.zmqol_wf_pending[ level.zmqol_wf_pending.size - 1 ].snap_yaw = 184;
     }
     else if(level.script == "zm_highrise")
     {
@@ -540,8 +539,8 @@ zmqol_wf_place()
 
 	for( i = 0; i < a_place.size; i++ )
 	{
-		if( isdefined( a_place[i].corner_snap ) )
-			a_place[i] = zmqol_wf_corner_snap( a_place[i] );
+		if( isdefined( a_place[i].snap_yaw ) )
+			a_place[i] = zmqol_wf_wall_snap( a_place[i] );
 	}
 
 	for( i = 0; i < a_place.size; i++ )
@@ -554,7 +553,7 @@ zmqol_wf_place()
 // ============================================================================
 //  zmqol_wf_clear_of_perk_machines
 //
-//  🛑 THE BUG: on TOWN survival the Wunderfizz spawned INSIDE the Quick Revive
+//  ?? THE BUG: on TOWN survival the Wunderfizz spawned INSIDE the Quick Revive
 //  machine. Not near it - the same spot, same facing.
 //
 //      this mod's town candidate   (1823, 114,   88)  yaw 90
@@ -580,7 +579,7 @@ zmqol_wf_place()
 //  contain the current match string. Every fallback position is therefore a real
 //  shipped machine placement, and no coordinate is invented here.
 //
-//  🛑 v1.39.1 - "UNUSED" IS NOT ENOUGH. IT MUST BE AUTHORED FOR THIS LOCATION.
+//  ?? v1.39.1 - "UNUSED" IS NOT ENOUGH. IT MUST BE AUTHORED FOR THIS LOCATION.
 //  v1.39.0 accepted any unused struct within 2500 units of a gametype spawn, and
 //  on Town it put the machine UNDER THE MAP - in the death barrier:
 //
@@ -615,7 +614,7 @@ zmqol_wf_place()
 //  level.default_start_location) so it cannot disagree with the machines that
 //  actually spawn.
 //
-//  🛑 NEVER DROPS A MACHINE. If nothing free is far enough away, the original
+//  ?? NEVER DROPS A MACHINE. If nothing free is far enough away, the original
 //  position is kept - overlapping a perk machine still beats no Wunderfizz.
 // ============================================================================
 zmqol_wf_clear_of_perk_machines( a_place )
@@ -663,7 +662,7 @@ zmqol_wf_clear_of_perk_machines( a_place )
 				b_used = 1;
 
 			//  Same location, any gametype - "znml_perks_town" when we are
-			//  zstandard_perks_town. See the 🛑 below for why this matters.
+			//  zstandard_perks_town. See the ?? below for why this matters.
 			if( a_tok[t].size > str_suffix.size )
 			{
 				if( getsubstr( a_tok[t], a_tok[t].size - str_suffix.size, a_tok[t].size ) == str_suffix )
@@ -736,88 +735,62 @@ zmqol_wf_nearest_free_spot( v_origin, a_free, a_taken, n_clear )
 }
 
 // ============================================================================
-//  zmqol_wf_corner_snap  -  MEASURE the corner instead of guessing it
+//  zmqol_wf_wall_snap  -  put the machine where the crosshair was pointing
 //
-//  Takes a seed point known to be inside a room and on its floor, and returns
-//  the back corner of that room, backed off far enough for the machine to sit
-//  flush, at the real floor height, facing diagonally out of the corner.
+//  Takes a seed point and a yaw - literally a player's position and facing, off
+//  a screenshot - traces that line at eye height, and returns the spot against
+//  the wall it hits, floored, turned around to face back down the line.
 //
-//  WHY THIS EXISTS. The Town machine has to go in the barber shop's back corner,
-//  and the room's walls are not in the entity data - mapents gives the Semtex
-//  wallbuy, the door and two wall lights, and nothing bounding the west or south
-//  side. Every number I could write for that corner would be inferred. The
-//  engine already knows exactly where the walls are, and bullettrace will tell
-//  us, on the real geometry, at runtime. Measured beats inferred.
+//  WHY THIS SHAPE. Asking "which wall?" in words has failed three times running
+//  on this one machine: a hardcoded coordinate landed inside Quick Revive, the
+//  automatic relocation that fixed that landed in a sealed bunker UNDER the
+//  street, and a traced room corner was right but not the corner wanted. A
+//  screenshot with .where in it carries the answer exactly - where the user
+//  stood and what they were looking at - and this turns those two numbers into
+//  a position on the real geometry. No wall coordinate is ever written down.
 //
-//  This is also the general answer to the failure that produced v1.39.1: a
-//  position chosen from coordinates alone can be under the map, inside a wall or
-//  floating, and none of that is visible offline. A traced position cannot be
-//  any of those things, because it is derived from the surfaces themselves.
+//  ?? TRACED AT EYE HEIGHT, NOT KNEE HEIGHT. The bar has a counter along the
+//  wall; a trace at floor+40 stops on the counter and the machine ends up
+//  standing in the middle of the room instead of against the wall. +60 is
+//  roughly where a standing player's view leaves from, which is what the
+//  crosshair in the screenshot was.
 //
-//  🛑 IT NEVER RETURNS SOMETHING WORSE THAN THE SEED. Each measurement is taken
-//  only if its trace actually hit a surface, and the result is rejected wholesale
-//  if the path from the seed to the corner is blocked - which is what a wall
-//  jutting between them would look like. Any failure falls back to the seed,
-//  which is a spot a player was demonstrably standing on.
-//
-//  Directions are -X and -Y because "back left" from the barber shop door - the
-//  only way into the room, on its east side at (1123,-1446) - is the far corner
-//  on the west and south side. The 45 degree yaw faces the machine out of that
-//  corner into the room rather than flat along one wall.
+//  ?? IT NEVER RETURNS SOMETHING WORSE THAN THE SEED. If the trace hits nothing
+//  the seed is kept and the reason is logged. The seed is a spot a player was
+//  demonstrably standing on, so the failure mode is "in the right room, wrong
+//  spot" rather than "inside the world".
 // ============================================================================
-zmqol_wf_corner_snap( s_place )
+zmqol_wf_wall_snap( s_place )
 {
-	v_seed    = s_place.origin;
-	n_clear   = 38;    // the machine's collision cylinder is 32 wide
-	n_reach   = 700;   // further than any room here is wide
-	n_probe_z = 40;    // trace at knee/waist height, over floor clutter
+	v_seed  = s_place.origin;
+	n_yaw   = s_place.snap_yaw;
+	n_clear = 38;    // the machine's collision cylinder is 32 wide
+	n_reach = 900;
+	n_eye   = 60;
 
-	n_floor = zmqol_wf_trace_floor( v_seed );
-	v_probe = ( v_seed[0], v_seed[1], n_floor + n_probe_z );
+	v_dir = anglestoforward( ( 0, n_yaw, 0 ) );
+	v_from = ( v_seed[0], v_seed[1], v_seed[2] + n_eye );
+	v_to   = v_from + ( v_dir[0] * n_reach, v_dir[1] * n_reach, 0 );
 
-	n_x = zmqol_wf_trace_axis( v_probe, ( v_probe[0] - n_reach, v_probe[1], v_probe[2] ), 0 );
-	n_y = zmqol_wf_trace_axis( v_probe, ( v_probe[0], v_probe[1] - n_reach, v_probe[2] ), 1 );
+	trace = bullettrace( v_from, v_to, 0, undefined );
 
-	if( !isdefined( n_x ) || !isdefined( n_y ) )
+	if( trace[ "fraction" ] >= 1 )
 	{
-		println( "[zm_qol] wunderfizz: corner snap found no wall - keeping the seed" );
+		println( "[zm_qol] wunderfizz: wall snap found no wall along yaw " + n_yaw + " - keeping the seed" );
 		return s_place;
 	}
 
-	v_corner = ( n_x + n_clear, n_y + n_clear, n_floor );
+	v_hit = trace[ "position" ];
 
-	//  Is the corner actually reachable from the seed, or is there something in
-	//  between? A blocked path means the two walls we measured are not the two
-	//  walls of one corner.
-	v_a = ( v_seed[0], v_seed[1], n_floor + n_probe_z );
-	v_b = ( v_corner[0], v_corner[1], n_floor + n_probe_z );
+	//  Back off the wall by the machine's radius, along the line we came in on.
+	v_at = ( v_hit[0] - ( v_dir[0] * n_clear ), v_hit[1] - ( v_dir[1] * n_clear ), v_seed[2] );
 
-	trace = bullettrace( v_a, v_b, 0, undefined );
+	s_place.origin = ( v_at[0], v_at[1], zmqol_wf_trace_floor( v_at ) );
 
-	if( trace[ "fraction" ] < 0.97 )
-	{
-		println( "[zm_qol] wunderfizz: corner snap path blocked at " + trace[ "fraction" ] + " - keeping the seed" );
-		return s_place;
-	}
+	//  Face back down the line, i.e. out of the wall into the room.
+	s_place.angles = ( 0, n_yaw + 180, 0 );
 
-	//  Re-measure the floor AT the corner; a room's floor is not always level.
-	s_place.origin = ( v_corner[0], v_corner[1], zmqol_wf_trace_floor( v_corner ) );
-
-	//  🛑 v1.40.4 - SQUARE TO A WALL, NOT DIAGONAL ACROSS THE CORNER.
-	//  v1.40.2 faced it 45 degrees out of the corner, reasoning that a machine in
-	//  a corner should face the room. In game that reads as a machine shoved in at
-	//  an angle - the user: "it's just not aligned with the wall right it's on an
-	//  angle". Stock never does this; every vending machine in the game sits flat
-	//  against one wall. So it backs onto the wall it was traced against on Y and
-	//  faces straight out along +Y.
-	//
-	//  Overridable in console because which of the two walls looks right is a
-	//  judgement I cannot make from the map data - zmqol_wf_town_yaw 0 backs it
-	//  onto the other wall (the X one) instead, and any other yaw works too. One
-	//  console command beats another build-and-relaunch cycle.
-	s_place.angles = ( 0, getdvarintdefault( "zmqol_wf_town_yaw", 90 ), 0 );
-
-	println( "[zm_qol] wunderfizz: corner snap (" + int( v_seed[0] ) + "," + int( v_seed[1] ) + "," + int( v_seed[2] ) + ") -> (" + int( s_place.origin[0] ) + "," + int( s_place.origin[1] ) + "," + int( s_place.origin[2] ) + ")" );
+	println( "[zm_qol] wunderfizz: wall snap (" + int( v_seed[0] ) + "," + int( v_seed[1] ) + "," + int( v_seed[2] ) + ") yaw " + n_yaw + " -> (" + int( s_place.origin[0] ) + "," + int( s_place.origin[1] ) + "," + int( s_place.origin[2] ) + ") facing " + int( n_yaw + 180 ) + ", wall was " + int( distance( v_from, v_hit ) ) + " away" );
 
 	return s_place;
 }
@@ -831,18 +804,6 @@ zmqol_wf_trace_floor( v_pos )
 		return v_pos[2];
 
 	return trace[ "position" ][2];
-}
-
-//  n_axis: 0 = return the X we hit, 1 = return the Y. Undefined if nothing was
-//  hit, which means the trace left through a doorway rather than finding a wall.
-zmqol_wf_trace_axis( v_from, v_to, n_axis )
-{
-	trace = bullettrace( v_from, v_to, 0, undefined );
-
-	if( trace[ "fraction" ] >= 1 )
-		return undefined;
-
-	return trace[ "position" ][ n_axis ];
 }
 
 zmqol_wf_dist_to_nearest_struct( v_origin, a_structs )
@@ -1425,7 +1386,7 @@ zmqol_wf_ball_glow()
 //  shock above the machine on the same 3-4s cadence stock uses for its
 //  location indicator, with a lightning crack to match.
 //
-//  🛑 THE "lightning crack to match" IS GONE AS OF v1.39.0, and the paragraph
+//  ?? THE "lightning crack to match" IS GONE AS OF v1.39.0, and the paragraph
 //  that justified it was wrong in a way worth recording. It read: zmb_hellhound_bolt
 //  is the hellhound SPAWN LIGHTNING - evt\zombie_global\hellhounds\spawn\strikes_00
 //  - so it is a real lightning strike, it lives in the global zombie bank rather

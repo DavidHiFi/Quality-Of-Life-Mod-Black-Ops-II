@@ -711,6 +711,26 @@ _ramp_up_stink_overlay( b_instant_change )
     self endon( "vulture_perk_lost" );
     self setclientfieldtoplayer( "sndVultureStink", 1 );
 
+    //  zm_qol v1.41.0 - the stink audio, from the SERVER.
+    //
+    //  The clientfield above is stock's way of telling the client to start its
+    //  own stink sounds, and the client does exactly that - but it asks for
+    //  zmb_vulture_stink_player_start / _loop, which live in zmb_buried.all and
+    //  do not exist on any map this mod adds Vulture Aid to. Silent, no error.
+    //
+    //  🛑 The client half CANNOT be edited the way the server half can. It ships
+    //  as COMPILED bytecode inside zm_buried_patch.ff (magic 80 47 53 43), not
+    //  raw text - correcting this project's own note that fastfiles store scripts
+    //  as raw text, which is true of some and not of this one. Its alias strings
+    //  are patchable in place at equal length, but that means editing bytecode
+    //  with a possible header checksum, to fix something the server can simply do
+    //  itself.
+    //
+    //  So the mod plays its own copies here instead. The clientfield is left
+    //  alone, so the client's visual half is untouched and Buried, which has the
+    //  real aliases, is completely unaffected.
+    self thread zmqol_vulture_stink_audio();
+
     if ( !isdefined( level.perk_vulture.stink_change_increment ) )
         level.perk_vulture.stink_change_increment = pow( 2, 5 ) * 0.25 / 8;
 
@@ -754,6 +774,10 @@ _ramp_down_stink_overlay( b_instant_change )
     self endon( "death_or_disconnect" );
     self endon( "vulture_perk_lost" );
     self setclientfieldtoplayer( "sndVultureStink", 0 );
+
+    //  Leaving the stink - see the note at the ramp-up above.
+    self notify( "zmqol_vulture_stink_off" );
+    self playsound( "zmqol_vult_stink_stop" );
 
     if ( !isdefined( level.perk_vulture.stink_change_decrement ) )
         level.perk_vulture.stink_change_decrement = pow( 2, 5 ) * 0.25 / 4;
@@ -864,7 +888,7 @@ give_bonus_ammo()
                 self setweaponammostock( str_weapon_current, n_ammo_count_current + n_ammo_refunded );
         }
 
-        self playsoundtoplayer( "zmb_vulture_drop_pickup_ammo", self );
+        self playsoundtoplayer( "zmqol_vult_pickup_ammo", self );
         chance = get_response_chance( "vulture_ammo_drop" );
 
         if ( chance > randomintrange( 1, 100 ) )
@@ -896,7 +920,7 @@ give_bonus_points( v_fx_origin )
 {
     n_multiplier = randomintrange( 1, 5 );
     self maps\mp\zombies\_zm_score::player_add_points( "vulture", 5 * n_multiplier );
-    self playsoundtoplayer( "zmb_vulture_drop_pickup_money", self );
+    self playsoundtoplayer( "zmqol_vult_pickup_money", self );
     chance = get_response_chance( "vulture_money_drop" );
 
     if ( chance > randomintrange( 1, 100 ) )
@@ -1519,5 +1543,54 @@ _refund_oldest_ballistic_knife( str_weapon )
                 }
             }
         }
+    }
+}
+
+// ============================================================================
+//  zmqol_vulture_stink_audio  -  zm_qol addition, not stock
+//
+//  The one-shot on entering the mist plus the loop for as long as you are in it,
+//  using the mod's own copies of Buried's aliases (see the note at the
+//  setclientfieldtoplayer( "sndVultureStink", 1 ) call for why the server does
+//  this rather than the client).
+//
+//  The emitter is a spawned script_origin rather than the player, so
+//  stoploopsound has something to stop that is not also carrying every other
+//  sound the player makes. It is cleaned up on every way out of the stink,
+//  including death and disconnect, or it leaks an entity per dose.
+// ============================================================================
+zmqol_vulture_stink_audio()
+{
+    self endon( "death_or_disconnect" );
+    self endon( "vulture_perk_lost" );
+    level endon( "end_game" );
+
+    self playsound( "zmqol_vult_stink_start" );
+
+    e_snd = spawn( "script_origin", self.origin );
+    e_snd playloopsound( "zmqol_vult_stink_ploop", 0.5 );
+
+    e_snd thread zmqol_vulture_stink_audio_follow( self );
+
+    self waittill_any( "zmqol_vulture_stink_off", "death_or_disconnect", "vulture_perk_lost" );
+
+    e_snd notify( "zmqol_stink_snd_done" );
+    e_snd stoploopsound( 0.5 );
+    wait 1;
+
+    if ( isdefined( e_snd ) )
+        e_snd delete();
+}
+
+//  Keep the emitter on the player so the loop pans with them.
+zmqol_vulture_stink_audio_follow( player )
+{
+    self endon( "zmqol_stink_snd_done" );
+    level endon( "end_game" );
+
+    while ( isdefined( player ) )
+    {
+        self.origin = player.origin;
+        wait 0.1;
     }
 }
