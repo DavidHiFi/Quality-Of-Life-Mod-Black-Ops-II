@@ -21,13 +21,26 @@ struct_init()
 	// "please wait" flag with it and the perk system precaches the model, which
 	// is why the other locations' precache() bodies are empty.
 	//
-	// The position is where the user stood in the screenshot; the machine faces
-	// back down their line of sight so its front greets you on arrival. Left as
-	// dvars because a roof is exactly the sort of place a machine ends up half
-	// inside a vent housing, and these apply on a map restart rather than a
-	// rebuild.
+	// The position is where the user stood in the screenshot. The YAW went 2 -> 270
+	// in v1.45.0 - "it's not aligned up with the railing on the roof here it's
+	// sideways, make it lined up with the railing there".
+	//
+	// v1.44.0 pointed the machine back down the user's line of sight, which is the
+	// convention that works for the Wunderfizz and is wrong here: that machine is
+	// placed by tracing a wall, this one is placed on an open roof where the thing
+	// to line up with is the parapet, not the photographer.
+	//
+	// The roof is axis-aligned - its pathnodes box in at x -6364..-5878,
+	// y -7829..-7656 - so the railings run due N/S and E/W and the machine wants a
+	// multiple of 90, never 2. At y -7708 it is 52 units off the NORTH edge and 121
+	// off the south, so the north parapet is the one it backs onto, which puts its
+	// front on -Y: yaw 270.
+	//
+	// Still dvars, and this is exactly why: a roof is where a machine ends up half
+	// inside a vent housing, and these take a map restart rather than a rebuild.
+	// If 270 is still not it, 0 / 90 / 180 are the only other candidates.
 	v_pap = ( getdvarintdefault( "zmqol_pap_diner_x", -6207 ), getdvarintdefault( "zmqol_pap_diner_y", -7708 ), getdvarintdefault( "zmqol_pap_diner_z", 228 ) );
-	scripts\zm\replaced\utility::register_perk_struct("specialty_weapupgrade", "p6_anim_zm_buildable_pap_on", v_pap, (0, getdvarintdefault( "zmqol_pap_diner_yaw", 2 ), 0));
+	scripts\zm\replaced\utility::register_perk_struct("specialty_weapupgrade", "p6_anim_zm_buildable_pap_on", v_pap, (0, getdvarintdefault( "zmqol_pap_diner_yaw", 270 ), 0));
 
 	restore_diner_hatch();
 
@@ -214,18 +227,68 @@ struct_init()
 //  the SAME map, diff script_gameobjectname before looking at script at all. The
 //  map is one map; the modes are subtractive.
 // ============================================================================
+//  🛑 v1.45.0 - THE MANTLE ONLY. RESTORING THE LID WAS THE WRONG HALF.
+//
+//  v1.44.0 kept BOTH zclassic entities on the reasoning that reproducing TranZit
+//  exactly must be right. The user: "the roof is still blocked off by the hatch
+//  but the ladder is there and when i get close to it i see the prompt climb or
+//  mount". So the diagnosis was right and the fix overshot: the mantle was the
+//  missing piece, and diner_hatch is the closed lid sitting 2.5 units above it.
+//
+//  What that actually tells us is that TranZit does NOT open this hatch either -
+//  the lid model is authored flat at angles (0,0,0) and no script in the entire
+//  stock dump touches the targetname. TranZit players reach the diner roof some
+//  other way, and the traversal through here is for zombies, who use pathing
+//  data rather than collision. "Reproduce stock exactly" was the wrong goal;
+//  what the user asked for - twice - was the trapdoor gone.
+//
+//  The lesson: matching stock is a means, not the objective. When the request is
+//  "remove the thing", restoring it because stock has it is answering a question
+//  nobody asked.
 restore_diner_hatch()
 {
-	a_names = array( "diner_hatch", "diner_hatch_mantle" );
+	//  The mantle - the ledge the climb prompt comes from. This is the piece that
+	//  was missing, and on its own it is the whole fix.
+	a_ents = getentarray( "diner_hatch_mantle", "targetname" );
 
-	for ( i = 0; i < a_names.size; i++ )
+	for ( i = 0; i < a_ents.size; i++ )
+		a_ents[i].script_gameobjectname = "[all_modes]";
+
+	println( "[zm_qol] diner hatch: kept " + a_ents.size + " x diner_hatch_mantle" );
+
+	//  The lid stays deleted, which is survival's own default - leaving
+	//  diner_hatch on "zclassic" is all it takes. zmqol_diner_hatch_lid 1 puts it
+	//  back for anyone who wants stock's geometry.
+	if ( getdvarintdefault( "zmqol_diner_hatch_lid", 0 ) )
 	{
-		a_ents = getentarray( a_names[i], "targetname" );
+		a_ents = getentarray( "diner_hatch", "targetname" );
 
-		for ( j = 0; j < a_ents.size; j++ )
-			a_ents[j].script_gameobjectname = "[all_modes]";
+		for ( i = 0; i < a_ents.size; i++ )
+			a_ents[i].script_gameobjectname = "[all_modes]";
+	}
 
-		println( "[zm_qol] diner hatch: kept " + a_ents.size + " x " + a_names[i] );
+	//  ⚠️ AND IF THE CLIMB STILL DOES NOT GO THROUGH, THIS IS THE NEXT SUSPECT.
+	//  diner_hatch_collision is a brushmodel at z 135, ten units under the mantle,
+	//  carrying NO script_gameobjectname - so unlike the other two it survives in
+	//  every mode and the entity filter never even looks at it. It is most likely
+	//  the closed hatch's solid body.
+	//
+	//  It is not removed by default because it is present in TranZit too, and
+	//  changing collision that stock keeps in BOTH modes is a bigger step than
+	//  this bug has earned. Shipped as a switch instead so the question can be
+	//  settled in one sitting rather than one build: zmqol_diner_hatch_clip 0,
+	//  then restart the map.
+	if ( !getdvarintdefault( "zmqol_diner_hatch_clip", 1 ) )
+	{
+		a_ents = getentarray( "diner_hatch_collision", "targetname" );
+
+		for ( i = 0; i < a_ents.size; i++ )
+		{
+			a_ents[i] connectpaths();
+			a_ents[i] delete();
+		}
+
+		println( "[zm_qol] diner hatch: DELETED " + a_ents.size + " x diner_hatch_collision" );
 	}
 }
 
