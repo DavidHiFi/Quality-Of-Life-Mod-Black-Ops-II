@@ -97,12 +97,18 @@ init_vulture()
     level.perk_vulture.clientfields.toplayer = [];
     level.perk_vulture.clientfields.toplayer["vulture_perk_active"] = 0;
     registerclientfield( "toplayer", "vulture_perk_toplayer", 12000, 1, "int" );
-    registerclientfield( "actor", "vulture_perk_actor", 12000, 2, "int" );
+
+    if ( zmqol_vulture_has_actor_field() )
+        registerclientfield( "actor", "vulture_perk_actor", 12000, 2, "int" );
+
     registerclientfield( "scriptmover", "vulture_perk_scriptmover", 12000, 4, "int" );
     registerclientfield( "zbarrier", "vulture_perk_zbarrier", 12000, 1, "int" );
     registerclientfield( "toplayer", "sndVultureStink", 12000, 1, "int" );
     registerclientfield( "world", "vulture_perk_disable_solo_quick_revive_glow", 12000, 1, "int" );
-    registerclientfield( "toplayer", "vulture_perk_disease_meter", 12000, 5, "float" );
+
+    if ( zmqol_vulture_has_disease_meter() )
+        registerclientfield( "toplayer", "vulture_perk_disease_meter", 12000, 5, "float" );
+
     maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, 31, 1 );
     maps\mp\zombies\_zm_spawner::add_cusom_zombie_spawn_logic( ::vulture_zombie_spawn_func );
     register_zombie_death_event_callback( ::zombies_drop_stink_on_death );
@@ -123,6 +129,51 @@ init_vulture()
 /#
     level.vulture_devgui_spawn_stink = ::vulture_devgui_spawn_stink;
 #/
+}
+
+// ============================================================================
+//  zm_qol: THE TWO FIELDS ORIGINS AND MOB CANNOT AFFORD
+//
+//  Vulture Aid registers eight clientfields across four sets, and two maps ran
+//  out of room in two DIFFERENT sets:
+//
+//    zm_tomb   Client Field Set ACTOR is out of space     <- vulture_perk_actor, 2 bits
+//    zm_prison Client Field Set TOPLAYER is out of space  <- vulture_perk_disease_meter, 5 bits
+//
+//  Origins is heavy on actor (templars, crusaders, capture zones, panzer); Mob
+//  is heavy on toplayer (afterlife, the plane, the shield, brutus). The field
+//  named in the error is whichever one asks LAST, so on both maps the message
+//  names the MAP's field, not ours - read it as "someone before me used the
+//  space".
+//
+//  🌟 Both expensive fields are PURELY COSMETIC, which is what makes this
+//  possible at all:
+//    vulture_perk_actor          zombie eye glow + stink trail on the zombie
+//    vulture_perk_disease_meter  the stink meter fill fraction
+//  Dropping one costs that map one visual and nothing else. The bonus drops,
+//  the wallbuy/box/machine glows, the mystery-box vision and the perk itself
+//  are all on other fields and are untouched.
+//
+//  🛑 THE CLIENT MUST DROP THE IDENTICAL FIELD. A field registered on one side
+//  only makes that set one width wider on that side, which is
+//  EXE_CLIENT_FIELD_MISMATCH for everyone before the map starts. The client
+//  twin of these two functions is in scripts\zm\zm_expanded.csc - it is a
+//  separate compilation unit so the copy is unavoidable, and it is the first
+//  place to look if a clientfield error ever appears.
+//
+//  Note these are deliberately SEPARATE from zmqol_vulture_enabled(), which
+//  answers "does this map get the perk at all". These answer "which fields can
+//  this map afford", and now that both maps get the perk, the two questions
+//  have different answers.
+// ============================================================================
+zmqol_vulture_has_actor_field()
+{
+    return getdvar( "mapname" ) != "zm_tomb";
+}
+
+zmqol_vulture_has_disease_meter()
+{
+    return getdvar( "mapname" ) != "zm_prison";
 }
 
 add_additional_stink_locations_for_zone( str_zone, a_zones )
@@ -170,7 +221,10 @@ take_vulture_perk()
         self vulture_clientfield_toplayer_clear( "vulture_perk_active" );
         self set_vulture_overlay( 0 );
         self.vulture_stink_value = 0;
-        self setclientfieldtoplayer( "vulture_perk_disease_meter", 0 );
+
+        if ( zmqol_vulture_has_disease_meter() )   // zm_qol: not registered on Mob
+            self setclientfieldtoplayer( "vulture_perk_disease_meter", 0 );
+
         self notify( "vulture_perk_lost" );
     }
 }
@@ -742,7 +796,10 @@ _ramp_up_stink_overlay( b_instant_change )
             self.vulture_stink_value = pow( 2, 5 ) - 1;
 
         fraction = self _get_disease_meter_fraction();
-        self setclientfieldtoplayer( "vulture_perk_disease_meter", fraction );
+
+        if ( zmqol_vulture_has_disease_meter() )   // zm_qol: not registered on Mob
+            self setclientfieldtoplayer( "vulture_perk_disease_meter", fraction );
+
         self set_vulture_overlay( fraction );
         vulture_debug_text( "disease counter = " + self.vulture_stink_value );
         wait 0.25;
@@ -791,7 +848,10 @@ _ramp_down_stink_overlay( b_instant_change )
 
         fraction = self _get_disease_meter_fraction();
         self set_vulture_overlay( fraction );
-        self setclientfieldtoplayer( "vulture_perk_disease_meter", fraction );
+
+        if ( zmqol_vulture_has_disease_meter() )   // zm_qol: not registered on Mob
+            self setclientfieldtoplayer( "vulture_perk_disease_meter", fraction );
+
         vulture_debug_text( "disease counter = " + self.vulture_stink_value );
         wait 0.25;
     }
@@ -1119,6 +1179,9 @@ vulture_clientfield_scriptmover_clear( str_field_name )
 
 vulture_clientfield_actor_set( str_field_name )
 {
+    if ( !zmqol_vulture_has_actor_field() )   // zm_qol: not registered on Origins
+        return;
+
     assert( isdefined( level.perk_vulture.clientfields.actors[str_field_name] ), str_field_name + " is not a valid field for vulture_clientfield_actor_set!" );
     n_value = getclientfield( "vulture_perk_actor" );
     n_value = n_value | 1 << level.perk_vulture.clientfields.actors[str_field_name];
@@ -1127,6 +1190,9 @@ vulture_clientfield_actor_set( str_field_name )
 
 vulture_clientfield_actor_clear( str_field_name )
 {
+    if ( !zmqol_vulture_has_actor_field() )   // zm_qol: not registered on Origins
+        return;
+
     assert( isdefined( level.perk_vulture.clientfields.actors[str_field_name] ), str_field_name + " is not a valid field for vulture_clientfield_actor_clear!" );
     n_value = getclientfield( "vulture_perk_actor" );
     n_value = n_value & ~( 1 << level.perk_vulture.clientfields.actors[str_field_name] );

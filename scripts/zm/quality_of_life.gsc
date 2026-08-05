@@ -4386,6 +4386,83 @@ zmqol_enable_whoswho()
         return;
 
     level.zombiemode_using_chugabud_perk = 1;
+    level thread zmqol_whoswho_verify();
+}
+
+// ============================================================================
+//  zmqol_whoswho_verify  -  the perk was given and did nothing
+//
+//  Reported on Origins: gave Who's Who with the chat command, got run over by
+//  the tank, and went straight to game over with no clone and no second life.
+//
+//  The gate is _zm.gsc:4239, inside player_damage_override:
+//
+//      if ( self.lives > 0 && self hasperk( "specialty_finalstand" ) )
+//      {
+//          self.lives--;
+//          if ( isdefined( level.chugabud_laststand_func ) )
+//          {
+//              self thread [[ level.chugabud_laststand_func ]]();
+//              return 0;
+//          }
+//      }
+//
+//  🛑 Note what happens when that inner isdefined FAILS: self.lives has ALREADY
+//  been decremented and there is no else - so the player silently falls through
+//  to the ordinary down, one life poorer. "Perk equipped, nothing happened, game
+//  over" is precisely the shape of a missing level.chugabud_laststand_func.
+//
+//  Everything on the give side checks out statically, and was re-read rather
+//  than assumed:
+//    - give_perk() (our override, line ~4780) does set self.lives = 1 for
+//      specialty_finalstand, same as stock.
+//    - the .give<perk> command routes through _zm_perks::give_perk, which is
+//      the function we replace, so it gets that block.
+//    - _zm_perks::init() threads turn_chugabud_on() off
+//      level.zombiemode_using_chugabud_perk, which we set in main(), before
+//      init() runs.
+//    - turn_chugabud_on()'s FIRST statement is _zm_chugabud::init(), and that
+//      function's first statement sets level.chugabud_laststand_func - so even
+//      a thread that dies on the loadfx calls two lines later should leave the
+//      pointer set.
+//
+//  So the static read says it should work and the game says it does not, which
+//  is the point where guessing again would cost another release (checkpoint 18
+//  section 1). This verifies instead: it reports the pointer's real state to the
+//  log, and if it is genuinely missing it installs it, which is a no-op whenever
+//  stock did its job. _zm_chugabud::init() is safe to name from a root script -
+//  _zm_perks.gsc calls it on every map, so the file resolves everywhere.
+//
+//  If the next log says OK and Who's Who still does nothing, the pointer is not
+//  the cause and the damage path is - look at the tank first, since
+//  zm_tomb_tank::tank_ran_me_over does disableinvulnerability() then
+//  dodamage( self.health + 1000 ).
+// ============================================================================
+zmqol_whoswho_verify()
+{
+    level endon( "end_game" );
+
+    // Poll rather than flag_wait: stock threads turn_chugabud_on() from
+    // _zm_perks::init(), and nothing guarantees which flag it lands behind.
+    for ( i = 0; i < 60; i++ )
+    {
+        if ( isdefined( level.chugabud_laststand_func ) )
+        {
+            println( "[zm_qol] whoswho: chugabud_laststand_func present after " + i + "s - stock turn_chugabud_on ran" );
+            return;
+        }
+
+        wait 1;
+    }
+
+    println( "[zm_qol] whoswho: chugabud_laststand_func MISSING after 60s - stock turn_chugabud_on did not reach _zm_chugabud::init(). Repairing." );
+
+    maps\mp\zombies\_zm_chugabud::init();
+
+    if ( isdefined( level.chugabud_laststand_func ) )
+        println( "[zm_qol] whoswho: repair OK, chugabud_laststand_func now set" );
+    else
+        println( "[zm_qol] whoswho: repair FAILED, _zm_chugabud::init() did not set the pointer" );
 }
 
 // ============================================================================
@@ -4472,17 +4549,33 @@ zmqol_enable_whoswho()
 //  crash. A list copied into three places drifts; it drifted the first time it
 //  was copied.
 // ============================================================================
+//  ✅ RESOLVED (v1.55.0) - ORIGINS AND MOB ARE NO LONGER EXCLUDED.
+//
+//  The paragraph above says the way back is to skip just the one expensive
+//  cosmetic field on each map, on BOTH sides, and calls the client half "a
+//  bigger job than a boot fix" because the client script ships as compiled
+//  bytecode. That job is done:
+//
+//    zm_tomb    drops vulture_perk_actor          (2 bits, actor)   - eye glow
+//                                                                     + stink trail
+//    zm_prison  drops vulture_perk_disease_meter  (5 bits, toplayer) - stink meter
+//
+//  Server side: maps\mp\zombies\_zm_perk_vulture.gsc already ships raw, so the
+//  two registrations and all seven use sites are gated there directly on
+//  zmqol_vulture_has_actor_field() / zmqol_vulture_has_disease_meter().
+//
+//  Client side: the compiled .csc is NOT replaced. Only init_vulture is
+//  re-implemented, in scripts\zm\zm_expanded.csc - read the long comment above
+//  zmqol_init_vulture_trimmed() there for why shipping the decompiled .csc raw
+//  was tried and rejected (the decompile is lossy, and it would have degraded
+//  the three maps where the perk already works).
+//
+//  Each map loses exactly one visual and keeps the perk.
 zmqol_vulture_enabled()
 {
     map = getDvar( "mapname" );
 
     if ( map == "zm_buried" )   // ships the perk itself
-        return 0;
-
-    if ( map == "zm_tomb" )     // actor set full
-        return 0;
-
-    if ( map == "zm_prison" )   // toplayer set full
         return 0;
 
     return 1;

@@ -354,11 +354,11 @@ zmqol_enable_whoswho()
 //  therefore the one place to check first when a clientfield error appears.
 //
 //    zm_buried  ships the perk itself
-//    zm_tomb    actor set full     (zone_capture_zombie cannot fit)
-//    zm_prison  toplayer set full  (vulture_perk_disease_meter cannot fit)
 //
-//  The full reasoning, including why two different maps run out of two different
-//  budgets, is in quality_of_life.gsc above zmqol_vulture_enabled().
+//  Origins and Mob USED to be excluded here as well. They are not any more - see
+//  zmqol_init_vulture_trimmed() below.
+//
+//  The full reasoning is in quality_of_life.gsc above zmqol_vulture_enabled().
 zmqol_vulture_enabled()
 {
 	map = getDvar( "mapname" );
@@ -366,13 +366,134 @@ zmqol_vulture_enabled()
 	if ( map == "zm_buried" )
 		return 0;
 
-	if ( map == "zm_tomb" )
-		return 0;
-
-	if ( map == "zm_prison" )
-		return 0;
-
 	return 1;
+}
+
+// ============================================================================
+//  zm_qol: THE TWO FIELDS ORIGINS AND MOB CANNOT AFFORD  (CLIENT)
+//
+//  🛑 EXACT TWINS of the same two functions in
+//  maps\mp\zombies\_zm_perk_vulture.gsc - the full reasoning lives there. Drop a
+//  field on one side only and that set is one width wider on that side, which is
+//  EXE_CLIENT_FIELD_MISMATCH for everyone before the map starts. If a clientfield
+//  error ever appears for Vulture, compare these four functions FIRST.
+// ============================================================================
+zmqol_vulture_has_actor_field()
+{
+	return getDvar( "mapname" ) != "zm_tomb";
+}
+
+zmqol_vulture_has_disease_meter()
+{
+	return getDvar( "mapname" ) != "zm_prison";
+}
+
+// ============================================================================
+//  zmqol_init_vulture_trimmed  -  Vulture Aid on Origins and Mob at last
+//
+//  Origins and Mob were the last two maps without the 11th perk, each blocked by
+//  ONE clientfield it had no room for (actor on Origins, toplayer on Mob). Both
+//  blockers are cosmetic-only fields, so the perk works without them.
+//
+//  🛑 WHY THIS IS A COPY OF init_vulture AND NOT AN EDIT OF THE REAL FILE.
+//  The obvious move is to ship clientscripts\mp\zombies\_zm_perk_vulture.csc as
+//  raw text (this project already does exactly that with the SERVER half, and
+//  Plutonium loads raw .csc happily - the log says "loaded successfully from
+//  raw"). It was tried and rejected, for a concrete reason:
+//
+//  the only available source for that file is a DECOMPILE, and the decompile is
+//  LOSSY. Two proofs, both in BO2-Raw-files\clientscripts\mp\zombies:
+//      _zm_perk_vulture.txt  _zombie_eye_glow_enable() decompiles to three
+//                            assignments to n_fx_id in a row - an if/else chain
+//                            whose branches were flattened, so only the last
+//                            survives.
+//      _zm_perks.txt         init_perk_custom_threads() decompiles to
+//                            `i = 0; ...[i]...; i++;` with the loop gone.
+//  It parses cleanly under gsc-tool - syntax was never the question - and it
+//  would still have quietly degraded Vulture on TranZit, Die Rise and Nuketown,
+//  where the perk already works, to buy it on two maps. Not a trade worth making.
+//
+//  So the compiled stock .csc stays exactly as it is, and only init_vulture is
+//  re-implemented here. That function is the safe one to copy: it is 50 lines of
+//  straight-line assignment with NO control flow at all, which is precisely the
+//  shape a decompiler cannot get wrong. Every other function - including the
+//  lossy ones - still runs as original bytecode.
+//
+//  Stock reaches init_vulture through
+//      register_perk_init_thread( "specialty_nomotionsensor", ::init_vulture )
+//  inside enable_vulture_perk_for_level(), which is a plain assignment to
+//  level._custom_perks[perk].init_thread (_zm_perks.csc). So calling stock's
+//  enable first and then re-pointing that one field swaps in this version and
+//  changes nothing else. init_perk_custom_threads() later threads whatever is
+//  stored there.
+//
+//  📝 The `::name` references below all resolve into the stock file rather than
+//  this one, so they must stay fully qualified. An unqualified ::vulture_toggle
+//  here would silently look for a function in zm_expanded.csc.
+// ============================================================================
+zmqol_init_vulture_trimmed()
+{
+	registerclientfield( "toplayer", "vulture_perk_toplayer", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_callback_toplayer, 0, 1 );
+
+	if ( zmqol_vulture_has_actor_field() )
+		registerclientfield( "actor", "vulture_perk_actor", 12000, 2, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_callback_actor, 0, 0 );
+
+	registerclientfield( "scriptmover", "vulture_perk_scriptmover", 12000, 4, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_callback_scriptmover, 0, 0 );
+	registerclientfield( "zbarrier", "vulture_perk_zbarrier", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_vision_mystery_box, 0, 0 );
+	registerclientfield( "toplayer", "sndVultureStink", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::sndvulturestink );
+	registerclientfield( "world", "vulture_perk_disable_solo_quick_revive_glow", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_disable_solo_quick_revive_glow, 0, 0 );
+
+	if ( zmqol_vulture_has_disease_meter() )
+	{
+		registerclientfield( "toplayer", "vulture_perk_disease_meter", 12000, 5, "float", clientscripts\mp\zombies\_zm_perk_vulture::vulture_callback_stink_active, 0, 1 );
+		setupclientfieldcodecallbacks( "toplayer", 1, "vulture_perk_disease_meter" );
+	}
+
+	// The overlay is registered on BOTH sides unconditionally, exactly as stock
+	// does - it is a visionset-manager overlay, not one of the eight fields, and
+	// the server half registers it unconditionally too. Dropping it on one side
+	// only is what widened overlay_lerp and produced the [CLIENT: 4 SERVER: 5]
+	// boot crash Vulture caused twice before.
+	clientscripts\mp\_visionset_mgr::vsmgr_register_overlay_info_style_filter( "vulture_stink_overlay", 12000, 31, 0, 0, "generic_filter_zombie_perk_vulture", 0 );
+
+	level._effect["vulture_perk_zombie_stink"] = loadfx( "maps/zombie/fx_zm_vulture_perk_stink" );
+	level._effect["vulture_perk_zombie_stink_trail"] = loadfx( "maps/zombie/fx_zm_vulture_perk_stink_trail" );
+	level._effect["vulture_perk_bonus_drop"] = loadfx( "misc/fx_zombie_powerup_vulture" );
+	level._effect["vulture_drop_picked_up"] = loadfx( "misc/fx_zombie_powerup_grab" );
+	level._effect["vulture_perk_wallbuy_static"] = loadfx( "maps/zombie/fx_zm_vulture_wallbuy_rifle" );
+	level._effect["vulture_perk_wallbuy_dynamic"] = loadfx( "maps/zombie/fx_zm_vulture_glow_question" );
+	level._effect["vulture_perk_machine_glow_doubletap"] = loadfx( "maps/zombie/fx_zm_vulture_glow_dbltap" );
+	level._effect["vulture_perk_machine_glow_juggernog"] = loadfx( "maps/zombie/fx_zm_vulture_glow_jugg" );
+	level._effect["vulture_perk_machine_glow_revive"] = loadfx( "maps/zombie/fx_zm_vulture_glow_revive" );
+	level._effect["vulture_perk_machine_glow_speed"] = loadfx( "maps/zombie/fx_zm_vulture_glow_speed" );
+	level._effect["vulture_perk_machine_glow_marathon"] = loadfx( "maps/zombie/fx_zm_vulture_glow_marathon" );
+	level._effect["vulture_perk_machine_glow_mule_kick"] = loadfx( "maps/zombie/fx_zm_vulture_glow_mule" );
+	level._effect["vulture_perk_machine_glow_pack_a_punch"] = loadfx( "maps/zombie/fx_zm_vulture_glow_pap" );
+	level._effect["vulture_perk_machine_glow_vulture"] = loadfx( "maps/zombie/fx_zm_vulture_glow_vulture" );
+	level._effect["vulture_perk_mystery_box_glow"] = loadfx( "maps/zombie/fx_zm_vulture_glow_mystery_box" );
+	level._effect["vulture_perk_powerup_drop"] = loadfx( "maps/zombie/fx_zm_vulture_glow_powerup" );
+	level._effect["vulture_perk_zombie_eye_glow"] = loadfx( "misc/fx_zombie_eye_vulture" );
+
+	level.perk_vulture = spawnstruct();
+	level.perk_vulture.array_stink_zombies = [];
+	level.perk_vulture.array_stink_drop_locations = [];
+	level.perk_vulture.players_with_vulture_perk = [];
+	level.perk_vulture.vulture_vision_fx_list = [];
+	level.perk_vulture.clientfields = spawnstruct();
+	level.perk_vulture.clientfields.scriptmovers = [];
+	level.perk_vulture.clientfields.scriptmovers[0] = clientscripts\mp\zombies\_zm_perk_vulture::vulture_stink_fx;
+	level.perk_vulture.clientfields.scriptmovers[1] = clientscripts\mp\zombies\_zm_perk_vulture::vulture_drop_fx;
+	level.perk_vulture.clientfields.scriptmovers[2] = clientscripts\mp\zombies\_zm_perk_vulture::vulture_drop_pickup;
+	level.perk_vulture.clientfields.scriptmovers[3] = clientscripts\mp\zombies\_zm_perk_vulture::vulture_powerup_drop;
+	level.perk_vulture.clientfields.actors = [];
+	level.perk_vulture.clientfields.actors[1] = clientscripts\mp\zombies\_zm_perk_vulture::vulture_eye_glow;
+	level.perk_vulture.clientfields.actors[0] = clientscripts\mp\zombies\_zm_perk_vulture::vulture_stink_trail_fx;
+	level.perk_vulture.clientfields.toplayer = [];
+	level.perk_vulture.clientfields.toplayer[0] = clientscripts\mp\zombies\_zm_perk_vulture::vulture_toggle;
+	level.perk_vulture.disable_solo_quick_revive_glow = 0;
+	level.perk_vulture.custom_funcs_enable = [];
+	level.perk_vulture.custom_funcs_disable = [];
+	level.zombie_eyes_clientfield_cb_additional = clientscripts\mp\zombies\_zm_perk_vulture::vulture_eye_glow_callback_from_system;
 }
 
 zmqol_enable_vulture()
@@ -384,6 +505,11 @@ zmqol_enable_vulture()
 		return;
 
 	clientscripts\mp\zombies\_zm_perk_vulture::enable_vulture_perk_for_level();
+
+	// Re-point the perk's init thread at the trimmed copy. Stock stored
+	// ::init_vulture there one line ago; this is a plain field assignment on
+	// both sides, so nothing else about the perk's setup changes.
+	level._custom_perks[ "specialty_nomotionsensor" ].init_thread = ::zmqol_init_vulture_trimmed;
 }
 
 // ============================================================================
