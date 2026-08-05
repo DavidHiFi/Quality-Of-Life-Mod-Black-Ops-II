@@ -915,20 +915,35 @@ _play_vulture_drop_pickup_fx()
 {
     self vulture_clientfield_scriptmover_set( "vulture_drop_pickup" );
 
-    //  zm_qol v1.41.1 - THE PICKUP CHIME, which is why the ammo drop "had the
-    //  wrong sound effect".
+    //  🛑 v1.42.0 - THE playsound THAT USED TO BE HERE IS GONE, and the paragraph
+    //  justifying it was wrong about where Buried's chime comes from.
     //
-    //  Buried plays TWO sounds when you take a drop, and they come from opposite
-    //  sides. zmb_vulture_drop_pickup_ammo is the server's, and it is only a
-    //  generic weapon-pickup rustle (fly\pickups\weapon\fly_weapon_pickup_01) -
-    //  porting that one alone got the foley and lost the part that actually
-    //  sounds like Vulture Aid. The distinctive chime is
-    //  zmb_vulture_drop_pickup, played CLIENT-side off this very clientfield,
-    //  and Buried-only, so off Buried it was silent and the drop sounded wrong.
+    //  v1.41.1 said the chime was "played CLIENT-side off this very clientfield".
+    //  It is not. Stock's handler for this clientfield is
+    //  _zm_perk_vulture.csc::vulture_drop_pickup() and its entire body is one
+    //  playfx - no sound of any kind. So this line was inventing a third sound
+    //  Buried never makes, fired from the DROP entity in 3D while Buried's real
+    //  chime is a 2D layer on the player.
     //
-    //  Found by noticing zmb\powerup\vulture\pickup.wav sitting in the extracted
-    //  payloads with no alias of mine pointing at it.
-    self playsound( "zmqol_vult_pickup" );
+    //  Where the chime actually comes from is the alias table, which nobody had
+    //  read all the way across: zmb_vulture_drop_pickup_ammo carries
+    //  zmb_vulture_drop_pickup in its SECONDARY column, so one playsoundtoplayer
+    //  on the ammo alias fires both halves by itself. The mod's copy inherited
+    //  that column verbatim - pointing at Buried's alias, which exists in
+    //  zmb_buried.all and nowhere else - so on the five added maps the secondary
+    //  resolved to nothing and only the rustle played. That is the "it has a
+    //  sound effect rn but it's not the right one".
+    //
+    //  Fixed in soundbank\mod.all.aliases.additions.csv by repointing Secondary
+    //  at zmqol_vult_pickup, the mod's own copy of the same payload, which ships
+    //  in mod.all and therefore loads on every map. give_bonus_ammo() and
+    //  give_bonus_points() need no change - they already play the alias that now
+    //  carries the layer, exactly as Buried does.
+    //
+    //  🛑 The reusable part: an alias is ~60 columns and Secondary is one of them.
+    //  Diff YOUR row against the stock row field by field before concluding the
+    //  sound is missing - here the payloads, volumes and curves were already
+    //  byte-identical and the whole bug was column 3.
 }
 
 give_bonus_points( v_fx_origin )
