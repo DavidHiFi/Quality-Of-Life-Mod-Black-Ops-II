@@ -2018,20 +2018,48 @@ chooseLocation(currLoc)
 }
 
 
+//  🛑 THE RETRACT MUST NOT BE COMPUTED FROM THE LIVE ORIGIN.
+//  Reported in game: "when it's finished spinning and the perk bottle it lands
+//  on is finalised it pops out off to the left instead of retaining its normal
+//  position centered", and again the moment the machine relocated.
+//
+//  The old code did:
+//        self.bottle.origin -= v_float;                    // start behind home
+//        self.bottle moveto( self.bottle.origin + v_float, putouttime, ... );
+//        self waittill( "done_cycling" );
+//        self.bottle moveto( self.bottle.origin - v_float, putbacktime, ... );
+//
+//  `.origin` on an entity that is MID-moveto is its position RIGHT NOW, not its
+//  destination - and "done_cycling" is not tied to putouttime, so it routinely
+//  fires while that 3-second glide is still running. The retract target was
+//  therefore (wherever it got to) - v_float, which is short of the real home by
+//  however much of the glide had not happened yet. The next spin then hard-set
+//  the origin back to home, and that correction is the "jump" - it read as
+//  sideways because v_float points along the machine's FRONT (yaw - 90, the same
+//  offset the machine and the Pack-a-Punch both use), not along a screen axis.
+//
+//  Fixed by computing the home position ONCE and expressing both ends of the
+//  motion relative to it, so the bottle cannot accumulate error no matter when
+//  the spin ends.
 perk_bottle_motion()
 {
 	putouttime = 3;
 	putbacktime = 10;
 	v_float = anglesToForward( self.angles - ( 0, 90, 0 ) ) * 10;
-	self.bottle.origin = self.origin + ( 0, 0, 53 );
+
+	//  Computed once. Every moveto below is relative to THIS, never to .origin.
+	v_home = self.origin + ( 0, 0, 53 );
+
+	self.bottle.origin = v_home - v_float;
 	self.bottle.angles = self.angles;
-	self.bottle.origin -= v_float;
-	self.bottle moveto( self.bottle.origin + v_float, putouttime, putouttime * 0.5 );
+	self.bottle moveto( v_home, putouttime, putouttime * 0.5 );
 	self.bottle.angles += ( 0, 0, 10 );
 	self.bottle rotateyaw( 720, putouttime, putouttime * 0.5 );
+
 	self waittill( "done_cycling" );
+
 	self.bottle.angles = self.angles;
-	self.bottle moveto( self.bottle.origin - v_float, putbacktime, putbacktime * 0.5 );
+	self.bottle moveto( v_home - v_float, putbacktime, putbacktime * 0.5 );
 	self.bottle rotateyaw( 90, putbacktime, putbacktime * 0.5 );
 }
 
