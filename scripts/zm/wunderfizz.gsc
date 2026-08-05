@@ -1503,7 +1503,20 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 								perklist = array_randomize(perks);
 								for(j=0;j<perklist.size;j++)
 								{
-									if(!(player hasPerk(perklist[j]) || (self maps\mp\zombies\_zm_perks::has_perk_paused(perklist[j]))))
+									//  🛑 THIS CHECK WAS ASKING THE MACHINE, NOT THE PLAYER.
+									//  It read `self has_perk_paused(...)`, and `self` here is the
+									//  wunderfizzMachine script_model - the thread's owner - not the
+									//  buyer. Stock's has_perk_paused() reads self.disabled_perks,
+									//  which only ever exists on a PLAYER, so on an entity it
+									//  returned false every single time and the paused-perk half of
+									//  this guard has never once fired.
+									//
+									//  The cycling display twenty lines up (perkForRandom) has
+									//  always had it right - `player has_perk_paused(...)` - so the
+									//  two halves of the same machine disagreed about who to ask.
+									//  That is the tell: same check, same file, two different
+									//  subjects.
+									if(!(player hasPerk(perklist[j]) || (player maps\mp\zombies\_zm_perks::has_perk_paused(perklist[j]))))
 									{
 										perkName = getPerkName(perklist[j]);
 
