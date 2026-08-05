@@ -126,8 +126,26 @@ if not exist "%PROJ%\zone_assets\soundbank\mod.all.aliases.csv" (
 
 REM  Now overlay what THIS project adds, every run, so an edit to either always
 REM  takes: the extra alias rows, then the WAVs they point at.
+REM
+REM  🛑 THE OVERLAY REPLACES BY NAME. IT USED TO ONLY APPEND, AND THAT MADE EDITING A
+REM  SHIPPED ALIAS A SILENT NO-OP - the exact failure this file's own header warns
+REM  about, one level up.
+REM
+REM  zone_assets\soundbank\mod.all.aliases.csv is a CACHE, regenerated from the donor
+REM  only when it is missing. Once an addition had been appended to it, that appended
+REM  copy was the row every later build used, and the version in
+REM  soundbank\mod.all.aliases.additions.csv - the file this project actually treats as
+REM  source - was skipped forever because its Name was "already present". v1.42.0's
+REM  Vulture pickup fix was a one-column change to an existing row: build_ff printed
+REM  "0 alias row(s) added", linked happily, and shipped the old table. Nothing in any
+REM  log said otherwise.
+REM
+REM  So: a row in the additions file now OVERWRITES the row of the same name, and the
+REM  count is reported split so a build that changed something never prints all zeros.
+REM  If you would rather start clean, deleting the cached CSV also works - but that
+REM  should be a convenience, not the only way an edit can take.
 echo   Staging this mod's own sounds ...
-"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$p='%PROJ%'; $base=Join-Path $p 'zone_assets\soundbank\mod.all.aliases.csv'; $add=Join-Path $p 'soundbank\mod.all.aliases.additions.csv'; $rows=@(Get-Content $base); $names=@{}; foreach($r in $rows[1..($rows.Count-1)]){ $names[($r -split ',')[0]] = $true }; $n=0; if(Test-Path $add){ foreach($r in @(Get-Content $add)[1..((@(Get-Content $add)).Count-1)]){ if($r.Trim() -eq ''){continue}; $nm=($r -split ',')[0]; if(-not $names.ContainsKey($nm)){ $rows += $r; $names[$nm]=$true; $n++ } } }; Set-Content -LiteralPath $base -Value $rows -Encoding ASCII; Write-Host ('    ' + $n + ' alias row(s) added, ' + ($rows.Count-1) + ' total'); $m=0; $src=Join-Path $p 'sound'; if(Test-Path $src){ Get-ChildItem -LiteralPath $src -Recurse -File | ForEach-Object { $rel=$_.FullName.Substring($p.Length+1); $dst=Join-Path (Join-Path $p 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; $m++ } }; Write-Host ('    ' + $m + ' sound payload(s) staged')"
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$p='%PROJ%'; $base=Join-Path $p 'zone_assets\soundbank\mod.all.aliases.csv'; $add=Join-Path $p 'soundbank\mod.all.aliases.additions.csv'; $rows=@(Get-Content $base); $idx=@{}; for($i=1;$i -lt $rows.Count;$i++){ $idx[($rows[$i] -split ',')[0]] = $i }; $n=0; $u=0; if(Test-Path $add){ $ar=@(Get-Content $add); foreach($r in $ar[1..($ar.Count-1)]){ if($r.Trim() -eq ''){continue}; $nm=($r -split ',')[0]; if($idx.ContainsKey($nm)){ if($rows[$idx[$nm]] -ne $r){ $rows[$idx[$nm]]=$r; $u++ } } else { $rows += $r; $idx[$nm]=$rows.Count-1; $n++ } } }; Set-Content -LiteralPath $base -Value $rows -Encoding ASCII; Write-Host ('    ' + $n + ' alias row(s) added, ' + $u + ' updated, ' + ($rows.Count-1) + ' total'); $m=0; $src=Join-Path $p 'sound'; if(Test-Path $src){ Get-ChildItem -LiteralPath $src -Recurse -File | ForEach-Object { $rel=$_.FullName.Substring($p.Length+1); $dst=Join-Path (Join-Path $p 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; $m++ } }; Write-Host ('    ' + $m + ' sound payload(s) staged')"
 if errorlevel 1 ( echo   ERROR: could not stage this mod's sounds. & exit /b 1 )
 
 REM --- link -------------------------------------------------------------------
