@@ -969,7 +969,8 @@ treasure_chest_chooserandomweapon( player )
 }
 
 // ============================================================================
-//  🛑 zm_qol: THIS IS THE ONLY FUNCTION CHANGED IN THIS FILE.
+//  🛑 zm_qol: THIS IS ONE OF ONLY TWO FUNCTIONS CHANGED IN THIS FILE.
+//  (The other is treasure_chest_give_weapon, below - Pack-a-Punch retention.)
 //
 //  Everything else is the stock Core _zm_magicbox.gsc, byte for byte, so this
 //  file stays auditable with a diff against
@@ -1466,9 +1467,45 @@ treasure_chest_glowfx()
     self setclientfield( "magicbox_glow", 0 );
 }
 
+// ============================================================================
+//  🛑 zm_qol: SECOND AND LAST CHANGED FUNCTION IN THIS FILE.
+//
+//  Pull a weapon you are already holding PACK-A-PUNCHED, and taking it out of
+//  the box acts as an ammo refill instead of downgrading you.
+//
+//  This only became reachable BECAUSE of the double_weapons change above.
+//  Stock's has_weapon_or_upgrade check meant the box would never offer a weapon
+//  whose upgrade you held, so the case could not arise; lifting that check to
+//  allow re-pulls opened it, and the stock give path then does the naive thing -
+//  weapon_give( "raygun_zm" ) on a player holding "raygun_upgraded_zm" takes the
+//  upgraded copy away and hands back the base gun. Reported on Origins with the
+//  Ray Gun: rolled it twice, Pack-a-Punched the first, grabbed the second, and
+//  the PaP was gone.
+//
+//  Same rule the Origins weapon-dig already follows - see custom_swap_weapon in
+//  scripts\zm\zm_tomb\zm_tomb.gsc, which this deliberately mirrors so the two
+//  behave identically. level.zombie_weapons[w].upgrade_name is the stock way to
+//  get the PaP variant of a base weapon (_zm_weapons::add_zombie_weapon sets it).
+//
+//  Only the upgraded case is intercepted. Re-pulling a weapon you hold
+//  UNUPGRADED still falls through to stock weapon_give, which already refills
+//  its ammo - that path was never broken and is left alone.
+// ============================================================================
 treasure_chest_give_weapon( weapon_string )
 {
     self.last_box_weapon = gettime();
+
+    if ( isdefined( level.zombie_weapons[weapon_string] ) && isdefined( level.zombie_weapons[weapon_string].upgrade_name ) )
+    {
+        str_upgraded = level.zombie_weapons[weapon_string].upgrade_name;
+
+        if ( self hasweapon( str_upgraded ) )
+        {
+            self givemaxammo( str_upgraded );
+            return;
+        }
+    }
+
     self maps\mp\zombies\_zm_weapons::weapon_give( weapon_string, 0, 1 );
 }
 
