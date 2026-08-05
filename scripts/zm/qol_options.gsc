@@ -52,7 +52,7 @@ init()
     qol_opt_dvar( "hud_color",        "1 1 1" );
     qol_opt_dvar( "hud_color_health", "1 1 1" );
 
-    //  Read by ridgelandproject::get_pack_a_punch_weapon_options(). Default 1
+    //  Read by quality_of_life::get_pack_a_punch_weapon_options(). Default 1
     //  keeps the animated camo exactly where this mod already had it.
     qol_opt_dvar( "anim_pap_camo_mob",     "1" );
     qol_opt_dvar( "anim_pap_camo_buried",  "1" );
@@ -465,7 +465,7 @@ qol_opt_nullptr()
 // ----------------------------------------------------------------------------
 //  These drive the HUD THIS MOD ALREADY DRAWS rather than adding a second one
 //  next to it - the user asked to "keep my current hud for my health hud and
-//  timer at the top of the screen". ridgelandproject's timer(), zombiecounter()
+//  timer at the top of the screen". quality_of_life's timer(), zombiecounter()
 //  and first_spawn() now stash their elements on self for this to find.
 //
 //  hud_all is an override, not a master switch: 0 leaves each hud_* dvar to
@@ -496,7 +496,7 @@ qol_opt_hud_watcher()
         self qol_opt_show( self.qol_hud_timer, b_all || getdvarintdefault( "hud_timer", 1 ) );
         self qol_opt_show( self.zombietext,    b_all || getdvarintdefault( "hud_remaining", 1 ) );
 
-        //  🛑 The health HUD is deliberately NOT touched here. ridgelandproject's
+        //  🛑 The health HUD is deliberately NOT touched here. quality_of_life's
         //  own health loop already owns its alpha (it restores it the instant it
         //  sees a 0) and its colour (it repaints per health tier every 0.1s).
         //  Two threads writing the same five elements is what produced the white

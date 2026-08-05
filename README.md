@@ -21,7 +21,7 @@ Only if you changed a **client script (`.csc`)** or a real asset under
 
 ```
 scripts\zm\        <- EDIT THESE (all the gameplay)
-   ridgelandproject.gsc       all weapons + perks + Death Machine + QoL, merged into one file
+   quality_of_life.gsc        all weapons + perks + Death Machine + QoL, merged into one file
    zm_buried\, zm_tomb\, ...  per-map scripts (server .gsc + client .csc)
    locs\, replaced\           custom survival locations and stock-function overrides
 maps\mp\*.d3dbsp   <- map entity files shipped in mod.iwd

@@ -225,7 +225,7 @@ real, if smaller, improvement to genuine post-load dead time — just not the fi
 
 ## 1. WHAT'S DONE (current, round 2 code — supersedes §0's round-1 description)
 
-Added `onallplayersready_instant()` to `ridgelandproject.gsc` (end of file), wired in via
+Added `onallplayersready_instant()` to `quality_of_life.gsc` (end of file), wired in via
 `replaceFunc( maps\mp\zombies\_zm::onallplayersready, ::onallplayersready_instant );` in `main()`.
 Goal: skip the dead time between clicking Start and being able to play in Zombies.
 
@@ -236,7 +236,7 @@ total dead time is ~8-13s, not literally "5 seconds," though the black-screen ho
 is probably what reads as "the 5 second countdown." (Separately, MOTD specifically also has real
 asset-streaming time between map-fastfile-load and the script even starting — confirmed via
 `console_zm.log`, ~3400 log lines of material/fx loading between `Loading fastfile zm_prison` and
-`GSC Executed ridgelandproject::main()`. No GSC change can shorten that part; it's genuine disk I/O.)
+`GSC Executed quality_of_life::main()`. No GSC change can shorten that part; it's genuine disk I/O.)
 
 **How the fix works (verified viable, see §0.1):** `onallplayersready_instant()` is a faithful copy of
 stock's function body with exactly two numbers changed — the 5000ms expected-player timeout cut to

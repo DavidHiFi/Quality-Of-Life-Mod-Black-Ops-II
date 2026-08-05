@@ -291,7 +291,7 @@ perks()
 //  zmqol_enable_vulture  (CLIENT)
 //
 //  The mandatory other half of zmqol_enable_vulture() in
-//  scripts\zm\ridgelandproject.gsc - read the full reasoning there.
+//  scripts\zm\quality_of_life.gsc - read the full reasoning there.
 //
 //  The server registers eight clientfields for Vulture Aid on these five maps so
 //  the Wunderfizz can hand out the 11th perk. If the client does not register the
@@ -308,7 +308,7 @@ perks()
 //
 //  🛑 NOT verified in game yet. Requires build_ff.bat.
 // ============================================================================
-//  🛑 THIS LIST MUST MATCH ridgelandproject.gsc::zmqol_vulture_enabled() EXACTLY.
+//  🛑 THIS LIST MUST MATCH quality_of_life.gsc::zmqol_vulture_enabled() EXACTLY.
 //  It cannot literally share the function - server GSC and client CSC are separate
 //  compilation units - so it is the one place a copy is unavoidable, and it is
 //  therefore the one place to check first when a clientfield error appears.
@@ -318,7 +318,7 @@ perks()
 //    zm_prison  toplayer set full  (vulture_perk_disease_meter cannot fit)
 //
 //  The full reasoning, including why two different maps run out of two different
-//  budgets, is in ridgelandproject.gsc above zmqol_vulture_enabled().
+//  budgets, is in quality_of_life.gsc above zmqol_vulture_enabled().
 zmqol_vulture_enabled()
 {
 	map = getDvar( "mapname" );
@@ -350,7 +350,7 @@ zmqol_enable_vulture()
 //  zmqol_enable_electric_cherry  (CLIENT)
 //
 //  The mandatory other half of zmqol_enable_electric_cherry() in
-//  scripts\zm\ridgelandproject.gsc - read the full reasoning there.
+//  scripts\zm\quality_of_life.gsc - read the full reasoning there.
 //
 //  The server registers perk_electric_cherry (and electric_cherry_reload_fx) on
 //  these four maps so Wunderfizz can hand out the 9th perk. If the client does

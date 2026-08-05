@@ -11,7 +11,7 @@
 //  scripts/zm/zm_transit/ only load on zm_transit (TranZit AND all its
 //  survival/grief modes - Bus Depot, Town, Farm, Diner), where zm_transit_fx
 //  is guaranteed to exist, so the reference always resolves. The root
-//  ridgelandproject.gsc briefly carried this code on 2026-07-30 and threw
+//  quality_of_life.gsc briefly carried this code on 2026-07-30 and threw
 //  "Unresolved external: precache_createfx_fx" on every non-TranZit map,
 //  even behind an if(mapname) guard, which is why it moved here.
 //

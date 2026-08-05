@@ -73,7 +73,7 @@ All **unverified in game** unless marked.
 
 | area | change |
 |---|---|
-| perk bottles | `_zm_perks::init` bails on every custom survival location; `level.machine_assets` rebuilt in `ridgelandproject.gsc` |
+| perk bottles | `_zm_perks::init` bails on every custom survival location; `level.machine_assets` rebuilt in `quality_of_life.gsc` |
 | Origins | generators force-captured; robots ghosted; dig sites hidden; staff relay switches unregistered |
 | Origins EE | one-inch-punch prompts, quadrotor medallions, wagon fire, wall poster, light show, jump scare removed. **Kept**: radio song, loose-change prone reward |
 | Origins barriers | `zmqol_open_stock_barriers` — see §3a |

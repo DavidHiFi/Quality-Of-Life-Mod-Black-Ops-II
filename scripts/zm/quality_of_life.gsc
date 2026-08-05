@@ -1,5 +1,5 @@
 // ============================================================================
-//  ridgelandproject.gsc  -  merged root-level QoL/gameplay scripts
+//  quality_of_life.gsc  -  merged root-level QoL/gameplay scripts
 // ----------------------------------------------------------------------------
 //  Single-file merge of what used to be 17 separate loose root scripts
 //  (BO2DD, bo4maxammo, bocw_round, buried_animated_camo + animated_camo,
@@ -196,7 +196,7 @@ main()
 //  Root script on purpose: the same bail hits Origins x4, Die Rise x3, Docks,
 //  Diner, Tunnel and Power. Nothing referenced here is map-specific -
 //  level.custom_vending_precaching is a level var and _zm_perks is globally safe
-//  per AI_CONTEXT rule 2 - so this is legal in ridgelandproject.gsc.
+//  per AI_CONTEXT rule 2 - so this is legal in quality_of_life.gsc.
 //
 //  Guards:
 //    - is_classic() -> never touches a classic map, where init() does not bail.
@@ -2407,7 +2407,7 @@ player_too_many_weapons_monitor()
 //  _hostmigration.gsc and add_to_player_score is _zm_score.gsc:311. iprintlnbold
 //  is used for feedback because tell() does not exist in T6.
 //
-//  This lives in ridgelandproject.gsc (a ROOT script) so it is available on every
+//  This lives in quality_of_life.gsc (a ROOT script) so it is available on every
 //  map, and every reference is to a core script, so AI_CONTEXT rule 2 is safe.
 // ============================================================================
 // ============================================================================

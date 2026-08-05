@@ -76,7 +76,7 @@ REM  those files looked like the day the mod was first built, no matter how much
 REM  the working copies changed.
 REM
 REM  Unlike .gsc - which Plutonium's Mods menu happily runs raw out of mod.iwd
-REM  (that is how ridgelandproject.gsc works, and it is declared in no zone file)
+REM  (that is how quality_of_life.gsc works, and it is declared in no zone file)
 REM  - client scripts are conventionally only loaded from the fastfile. Staging
 REM  them here means the copy in mod.ff is always the current source, so it does
 REM  not matter which of the two the engine ends up preferring.

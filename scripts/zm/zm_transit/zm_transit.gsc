@@ -22,7 +22,7 @@ main()
     replaceFunc( maps\mp\zm_transit_lava::zombie_exploding_death, ::zombie_exploding_death );
 
     // --- custom survival start locations: adds Diner, Power Station, Tunnel, Cornfield ---
-    // Map-specific, so it lives here and not in ridgelandproject.gsc (AI_CONTEXT rule 2).
+    // Map-specific, so it lives here and not in quality_of_life.gsc (AI_CONTEXT rule 2).
     replaceFunc( maps\mp\zm_transit_gamemodes::init, scripts\zm\replaced\zm_transit_gamemodes::init );
 
     // Creates + enables zone_amb_tunnel (and the two cornfield zones) for non-classic

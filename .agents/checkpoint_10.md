@@ -179,7 +179,7 @@ read.
 |---|---|
 | Power Station instant death | `scripts\zm\replaced\zm_transit.gsc` |
 | Church spawning inside the tank / tank breaking containment | `scripts\zm\locs\zm_tomb_loc_church.gsc` |
-| `!p` / `!god` dev chat commands + `sv_cheats 1` | `scripts\zm\ridgelandproject.gsc` |
+| `!p` / `!god` dev chat commands + `sv_cheats 1` | `scripts\zm\quality_of_life.gsc` |
 
 **Power** was the Tunnel mechanism with a different symptom path. Its loc script
 DOES register initial_spawn structs (16 of 17 `register_map_spawn` calls pass a

@@ -153,7 +153,7 @@ executes and the fastfile's `.gsc` are dead weight.** Editing `.gsc` needs only 
 The pre-merge `scripts/zm/zm_expanded.gsc` is a separate matter — it is declared at
 `mod_base.zone:14`, has no source in the project, and *does* execute (log: `GSC Executed
 "scripts/zm/zm_expanded::init()"` plus four `overriding server replaced func` warnings where
-`ridgelandproject` wins). Bodies are equivalent so nothing is broken today. Left alone deliberately:
+`quality_of_life` wins). Bodies are equivalent so nothing is broken today. Left alone deliberately:
 removing a zone script declaration is not worth the risk while five relinks remain untested.
 
 ---

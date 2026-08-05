@@ -1,6 +1,6 @@
 # Checkpoint 1 — perk-description HUD bug: fix applied and deployed, NOT yet verified in-game
 
-**Written 2026-07-31.** Fix applied to `ridgelandproject.gsc`, `build.bat` run successfully, deployed
+**Written 2026-07-31.** Fix applied to `quality_of_life.gsc`, `build.bat` run successfully, deployed
 to local Plutonium mods folder. **Not yet tested in-game.**
 
 ---
@@ -18,7 +18,7 @@ was last built before this session.
 Diagnosed a user-reported bug: on Mob of the Dead, a friend bought Mule Kick and the perk-pop-up
 **icon + name animated correctly but the description line did not appear.**
 
-Traced the pop-up code: `ridgelandproject.gsc` "Vanguard Perk Animation" module, function
+Traced the pop-up code: `quality_of_life.gsc` "Vanguard Perk Animation" module, function
 `perk_bought()` (~line 2587). It builds 4 HUD elements in sequence per purchase: icon, name, **desc**,
 spec. `getPerkDesc("specialty_additionalprimaryweapon")` does return the correct Mule Kick text, so
 the switch/case table itself is not the bug.
@@ -37,7 +37,7 @@ showing while desc silently fails.
 
 **Fix applied 2026-07-31:** moved the three `self thread timer(); self thread zombiecounter();
 self thread shield_hud();` calls inside the existing `if ( is_true( first_spawn ) )` guard in
-`counters_onplayerspawned()` (`ridgelandproject.gsc` ~line 647), so they start once per game instead
+`counters_onplayerspawned()` (`quality_of_life.gsc` ~line 647), so they start once per game instead
 of once per respawn. `build.bat` run successfully (197 files packed, all 6 mod files verified and
 copied to both the send-ready folder and `%LOCALAPPDATA%\Plutonium\storage\t6\mods\zm_qol\`, fresh
 timestamps confirmed).

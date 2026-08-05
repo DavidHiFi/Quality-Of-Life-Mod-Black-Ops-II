@@ -234,7 +234,7 @@ init()
 //  ⚠️ WHY THIS IS NOT ELEVEN ON ORIGINS. Vulture Aid cannot be enabled here at
 //  all - Origins' ACTOR clientfield set has no room for vulture_perk_actor, which
 //  is what made Classic Origins refuse to boot; see zmqol_vulture_enabled() in
-//  ridgelandproject.gsc. Every OTHER perk the mod can enable is added below, and
+//  quality_of_life.gsc. Every OTHER perk the mod can enable is added below, and
 //  the purchase cap is no longer the thing standing in the way. Getting the
 //  eleventh onto this map means freeing those two bits, which needs the client
 //  script shipped as raw text instead of compiled bytecode.

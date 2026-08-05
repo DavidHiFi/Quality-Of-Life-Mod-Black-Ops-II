@@ -101,7 +101,7 @@ zmqol_wf_machine_model()
 //  WEAPON, which default_vending_precaching precacheitem's.
 //
 //  zombie_teddybear replaces t6_wpn_zmb_perk_bottle_bear_world - that model is
-//  Origins-owned too. ridgelandproject.gsc already precaches the teddy for the
+//  Origins-owned too. quality_of_life.gsc already precaches the teddy for the
 //  secret-song easter egg, so it is available on every map.
 // ============================================================================
 main()

@@ -69,7 +69,7 @@ have been wrong before and been fixed; both will be wrong again.
 
 A grep with the wrong pattern, or a search scoped to the wrong file, manufactures false absence.
 Before concluding a function/asset doesn't exist, confirm the search actually covered where it would
-be — `ridgelandproject.gsc` is ~3500 lines merged from 17 modules; a narrow grep can miss it.
+be — `quality_of_life.gsc` is ~3500 lines merged from 17 modules; a narrow grep can miss it.
 
 ---
 
@@ -115,7 +115,7 @@ Carried over from the base kit — this project uses `replaceFunc` extensively (
 | 3 | **`::fn` bound at registration** — pointer captured before your replace | re-point, don't `replaceFunc` |
 | 4 | **Wrong entry point** — registered in `init()` when the target is threaded at map-init | move it to `main()` |
 
-Before any `replaceFunc` or qualified `::` reference from a **root** script (`ridgelandproject.gsc`),
+Before any `replaceFunc` or qualified `::` reference from a **root** script (`quality_of_life.gsc`),
 re-check `AI_CONTEXT.md` rule 2 — a map-specific target resolved at load time crashes every *other*
 map, silently, regardless of runtime guards.
 
@@ -150,7 +150,7 @@ user's request as a rollback point.
 | perk specialty names / extended list | `...\reference\docs\bo2_perk_specialties_reference.txt`, `extra specialties.txt` |
 | HUD shader / material IDs | `...\reference\docs\BO2 SHADERS ID.txt` |
 | porting/adding a perk or machine to a map that lacks it | `...\reference\docs\MOTD Custom Perks Guide.md` |
-| merging two mod trees (this project's own history is exactly this — 17 modules merged into `ridgelandproject.gsc`) | `...\reference\docs\Combining Two Mods Guide.md` |
+| merging two mod trees (this project's own history is exactly this — 17 modules merged into `quality_of_life.gsc`) | `...\reference\docs\Combining Two Mods Guide.md` |
 | build/asset pipeline gotchas (OAT) — now relevant, see §8 | `...\reference\docs\OAT_Linker_Build_Knowledge.md` |
 
 ### Other traps worth knowing (from the base kit, still relevant)
@@ -214,7 +214,7 @@ Two traps that cost a full round of in-game testing each (checkpoint 5 §2, §4)
   time. `build_ff.bat` now stages `scripts\**\*.csc` into `zone_assets\` before linking; confirm
   with `Loaded script "..." (src: disk)` (not `(src: mod)`) in the link output.
   Note `.gsc` is unaffected in practice — Plutonium's Mods menu runs raw `.gsc` straight out of
-  `mod.iwd` (§3), which is how `ridgelandproject.gsc` works while being declared in no zone file.
+  `mod.iwd` (§3), which is how `quality_of_life.gsc` works while being declared in no zone file.
 
 ### Where the stock LUI actually lives
 

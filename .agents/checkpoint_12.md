@@ -44,7 +44,7 @@ risk surface right now. See §1.
 1. **Perk-bottle soft-lock**, all custom survival locations. `_zm_perks::init` bails
    (`vending_triggers.size < 1`) because no `zm_perk_machine` struct is tagged for
    these locations, so `level.machine_assets` never exists and a Wunderfizz drink
-   locks sprint/fire/melee forever. Rebuilt in `ridgelandproject.gsc`.
+   locks sprint/fire/melee forever. Rebuilt in `quality_of_life.gsc`.
 2. **Origins economy** — `zmqol_power_up_all_generators` force-captures every zone.
 3. **Origins robots** ghosted; **dig sites** hidden (v1.8.1); **staff relay switches**
    unregistered.

@@ -18,7 +18,7 @@ reports at once.
 
 The user's last report: the Wunderfizz on Origins gives 9 perks and repeats Mule
 Kick. Both are the same cause. `wunderfizz::getPerks()` builds its list from the
-`level.zombiemode_using_*_perk` flags, and `ridgelandproject::perks()` sets the
+`level.zombiemode_using_*_perk` flags, and `quality_of_life::perks()` sets the
 extra flags only for
 
 ```gsc
@@ -185,7 +185,7 @@ player**:
 
 | count | element | source |
 |---|---|---|
-| 5 | health value, bar bg, bar, player name, label | `ridgelandproject.gsc:812-847` |
+| 5 | health value, bar bg, bar, player name, label | `quality_of_life.gsc:812-847` |
 | 1 | round timer | `:959` |
 | 1 | zombie counter | `:985` |
 | 1 | shield meter | `:1006` |
