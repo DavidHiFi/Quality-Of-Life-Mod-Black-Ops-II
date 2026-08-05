@@ -3608,6 +3608,50 @@ zmqol_fly_key_watch( str_notify, str_key, n_val )
 //  If you cannot poll the truth, at least re-zero at a moment when you know what
 //  the state should be. Takeoff is that moment.
 // ============================================================================
+// ============================================================================
+//  zmqol_fly_install_oopa_veto  -  a STANDING block on the out-of-bounds kill
+//
+//  Installed once and left in place. For anyone not flying it defers to whatever
+//  callback the map had (or to "yes, kill them" if there was none), so stock
+//  behaviour is untouched for everyone else - which is why it is safe to leave
+//  installed rather than swapping it in and out around each flight and racing
+//  every respawn.
+//
+//  Chained rather than overwritten because a map may install its own: Die Rise
+//  does exactly this in setup_zone_monitor(). Clobbering it would break that
+//  map's own out-of-bounds handling in a way nothing would report.
+// ============================================================================
+zmqol_fly_install_oopa_veto()
+{
+    if ( isdefined( level.zmqol_fly_veto_installed ) )
+        return;
+
+    level.zmqol_fly_veto_installed = 1;
+    level.zmqol_fly_oopa_prev = level.player_out_of_playable_area_monitor_callback;
+    level.player_out_of_playable_area_monitor_callback = ::zmqol_fly_oopa_veto;
+}
+
+//  Called ON THE PLAYER. Return false to spare them.
+zmqol_fly_oopa_veto()
+{
+    if ( isdefined( self.zmqol_fly ) && self.zmqol_fly )
+        return 0;
+
+    //  Godmode should mean godmode. The stock monitor takes invulnerability off
+    //  before it kills, so .god never protected anyone from a death barrier
+    //  either - the user hit that too, with godmode visibly ON in the screenshot.
+    if ( isdefined( self.zmqol_god ) && self.zmqol_god )
+        return 0;
+
+    if ( isdefined( self.zmqol_afk ) && self.zmqol_afk )
+        return 0;
+
+    if ( isdefined( level.zmqol_fly_oopa_prev ) )
+        return self [[ level.zmqol_fly_oopa_prev ]]();
+
+    return 1;
+}
+
 zmqol_fly_clear_keys()
 {
     if ( !isdefined( self.zmqol_fly_keys ) )
@@ -3690,6 +3734,28 @@ zmqol_fly_think()
     // runtime switch. Check whether the thing you are turning off reads the flag
     // continuously or only once, before assuming the flag is a control.
     self notify( "stop_player_out_of_playable_area_monitor" );
+
+    // 🛑 AND THE NOTIFY ALONE IS STILL NOT ENOUGH - v1.51.0 shipped it and the
+    // user was "instant killed after a bit when flying around". Killing the
+    // thread is a ONE-SHOT act against a thread that can come back: any respawn,
+    // revive or host migration runs the spawn path again (_zm.gsc:1335) and
+    // starts a fresh copy that has never heard the notify.
+    //
+    // Stock has a proper veto and it was there the whole time. The monitor asks
+    // permission before it kills (_zm.gsc:1495):
+    //
+    //     if ( !isdefined( level.player_out_of_playable_area_monitor_callback )
+    //          || self [[ level.player_out_of_playable_area_monitor_callback ]]() )
+    //
+    // - a callback returning false skips the kill entirely. That is a STANDING
+    // veto rather than a one-off, so it does not care when the thread started or
+    // how many times it restarts.
+    //
+    // 📝 The lesson, and it is the third time this session that reading the stock
+    // function paid: when you need to suppress stock behaviour, look for the hook
+    // stock already provides before reaching for a notify, a flag or a replaceFunc.
+    // Killing the thread was fighting the symptom; the callback is the switch.
+    zmqol_fly_install_oopa_veto();
 
     self.ignoreme = 1;
     self enableinvulnerability();
