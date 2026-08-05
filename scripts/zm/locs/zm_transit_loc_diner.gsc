@@ -36,14 +36,18 @@ struct_init()
 	//        at x -6364..-5878, y -7829..-7656, so every parapet runs due N/S or
 	//        E/W and only multiples of 90 can look deliberate) and then guessed the
 	//        SIGN, assuming this model's front is its +X like most props.
-	//   90   it is not. "Facing the complete opposite direction" says the front of
-	//        p6_anim_zm_buildable_pap_on is -X at yaw 0, so front = placement + 180.
+	//   90   it is not. This landed on the right answer and recorded the WRONG
+	//        REASON for it: "front = placement + 180". One observation cannot
+	//        distinguish +180 from -90 when the alternative you are testing is
+	//        180 degrees away, and that unearned conclusion is what sent v1.48.0
+	//        back to 180. The real relation is front = placement - 90; see the
+	//        block below.
 	//
 	// 🛑 THE MODEL'S FRONT IS NOT ITS +X, AND THIS IS THE SECOND TIME THAT HAS COST
 	// A BUILD - the Wunderfizz needed the same correction (see wunderfizz.gsc's
-	// zmqol_wf_yaw_off). Neither model announces it and neither can be inspected
-	// offline. Assume nothing about a T6 prop's forward axis; get it from one look
-	// in game, which is precisely what the dvar is for.
+	// zmqol_wf_yaw_off), and it turns out to be the SAME OFFSET. Neither model
+	// announces it and neither can be inspected offline. For a T6 machine prop,
+	// try front = placement - 90 first.
 	//
 	// ✅ v1.48.0 - MEASURED, NOT ESTIMATED. The user stood on the spot, facing the
 	// way the machine should face, and ran .where:
@@ -57,9 +61,35 @@ struct_init()
 	//
 	// Two corrections on top, both measured rather than felt:
 	//
-	// 1. YAW 3 -> 180. The roof is axis-aligned, so a hand-aimed 3 means 0: the
-	//    FRONT should point at world +X. Front = placement + 180 for this model
-	//    (established the hard way across v1.45/v1.46), so placement = 180.
+	// 1. YAW 3 -> 90. The roof is axis-aligned, so a hand-aimed 3 means 0: the
+	//    FRONT should point at world +X, away from the west parapet.
+	//
+	//    🛑 FRONT = PLACEMENT - 90. v1.48.0 used "front = placement + 180" and got
+	//    yaw 180, which the user called "sideways" - 90 degrees off, exactly the
+	//    error that relation carries.
+	//
+	//    The right relation was recoverable from the reports alone, and I did not
+	//    read them as a set. Laid out together they are unambiguous:
+	//
+	//        yaw   2   "sideways"
+	//        yaw 270   "facing the complete opposite direction"
+	//        yaw  90   no facing complaint, twice
+	//        yaw 180   "sideways"
+	//
+	//    90 accepted and 270 its exact opposite; 2 and 180 both wrong by a quarter
+	//    turn. That is a complete, self-consistent picture of the convention, and
+	//    it was available before v1.48.0 shipped - I re-derived the offset from a
+	//    single new screenshot instead of checking it against the four readings
+	//    already in hand.
+	//
+	//    📝 WHEN A VALUE HAS BEEN WRONG SEVERAL TIMES, THE HISTORY IS THE DATASET.
+	//    Every past attempt is a labelled sample; a new observation is one more.
+	//    Fit the rule to all of them.
+	//
+	//    And the answer is the same convention as the Wunderfizz - see
+	//    wunderfizz.gsc, "front direction = placement yaw - 90". Two T6 machine
+	//    props now share it, which makes it the thing to try FIRST rather than a
+	//    quirk of one model.
 	//
 	// 2. X -6384 -> -6378, for the difference between a player's box and a
 	//    cabinet. 🛑 THE DEPTH IS NOW KNOWN RATHER THAN ASSUMED. Dumped the model,
@@ -81,8 +111,10 @@ struct_init()
 	// "how far off the wall" stops being a matter of taste. This is the same class
 	// of win as the mapents dump: the game files answer it, so do not reason about
 	// it.
+	// The POSITION is confirmed good by the user ("it's the right position almost")
+	// and is left exactly as v1.48.0 placed it - only the yaw was wrong.
 	v_pap = ( getdvarintdefault( "zmqol_pap_diner_x", -6378 ), getdvarintdefault( "zmqol_pap_diner_y", -7718 ), getdvarintdefault( "zmqol_pap_diner_z", 226 ) );
-	scripts\zm\replaced\utility::register_perk_struct("specialty_weapupgrade", "p6_anim_zm_buildable_pap_on", v_pap, (0, getdvarintdefault( "zmqol_pap_diner_yaw", 180 ), 0));
+	scripts\zm\replaced\utility::register_perk_struct("specialty_weapupgrade", "p6_anim_zm_buildable_pap_on", v_pap, (0, getdvarintdefault( "zmqol_pap_diner_yaw", 90 ), 0));
 
 	restore_diner_hatch();
 
