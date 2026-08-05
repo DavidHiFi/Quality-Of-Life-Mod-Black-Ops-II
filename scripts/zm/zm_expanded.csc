@@ -308,16 +308,36 @@ perks()
 //
 //  🛑 NOT verified in game yet. Requires build_ff.bat.
 // ============================================================================
-zmqol_enable_vulture()
+//  🛑 THIS LIST MUST MATCH ridgelandproject.gsc::zmqol_vulture_enabled() EXACTLY.
+//  It cannot literally share the function - server GSC and client CSC are separate
+//  compilation units - so it is the one place a copy is unavoidable, and it is
+//  therefore the one place to check first when a clientfield error appears.
+//
+//    zm_buried  ships the perk itself
+//    zm_tomb    actor set full     (zone_capture_zombie cannot fit)
+//    zm_prison  toplayer set full  (vulture_perk_disease_meter cannot fit)
+//
+//  The full reasoning, including why two different maps run out of two different
+//  budgets, is in ridgelandproject.gsc above zmqol_vulture_enabled().
+zmqol_vulture_enabled()
 {
 	map = getDvar( "mapname" );
 
 	if ( map == "zm_buried" )
-		return;
+		return 0;
 
-	//  🛑 ORIGINS TOO - ITS ACTOR CLIENTFIELD SET IS PHYSICALLY FULL.
-	//  Kept identical to the server's list; see ridgelandproject.gsc for the why.
 	if ( map == "zm_tomb" )
+		return 0;
+
+	if ( map == "zm_prison" )
+		return 0;
+
+	return 1;
+}
+
+zmqol_enable_vulture()
+{
+	if ( !zmqol_vulture_enabled() )
 		return;
 
 	if ( isDefined( level._custom_perks ) && isDefined( level._custom_perks[ "specialty_nomotionsensor" ] ) )

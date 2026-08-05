@@ -3844,7 +3844,24 @@ zmqol_register_divetonuke_visionset()
 // ============================================================================
 zmqol_register_vulture_visionset()
 {
-    if ( getDvar( "mapname" ) == "zm_buried" )
+    //  🛑 THIS MUST USE THE SAME MAP LIST AS zmqol_enable_vulture(), AND v1.49.0
+    //  PROVED IT BY NOT DOING SO. That release excluded Origins from the perk on
+    //  both server and client but left this function checking only for Buried, so
+    //  the SERVER still registered vulture_stink_overlay while the client did not:
+    //
+    //      Clientfield 'overlay_lerp' in set[toplayer] is not registered with the
+    //      same bit count as the server : [CLIENT: 4  SERVER : 5]
+    //      Server Disconnected - EXE_CLIENT_FIELD_MISMATCH
+    //
+    //  overlay_lerp's WIDTH is derived from how many overlays are registered, so
+    //  one extra overlay on one side resizes a shared field and the connection is
+    //  refused. This is the second time that exact error has come from this exact
+    //  cause - the comment above already documents the first.
+    //
+    //  So the list now lives in ONE place, zmqol_vulture_enabled(), and every
+    //  site asks it. A map list copied into three functions will drift; it drifted
+    //  the first time it was copied.
+    if ( !zmqol_vulture_enabled() )
         return;
 
     // Degrade to "not registered" rather than erroring out of init() if the
@@ -3913,43 +3930,70 @@ perks()
 //
 //  🛑 NOT verified in game yet. Requires build_ff.bat.
 // ============================================================================
-zmqol_enable_vulture()
+// ============================================================================
+//  zmqol_vulture_enabled  -  THE ONE map list, asked by every site
+//
+//  🛑 TWO MAPS PHYSICALLY CANNOT TAKE THIS PERK, AND THEY RAN OUT OF DIFFERENT
+//  BUDGETS. Both errors are quoted because they look unrelated and are the same
+//  problem:
+//
+//    zm_tomb   Trying to assign 1 bits for netfield zone_capture_zombie
+//              but Client Field Set ACTOR is out of space.
+//    zm_prison Trying to assign 5 bits for netfield vulture_perk_disease_meter
+//              but Client Field Set TOPLAYER is out of space.
+//
+//  Every clientfield SET has its own fixed bit budget. Vulture Aid registers
+//  eight fields spread across four sets, so it can hit the ceiling in more than
+//  one place, and which ceiling it hits depends on what the MAP already spends:
+//
+//    Origins is heavy on ACTOR   - templars, crusaders, capture zones, panzer -
+//                                  and vulture_perk_actor is 2 bits.
+//    Mob is heavy on TOPLAYER    - afterlife, the plane, the shield, brutus -
+//                                  and vulture_perk_disease_meter is 5 bits.
+//
+//  Neither is fixable by reordering or by a lower version number. The budget is
+//  the budget, and the field that errors is whichever one asks LAST - so on both
+//  maps the name in the message is the map's own field, not ours. Read those
+//  errors as "someone before me used the space", never as "this field is broken".
+//
+//  There IS a way back for both, and it is the same way: the two expensive fields
+//  drive only cosmetics - vulture_perk_actor is the zombie eye glow and stink
+//  trail, vulture_perk_disease_meter is the stink meter - so skipping just those
+//  on BOTH sides would leave a working perk minus one visual each. The client
+//  half lives in clientscripts\mp\zombies\_zm_perk_vulture.csc, which this
+//  project ships as COMPILED bytecode; it would have to be decompiled, edited and
+//  re-shipped as raw text. A real option and a bigger job than a boot fix.
+//
+//  📝 A clientfield budget is a shared global resource with no per-mod share.
+//  Budget against the FULLEST map, not the emptiest, and expect different maps to
+//  run out in different sets.
+//
+//  🛑 AND IT LIVES IN ONE FUNCTION FOR A REASON. v1.49.0 wrote this list into
+//  zmqol_enable_vulture() and its client twin but forgot
+//  zmqol_register_vulture_visionset(), which then registered a server-side
+//  overlay the client did not have and turned a boot crash into a different boot
+//  crash. A list copied into three places drifts; it drifted the first time it
+//  was copied.
+// ============================================================================
+zmqol_vulture_enabled()
 {
     map = getDvar( "mapname" );
 
-    if ( map == "zm_buried" )
-        return;
+    if ( map == "zm_buried" )   // ships the perk itself
+        return 0;
 
-    //  🛑 ORIGINS IS EXCLUDED TOO, AND IT IS A HARD ENGINE LIMIT, NOT A CHOICE.
-    //
-    //      Trying to assign 1 bits for netfield zone_capture_zombie
-    //      but Client Field Set actor is out of space.
-    //
-    //  That is Classic Origins refusing to boot, straight off the user's screen
-    //  and confirmed in console_zm.log. zone_capture_zombie is Origins' OWN field
-    //  (zm_tomb_capture_zones.gsc:99) - the one that drives the crusader-zombie
-    //  capture-point visuals - and it is registered after ours.
-    //
-    //  Every clientfield SET has a fixed bit budget, and the actor set is the
-    //  tightest one in the game because a zombie is the most numerous networked
-    //  entity there is. Origins spends more of that budget than any other map:
-    //  templars, crusaders, capture zones, the panzer. Vulture Aid's
-    //  vulture_perk_actor is 2 bits (_zm_perk_vulture.gsc:100), and those 2 bits
-    //  are the ones Origins does not have.
-    //
-    //  So this is not something a better ordering or a smaller version number
-    //  fixes. The only way to put Vulture on Origins is to stop registering
-    //  vulture_perk_actor on BOTH sides - the field only drives the zombie eye
-    //  glow and stink trail, so the perk itself would still work - and the client
-    //  half lives inside clientscripts\mp\zombies\_zm_perk_vulture.csc, which
-    //  ships as COMPILED bytecode and would have to be decompiled, edited and
-    //  re-shipped as raw text first. That is a real option, not a dead end, but
-    //  it is a bigger job than a boot fix and it is not this change.
-    //
-    //  📝 A clientfield budget is a shared, global resource with no per-mod share.
-    //  Adding a field is not free on a map that was already close to the ceiling,
-    //  and nothing warns you until a map that needs the last bits refuses to load.
-    if ( map == "zm_tomb" )
+    if ( map == "zm_tomb" )     // actor set full
+        return 0;
+
+    if ( map == "zm_prison" )   // toplayer set full
+        return 0;
+
+    return 1;
+}
+
+zmqol_enable_vulture()
+{
+    if ( !zmqol_vulture_enabled() )
         return;
 
     if ( !isdefined( level._custom_perks ) )
