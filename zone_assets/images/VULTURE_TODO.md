@@ -1,4 +1,13 @@
-# Vulture Aid — 15 images still shipping with no pixel data
+# Vulture Aid — 14 images still shipping with no pixel data
+
+> **v1.42.0 — `specialty_vulture_zombies_glow` is done**, and it was not on either list below
+> because nothing had noticed it was pulled in at all. It is not referenced by a script or by
+> `mod_locations.zone`; the Linker drags it in as the image behind `zm_hud_stink_perk_glow`, the
+> third stink-HUD material. The link log is where that shows up —
+> `Loaded image "specialty_vulture_zombies_glow" (src: zm_buried)`, a header out of a fastfile with
+> no matching `(src: disk)` line for its pixels. **Read the `Loaded image` lines after a link:
+> anything sourced from a stock zone rather than from disk is a header with nothing behind it.**
+> Its DDS was in the workspace dump all along and converted cleanly at 64×64 DXT5.
 
 **The rule:** an image declared in `zone_source\` is only a **header**. T6 loads the actual pixels
 at runtime from a loose `.iwi` inside `mod.iwd`. A header with no `.iwi` draws as a **blue/grey
@@ -39,8 +48,10 @@ zm_afterlife_alcatraz_vignette_noise      zm_al_concrete_bare_g
 ~~-gp6_zm_bu_zombie_ammocan_s~bfb6eefc
 ```
 
-Both sets need a PNG/TGA → DDS step first. Nothing on this machine does it headlessly;
-`IntelTextureWorks_1.0.4\` is a Photoshop plugin, and OAT's ImageConverter only reads DDS.
+Both sets need a PNG/TGA → DDS step first. **`png2dds.ps1` in the project root is that step** as of
+v1.41.1 — it writes uncompressed A8B8G8R8, which is the format ImageConverter will accept (A8R8G8B8
+converts without error to IWI format `0x00` and is then rejected). The 11 PNG-only maps are
+unblocked; the 4 `.tga` normal maps still are not.
 
 ## What this actually costs in game
 
