@@ -804,11 +804,29 @@ counters_onplayerspawned()
     }
 }
 
-first_spawn()
+// ============================================================================
+//  qol_health_hud_create / _destroy  -  ALLOCATE ON DEMAND
+//
+//  🛑 THIS IS A CLIENT HUD-ELEMENT BUDGET FIX, not a cosmetic change.
+//  A client has a fixed hudelem allowance. These five were created once at
+//  spawn and kept FOREVER, with hud_health_bar only ever writing their .alpha -
+//  so switching the health bar off hid it but freed nothing, and the documented
+//  workaround ("set hud_health_bar 0 to free 5 slots") did not actually work.
+//
+//  What that budget starves is anything stock creates ON DEMAND. Origins'
+//  generator capture ring is the visible case: it is built when you walk up to
+//  a generator and silently is not built when the pool is empty, which is why
+//  some generators show the ring and others do not - it was never per-generator.
+//
+//  qol_opt_zone_hud() in qol_options.gsc already worked this way; the health bar
+//  simply never got the same treatment. Both helpers are idempotent so the loop
+//  can call them every tick without churn.
+// ============================================================================
+qol_health_hud_create()
 {
-    self._health_overlay.color = ( 0.4, 0, 0 );
-    self endon( "disconnect" );
-    flag_wait( "initial_blackscreen_passed" );
+    if ( isdefined( self.qol_hud_health ) && self.qol_hud_health.size == 5 )
+        return;
+
     healthvalue = self createfontstring( "default", 1 );
     healthvalue setpoint( "RIGHT", "BOTTOM_LEFT", 58, 18 );
     healthvalue.hidewheninmenu = 1;
@@ -849,33 +867,58 @@ first_spawn()
     healthbar_mas settext( "+" );
     healthbar_mas.hidewheninmenu = 1;
 
-    //  All five health elements, for qol_options' hud_health_bar and
-    //  hud_color_health. The loop below owns their alpha while the player is in
-    //  afterlife, so the watcher only ever writes alpha when this loop is not.
     self.qol_hud_health = [];
     self.qol_hud_health[0] = healthvalue;
     self.qol_hud_health[1] = healthbar_bg;
     self.qol_hud_health[2] = healthbar;
     self.qol_hud_health[3] = playername;
     self.qol_hud_health[4] = healthbar_mas;
+}
+
+qol_health_hud_destroy()
+{
+    if ( !isdefined( self.qol_hud_health ) )
+        return;
+
+    for ( i = 0; i < self.qol_hud_health.size; i++ )
+    {
+        if ( isdefined( self.qol_hud_health[i] ) )
+            self.qol_hud_health[i] destroy();
+    }
+
+    self.qol_hud_health = undefined;
+}
+
+first_spawn()
+{
+    self._health_overlay.color = ( 0.4, 0, 0 );
+    self endon( "disconnect" );
+    flag_wait( "initial_blackscreen_passed" );
 
     while ( true )
     {
-        //  🛑 hud_health_bar / hud_all have to be checked HERE, not only in
-        //  qol_options' watcher. The block a few lines down restores alpha to 1
-        //  the moment it sees any element at 0, so a console toggle would be
-        //  undone within a frame - the watcher would switch the bar off and this
-        //  loop would switch it straight back on, every 0.05s.
+        //  🛑 hud_health_bar / hud_all are checked HERE, not in qol_options'
+        //  watcher. The restore-alpha block below would undo a console toggle
+        //  within a frame, which is why there is exactly one owner.
+        //
+        //  The difference from every version before v1.53.0: when the bar is
+        //  off the five elements are DESTROYED, not merely faded, so the slots
+        //  go back to the pool for things like Origins' generator ring.
         if ( !( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_health_bar", 1 ) ) )
         {
-            healthbar.alpha = 0;
-            healthvalue.alpha = 0;
-            playername.alpha = 0;
-            healthbar_bg.alpha = 0;
-            healthbar_mas.alpha = 0;
+            self qol_health_hud_destroy();
             wait 0.25;
             continue;
         }
+
+        self qol_health_hud_create();
+
+        healthvalue   = self.qol_hud_health[0];
+        healthbar_bg  = self.qol_hud_health[1];
+        healthbar     = self.qol_hud_health[2];
+        playername    = self.qol_hud_health[3];
+        healthbar_mas = self.qol_hud_health[4];
+
         if ( isdefined( self.e_afterlife_corpse ) )
         {
             healthbar.alpha = 0;
@@ -901,13 +944,10 @@ first_spawn()
         //  hud_color_health, handled HERE and nowhere else. This loop repaints
         //  the tier colour every 0.1s, so any other thread tinting these
         //  elements loses the race - which is exactly what put a white border on
-        //  the bar in v1.37.0. Setting the dvar to something other than the
-        //  default means "I pick the colour" and the tier colouring stands
-        //  aside; leaving it alone keeps stock behaviour exactly.
+        //  the bar in v1.37.0.
         //
         //  🛑 healthbar_bg is never recoloured either way. It is the dark
-        //  backing plate behind the bar, not a readout - painting it is what
-        //  produced the "thick-ish white line" the user reported.
+        //  backing plate behind the bar, not a readout.
         str_hc = getdvar( "hud_color_health" );
 
         if ( str_hc != "1 1 1" && str_hc != "" )
@@ -2663,6 +2703,20 @@ zmqol_dev_command_listener()
             n_taken = player zmqol_remove_all_perks();
             player iprintln( "^1[zm_qol] ^7removed " + n_taken + " perk(s)" );
         }
+        //  🛑 THESE TWO MUST STAY BELOW giveperks / removeperks. "giveperks"
+        //  starts with "give", so a prefix test placed above would swallow it
+        //  and never reach the all-perks handler. The else-if chain is the
+        //  ordering guarantee - do not reorder these four blocks.
+        else if ( cmd.size > 4 && getsubstr( cmd, 0, 4 ) == "give" && isdefined( zmqol_perk_from_alias( getsubstr( cmd, 4, cmd.size ) ) ) )
+        {
+            perk = zmqol_perk_from_alias( getsubstr( cmd, 4, cmd.size ) );
+            player zmqol_give_one_perk( perk );
+        }
+        else if ( cmd.size > 6 && getsubstr( cmd, 0, 6 ) == "remove" && isdefined( zmqol_perk_from_alias( getsubstr( cmd, 6, cmd.size ) ) ) )
+        {
+            perk = zmqol_perk_from_alias( getsubstr( cmd, 6, cmd.size ) );
+            player zmqol_remove_one_perk( perk );
+        }
         else if ( cmd == "pack" )
         {
             player zmqol_pack( 1 );
@@ -2788,6 +2842,138 @@ zmqol_map_perks()
     }
 
     return a_perks;
+}
+
+// ============================================================================
+//  .give<perk> / .remove<perk>  -  one perk at a time
+//
+//  Parsed as a PREFIX rather than 24 explicit commands, so ".givejug" and
+//  ".removejug" come out of the same two blocks in the chat handler. The alias
+//  table below is deliberately generous - the whole point is not having to
+//  remember whether it is "stam" or "staminup" mid-round.
+//
+//  🛑 THE SPECIALTY NAMES ARE THE TRAP, NOT THE ALIASES. Several read like the
+//  wrong perk and models routinely guess them backwards, so they are taken from
+//  getPerkName() below, which is already the shipped mapping:
+//      specialty_armorvest              Jugger-Nog       (NOT flak/armor)
+//      specialty_rof                    Double Tap 2.0
+//      specialty_longersprint           Stamin-Up        (NOT marathon-the-perk)
+//      specialty_additionalprimaryweapon Mule Kick
+//      specialty_flakjacket             PhD Flopper      (NOT Jugger-Nog)
+//      specialty_scavenger              Tombstone        (NOT a scavenger perk)
+//      specialty_finalstand             Who's Who        (NOT last stand)
+//      specialty_nomotionsensor         Vulture Aid
+//      specialty_grenadepulldeath       Electric Cherry
+//
+//  Returns undefined for anything unrecognised, which is what lets the chat
+//  handler use it as the test for "is this a perk command at all" - so a typo
+//  falls through to the normal unknown-command path instead of doing something
+//  surprising.
+// ============================================================================
+zmqol_perk_from_alias( str_alias )
+{
+    switch ( str_alias )
+    {
+        case "jug":
+        case "jugg":
+        case "juggernog":
+        case "juggernaut":
+            return "specialty_armorvest";
+        case "speed":
+        case "speedcola":
+        case "sleight":
+            return "specialty_fastreload";
+        case "dtap":
+        case "doubletap":
+        case "double":
+            return "specialty_rof";
+        case "stam":
+        case "stamin":
+        case "staminup":
+            return "specialty_longersprint";
+        case "mule":
+        case "mulekick":
+            return "specialty_additionalprimaryweapon";
+        case "revive":
+        case "quickrevive":
+            return "specialty_quickrevive";
+        case "deadshot":
+        case "ads":
+            return "specialty_deadshot";
+        case "phd":
+        case "flopper":
+        case "phdflopper":
+            return "specialty_flakjacket";
+        case "tombstone":
+        case "tomb":
+            return "specialty_scavenger";
+        case "whoswho":
+        case "who":
+            return "specialty_finalstand";
+        case "cherry":
+        case "electriccherry":
+            return "specialty_grenadepulldeath";
+        case "vulture":
+        case "vultureaid":
+            return "specialty_nomotionsensor";
+    }
+
+    return undefined;
+}
+
+//  Give one perk. Refuses perks the MAP does not have, because give_perk() on an
+//  unregistered perk sets the specialty without any of the machinery behind it -
+//  no clientfield, no perk_think loop - which looks like it worked and is not
+//  removable afterwards. zmqol_map_perks() is the same enumeration .giveperks
+//  and the Wunderfizz both use, so the three agree on what this map supports.
+zmqol_give_one_perk( perk )
+{
+    str_name = getPerkName( perk );
+
+    if ( self hasperk( perk ) )
+    {
+        self iprintln( "^3[zm_qol] ^7you already have ^3" + str_name );
+        return;
+    }
+
+    if ( !zmqol_perk_on_this_map( perk ) )
+    {
+        self iprintln( "^1[zm_qol] ^3" + str_name + " ^7is not available on this map" );
+        return;
+    }
+
+    self maps\mp\zombies\_zm_perks::give_perk( perk, 0 );
+    self iprintln( "^2[zm_qol] ^7gave ^2" + str_name );
+}
+
+//  Remove one perk. Same notify teardown .removeperks uses - see the block above
+//  zmqol_map_perks() for why this is a notify and not a call to unsetperk().
+zmqol_remove_one_perk( perk )
+{
+    str_name = getPerkName( perk );
+
+    if ( !self hasperk( perk ) )
+    {
+        self iprintln( "^3[zm_qol] ^7you do not have ^3" + str_name );
+        return;
+    }
+
+    self notify( perk + "_stop" );
+    self iprintln( "^1[zm_qol] ^7removed ^1" + str_name );
+}
+
+//  Is this perk registered on the current map?
+zmqol_perk_on_this_map( perk )
+{
+    a_perks = zmqol_map_perks();
+
+    for ( i = 0; i < a_perks.size; i++ )
+    {
+        if ( a_perks[i] == perk )
+            return 1;
+    }
+
+    return 0;
 }
 
 zmqol_give_all_perks()
@@ -3047,7 +3233,11 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance up/down, melee stops)";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
-    a_lines[a_lines.size] = "^3.giveperks ^7/ ^3.removeperks ^7   ^3.nozmspawns ^7toggle spawns";
+    a_lines[a_lines.size] = "^3.giveperks^7/^3.removeperks ^7  ^3.nozmspawns ^7spawns";
+    //  One line, not two - see the budget note above. The alias list has to be
+    //  discoverable somewhere or the per-perk commands may as well not exist,
+    //  so it rides on the same line as the syntax rather than getting its own.
+    a_lines[a_lines.size] = "^3.give^7/^3.remove^7 + ^3jug speed dtap stam mule revive deadshot phd tombstone whoswho cherry vulture";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
     a_lines[a_lines.size] = "^5console: ^3rapid_fire night_mode character coop_pause no_power";
     a_lines[a_lines.size] = "^5console: ^3hud_all hud_timer hud_health_bar hud_remaining hud_zone";
@@ -4959,25 +5149,19 @@ perk_bought( perk )
     desc_hud settext( getPerkDesc( perk ) );
 
     // --- Special-ability line (line 3, gold) ---
-    // NOTE: kept verbatim from the upstream file - it never gets a settext(),
-    // so only its fade-out runs. Harmless; left in so future text drops in.
-    spec_hud = newclienthudelem( self );
-    spec_hud.alignx = "center";
-    spec_hud.aligny = "middle";
-    spec_hud.horzalign = "user_center";
-    spec_hud.vertalign = "user_top";
-    spec_hud.x = 0;
-    spec_hud.y = 167;
-    spec_hud.fontscale = 1.1;
-    spec_hud.alpha = 0;
-    spec_hud.color = ( 0.9, 0.85, 0.4 );
-    spec_hud.hidewheninmenu = 1;
-    spec_hud.foreground = 1;
+    //  🛑 REMOVED in v1.53.0. It was kept "in case future text drops in", but it
+    //  never received a settext() in any version, so it drew NOTHING while still
+    //  consuming a client hudelem for the ~4.5s this popup lives.
+    //
+    //  That window is the problem. Every perk purchase spiked the popup to FOUR
+    //  elements, and on Origins you buy perks from the Wunderfizz and then walk
+    //  to a generator - whose capture ring is created ON DEMAND and silently
+    //  is not created when the pool is empty. One of those four was pure waste.
+    //  Re-add it the day it actually gets text, not before.
 
     self.perkhud = hud;
     self.perkname_hud = name_hud;
     self.perkdesc_hud = desc_hud;
-    self.perkspec_hud = spec_hud;
 
     // ---- Fade IN ----
     hud scaleovertime( 0.4, 64, 64 );
@@ -5002,20 +5186,15 @@ perk_bought( perk )
     desc_hud fadeovertime( 0.5 );
     desc_hud.alpha = 0;
 
-    spec_hud fadeovertime( 0.5 );
-    spec_hud.alpha = 0;
-
     wait 0.55;
 
     hud destroy();
     name_hud destroy();
     desc_hud destroy();
-    spec_hud destroy();
 
     self.perkhud = undefined;
     self.perkname_hud = undefined;
     self.perkdesc_hud = undefined;
-    self.perkspec_hud = undefined;
 }
 
 // Shader (icon material) for each perk
