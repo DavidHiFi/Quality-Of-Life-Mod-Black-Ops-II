@@ -351,7 +351,43 @@ setupWunderfizz()
 		}
 		else
 		{
-			level._effect[ "wunderfizz_loop" ]    = loadfx( "weapon/raygun2/fx_zm_raygun2_bolt_emit" );
+			//  🛑 v1.43.0 - THE _ug_ VARIANTS, BECAUSE THE STANDARD ONES ARE GREEN.
+			//  User: "the effects are now green for some reason, they're meant to be
+			//  the wunderfizz fx like the blue electrical fx".
+			//
+			//  The Ray Gun Mark II fires green. Its PACK-A-PUNCHED form fires blue,
+			//  and that is what the parallel weapon/raygun2/fx_zm_raygun2_ug_* family
+			//  exists for - the _ug_ set is not a different effect, it is the same
+			//  effect recoloured for the upgraded weapon. Same for misc/fx_*_raygun_*
+			//  vs misc/fx_*_raygun_ug_* (Ray Gun vs Porter's X2).
+			//
+			//  This is the ONLY blue electrical option there is. The true global set -
+			//  the intersection of all six maps' .ff and _patch.ff, PLUS common_zm.ff
+			//  which loads on every zombies map - is 224 effects, and its complete
+			//  electrical inventory is:
+			//
+			//      env/electrical/fx_elec_sparking_oneshot    sparking wire, white
+			//      env/electrical/fx_elec_wire_spark_burst    sparking wire, white
+			//      system_elements/fx_elec_spark_emit         spark emitter, white
+			//      weapon/raygun2/fx_zm_raygun2_bolt_emit     GREEN
+			//      weapon/raygun2/fx_zm_raygun2_ug_bolt_emit  BLUE
+			//      (+ the raygun2 impacts, same green/_ug_ blue split)
+			//
+			//  ⚠️ The colour is inferred from what the _ug_ family IS, not observed -
+			//  OAT cannot open an FxEffectDef, so no effect in this file has ever been
+			//  seen before shipping. zmqol_wf_fx_ug 0 puts the green set back without
+			//  a rebuild if the inference is wrong.
+			//
+			//  📝 And note how the 224 was arrived at: common_zm.ff. An earlier pass
+			//  intersected only the six map fastfiles, which is why misc/fx_zombie_powerup_*
+			//  below looked absent from every map and was nearly "fixed" - power-up fx
+			//  live in common_zm.ff, loaded everywhere. A map's .ff is not the whole
+			//  of what a map loads.
+			if( getdvarintdefault( "zmqol_wf_fx_ug", 1 ) )
+				level._effect[ "wunderfizz_loop" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_ug_bolt_emit" );
+			else
+				level._effect[ "wunderfizz_loop" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_bolt_emit" );
+
 			level._effect[ "perk_machine_light" ] = loadfx( "misc/fx_zombie_powerup_on" );
 			level._effect[ "perk_machine_steam" ] = loadfx( "misc/fx_zombie_powerup_grab" );
 
@@ -371,8 +407,11 @@ setupWunderfizz()
 			//  raygun impact is a point burst the size of a bullet hit, which is what
 			//  a marker on a machine should be, and it is present on all six maps
 			//  (verified against each map's .ff and _patch.ff, not against a script
-			//  that loadfx's it).
-			level._effect[ "perk_machine_location" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_impact" );
+			//  that loadfx's it). Blue on the _ug_ branch, per the note above.
+			if( getdvarintdefault( "zmqol_wf_fx_ug", 1 ) )
+				level._effect[ "perk_machine_location" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_ug_impact" );
+			else
+				level._effect[ "perk_machine_location" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_impact" );
 		}
 
 		level.zmqol_wf_fx_set = n_set;
@@ -777,13 +816,16 @@ zmqol_wf_wall_snap( s_place )
 	v_seed  = s_place.origin;
 	n_yaw   = s_place.snap_yaw;
 
-	//  v1.42.0 - 38 -> 26. The user: "push it towards the wall just a tiny bit
-	//  more so there's only a tiny gap". 38 was the collision cylinder's 16-unit
-	//  radius plus 22 units of daylight; 26 leaves 10, which still clears the
-	//  cylinder so the machine cannot end up embedded in the wall. A dvar because
-	//  the right number is a matter of taste on a model whose depth is not
-	//  written down anywhere - nudge it in console, do not rebuild.
-	n_clear = getdvarintdefault( "zmqol_wf_wall_gap", 26 );
+	//  38 -> 26 -> 30. v1.42.0 went to 26 on "push it towards the wall just a tiny
+	//  bit more"; at 26 the user reports it "very slightly clipping into the wall".
+	//  So the model's half-depth is somewhere just under 30, not the 16 the
+	//  collision cylinder suggested - the cabinet is deeper than the cylinder it
+	//  blocks with, which is why the cylinder was never the right thing to measure
+	//  from. 30 is one step back out from the first value that visibly touched.
+	//
+	//  Still a dvar. Two builds have now been spent on a number that console can
+	//  settle in seconds, and the answer is a matter of taste either way.
+	n_clear = getdvarintdefault( "zmqol_wf_wall_gap", 30 );
 	n_reach = 900;
 	n_eye   = 60;
 
@@ -1244,6 +1286,7 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 							if( isdefined( wunderfx ) ) TriggerFX(wunderfx);
 							// Spin the ball while it picks a perk - stock's "in_use".
 							self zmqol_wf_anim( "in_use" );
+							self.zmqol_wf_cycling = 1;
 							// ...and crackle while it spins. The SpawnFX/TriggerFX
 							// handle above is kept for compatibility but produced
 							// nothing visible ("the perk bottle just visually cycles
@@ -1276,6 +1319,7 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 								rtime -= .2;
 							}
 							self notify( "done_cycling" );
+							self.zmqol_wf_cycling = 0;
 							if((self.uses >= RandomIntRange(3,7)) && (level.wunderfizz_locations > 1))
 							{
 								self.bottle setModel("zombie_teddybear");
@@ -1296,6 +1340,34 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 								break;
 							}
 							else{
+								//  🛑 THE BALL NEVER STOPPED SPINNING, AND ITS ABSENCE FROM
+								//  THIS BRANCH IS WHY. User: "make the top ball on the
+								//  wunderfizz only spin when you actually spin the machine
+								//  like the real one... right now the ball is always spinning".
+								//
+								//  The animation is a state machine and this port only ever
+								//  drove it one way. Arrival sets "start" then "idle", a
+								//  purchase sets "in_use", departure sets "shut_down" - but
+								//  the path back from "in_use" to "idle" was simply missing,
+								//  so the FIRST purchase of the game left
+								//  %qolwf_diesel_ballspin_loop running until the machine
+								//  changed location. Stock has it at _zm_perk_random.gsc:391,
+								//  in exactly this branch.
+								//
+								//  It goes here rather than above the departure check because
+								//  a departing machine wants "shut_down", not "idle" - which
+								//  is also why it cannot be hoisted next to the notify.
+								//
+								//  On timing: this lands on the frame done_cycling fired, which
+								//  is when wunderfizzSounds() stops zmqol_wf_loop and plays
+								//  zmqol_wf_stop, so the ball winds down WITH the sound.
+								//  setanim's 0.2s blend out of the spin is the slowing down -
+								//  it is a blend, not a cut. (Stock returns to idle later,
+								//  after its grab window, because stock's stop sound is later
+								//  too. Matching the sound matters more than matching the
+								//  line number.)
+								self zmqol_wf_anim( "idle" );
+
 								perklist = array_randomize(perks);
 								for(j=0;j<perklist.size;j++)
 								{
@@ -1466,11 +1538,73 @@ zmqol_wf_fx_nearby( n_extra )
 	return 0;
 }
 
+// ============================================================================
+//  zmqol_wf_idle_arcs  -  the machine crackles while it just stands there
+//
+//  User: "the sound for when the machine is just idle is missing, by default on
+//  origins the wunderfizz machine even when you don't spin it, it has a
+//  sequential zapping electrical sort of sound effect that lines up with the
+//  visual electrical effect".
+//
+//  🛑 WHY THERE WAS NOTHING TO PORT: ON ORIGINS THE SOUND IS INSIDE THE EFFECT.
+//  zmb_rand_perk_sparks_top, _bolt, _strike and _hit are all in zmb_tomb.all and
+//  NOT ONE of them is referenced by any script in the entire 2,093-file stock
+//  dump - not the .gsc, not the .csc. A T6 FxEffectDef can carry sound elements,
+//  and Origins' dieselmagic effects carry these. That is exactly why the user
+//  hears it "line up with the visual effect": on Origins it is not lined up, it
+//  IS the visual effect.
+//
+//  Which also means it could never have been found by reading scripts, and that
+//  every "the machine makes no idle noise" pass that searched for a playsound was
+//  looking in a place the answer could not be. The tell was in the bank: aliases
+//  that exist, are obviously this machine's, and nothing calls.
+//
+//  We cannot ship an FxEffectDef, so the pairing is rebuilt by hand - one thread
+//  firing the arc and its spark on the same line, which is as close to "inside
+//  the effect" as script gets.
+//
+//  The beat is stock's own 0.1s retrigger for the arc (fx_activation_electric_loop,
+//  _zm_perk_random.csc:165) slowed to a crackle off Origins for the same reason
+//  the spin fx is - the raygun bolt is a discrete bright flash meant to be seen
+//  once, not a faint arc meant to stack. The SOUND fires on its own slower,
+//  randomised beat so it reads as sequential zapping rather than a machine-gun.
+//
+//  zmqol_wf_sparks is Origins' own three-variant spark (the engine picks one per
+//  play, which is where the "sequential" character comes from) and carries
+//  Treyarch's own falloff: full volume to 75 units, silent past 550. So it stays
+//  local without any help from the fx gate.
+// ============================================================================
+zmqol_wf_idle_arcs()
+{
+	self endon( "zmqol_wf_ball_off" );
+	level endon( "end_game" );
+
+	if( !isdefined( level._effect[ "wunderfizz_loop" ] ) )
+		return;
+
+	for( ;; )
+	{
+		wait randomfloatrange( 1.1, 2.2 );
+
+		//  The spin has its own, denser crackle - two threads drawing arcs on the
+		//  same tag is the stacking failure this file has hit twice.
+		if( isdefined( self.zmqol_wf_cycling ) && self.zmqol_wf_cycling )
+			continue;
+
+		if( !self zmqol_wf_fx_nearby() )
+			continue;
+
+		playfxontag( level._effect[ "wunderfizz_loop" ], self, "j_ball" );
+		self playsound( "zmqol_wf_sparks" );
+	}
+}
+
 zmqol_wf_ball_glow()
 {
 	level endon( "end_game" );
 
 	self thread zmqol_wf_lightning();
+	self thread zmqol_wf_idle_arcs();
 
 	//  ?? v1.34.0: perk_machine_light is LOOPING on BOTH branches now
 	//  (fx_tomb_dieselmagic_light on Origins, fx_zombie_packapunch elsewhere -
@@ -1662,6 +1796,11 @@ zmqol_wf_lightning()
 			continue;
 
 		playfx( level._effect[ "perk_machine_location" ], self.origin + ( 0, 0, level.zmqol_wf_marker_z ) );
+
+		//  ...and the bolt that goes with it. Same reasoning as the idle arcs: on
+		//  Origins this sound is carried by fx_tomb_dieselmagic_identify itself, so
+		//  the only way to reproduce the pairing is to fire both from one line.
+		self playsound( "zmqol_wf_bolt" );
 	}
 }
 
