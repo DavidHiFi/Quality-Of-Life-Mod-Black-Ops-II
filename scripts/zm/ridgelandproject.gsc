@@ -3920,6 +3920,38 @@ zmqol_enable_vulture()
     if ( map == "zm_buried" )
         return;
 
+    //  🛑 ORIGINS IS EXCLUDED TOO, AND IT IS A HARD ENGINE LIMIT, NOT A CHOICE.
+    //
+    //      Trying to assign 1 bits for netfield zone_capture_zombie
+    //      but Client Field Set actor is out of space.
+    //
+    //  That is Classic Origins refusing to boot, straight off the user's screen
+    //  and confirmed in console_zm.log. zone_capture_zombie is Origins' OWN field
+    //  (zm_tomb_capture_zones.gsc:99) - the one that drives the crusader-zombie
+    //  capture-point visuals - and it is registered after ours.
+    //
+    //  Every clientfield SET has a fixed bit budget, and the actor set is the
+    //  tightest one in the game because a zombie is the most numerous networked
+    //  entity there is. Origins spends more of that budget than any other map:
+    //  templars, crusaders, capture zones, the panzer. Vulture Aid's
+    //  vulture_perk_actor is 2 bits (_zm_perk_vulture.gsc:100), and those 2 bits
+    //  are the ones Origins does not have.
+    //
+    //  So this is not something a better ordering or a smaller version number
+    //  fixes. The only way to put Vulture on Origins is to stop registering
+    //  vulture_perk_actor on BOTH sides - the field only drives the zombie eye
+    //  glow and stink trail, so the perk itself would still work - and the client
+    //  half lives inside clientscripts\mp\zombies\_zm_perk_vulture.csc, which
+    //  ships as COMPILED bytecode and would have to be decompiled, edited and
+    //  re-shipped as raw text first. That is a real option, not a dead end, but
+    //  it is a bigger job than a boot fix and it is not this change.
+    //
+    //  📝 A clientfield budget is a shared, global resource with no per-mod share.
+    //  Adding a field is not free on a map that was already close to the ceiling,
+    //  and nothing warns you until a map that needs the last bits refuses to load.
+    if ( map == "zm_tomb" )
+        return;
+
     if ( !isdefined( level._custom_perks ) )
         level._custom_perks = [];
 

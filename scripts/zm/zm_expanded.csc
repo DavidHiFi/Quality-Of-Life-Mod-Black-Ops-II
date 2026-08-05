@@ -315,6 +315,11 @@ zmqol_enable_vulture()
 	if ( map == "zm_buried" )
 		return;
 
+	//  🛑 ORIGINS TOO - ITS ACTOR CLIENTFIELD SET IS PHYSICALLY FULL.
+	//  Kept identical to the server's list; see ridgelandproject.gsc for the why.
+	if ( map == "zm_tomb" )
+		return;
+
 	if ( isDefined( level._custom_perks ) && isDefined( level._custom_perks[ "specialty_nomotionsensor" ] ) )
 		return;
 
