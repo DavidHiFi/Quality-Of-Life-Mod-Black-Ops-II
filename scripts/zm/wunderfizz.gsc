@@ -355,13 +355,24 @@ setupWunderfizz()
 			level._effect[ "perk_machine_light" ] = loadfx( "misc/fx_zombie_powerup_on" );
 			level._effect[ "perk_machine_steam" ] = loadfx( "misc/fx_zombie_powerup_grab" );
 
-			//  The periodic marker zap - the one with the bolt sound on it.
-			if( level.script == "zm_transit" )
-				level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie/fx_zombie_dog_lightning_spawn" );
-			else if( level.script == "zm_prison" )
-				level._effect[ "perk_machine_location" ] = loadfx( "maps/zombie/fx_zombie_tesla_shock" );
-			else
-				level._effect[ "perk_machine_location" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_impact" );
+			//  🛑 v1.42.0 - THE PER-MAP "BEST" MARKERS ARE GONE, and picking them was
+			//  a category error worth recording. v1.40.0 asked "what is the best
+			//  electrical effect on each map" and answered with a hellhound spawn
+			//  strike on TranZit and a tesla shock on Mob. Both are excellent
+			//  lightning. Both are also authored to be seen from ANYWHERE ON THE
+			//  MAP - that is a spawn cue's entire job - so firing one every 7-10
+			//  seconds put a lightning bolt over the skyline of a map the player was
+			//  nowhere near. The user: "i can see some of the effects sometimes when
+			//  im on the other side of the map, like the bright blue flashing effect
+			//  specifically".
+			//
+			//  "Best-looking up close" and "right size" are different questions and
+			//  only the second one matters for something that fires unattended. The
+			//  raygun impact is a point burst the size of a bullet hit, which is what
+			//  a marker on a machine should be, and it is present on all six maps
+			//  (verified against each map's .ff and _patch.ff, not against a script
+			//  that loadfx's it).
+			level._effect[ "perk_machine_location" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_impact" );
 		}
 
 		level.zmqol_wf_fx_set = n_set;
@@ -370,11 +381,12 @@ setupWunderfizz()
 	//  The location fx fires at the orb's height off Origins (an EMP burst
 	//  centred on the floor would be half-buried in it), but Origins' own
 	//  identify beam is authored to rise FROM the base, so it keeps self.origin.
-	//  Origins' identify beam and TranZit's hellhound strike are both authored to
-	//  rise FROM the ground, so they want the true origin; a bolt lifted 72 units
-	//  would start in mid-air. The raygun impact used elsewhere is a point burst
-	//  and wants to be up at the orb.
-	if( level.script == "zm_tomb" || level.script == "zm_transit" )
+	//  Origins' identify beam is authored to rise FROM the ground, so it wants the
+	//  true origin. The raygun impact used on every other map is a point burst and
+	//  wants to be up at the orb. TranZit was in the first group only while it used
+	//  the hellhound strike, which also rose from the ground; it takes the raygun
+	//  impact now like everything else, so it belongs in the second.
+	if( level.script == "zm_tomb" )
 		level.zmqol_wf_marker_z = 0;
 	else
 		level.zmqol_wf_marker_z = 72;
@@ -764,7 +776,14 @@ zmqol_wf_wall_snap( s_place )
 {
 	v_seed  = s_place.origin;
 	n_yaw   = s_place.snap_yaw;
-	n_clear = 38;    // the machine's collision cylinder is 32 wide
+
+	//  v1.42.0 - 38 -> 26. The user: "push it towards the wall just a tiny bit
+	//  more so there's only a tiny gap". 38 was the collision cylinder's 16-unit
+	//  radius plus 22 units of daylight; 26 leaves 10, which still clears the
+	//  cylinder so the machine cannot end up embedded in the wall. A dvar because
+	//  the right number is a matter of taste on a model whose depth is not
+	//  written down anywhere - nudge it in console, do not rebuild.
+	n_clear = getdvarintdefault( "zmqol_wf_wall_gap", 26 );
 	n_reach = 900;
 	n_eye   = 60;
 
@@ -782,28 +801,82 @@ zmqol_wf_wall_snap( s_place )
 
 	v_hit = trace[ "position" ];
 
-	//  Back off the wall by the machine's radius, along the line we came in on.
-	v_at = ( v_hit[0] - ( v_dir[0] * n_clear ), v_hit[1] - ( v_dir[1] * n_clear ), v_seed[2] );
+	//  🛑 THE FACING COMES OFF THE WALL, NOT OFF THE PLAYER. v1.41.1 used the seed
+	//  yaw for both the trace AND the machine's angle, so the machine ended up
+	//  rotated by however far the player's aim was off perpendicular - here the
+	//  seed yaw is 184 against a wall that runs due north-south, and the user
+	//  reported the machine "slightly tilted off axis". Four degrees, exactly the
+	//  184-180 the seed carried.
+	//
+	//  bullettrace returns the surface normal of what it hit (stock uses
+	//  trace["normal"] this way in dom.gsc:322 and _remotemortar.gsc:540), and
+	//  that vector is perpendicular to the wall by construction. Flattened to the
+	//  horizontal it is the exact direction the machine should face, no matter
+	//  how sloppily the seed shot was aimed.
+	v_out = undefined;
+
+	if( isdefined( trace[ "normal" ] ) )
+	{
+		v_flat = ( trace[ "normal" ][0], trace[ "normal" ][1], 0 );
+
+		//  A floor or ceiling hit has no horizontal normal to work with.
+		if( length( v_flat ) > 0.1 )
+			v_out = vectornormalize( v_flat );
+	}
+
+	//  No usable normal - fall back to v1.41.1's behaviour rather than to nothing.
+	if( !isdefined( v_out ) )
+		v_out = ( 0 - v_dir[0], 0 - v_dir[1], 0 );
+
+	n_out = vectortoangles( v_out )[1];
+
+	while( n_out < 0 )
+		n_out += 360;
+	while( n_out >= 360 )
+		n_out -= 360;
+
+	//  Then snap to the nearest axis if the wall is already within a few degrees
+	//  of one. Brush walls are usually axis-aligned but a traced normal comes back
+	//  off whatever surface the ray actually touched - a bevel, a trim piece, a
+	//  decal brush - and a degree or two of that is still visible on a big flat
+	//  cabinet. Only inside the tolerance, so a genuinely angled wall is left
+	//  alone instead of being wrenched onto an axis it was never on.
+	n_axis = int( ( n_out + 45 ) / 90 ) * 90;
+
+	if( n_axis >= 360 )
+		n_axis -= 360;
+
+	n_off_axis = abs( n_out - n_axis );
+
+	if( n_off_axis > 180 )
+		n_off_axis = 360 - n_off_axis;
+
+	if( n_off_axis <= getdvarintdefault( "zmqol_wf_axis_snap", 8 ) )
+		n_out = n_axis;
+
+	//  Back off PERPENDICULAR to the wall, not along the line we came in on. Off
+	//  the perpendicular the machine sits at an angle to the surface it is meant
+	//  to be flush with, which is the other half of what the user saw.
+	v_out = anglestoforward( ( 0, n_out, 0 ) );
+
+	v_at = ( v_hit[0] + ( v_out[0] * n_clear ), v_hit[1] + ( v_out[1] * n_clear ), v_seed[2] );
 
 	s_place.origin = ( v_at[0], v_at[1], zmqol_wf_trace_floor( v_at ) );
 
-	//  Face back down the line, i.e. out of the wall into the room.
-	//
 	//  🛑 PLUS 90, BECAUSE THE MODEL'S FRONT IS NOT ITS +X. v1.41.0 set the yaw to
-	//  exactly n_yaw+180 - geometrically "away from the wall" - and the machine
-	//  stood side-on. The convention comes off an earlier screenshot: at the
-	//  relocated (1967,-1297.8,-54.2) spot the struct angle was yaw 0 and the
-	//  machine presented its FRONT to a player looking north, i.e. at yaw 0 the
-	//  front faces -Y. So front direction = placement yaw - 90, and to point the
-	//  front along n_yaw+180 the placement yaw has to be n_yaw+270.
+	//  exactly "away from the wall" and the machine stood side-on. The convention
+	//  comes off an earlier screenshot: at the relocated (1967,-1297.8,-54.2) spot
+	//  the struct angle was yaw 0 and the machine presented its FRONT to a player
+	//  looking north, i.e. at yaw 0 the front faces -Y. So front direction =
+	//  placement yaw - 90.
 	//
 	//  Left as a dvar because it is derived from one screenshot rather than from
 	//  the model, and 0/90/180/270 in console beats another build to test the
 	//  other three. It only affects this traced placement - the five hand-placed
 	//  maps keep their own angles.
-	s_place.angles = ( 0, n_yaw + 180 + getdvarintdefault( "zmqol_wf_yaw_off", 90 ), 0 );
+	s_place.angles = ( 0, n_out + getdvarintdefault( "zmqol_wf_yaw_off", 90 ), 0 );
 
-	println( "[zm_qol] wunderfizz: wall snap (" + int( v_seed[0] ) + "," + int( v_seed[1] ) + "," + int( v_seed[2] ) + ") yaw " + n_yaw + " -> (" + int( s_place.origin[0] ) + "," + int( s_place.origin[1] ) + "," + int( s_place.origin[2] ) + ") facing " + int( n_yaw + 180 ) + ", wall was " + int( distance( v_from, v_hit ) ) + " away" );
+	println( "[zm_qol] wunderfizz: wall snap (" + int( v_seed[0] ) + "," + int( v_seed[1] ) + "," + int( v_seed[2] ) + ") seed yaw " + n_yaw + " -> (" + int( s_place.origin[0] ) + "," + int( s_place.origin[1] ) + "," + int( s_place.origin[2] ) + ") wall normal yaw " + int( n_out ) + ", gap " + n_clear + ", wall was " + int( distance( v_from, v_hit ) ) + " away" );
 
 	return s_place;
 }
@@ -1353,6 +1426,46 @@ zmqol_wf_anim( str_state )
 //  A one-shot must be RETRIGGERED to be continuously visible, and retriggering
 //  is only safe BECAUSE it is one-shot - each copy expires on its own. Doing
 //  this to a looping effect is what caused the v1.21.0 blob.
+//  ============================================================================
+//  zmqol_wf_fx_nearby  -  is anyone close enough for this effect to be FOR them?
+//
+//  Every effect on this machine repeats unattended - a marker every 7-10s, a
+//  crackle while the orb cycles, a burst as it leaves - and playfx draws for
+//  EVERY client, not just nearby ones. So a machine sitting alone in Town was
+//  putting effects on the screen of a player at the bus depot.
+//
+//  Choosing smaller effects (above) fixes how big the thing looks. This fixes
+//  whether it is drawn at all, which is the part that no choice of effect can
+//  address: a small effect fired across the map is still a light on the horizon.
+//
+//  1500 units is about "the room and the street outside it" - Town's bar to the
+//  far side of Town, not Town to the depot. Set zmqol_wf_fx_range 0 to turn the
+//  gate off entirely and get every effect back everywhere.
+//  ============================================================================
+zmqol_wf_fx_nearby( n_extra )
+{
+	n_range = getdvarintdefault( "zmqol_wf_fx_range", 1500 );
+
+	if( n_range <= 0 )
+		return 1;
+
+	if( isdefined( n_extra ) )
+		n_range += n_extra;
+
+	a_players = get_players();
+
+	for( i = 0; i < a_players.size; i++ )
+	{
+		if( !isdefined( a_players[i] ) )
+			continue;
+
+		if( distance( a_players[i].origin, self.origin ) <= n_range )
+			return 1;
+	}
+
+	return 0;
+}
+
 zmqol_wf_ball_glow()
 {
 	level endon( "end_game" );
@@ -1373,21 +1486,55 @@ zmqol_wf_ball_glow()
 	//  reachable from here. SpawnFX yields an entity, and deleting the entity is
 	//  the only server-side "off" switch there is. With playfxontag the orb
 	//  would keep glowing on a machine the ball had already left.
-	v_ball = self gettagorigin( "j_ball" );
-	if( !isdefined( v_ball ) )
-		v_ball = self.origin + ( 0, 0, 60 );
+	//  v1.42.0 - the glow is the one effect the distance gate cannot simply skip,
+	//  because it is a spawned ENTITY that stays lit rather than a call that fires
+	//  and ends. So the gate spawns and deletes it instead, in a monitor thread;
+	//  the delete path is the same one that has always run on "zmqol_wf_ball_off",
+	//  just driven by proximity as well.
+	self.zmqol_wf_glow = undefined;
 
-	e_glow = undefined;
 	if( isdefined( level._effect[ "perk_machine_light" ] ) )
-	{
-		e_glow = SpawnFX( level._effect[ "perk_machine_light" ], v_ball, AnglesToForward( self.angles ), AnglesToUp( self.angles ) );
-		TriggerFX( e_glow );
-	}
+		self thread zmqol_wf_glow_monitor();
 
 	self waittill( "zmqol_wf_ball_off" );
 
-	if( isdefined( e_glow ) )
-		e_glow Delete();
+	if( isdefined( self.zmqol_wf_glow ) )
+	{
+		self.zmqol_wf_glow Delete();
+		self.zmqol_wf_glow = undefined;
+	}
+}
+
+zmqol_wf_glow_monitor()
+{
+	self endon( "zmqol_wf_ball_off" );
+	level endon( "end_game" );
+
+	for( ;; )
+	{
+		if( isdefined( self.zmqol_wf_glow ) )
+		{
+			//  400 units of hysteresis, so a player standing on the boundary gets a
+			//  steady orb rather than one that blinks in and out once a second.
+			if( !self zmqol_wf_fx_nearby( 400 ) )
+			{
+				self.zmqol_wf_glow Delete();
+				self.zmqol_wf_glow = undefined;
+			}
+		}
+		else if( self zmqol_wf_fx_nearby() )
+		{
+			v_ball = self gettagorigin( "j_ball" );
+
+			if( !isdefined( v_ball ) )
+				v_ball = self.origin + ( 0, 0, 60 );
+
+			self.zmqol_wf_glow = SpawnFX( level._effect[ "perk_machine_light" ], v_ball, AnglesToForward( self.angles ), AnglesToUp( self.angles ) );
+			TriggerFX( self.zmqol_wf_glow );
+		}
+
+		wait 1;
+	}
 }
 
 //  "there's electrical effects all around it in origins and the lightning
@@ -1459,7 +1606,11 @@ zmqol_wf_spin_fx()
 
 	for( ;; )
 	{
-		playfxontag( level._effect[ "wunderfizz_loop" ], self, "j_ball" );
+		//  Anyone spinning the machine is standing at it, so this gate never costs
+		//  the person using it anything - it only stops the crackle being drawn for
+		//  a player on the far side of the map who is not part of the event.
+		if( self zmqol_wf_fx_nearby() )
+			playfxontag( level._effect[ "wunderfizz_loop" ], self, "j_ball" );
 
 		if( level.script != "zm_tomb" )
 			n_beat = randomfloatrange( 0.7, 1.1 );
@@ -1505,6 +1656,11 @@ zmqol_wf_lightning()
 		if( self.location != level.currentWunderfizzLocation )
 			continue;
 
+		//  v1.42.0 - the gate. This is the effect that fires unattended forever, so
+		//  it is the one that was reaching the other side of the map.
+		if( !self zmqol_wf_fx_nearby() )
+			continue;
+
 		playfx( level._effect[ "perk_machine_location" ], self.origin + ( 0, 0, level.zmqol_wf_marker_z ) );
 	}
 }
@@ -1529,7 +1685,9 @@ zmqol_wf_departure_steam()
 		n_end = GetTime() + 5000;
 		while( GetTime() < n_end )
 		{
-			playfxontag( level._effect[ "perk_machine_steam" ], self, "tag_origin" );
+			if( self zmqol_wf_fx_nearby() )
+				playfxontag( level._effect[ "perk_machine_steam" ], self, "tag_origin" );
+
 			wait 0.1;
 		}
 		return;
@@ -1539,7 +1697,9 @@ zmqol_wf_departure_steam()
 
 	while( n_ticks < 7 )
 	{
-		playfxontag( level._effect[ "perk_machine_steam" ], self, "tag_origin" );
+		if( self zmqol_wf_fx_nearby() )
+			playfxontag( level._effect[ "perk_machine_steam" ], self, "tag_origin" );
+
 		wait 0.7;
 		n_ticks++;
 	}
