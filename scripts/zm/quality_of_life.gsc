@@ -98,6 +98,7 @@ main()
     replaceFunc( maps\mp\zombies\_zm_weapons::ammo_give, ::new_ammo_give );
 
     perks();
+    zmqol_enable_fire_sale();
 
     // --- secretsongsurvival ---
     precachemodel( "zombie_teddybear" );
@@ -4266,6 +4267,49 @@ perks()
     zmqol_enable_electric_cherry();
     zmqol_enable_vulture();
     zmqol_enable_whoswho();
+}
+
+// ============================================================================
+//  zmqol_enable_fire_sale  -  Fire Sale on the two maps that never had it
+//
+//  Measured across the stock dump, not assumed. include_powerup( "fire_sale" )
+//  is called by zm_nuked (:720), zm_prison (:947), zm_buried (:1279) and
+//  zm_tomb (:1173). It is NOT called by zm_transit or zm_highrise - those two
+//  are the whole gap.
+//
+//  🛑 WHY THIS NEEDED AN ASSET AND NOT JUST THE ONE-LINE INCLUDE.
+//  _zm_powerups::add_zombie_powerup() precaches the model only for powerups
+//  that were included:
+//        if ( isdefined( level.zombie_include_powerups ) &&
+//             !isdefined( level.zombie_include_powerups[powerup_name] ) )
+//            return;
+//        precachemodel( model_name );
+//  and Unlinker --list shows zombie_firesale is absent from zm_transit.ff and
+//  zm_highrise.ff - the same two maps. So including it without shipping the
+//  model would precache something the level does not have, which is fatal at
+//  load. zone_source\mod_locations.zone now carries it; see the block there.
+//
+//  🛑 TIMING. include_powerup() only sets level.zombie_include_powerups[name],
+//  which _zm_powerups::init() reads later when it calls add_zombie_powerup for
+//  each one - so this MUST run before that init. main() is inside Plutonium's
+//  precache window and runs ahead of every ::init(), which is the same reason
+//  wunderfizz.gsc does its precaching there. It is additive, so a map setting
+//  up its own list afterwards cannot clobber this.
+//
+//  Fire Sale needs a mystery box to be worth anything, and stock already gates
+//  the drop on that: func_should_drop_fire_sale() refuses while
+//  level.chest_moves < 1. Both maps have a moving box, so nothing else is
+//  required - and on any map where that stopped being true, stock declines the
+//  drop on its own rather than dropping a dud.
+// ============================================================================
+zmqol_enable_fire_sale()
+{
+    map = getDvar( "mapname" );
+
+    if ( map != "zm_transit" && map != "zm_highrise" )
+        return;     // the other four include it themselves
+
+    maps\mp\zombies\_zm_utility::include_powerup( "fire_sale" );
 }
 
 // ============================================================================

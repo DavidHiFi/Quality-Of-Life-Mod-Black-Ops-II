@@ -403,3 +403,27 @@ xmodel,t6_wpn_zmb_perk_bottle_whoswho_view
 xmodel,t6_wpn_zmb_perk_bottle_whoswho_world
 weapon,zombie_perk_bottle_whoswho
 material,specialty_chugabud_zombies
+
+// ============================================================================
+//  FIRE SALE  -  on the two maps that never had it
+//
+//  Measured, not assumed. Unlinker --list over all six map fastfiles plus
+//  common_zm.ff for the powerup's model:
+//
+//      zombie_firesale     tra 0   nuk 1   hig 0   pri 1   bur 1   tom 1   com 0
+//
+//  and include_powerup( "fire_sale" ) is called by zm_nuked, zm_prison,
+//  zm_buried and zm_tomb - so the two maps missing the powerup are exactly the
+//  two missing the model: TRANZIT and DIE RISE.
+//
+//  🛑 THAT CORRELATION IS WHY THIS LINE IS MANDATORY. _zm_powerups::
+//  add_zombie_powerup() precaches the model ONLY for included powerups
+//  (_zm_powerups.gsc:419-422), so simply calling include_powerup("fire_sale")
+//  on TranZit or Die Rise would precache an absent model - fatal at load, the
+//  same trap the Who's Who machine models hit. Shipping it in mod.ff, which
+//  loads on every map, is what makes the include safe.
+//
+//  No new --load is needed in build_ff.bat: zm_prison and zm_buried are already
+//  loaded as donors for Electric Cherry and Vulture Aid, and both carry it.
+// ============================================================================
+xmodel,zombie_firesale
