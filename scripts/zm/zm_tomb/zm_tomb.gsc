@@ -281,6 +281,88 @@ zmqol_wunderfizz_all_perks()
     }
 
     println( "[zm_qol] origins: added " + n_added + " perk(s) to the native Wunderfizz rotation, list is now " + level._random_perk_machine_perk_list.size );
+
+    //  And make a repeat impossible - see zmqol_tomb_perk_weights() below.
+    if ( isdefined( level.custom_random_perk_weights ) && !isdefined( level.zmqol_tomb_weights_prev ) )
+    {
+        level.zmqol_tomb_weights_prev = level.custom_random_perk_weights;
+        level.custom_random_perk_weights = ::zmqol_tomb_perk_weights;
+    }
+}
+
+// ============================================================================
+//  zmqol_tomb_perk_weights  -  never hand out a perk the player already holds
+//
+//  User: "when i got to mule kick and spun the machine again i got mule kick
+//  again when i already had it, spun it a 3rd time and got mule kick again."
+//
+//  🛑 STOCK HAS EXACTLY ONE PATH THAT CAN RETURN A HELD PERK, and it is the last
+//  line of get_weighted_random_perk() (_zm_perk_random.gsc:516):
+//
+//      for ( i = 0; i < keys.size; i++ )
+//          if ( player hasperk( list[keys[i]] ) ) continue;
+//          else return list[keys[i]];
+//
+//      return list[keys[0]];          <- the fallback
+//
+//  The loop is correct and skips everything you hold. The fallback underneath it
+//  returns keys[0] unconditionally - it is stock's "you already own everything,
+//  have something anyway" case. Whatever is putting the player down that path,
+//  keys[0] is what comes back, and Mule Kick three times in a row is keys[0]
+//  being stable across spins.
+//
+//  Why it is stable, and why Mule Kick specifically: Origins' own weighting
+//  function (zm_tomb.gsc::tomb_random_perk_weights) appends up to five BONUS
+//  entries every single spin with arraycombine( ..., keepdupes = 1 ) - among them
+//  specialty_additionalprimaryweapon. That is how stock weights the draw: more
+//  copies, more likely. It also means the list grows without bound as you spin,
+//  and the more you spin the more of it is those five perks.
+//
+//  So rather than guess which condition sends the draw to the fallback, this
+//  removes the fallback's ability to be wrong: the key order handed back has
+//  every perk the player LACKS first, so keys[0] is always something they can
+//  use. Perks they hold are kept on the end so the fallback still has something
+//  to return in the genuine "owns everything" case.
+//
+//  Stock's weighting is preserved exactly - this calls Origins' own function and
+//  only reorders what it returns, so the duplicate-weighted draw still works as
+//  Treyarch tuned it.
+//
+//  📝 Worth keeping: when a bug is "sometimes returns the wrong thing" and the
+//  code has a fallback branch, check the FALLBACK before the main path. The main
+//  path here was right all along and reads like the suspect.
+//
+//  Called ON THE PLAYER - get_weighted_random_perk does
+//  `keys = player [[ level.custom_random_perk_weights ]]();`
+// ============================================================================
+zmqol_tomb_perk_weights()
+{
+    a_keys = self [[ level.zmqol_tomb_weights_prev ]]();
+
+    if ( !isdefined( a_keys ) || a_keys.size < 1 )
+        return a_keys;
+
+    a_want = [];
+    a_have = [];
+
+    for ( i = 0; i < a_keys.size; i++ )
+    {
+        str_perk = level._random_perk_machine_perk_list[ a_keys[i] ];
+
+        if ( !isdefined( str_perk ) )
+            continue;
+
+        if ( self hasperk( str_perk ) )
+            a_have[ a_have.size ] = a_keys[i];
+        else
+            a_want[ a_want.size ] = a_keys[i];
+    }
+
+    //  Everything they lack, in stock's own weighted order, then the rest.
+    for ( i = 0; i < a_have.size; i++ )
+        a_want[ a_want.size ] = a_have[i];
+
+    return a_want;
 }
 
 //  The perks Origins registers itself, which do not appear in level._custom_perks
