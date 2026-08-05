@@ -13,6 +13,7 @@ main()
     // in place before the map threads the native code. Matches zm_highrise.gsc.
     replaceFunc( maps\mp\zm_tomb_dig::swap_weapon, ::custom_swap_weapon );            // weapon-dig fix
     replaceFunc( maps\mp\zm_tomb_ee_side::check_for_change, ::origins_change_patch ); // prone "loose change" -> 100
+    replaceFunc( maps\mp\zm_tomb_utility::check_solo_status, ::qol_check_solo_status ); // 1 player = solo rules
 
     // --- custom survival start locations: Trenches, Excavation Site, Church, The Crazy Place ---
 
@@ -934,4 +935,45 @@ origins_change_patch()
 
         wait 0.1;
     }
+}
+
+// ============================================================================
+//  qol_check_solo_status  (replaces maps\mp\zm_tomb_utility::check_solo_status)
+//
+//  🛑 A one-player game on Plutonium was getting CO-OP rules. Stock:
+//
+//      if ( getnumexpectedplayers() == 1 && ( !sessionmodeisonlinegame() || !sessionmodeisprivate() ) )
+//          level.is_forever_solo_game = 1;
+//
+//  On retail the session clause is what separates "alone on the couch" from
+//  "online private lobby my friends can still join". Plutonium runs EVERY game
+//  - including the Solo entry - as an online private match, so both builtins
+//  return true, the OR is false, and the flag is never set no matter how the
+//  game was started. Origins then ran the whole map on co-op rules.
+//
+//  What that actually broke, all from stock (nothing here is a guess):
+//    - zm_tomb_utility::zone_capture_powerup - the start-bunker reward chest
+//      after the first generator gives reward_powerup_double_points in solo and
+//      reward_powerup_zombie_blood in co-op. The zombie blood the user got IS
+//      this branch.
+//    - zm_tomb_utility::adjustments_for_solo - the solo door/debris price cut
+//      and the 750-point Beretta/870 never applied.
+//    - zm_tomb_capture_zones::get_recapture_zombies_needed - 6 instead of 4.
+//    - zm_tomb_capture_zones::get_capture_rate - the slower co-op rate, scaled
+//      by (players in zone / players total), instead of rate_capture_solo.
+//    - _zm_ai_mechz - solo has its own Mechz behaviour.
+//
+//  Fix: keep stock's player-count test exactly, drop only the session-mode
+//  clause that Plutonium always fails. getnumexpectedplayers() is valid at this
+//  call site - stock reads it here itself. Evaluated once, never re-checked,
+//  which is what "forever solo" means in stock too.
+// ============================================================================
+qol_check_solo_status()
+{
+    if ( getnumexpectedplayers() == 1 )
+        level.is_forever_solo_game = 1;
+    else
+        level.is_forever_solo_game = 0;
+
+    println( "[zm_qol] solo status: expected=" + getnumexpectedplayers() + " is_forever_solo_game=" + level.is_forever_solo_game );
 }

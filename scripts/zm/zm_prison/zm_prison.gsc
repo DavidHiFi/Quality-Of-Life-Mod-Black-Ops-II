@@ -8,6 +8,7 @@
 main()
 {
 	replaceFunc( maps\mp\zm_prison::delete_perk_machine_clip, ::delete_perk_machine_clip );
+	replaceFunc( maps\mp\zm_alcatraz_utility::check_solo_status, ::qol_check_solo_status ); // 1 player = solo rules
 
 	// --- custom survival start locations: adds Docks (alongside stock Cell Block) ---
 
@@ -251,5 +252,35 @@ added_weapons()
         include_weapon( "m32_upgraded_zm", 0 );
         add_zombie_weapon_prison( "m32_zm", "m32_upgraded_zm", &"ZOMBIE_WEAPON_M32", 50, "wpck_m32", "", undefined, 1 );
     }
+}
+
+// ============================================================================
+//  qol_check_solo_status  (replaces maps\mp\zm_alcatraz_utility::check_solo_status)
+//
+//  🛑 Same defect as Origins - see the long comment on the twin function in
+//  scripts\zm\zm_tomb\zm_tomb.gsc for the full reasoning. Short version: stock
+//  requires ( !sessionmodeisonlinegame() || !sessionmodeisprivate() ) on top of
+//  the player count, and Plutonium runs every game as an online private match,
+//  so level.is_forever_solo_game was stuck at 0 even playing alone.
+//
+//  On Mob that is what forces the plane parts to be carried ONE AT A TIME:
+//  zm_alcatraz_craftables::init sets is_shared = 1 on all five plane pieces
+//  (and all five fuel cans) only inside `if ( level.is_forever_solo_game )`.
+//  It also costs the solo Brutus behaviour (_zm_ai_brutus, rounds < 9), the
+//  solo afterlife timings (_zm_afterlife), and the solo side-quest gate
+//  (zm_alcatraz_sq).
+//
+//  Stock threads this from zm_prison::main(), before craftables init reads the
+//  flag unguarded - the replacement keeps that slot and adds no wait, so the
+//  ordering is unchanged.
+// ============================================================================
+qol_check_solo_status()
+{
+    if ( getnumexpectedplayers() == 1 )
+        level.is_forever_solo_game = 1;
+    else
+        level.is_forever_solo_game = 0;
+
+    println( "[zm_qol] solo status: expected=" + getnumexpectedplayers() + " is_forever_solo_game=" + level.is_forever_solo_game );
 }
 
