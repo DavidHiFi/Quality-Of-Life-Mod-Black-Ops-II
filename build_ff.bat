@@ -140,12 +140,22 @@ REM  Vulture pickup fix was a one-column change to an existing row: build_ff pri
 REM  "0 alias row(s) added", linked happily, and shipped the old table. Nothing in any
 REM  log said otherwise.
 REM
-REM  So: a row in the additions file now OVERWRITES the row of the same name, and the
-REM  count is reported split so a build that changed something never prints all zeros.
+REM  So: the additions file now OWNS every alias name it mentions. Each build drops
+REM  all cached rows carrying a name the additions file uses, then appends the
+REM  additions verbatim.
+REM
+REM  🛑 DROP-AND-APPEND, NOT REPLACE-IN-PLACE, BECAUSE AN ALIAS CAN HAVE VARIANTS.
+REM  zmb_rand_perk_sparks_top is THREE rows sharing one Name - that is how T6 does
+REM  randomised one-shots, the engine picks a row per play. A name-keyed replace
+REM  collapses all three into whichever came last, silently turning a varied spark
+REM  into the same click every time. Keyed on Name+FileSource instead, editing a
+REM  FileSource would strand the old row as a phantom variant. Dropping by name and
+REM  re-appending the whole group is the only shape that is right in both cases.
+REM
 REM  If you would rather start clean, deleting the cached CSV also works - but that
 REM  should be a convenience, not the only way an edit can take.
 echo   Staging this mod's own sounds ...
-"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$p='%PROJ%'; $base=Join-Path $p 'zone_assets\soundbank\mod.all.aliases.csv'; $add=Join-Path $p 'soundbank\mod.all.aliases.additions.csv'; $rows=@(Get-Content $base); $idx=@{}; for($i=1;$i -lt $rows.Count;$i++){ $idx[($rows[$i] -split ',')[0]] = $i }; $n=0; $u=0; if(Test-Path $add){ $ar=@(Get-Content $add); foreach($r in $ar[1..($ar.Count-1)]){ if($r.Trim() -eq ''){continue}; $nm=($r -split ',')[0]; if($idx.ContainsKey($nm)){ if($rows[$idx[$nm]] -ne $r){ $rows[$idx[$nm]]=$r; $u++ } } else { $rows += $r; $idx[$nm]=$rows.Count-1; $n++ } } }; Set-Content -LiteralPath $base -Value $rows -Encoding ASCII; Write-Host ('    ' + $n + ' alias row(s) added, ' + $u + ' updated, ' + ($rows.Count-1) + ' total'); $m=0; $src=Join-Path $p 'sound'; if(Test-Path $src){ Get-ChildItem -LiteralPath $src -Recurse -File | ForEach-Object { $rel=$_.FullName.Substring($p.Length+1); $dst=Join-Path (Join-Path $p 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; $m++ } }; Write-Host ('    ' + $m + ' sound payload(s) staged')"
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$p='%PROJ%'; $base=Join-Path $p 'zone_assets\soundbank\mod.all.aliases.csv'; $add=Join-Path $p 'soundbank\mod.all.aliases.additions.csv'; $rows=@(Get-Content $base); $out=@($rows[0]); $mine=@(); $own=@{}; if(Test-Path $add){ $ar=@(Get-Content $add); foreach($r in $ar[1..($ar.Count-1)]){ if($r.Trim() -eq ''){continue}; $mine += $r; $own[($r -split ',')[0]]=$true } }; $drop=0; for($i=1;$i -lt $rows.Count;$i++){ if($own.ContainsKey((($rows[$i]) -split ',')[0])){ $drop++ } else { $out += $rows[$i] } }; $out += $mine; Set-Content -LiteralPath $base -Value $out -Encoding ASCII; Write-Host ('    ' + $mine.Count + ' alias row(s) from this mod (' + $own.Count + ' distinct names, ' + $drop + ' cached row(s) replaced), ' + ($out.Count-1) + ' total'); $m=0; $src=Join-Path $p 'sound'; if(Test-Path $src){ Get-ChildItem -LiteralPath $src -Recurse -File | ForEach-Object { $rel=$_.FullName.Substring($p.Length+1); $dst=Join-Path (Join-Path $p 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; $m++ } }; Write-Host ('    ' + $m + ' sound payload(s) staged')"
 if errorlevel 1 ( echo   ERROR: could not stage this mod's sounds. & exit /b 1 )
 
 REM --- link -------------------------------------------------------------------
