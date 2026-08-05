@@ -173,6 +173,15 @@ REM  models, fx, bottle weapon, HUD material and vision file are in zm_prison.ff
 REM  and BOTH halves of its script - maps\mp\zombies\_zm_perk_electric_cherry.gsc
 REM  and the matching .csc - are in zm_prison_patch.ff.
 REM
+REM  zm_highrise is loaded for WHO'S WHO. Only four assets are taken from it -
+REM  the bottle weapon, its view/world models and the HUD icon material - and
+REM  they all live in zm_highrise.ff, so the _patch is NOT needed here. Who's Who
+REM  needs no client script of its own: _zm_chugabud.gsc is a CORE module and its
+REM  client-side extras (whos_who_audio/_filter, the clone glow shader, the
+REM  zm_whos_who visionset) are all gated behind level.whos_who_client_setup and
+REM  level.vsmgr_prio_visionset_zm_whos_who, which ONLY Die Rise sets. Off Die
+REM  Rise the perk self-gates down to one clientfield and no client assets.
+REM
 REM  🛑 Do NOT put REM lines between the caret-continued --load arguments below.
 REM  cmd does not treat them as comments there - they are passed to the Linker as
 REM  arguments, and it fails with: Could not find zone definition file for
@@ -189,6 +198,7 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\zm_prison_patch.ff" ^
   --load "%BO2_DIR%\zone\all\zm_buried.ff" ^
   --load "%BO2_DIR%\zone\all\zm_buried_patch.ff" ^
+  --load "%BO2_DIR%\zone\all\zm_highrise.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^
