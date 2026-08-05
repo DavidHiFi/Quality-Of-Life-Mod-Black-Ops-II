@@ -594,6 +594,10 @@ zmqol_wf_place()
 			a_place[i] = zmqol_wf_wall_snap( a_place[i] );
 	}
 
+	//  Every machine, on every map, gets pushed out of whatever it is buried in.
+	for( i = 0; i < a_place.size; i++ )
+		a_place[i] = zmqol_wf_unclip( a_place[i] );
+
 	for( i = 0; i < a_place.size; i++ )
 		wunderfizzSetup( a_place[i].origin, a_place[i].angles, a_place[i].model );
 
@@ -919,6 +923,68 @@ zmqol_wf_wall_snap( s_place )
 	s_place.angles = ( 0, n_out + getdvarintdefault( "zmqol_wf_yaw_off", 90 ), 0 );
 
 	println( "[zm_qol] wunderfizz: wall snap (" + int( v_seed[0] ) + "," + int( v_seed[1] ) + "," + int( v_seed[2] ) + ") seed yaw " + n_yaw + " -> (" + int( s_place.origin[0] ) + "," + int( s_place.origin[1] ) + "," + int( s_place.origin[2] ) + ") wall normal yaw " + int( n_out ) + ", gap " + n_clear + ", wall was " + int( distance( v_from, v_hit ) ) + " away" );
+
+	return s_place;
+}
+
+// ============================================================================
+//  zmqol_wf_unclip  -  no machine ends up sunk into a wall, on any map
+//
+//  User: "on tranzit / bus depot the wunderfizz machine is slightly pushed in too
+//  far into the wall here, just move it forwards a small amount... also the
+//  wunderfizz in the tunnel in tranzit is slightly clipped into the wall so move
+//  that one forwards as well, make sure none of the wunderfizz machines on any
+//  maps that were added via my mod are not slightly clipped into the wall."
+//
+//  Fixing the two reported coordinates by hand would have left twenty-odd others
+//  unchecked, on maps nobody has walked yet. So this measures instead: it traces
+//  backwards out of every machine and pushes it forward by however much it is
+//  short. A placement that already clears its wall is not touched at all.
+//
+//  🛑 THE 29 IS MEASURED, NOT CHOSEN. Dumped the mod's own machine model with
+//      Unlinker --include-assets xmodel --model-format GLB
+//  and read the POSITION accessor bounds out of the GLB's JSON chunk:
+//
+//      74 wide    55.8 deep    108 tall
+//
+//  and the depth runs -28.8 to +27.1 about the origin, so the back face sits
+//  28.8 units behind it. 29 is that plus a unit of daylight.
+//
+//  📝 That number independently confirms zmqol_wf_wall_gap's 30, which was arrived
+//  at by two rounds of trial and error against the user's eye. Worth noting for
+//  next time: the answer was readable offline the whole way through.
+//
+//  Traced at +40 rather than at the origin because the origin sits on the floor,
+//  where a trace catches the skirting, a kerb or the floor bevel instead of the
+//  wall the cabinet's back actually meets.
+// ============================================================================
+zmqol_wf_unclip( s_place )
+{
+	n_need = getdvarintdefault( "zmqol_wf_wall_gap", 30 );
+
+	//  front = placement yaw - 90 for this model (zmqol_wf_wall_snap explains the
+	//  convention), so the back faces placement yaw + 90.
+	v_back  = anglestoforward( ( 0, s_place.angles[1] + 90, 0 ) );
+	v_front = ( 0 - v_back[0], 0 - v_back[1], 0 );
+
+	v_from = s_place.origin + ( 0, 0, 40 );
+	v_to   = v_from + ( v_back[0] * n_need, v_back[1] * n_need, 0 );
+
+	trace = bullettrace( v_from, v_to, 0, undefined );
+
+	if( trace[ "fraction" ] >= 1 )
+		return s_place;
+
+	n_have = n_need * trace[ "fraction" ];
+	n_push = n_need - n_have;
+
+	//  Sub-unit corrections are noise, not clipping.
+	if( n_push < 1 )
+		return s_place;
+
+	s_place.origin = s_place.origin + ( v_front[0] * n_push, v_front[1] * n_push, 0 );
+
+	println( "[zm_qol] wunderfizz: unclipped by " + int( n_push ) + " (wall was " + int( n_have ) + " behind, wanted " + n_need + ") -> (" + int( s_place.origin[0] ) + "," + int( s_place.origin[1] ) + "," + int( s_place.origin[2] ) + ")" );
 
 	return s_place;
 }
