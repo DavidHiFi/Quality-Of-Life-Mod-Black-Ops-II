@@ -2584,6 +2584,22 @@ zmqol_dev_command_listener()
                 player iprintln( "^2[zm_qol] infinite ammo ON" );
             }
         }
+        else if ( cmd == "infinitesprint" || cmd == "infsprint" )
+        {
+            if ( isdefined( player.zmqol_infsprint ) && player.zmqol_infsprint )
+            {
+                player.zmqol_infsprint = 0;
+                player notify( "zmqol_infsprint_off" );
+                player unsetperk( "specialty_unlimitedsprint" );
+                player iprintln( "^1[zm_qol] infinite sprint OFF" );
+            }
+            else
+            {
+                player.zmqol_infsprint = 1;
+                player thread zmqol_infinite_sprint_think();
+                player iprintln( "^2[zm_qol] infinite sprint ON" );
+            }
+        }
         else if ( cmd == "reload" )
         {
             player zmqol_fill_all_ammo();
@@ -3016,7 +3032,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.help ^7show/hide   ^3.p <n> ^7points   ^3.where ^7coords";
     a_lines[a_lines.size] = "^3.god ^7godmode   ^3.ghost ^7ignored   ^3.afk ^7both";
     a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance = up/down)";
-    a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.reload ^7refill everything";
+    a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
     a_lines[a_lines.size] = "^3.giveperks ^7/ ^3.removeperks ^7   ^3.nozmspawns ^7toggle spawns";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
@@ -3330,6 +3346,33 @@ zmqol_fill_all_ammo()
             if ( n_altclip > 0 )
                 self setweaponammoclip( str_alt, n_altclip );
         }
+    }
+}
+
+//  Infinite sprint, for .infsprint / .infinitesprint.
+//
+//  specialty_unlimitedsprint is the engine's own "the sprint meter never empties"
+//  flag, not something scripted on top of the meter, so there is no drain loop to
+//  fight and no HUD to hide. It is verified stock and verified ZM-side:
+//  _zm_turned.gsc:117 sets it on a turned player and :191 unsets it again, which
+//  is also where the clean off-switch comes from.
+//
+//  🛑 IT IS RE-APPLIED ON EVERY SPAWN rather than set once. A specialty lives on
+//  the player entity, and going down and being revived - or bleeding out into a
+//  respawn - hands you a player whose specialties have been rebuilt from the perks
+//  you actually hold. Set once, the toggle would read ON in the player's own state
+//  while the engine had quietly dropped it, which is worse than not having it. The
+//  loop costs one notify per spawn.
+zmqol_infinite_sprint_think()
+{
+    self endon( "disconnect" );
+    self endon( "zmqol_infsprint_off" );
+    level endon( "game_ended" );
+
+    for ( ;; )
+    {
+        self setperk( "specialty_unlimitedsprint" );
+        self waittill( "spawned_player" );
     }
 }
 
