@@ -3031,7 +3031,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^5Quality Of Life ^7- chat commands (prefix ^3.^7 ^3!^7 or ^3/^7)";
     a_lines[a_lines.size] = "^3.help ^7show/hide   ^3.p <n> ^7points   ^3.where ^7coords";
     a_lines[a_lines.size] = "^3.god ^7godmode   ^3.ghost ^7ignored   ^3.afk ^7both";
-    a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance = up/down)";
+    a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance up/down, melee stops)";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
     a_lines[a_lines.size] = "^3.giveperks ^7/ ^3.removeperks ^7   ^3.nozmspawns ^7toggle spawns";
@@ -3500,6 +3500,48 @@ zmqol_fly_key_watch( str_notify, str_key, n_val )
     }
 }
 
+// ============================================================================
+//  zmqol_fly_clear_keys  -  🛑 THE FIX FOR "IT KEEPS MOVING BY ITSELF"
+//
+//  User: "the .fly command sometimes is weird sometimes when i do it, it keeps
+//  moving by itself but sometimes it works fine".
+//
+//  The held-key state is built from EDGES, not from polling - +forward sets the
+//  flag, -forward clears it, because getnormalizedmovement() does not exist in
+//  this build and WASD cannot be read any other way. Edge tracking has one
+//  failure mode and this is it: MISS A RELEASE AND THE KEY IS HELD FOREVER.
+//
+//  And there is a release that is very easy to miss, built into how the command
+//  is issued. You type .fly IN CHAT. Opening chat takes keyboard focus away from
+//  movement, so a W that was down when the chat box opened can have its key-up
+//  swallowed - the client sends +forward and never sends -forward. The flag is
+//  now stuck at 1, and it stays stuck for the rest of the match because these
+//  watcher threads run whether or not anyone is flying.
+//
+//  That is exactly the reported shape: intermittent, tied to the moment of
+//  toggling, and "sometimes it works fine" - it works whenever you happened to be
+//  standing still as you opened chat.
+//
+//  So the flags are wiped at every takeoff and every landing. A stuck key can no
+//  longer outlive one flight, and cannot leak into the next one. If a key really
+//  is still physically down after a wipe, the next press re-sets it; the cost of
+//  being wrong here is one keystroke, against a permanent drift.
+//
+//  📝 The general shape, worth keeping: EDGE-DERIVED STATE NEEDS A RESYNC POINT.
+//  If you cannot poll the truth, at least re-zero at a moment when you know what
+//  the state should be. Takeoff is that moment.
+// ============================================================================
+zmqol_fly_clear_keys()
+{
+    if ( !isdefined( self.zmqol_fly_keys ) )
+        return;
+
+    self.zmqol_fly_keys["f"] = 0;
+    self.zmqol_fly_keys["b"] = 0;
+    self.zmqol_fly_keys["l"] = 0;
+    self.zmqol_fly_keys["r"] = 0;
+}
+
 zmqol_fly_think()
 {
     level endon( "game_ended" );
@@ -3516,6 +3558,12 @@ zmqol_fly_think()
     e_mover.angles = self.angles;
 
     self zmqol_fly_bind_wasd();
+
+    // Takeoff resync - see zmqol_fly_clear_keys(). Without this a key-up that was
+    // swallowed while the chat box had focus leaves you drifting the instant you
+    // lift off, which is the whole "it keeps moving by itself" report.
+    self zmqol_fly_clear_keys();
+
     self playerlinkto( e_mover );
 
     // 🛑 WITHOUT THIS, FLYING KILLS YOU, AND IT READS AS "FLY IS BROKEN".
@@ -3571,6 +3619,9 @@ zmqol_fly_think()
         self unlink();
         self.zmqol_fly = 0;
 
+        // Landing resync, so nothing left over can leak into the next takeoff.
+        self zmqol_fly_clear_keys();
+
         // Only give back what fly itself turned on - .god / .ghost / .afk own
         // these flags too and must survive a landing.
         if ( ( !isdefined( self.zmqol_ghost ) || !self.zmqol_ghost ) && ( !isdefined( self.zmqol_afk ) || !self.zmqol_afk ) )
@@ -3615,7 +3666,6 @@ zmqol_fly_move( e_mover )
     level endon( "game_ended" );
 
     n_speed = 20;
-    n_probe = 0;
 
     for ( ;; )
     {
@@ -3625,6 +3675,18 @@ zmqol_fly_move( e_mover )
         v_angles = self getplayerangles();
         v_pos = e_mover.origin;
         b_moved = 0;
+
+        // 🛑 PANIC RELEASE. Melee is the one button with nothing bound to it while
+        // linked, and unlike WASD it can be POLLED - so it is the one control that
+        // cannot get stuck. Tapping it drops every movement flag.
+        //
+        // The takeoff resync should mean this is never needed. It is here because
+        // the failure it covers is unfalsifiable from script: if the client ever
+        // swallows a key-up mid-flight, nothing server-side can tell, and without
+        // an escape hatch the only way out is to land and take off again. One
+        // pollable button removes that whole class of stuck state.
+        if ( self meleebuttonpressed() )
+            self zmqol_fly_clear_keys();
 
         // WASD, from the notifyonplayercommand binds set up in
         // zmqol_fly_bind_wasd(). Mouse buttons are deliberately NOT used any
@@ -3645,17 +3707,10 @@ zmqol_fly_move( e_mover )
         if ( self sprintbuttonpressed() )
             n_step = n_speed * 2.5;
 
-        // PROBE - remove once WASD is confirmed. If these stay 0 0 while the
-        // keys are held, the client does not emit +forward/+moveright while
-        // playerlinkto'd and the notify route is dead too - at which point the
-        // only remaining answer is t6-gsc-utils' native ufo().
-        if ( n_probe < 100 )
-        {
-            println( "[zm_qol] fly wasd: f=" + self.zmqol_fly_keys["f"] + " b=" + self.zmqol_fly_keys["b"]
-                     + " l=" + self.zmqol_fly_keys["l"] + " r=" + self.zmqol_fly_keys["r"]
-                     + " -> fwd=" + n_fwd + " rgt=" + n_rgt );
-            n_probe++;
-        }
+        // (The WASD probe that printed a line per tick lived here. It existed to
+        // prove notifyonplayercommand reaches a linked player, which it plainly
+        // does - the controls work. It was 100 log lines per flight and the file
+        // said to delete it once confirmed, so: deleted.)
 
         if ( n_fwd != 0 )
         {
@@ -3681,8 +3736,23 @@ zmqol_fly_move( e_mover )
             b_moved = 1;
         }
 
+        // 🛑 AN IDLE TICK ISSUES A STOP, IT DOES NOT JUST SKIP.
+        //
+        // Previously an idle tick did nothing at all, which quietly assumed the
+        // last moveto had already finished. It usually has - 0.05s of travel per
+        // 0.05s of wait - but the server tick is not exactly 20Hz, and a frame
+        // that runs short leaves the mover still interpolating toward a target
+        // nobody is refreshing any more. The player keeps coasting after the key
+        // is up.
+        //
+        // moveto() to the mover's CURRENT origin overrides the one in flight and
+        // parks it, so releasing everything stops you on the frame you release.
+        // Small on its own; it is the other half of "keeps moving by itself", and
+        // the half that survives even a perfectly tracked keyboard.
         if ( b_moved )
             e_mover moveto( v_pos, 0.05 );
+        else
+            e_mover moveto( e_mover.origin, 0.05 );
 
         wait 0.05;
     }
