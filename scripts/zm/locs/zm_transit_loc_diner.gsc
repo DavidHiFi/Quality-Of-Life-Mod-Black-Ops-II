@@ -45,26 +45,44 @@ struct_init()
 	// offline. Assume nothing about a T6 prop's forward axis; get it from one look
 	// in game, which is precisely what the dvar is for.
 	//
-	// Position, v1.47.0: (-6207,-7668) -> (-6290,-7656). The facing was accepted
-	// this round - the complaint is only "move it into the correct position up
-	// against the railing properly" - so the yaw stays at 90 and this is a slide
-	// along the north parapet, west and hard against it.
+	// ✅ v1.48.0 - MEASURED, NOT ESTIMATED. The user stood on the spot, facing the
+	// way the machine should face, and ran .where:
 	//
-	// -7656 is the parapet's own pathnode row. Nodes stand off geometry by roughly
-	// 20 units and the cabinet is about that deep from its origin, so its back
-	// lands on the wall rather than in it. West to -6290 follows the direction the
-	// user's arrow points, which runs past the vent housing toward the roof's far
-	// corner.
+	//     x -6384   y -7718   z 226   yaw 3
 	//
-	// ⚠️ THIS IS THE FOURTH POSITION AND IT IS STILL DERIVED FROM A SCREENSHOT.
-	// Estimating a world coordinate from a photograph has now been wrong three
-	// times, and the failure is systematic rather than unlucky: pixel offsets do
-	// not carry distance, so "over there" resolves to a 200-unit-wide band. The
-	// numbers below are dvars precisely so this does not need a fourth guess -
-	// stand where the machine should be, face the way it should face, run .where,
-	// and those two numbers ARE the answer with nothing inferred.
-	v_pap = ( getdvarintdefault( "zmqol_pap_diner_x", -6290 ), getdvarintdefault( "zmqol_pap_diner_y", -7656 ), getdvarintdefault( "zmqol_pap_diner_z", 228 ) );
-	scripts\zm\replaced\utility::register_perk_struct("specialty_weapupgrade", "p6_anim_zm_buildable_pap_on", v_pap, (0, getdvarintdefault( "zmqol_pap_diner_yaw", 90 ), 0));
+	// That one line is the whole specification and it replaces four
+	// screenshot-derived guesses. A photograph carries direction but not distance,
+	// so "over there" always resolved to a band a couple of hundred units wide.
+	// A .where line has no band.
+	//
+	// Two corrections on top, both measured rather than felt:
+	//
+	// 1. YAW 3 -> 180. The roof is axis-aligned, so a hand-aimed 3 means 0: the
+	//    FRONT should point at world +X. Front = placement + 180 for this model
+	//    (established the hard way across v1.45/v1.46), so placement = 180.
+	//
+	// 2. X -6384 -> -6378, for the difference between a player's box and a
+	//    cabinet. 🛑 THE DEPTH IS NOW KNOWN RATHER THAN ASSUMED. Dumped the model,
+	//        Unlinker --include-assets xmodel --model-format GLB <map>.ff
+	//    and read the POSITION accessor bounds straight out of the GLB's JSON
+	//    chunk:
+	//
+	//        85.7 wide    47.5 deep    92.9 tall
+	//
+	//    and the depth is ASYMMETRIC about the origin - it runs -27.2 to +20.3 on
+	//    the front-back axis. The back face is only 20.3 units behind the origin
+	//    while the front sticks out 27.2. A player's box is 30 wide, so someone
+	//    standing with their back to a wall has their origin ~15 units off it and
+	//    this cabinet needs ~20. Six units further from the wall puts the
+	//    machine's back exactly where the user's back was.
+	//
+	// 📝 AN XMODEL'S REAL BOUNDING BOX IS READABLE OFFLINE - every GLB carries
+	// min/max per accessor. Model dimensions never have to be estimated again, and
+	// "how far off the wall" stops being a matter of taste. This is the same class
+	// of win as the mapents dump: the game files answer it, so do not reason about
+	// it.
+	v_pap = ( getdvarintdefault( "zmqol_pap_diner_x", -6378 ), getdvarintdefault( "zmqol_pap_diner_y", -7718 ), getdvarintdefault( "zmqol_pap_diner_z", 226 ) );
+	scripts\zm\replaced\utility::register_perk_struct("specialty_weapupgrade", "p6_anim_zm_buildable_pap_on", v_pap, (0, getdvarintdefault( "zmqol_pap_diner_yaw", 180 ), 0));
 
 	restore_diner_hatch();
 
