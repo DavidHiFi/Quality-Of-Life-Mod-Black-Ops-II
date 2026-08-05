@@ -4075,6 +4075,83 @@ perks()
 
     zmqol_enable_electric_cherry();
     zmqol_enable_vulture();
+    zmqol_enable_whoswho();
+}
+
+// ============================================================================
+//  zmqol_whoswho_enabled  -  THE ONE map list, asked by both sides
+//
+//  Who's Who is Die Rise's perk. Stage 1 of putting every BO2 perk on every map.
+//
+//  📝 IT IS THE CHEAPEST OF THE FOUR REMAINING PERKS - exactly ONE clientfield
+//  bit - and that is not luck, it is because stock self-gates:
+//      level.whos_who_client_setup            gates the corpse glow shader, and
+//                                             clientfield_whos_who_audio/_filter
+//      level.vsmgr_prio_visionset_zm_whos_who gates the zm_whos_who visionset
+//  BOTH are set ONLY by zm_highrise (zm_highrise.gsc:81 and :133-134). Off Die
+//  Rise every one of those code paths is skipped, so enabling the perk costs
+//  `perk_chugabud` (1 bit, toplayer) and nothing else. In particular it CANNOT
+//  reproduce the Vulture overlay_lerp mismatch, because it registers no overlay
+//  and no visionset on either side.
+//
+//  🛑 MOB OF THE DEAD IS EXCLUDED, AND NOT FOR THE USUAL BUDGET REASON.
+//  Stock's Who's Who HUD icon is `specialty_quickrevive_zombies` (the perk is
+//  revive-adjacent and reuses it - see _zm_perks.gsc:212 vs :256, the revive
+//  block and the chugabud block precaching the same shader). Every map ships
+//  that material EXCEPT Mob, which has no Quick Revive at all - confirmed with
+//  Unlinker --list over all six map fastfiles plus common_zm.ff, not assumed.
+//  Mob therefore needs an asset the other four do not, and it is also the map
+//  whose toplayer set is already known full. It comes in at STAGE 2, together
+//  with Quick Revive, which needs that same shader - one asset, two perks, one
+//  boot test.
+//
+//  🛑 AND IT LIVES IN ONE FUNCTION FOR A REASON. v1.49.0 wrote the Vulture map
+//  list into three places, forgot one, and turned a boot crash into a different
+//  boot crash. Same discipline here: this function is the only list, and
+//  zm_expanded.csc's twin is the one unavoidable copy (separate compilation
+//  unit) - check it first if the sets ever disagree.
+// ============================================================================
+zmqol_whoswho_enabled()
+{
+    map = getDvar( "mapname" );
+
+    if ( map == "zm_highrise" )   // ships the perk itself
+        return 0;
+
+    if ( map == "zm_prison" )     // no specialty_quickrevive_zombies - stage 2
+        return 0;
+
+    return 1;
+}
+
+// ============================================================================
+//  zmqol_enable_whoswho
+//
+//  Setting the flag is the whole job. Unlike Electric Cherry and Vulture Aid,
+//  Who's Who is NOT a custom perk - it is one of the nine stock
+//  level.zombiemode_using_*_perk flags, so _zm_perks::perks_register_clientfield
+//  registers its clientfield and _zm_perks::init() threads turn_chugabud_on()
+//  off the back of the same flag. There is no _register_undefined_perk() call to
+//  make and no perk_machine_thread pointer to clear afterwards.
+//
+//  turn_chugabud_on() calls _zm_chugabud::init() and then blocks forever on
+//  `level waittill( "chugabud_on" )` after finding getentarray("vending_chugabud")
+//  empty - which is exactly the harmless idle the Electric Cherry loop settles
+//  into. _zm_chugabud::init() is what sets level.chugabud_laststand_func, so it
+//  MUST run; letting stock's own thread call it is what gets that for free.
+//
+//  Called from perks(), which runs in main(). Clientfields have to be registered
+//  before the first snapshot, so this cannot move to init().
+//
+//  🛑 NOT verified in game yet. Requires build.bat AND build_ff.bat (the bottle
+//  weapon is a new mod.ff asset).
+// ============================================================================
+zmqol_enable_whoswho()
+{
+    if ( !zmqol_whoswho_enabled() )
+        return;
+
+    level.zombiemode_using_chugabud_perk = 1;
 }
 
 // ============================================================================
@@ -4628,19 +4705,59 @@ default_vending_precaching()
         level.machine_assets["tombstone"].on_model = "zombie_vending_tombstone_on";
     }
 
+    //  ------------------------------------------------------------------
+    //  WHO'S WHO. Stock's version of this block precaches EIGHT things; off
+    //  Die Rise only three of them exist, so it is split in two.
+    //
+    //  🛑 THREE OF STOCK'S PRECACHES ARE FATAL OFF DIE RISE, and precaching an
+    //  absent model/item is a hard load failure, not a warning:
+    //      p6_zm_vending_chugabud / _on   the physical MACHINE - zm_highrise.ff
+    //                                     only. There is no Who's Who machine
+    //                                     anywhere else; the Wunderfizz hands
+    //                                     the perk out, so nothing ever
+    //                                     setmodel()s these and dropping them
+    //                                     costs nothing.
+    //      ch_tombstone1                  zm_transit.ff only. Stock precaches it
+    //                                     HERE, in the chugabud block, but
+    //                                     _zm_chugabud.gsc never references it
+    //                                     even once - verified by grep over the
+    //                                     whole 785-line module. It is a
+    //                                     copy-paste from the tombstone block
+    //                                     directly above. Carrying it would make
+    //                                     five maps fail to load for an asset
+    //                                     the perk does not use. It becomes real
+    //                                     work in STAGE 3 (Tombstone).
+    //
+    //  What IS mandatory is the bottle WEAPON. _zm_perks::perk_give_bottle_begin
+    //  does `weapon = level.machine_assets["whoswho"].weapon; self giveweapon(
+    //  weapon )`, so without it the GIVE fails, not merely the animation. It now
+    //  ships in mod.ff (zone_source\mod_locations.zone), which loads on every
+    //  map, alongside its view/world models and the HUD icon material.
+    //
+    //  off_model/on_model are left UNDEFINED off Die Rise on purpose. Their only
+    //  readers are the perk-machine loops, which iterate
+    //  getentarray("vending_chugabud", ...) - empty here - so an undefined value
+    //  is never dereferenced, whereas a name pointing at an unprecached model is
+    //  a live trap for whoever adds a machine later.
+    //  ------------------------------------------------------------------
     if ( isdefined( level.zombiemode_using_chugabud_perk ) && level.zombiemode_using_chugabud_perk )
     {
         precacheitem( "zombie_perk_bottle_whoswho" );
         precacheshader( "specialty_quickrevive_zombies" );
-        precachemodel( "p6_zm_vending_chugabud" );
-        precachemodel( "p6_zm_vending_chugabud_on" );
-        precachemodel( "ch_tombstone1" );
         precachestring( &"ZOMBIE_PERK_TOMBSTONE" );
         level._effect["tombstone_light"] = loadfx( "misc/fx_zombie_cola_on" );
         level.machine_assets["whoswho"] = spawnstruct();
         level.machine_assets["whoswho"].weapon = "zombie_perk_bottle_whoswho";
-        level.machine_assets["whoswho"].off_model = "p6_zm_vending_chugabud";
-        level.machine_assets["whoswho"].on_model = "p6_zm_vending_chugabud_on";
+
+        //  Die Rise owns a real Who's Who machine, so it keeps stock's models.
+        if ( level.script == "zm_highrise" )
+        {
+            precachemodel( "p6_zm_vending_chugabud" );
+            precachemodel( "p6_zm_vending_chugabud_on" );
+            precachemodel( "ch_tombstone1" );
+            level.machine_assets["whoswho"].off_model = "p6_zm_vending_chugabud";
+            level.machine_assets["whoswho"].on_model = "p6_zm_vending_chugabud_on";
+        }
     }
 
     if ( level._custom_perks.size > 0 )

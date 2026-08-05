@@ -285,6 +285,46 @@ perks()
 
 	zmqol_enable_electric_cherry();
 	zmqol_enable_vulture();
+	zmqol_enable_whoswho();
+}
+
+// ============================================================================
+//  zmqol_enable_whoswho  (CLIENT)
+//
+//  The mandatory other half of zmqol_enable_whoswho() in
+//  scripts\zm\quality_of_life.gsc - read the full reasoning there.
+//
+//  🛑 THIS LIST MUST MATCH quality_of_life.gsc::zmqol_whoswho_enabled() EXACTLY.
+//  Both perks_register_clientfield() implementations - stock's and this mod's
+//  override below - gate `perk_chugabud` on level.zombiemode_using_chugabud_perk,
+//  and the client cannot read the server's copy. Set it on one side only and the
+//  toplayer set is one bit wider on that side, which is
+//  EXE_CLIENT_FIELD_MISMATCH for everyone before the map starts.
+//
+//  Only ONE field is at stake here, unlike Vulture's eight: the audio/filter
+//  fields and the zm_whos_who visionset are all behind Die Rise-only level vars
+//  (whos_who_client_setup, vsmgr_prio_visionset_zm_whos_who), so neither side
+//  registers them off Die Rise.
+// ============================================================================
+zmqol_whoswho_enabled()
+{
+	map = getDvar( "mapname" );
+
+	if ( map == "zm_highrise" )   // ships the perk itself
+		return 0;
+
+	if ( map == "zm_prison" )     // no specialty_quickrevive_zombies - stage 2
+		return 0;
+
+	return 1;
+}
+
+zmqol_enable_whoswho()
+{
+	if ( !zmqol_whoswho_enabled() )
+		return;
+
+	level.zombiemode_using_chugabud_perk = 1;
 }
 
 // ============================================================================
