@@ -45,11 +45,25 @@ struct_init()
 	// offline. Assume nothing about a T6 prop's forward axis; get it from one look
 	// in game, which is precisely what the dvar is for.
 	//
-	// The position: the parapet it backs onto is the NORTH one. Its pathnode row
-	// sits at y -7656 and nodes stand off geometry by roughly 20 units, so the wall
-	// is near y -7636; -7668 puts the machine's back close to it without risking
-	// the cabinet inside it. It was at -7708, a good 70 units out in the open.
-	v_pap = ( getdvarintdefault( "zmqol_pap_diner_x", -6207 ), getdvarintdefault( "zmqol_pap_diner_y", -7668 ), getdvarintdefault( "zmqol_pap_diner_z", 228 ) );
+	// Position, v1.47.0: (-6207,-7668) -> (-6290,-7656). The facing was accepted
+	// this round - the complaint is only "move it into the correct position up
+	// against the railing properly" - so the yaw stays at 90 and this is a slide
+	// along the north parapet, west and hard against it.
+	//
+	// -7656 is the parapet's own pathnode row. Nodes stand off geometry by roughly
+	// 20 units and the cabinet is about that deep from its origin, so its back
+	// lands on the wall rather than in it. West to -6290 follows the direction the
+	// user's arrow points, which runs past the vent housing toward the roof's far
+	// corner.
+	//
+	// ⚠️ THIS IS THE FOURTH POSITION AND IT IS STILL DERIVED FROM A SCREENSHOT.
+	// Estimating a world coordinate from a photograph has now been wrong three
+	// times, and the failure is systematic rather than unlucky: pixel offsets do
+	// not carry distance, so "over there" resolves to a 200-unit-wide band. The
+	// numbers below are dvars precisely so this does not need a fourth guess -
+	// stand where the machine should be, face the way it should face, run .where,
+	// and those two numbers ARE the answer with nothing inferred.
+	v_pap = ( getdvarintdefault( "zmqol_pap_diner_x", -6290 ), getdvarintdefault( "zmqol_pap_diner_y", -7656 ), getdvarintdefault( "zmqol_pap_diner_z", 228 ) );
 	scripts\zm\replaced\utility::register_perk_struct("specialty_weapupgrade", "p6_anim_zm_buildable_pap_on", v_pap, (0, getdvarintdefault( "zmqol_pap_diner_yaw", 90 ), 0));
 
 	restore_diner_hatch();
