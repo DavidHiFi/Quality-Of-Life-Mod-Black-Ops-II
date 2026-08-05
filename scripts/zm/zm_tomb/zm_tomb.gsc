@@ -210,7 +210,88 @@ init()
     level thread zmqol_disable_staff_relay_switches();
     level thread zmqol_remove_survival_ee_props();
     level thread zmqol_open_stock_barriers();
+    level thread zmqol_wunderfizz_all_perks();
     added_weapons();
+}
+
+// ============================================================================
+//  zmqol_wunderfizz_all_perks  -  the mod's perks, out of ORIGINS' OWN machines
+//
+//  User: "get rid of them keep the vanilla ones and just add all perks to the
+//  machine like the other maps with the added machine... make sure that every map
+//  with the real actual wunderfizz machine let's you get all 11 perks."
+//
+//  So the split on Origins is now: STOCK OWNS THE MACHINE, THE MOD OWNS WHAT
+//  COMES OUT OF IT. The added machine is gone from wunderfizz.gsc; this puts the
+//  extra perks into the rotation the map's own four machines already draw from.
+//
+//  level._random_perk_machine_perk_list is that rotation, and
+//  _zm_perk_random::include_perk_in_random_rotation() is stock's own way to add to
+//  it (_zm_perk_random.gsc:485) - so nothing here overrides a stock function or
+//  reimplements one. get_weighted_random_perk() then skips whatever the player
+//  already holds, exactly as before.
+//
+//  ⚠️ WHY THIS IS NOT ELEVEN ON ORIGINS. Vulture Aid cannot be enabled here at
+//  all - Origins' ACTOR clientfield set has no room for vulture_perk_actor, which
+//  is what made Classic Origins refuse to boot; see zmqol_vulture_enabled() in
+//  ridgelandproject.gsc. Every OTHER perk the mod can enable is added below, and
+//  the purchase cap is no longer the thing standing in the way. Getting the
+//  eleventh onto this map means freeing those two bits, which needs the client
+//  script shipped as raw text instead of compiled bytecode.
+//
+//  🛑 This file is map-specific, which is the only reason the qualified reference
+//  to _zm_perk_random is legal - that module ships in zm_tomb.ff and nowhere
+//  else, so the same line in a root script would throw "Unresolved external" on
+//  the other five maps. AI_CONTEXT rule 2.
+// ============================================================================
+zmqol_wunderfizz_all_perks()
+{
+    level waittill( "start_of_round" );
+    wait 0.05;
+
+    a_perks = scripts\zm\wunderfizz::getPerks();
+
+    if ( !isdefined( a_perks ) || a_perks.size < 1 )
+        return;
+
+    if ( !isdefined( level._random_perk_machine_perk_list ) )
+        level._random_perk_machine_perk_list = [];
+
+    n_added = 0;
+
+    for ( i = 0; i < a_perks.size; i++ )
+    {
+        str_perk = a_perks[i];
+
+        // Only perks the level actually registered - offering one the map never
+        // set up hands out a bottle that does nothing, which is the half-dead
+        // state Electric Cherry was in before v1.36.0.
+        if ( !isdefined( level._custom_perks ) || !isdefined( level._custom_perks[ str_perk ] ) ||
+             !isdefined( level._custom_perks[ str_perk ].player_thread_give ) )
+        {
+            if ( !zmqol_tomb_perk_is_stock( str_perk ) )
+                continue;
+        }
+
+        if ( isinarray( level._random_perk_machine_perk_list, str_perk ) )
+            continue;
+
+        maps\mp\zombies\_zm_perk_random::include_perk_in_random_rotation( str_perk );
+        n_added++;
+    }
+
+    println( "[zm_qol] origins: added " + n_added + " perk(s) to the native Wunderfizz rotation, list is now " + level._random_perk_machine_perk_list.size );
+}
+
+//  The perks Origins registers itself, which do not appear in level._custom_perks
+//  because they are core rather than custom.
+zmqol_tomb_perk_is_stock( str_perk )
+{
+    a_stock = array( "specialty_armorvest", "specialty_quickrevive", "specialty_fastreload",
+                     "specialty_rof", "specialty_longersprint", "specialty_additionalprimaryweapon",
+                     "specialty_deadshot", "specialty_flakjacket", "specialty_scavenger" );
+
+    return isinarray( a_stock, str_perk );
 }
 
 // ============================================================================

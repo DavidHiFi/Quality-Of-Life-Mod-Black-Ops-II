@@ -476,7 +476,22 @@ setupWunderfizz()
 
 	if(level.script == "zm_tomb")
     {
-		zmqol_wf_add((2468,4459,-316), (0,180,0), zmqol_wf_machine_model());
+		//  🛑 NO ADDED MACHINE ON ORIGINS. User, twice: "the added wunderfizz
+		//  machines are still there in origins get rid of them keep the vanilla
+		//  ones and just add all perks to the machine like the other maps."
+		//
+		//  Origins is the map the Wunderfizz comes FROM. It already has four of
+		//  them, with the real model, the real animations, the real fx and the
+		//  real sounds, and they move between locations on their own. Everything
+		//  this file rebuilds by hand off Origins is native here, so adding a
+		//  fifth was only ever duplicating the map's own furniture with a worse
+		//  copy of it.
+		//
+		//  What the mod contributes on Origins instead is the PERK LIST - see
+		//  scripts\zm\zm_tomb\zm_tomb.gsc, which feeds every perk this mod enables
+		//  into level._random_perk_machine_perk_list so the map's own machines
+		//  hand them out. That is the right split: stock owns the machine, the mod
+		//  owns what comes out of it.
     }
     else if(level.script == "zm_nuked")
     {

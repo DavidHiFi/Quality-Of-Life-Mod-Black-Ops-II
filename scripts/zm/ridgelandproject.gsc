@@ -2005,7 +2005,20 @@ remove_perk_limit()
     level waittill( "start_of_round" );
     wait 0.05;
 
-    n_limit = 9;
+    // 🛑 THE FLOOR IS 11, NOT 9. User, on Origins: "it says i can only get 9 perks
+    // make sure that every map with the real actual wunderfizz machine let's you
+    // get all 11 perks in bo2 zombies."
+    //
+    // Deriving the cap from getPerks().size was supposed to make the cap follow
+    // the mod, and it does - on the maps where the mod PLACES a machine. Origins
+    // has its own machines and no added one, so nothing here grew past nine and
+    // the old floor became the cap again, which is the exact failure this function
+    // was rewritten to stop.
+    //
+    // Eleven is the number of perks Black Ops II Zombies actually has, so it is a
+    // floor rather than a guess, and the max() below still lets a map with more
+    // than eleven offerings raise it further.
+    n_limit = 11;
     a_perks = scripts\zm\wunderfizz::getPerks();
 
     if ( isdefined( a_perks ) && a_perks.size > n_limit )
@@ -3382,10 +3395,74 @@ zmqol_infinite_ammo_think()
     self endon( "zmqol_infammo_off" );
     level endon( "game_ended" );
 
+    // The half-second sweep keeps stock, alt weapons and equipment topped up.
+    self thread zmqol_infinite_ammo_on_fire();
+
     for ( ;; )
     {
         self zmqol_fill_all_ammo();
         wait 0.5;
+    }
+}
+
+// ============================================================================
+//  zmqol_infinite_ammo_on_fire  -  🛑 A HALF-SECOND SWEEP CANNOT BEAT A 1-ROUND
+//  MAGAZINE
+//
+//  User: "it works but sometimes for some weapons with low magazine counts like
+//  a balistic knife which has 1 or an RPG which has 1 it automatically reloads
+//  but the whole point of infinite ammo is so there's no reload."
+//
+//  The sweep refills every 0.5s, which is fine for a 30-round magazine - you
+//  cannot empty one between ticks. On a 1-round weapon the magazine is empty the
+//  instant you fire, and the engine starts the auto-reload on the NEXT FRAME,
+//  long before the sweep comes round. The refill then lands mid-animation and you
+//  watch a reload for ammo you already have.
+//
+//  So the refill has to happen on the SHOT, not on a timer. "weapon_fired" is the
+//  notify the engine raises on the firing player, and refilling the clip in that
+//  same frame means the magazine is never observed empty and the auto-reload is
+//  never triggered at all - rather than being interrupted, which is not something
+//  script can do.
+//
+//  📝 The general shape: a POLLING fix cannot cover an event that resolves faster
+//  than the poll. When the thing you are correcting is edge-triggered, subscribe
+//  to the edge.
+// ============================================================================
+zmqol_infinite_ammo_on_fire()
+{
+    self endon( "disconnect" );
+    self endon( "zmqol_infammo_off" );
+    level endon( "game_ended" );
+
+    for ( ;; )
+    {
+        self waittill( "weapon_fired" );
+
+        str_weapon = self getcurrentweapon();
+
+        if ( !isdefined( str_weapon ) || str_weapon == "none" )
+            continue;
+
+        n_clip = weaponclipsize( str_weapon );
+
+        if ( n_clip > 0 )
+            self setweaponammoclip( str_weapon, n_clip );
+
+        self givemaxammo( str_weapon );
+
+        // The alt weapon too, so an underbarrel launcher behaves the same way.
+        str_alt = weaponaltweaponname( str_weapon );
+
+        if ( isdefined( str_alt ) && str_alt != "none" )
+        {
+            n_altclip = weaponclipsize( str_alt );
+
+            if ( n_altclip > 0 )
+                self setweaponammoclip( str_alt, n_altclip );
+
+            self givemaxammo( str_alt );
+        }
     }
 }
 
@@ -3580,6 +3657,40 @@ zmqol_fly_think()
         level.player_out_of_playable_area_monitor = 0;
     }
 
+    // 🛑 AND THE LEVEL FLAG ON ITS OWN DOES NOTHING TO A PLAYER ALREADY IN THE
+    // AIR. User: "i keep dying to death barriers... instant game over by mistake
+    // when trying to no clip around."
+    //
+    // Two things were wrong with the block above, and reading the stock function
+    // rather than its name settles both:
+    //
+    // 1. level.player_out_of_playable_area_monitor is only READ AT SPAWN
+    //    (_zm.gsc:1335) to decide whether to start the per-player thread. Clearing
+    //    it mid-game does not stop a thread that is already running - and for
+    //    anyone who has been alive since round 1, it always is. The stash has been
+    //    protecting nobody.
+    //
+    // 2. INVULNERABILITY DOES NOT HELP EITHER, because the monitor takes it off
+    //    you first (_zm.gsc:1516-1519):
+    //
+    //        self disableinvulnerability();
+    //        self.lives = 0;
+    //        self dodamage( self.health + 1000, self.origin );
+    //
+    //    That is the instant game over, and it is why .god did not save the user
+    //    either. A kill that disables invulnerability cannot be blocked by
+    //    enabling invulnerability.
+    //
+    // The thread endons on "stop_player_out_of_playable_area_monitor" and notifies
+    // that itself on entry, so one notify stops it cleanly for THIS player only -
+    // stock's own restart mechanism, used exactly as stock uses it. Restarted on
+    // landing below.
+    //
+    // 📝 The general shape: a level flag that GATES thread creation is not a
+    // runtime switch. Check whether the thing you are turning off reads the flag
+    // continuously or only once, before assuming the flag is a control.
+    self notify( "stop_player_out_of_playable_area_monitor" );
+
     self.ignoreme = 1;
     self enableinvulnerability();
 
@@ -3629,6 +3740,15 @@ zmqol_fly_think()
 
         if ( ( !isdefined( self.zmqol_god ) || !self.zmqol_god ) && ( !isdefined( self.zmqol_afk ) || !self.zmqol_afk ) )
             self disableinvulnerability();
+
+        // Put the death barrier back for this player, unless they are still in a
+        // mode that wants it off. Restarting is safe to do twice: the thread's
+        // first act is to notify its own endon, so a second copy replaces the
+        // first rather than doubling it.
+        if ( isdefined( level.zmqol_fly_oopam ) && level.zmqol_fly_oopam )
+            self thread maps\mp\zombies\_zm::player_out_of_playable_area_monitor();
+        else if ( !isdefined( level.zmqol_fly_oopam ) && isdefined( level.player_out_of_playable_area_monitor ) && level.player_out_of_playable_area_monitor )
+            self thread maps\mp\zombies\_zm::player_out_of_playable_area_monitor();
     }
 
     if ( isdefined( e_mover ) )
