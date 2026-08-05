@@ -3240,7 +3240,7 @@ zmqol_help_lines()
     //  so it rides on the same line as the syntax rather than getting its own.
     a_lines[a_lines.size] = "^3.give^7/^3.remove^7 + ^3jug speed dtap stam mule revive deadshot phd tombstone whoswho cherry vulture";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
-    a_lines[a_lines.size] = "^5console: ^3rapid_fire night_mode character coop_pause no_power";
+    a_lines[a_lines.size] = "^5console: ^3rapid_fire night_mode character coop_pause no_power lod_fix";
     a_lines[a_lines.size] = "^5console: ^3hud_all hud_timer hud_health_bar hud_remaining hud_zone";
     a_lines[a_lines.size] = "^5console: ^3hud_round_timer hud_color ^7\"1 1 1\"  ^3hud_color_health";
 

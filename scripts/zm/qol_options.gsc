@@ -60,10 +60,89 @@ init()
 
     qol_opt_dvar( "no_power", "0" );
 
+    //  Model pop-in. On by default - it is a pure image-quality win with no
+    //  gameplay effect. See qol_opt_lod_fix() for what it actually writes.
+    qol_opt_dvar( "lod_fix", "1" );
+
     level thread qol_opt_coop_pause();
     level thread qol_opt_round_clock();
     level thread qol_opt_no_power();
+    level thread qol_opt_lod_fix();
     level thread qol_opt_connect_loop();
+}
+
+// ============================================================================
+//  qol_opt_lod_fix  -  stop models popping in at distance
+//
+//  What the user sees as "texture pop-in" on BO2 is LOD swapping: the renderer
+//  drops rigid (world/prop) and skinned (character) models to lower detail
+//  levels past a distance threshold. Treyarch tuned that for 2012 consoles, and
+//  the fog exists partly to hide it.
+//
+//  📝 THE FOUR DVARS ARE REAL AND VERIFIED, not taken on trust from the forum
+//  post they came from. All four appear in this install's own dvar dump
+//  (console_zm.log) with these stock defaults:
+//        r_lodBiasRigid    "0"
+//        r_lodBiasSkinned  "0"
+//        r_lodScaleRigid   "1"
+//        r_lodScaleSkinned "1"
+//  and Treyarch's own descriptions (BO2 Detailed DVARS.txt) give the direction:
+//        r_lodBias*   "Bias the level of detail distance ... negative INCREASES detail"
+//        r_lodScale*  "Scale the level of detail distance ... larger REDUCES detail"
+//
+//  🛑 SO ONLY TWO OF THE FOUR ACTUALLY DO ANYTHING HERE. r_lodScaleRigid and
+//  r_lodScaleSkinned already sit at 1, which is the neutral value the advice
+//  asks for - writing 1 over 1 is a no-op on a stock config. They are still
+//  written, deliberately: this mod ships to other people, and a config that has
+//  raised either of them (larger = less detail) would otherwise keep popping
+//  models regardless of the bias. Writing them makes the result independent of
+//  whatever is in the user's config, which is the whole point.
+//
+//  🛑 THESE ARE CLIENT RENDERER DVARS. Setting them from GSC works because this
+//  mod runs through Plutonium's Mods menu, where the host IS the client - one
+//  process. They are NOT networked, so on a dedicated server this would change
+//  nothing for remote players. That is a limitation of the approach, not a bug.
+//
+//  Written only when the setting CHANGES, not on a timer - same discipline as
+//  the hud_color watcher above, which exists because writing dvars every tick
+//  is a lot of work for a value that changes when someone types at the console.
+// ============================================================================
+qol_opt_lod_fix()
+{
+    level endon( "end_game" );
+
+    n_prev = -1;
+
+    for ( ;; )
+    {
+        n_on = getdvarintdefault( "lod_fix", 1 );
+
+        if ( n_on != n_prev )
+        {
+            n_prev = n_on;
+
+            if ( n_on )
+            {
+                setdvar( "r_lodBiasRigid",   "-1000" );
+                setdvar( "r_lodBiasSkinned", "-1000" );
+            }
+            else
+            {
+                //  Back to the stock values read out of this install's dvar
+                //  dump, so switching the option off is a real restore rather
+                //  than a guess at what BO2 shipped with.
+                setdvar( "r_lodBiasRigid",   "0" );
+                setdvar( "r_lodBiasSkinned", "0" );
+            }
+
+            //  Neutral either way - see the note above on why these are written
+            //  at all rather than assumed.
+            setdvar( "r_lodScaleRigid",   "1" );
+            setdvar( "r_lodScaleSkinned", "1" );
+        }
+
+        wait 1;
+    }
 }
 
 //  setdvar only when the dvar has never been set, so a value already in the
