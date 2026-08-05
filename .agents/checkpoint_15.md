@@ -138,4 +138,4 @@ in Sound Studio Extended (GUI-only, so the user has to do it).
   changes.
 - Logs — `%LOCALAPPDATA%\Plutonium\storage\t6\main\console_zm.log`.
 - Screenshots — newest file in `G:\Gallery`.
-- GitHub `github.com/ridgelanded/zm_qol`, private, tags v1.1.1 → **v1.22.0**.
+- GitHub `github.com/DavidHiFi/zm_qol`, private, tags v1.1.1 → **v1.22.0**.

@@ -131,7 +131,7 @@ the map's `main()`.
   `--include-assets mapents -o <dir> <zone.ff>` (the game's own `.ff`, **not** the
   T6-Data-Archive copy, which omits entities OAT does export).
 - Logs — `%LOCALAPPDATA%\Plutonium\storage\t6\main\console_zm.log`.
-- GitHub: `github.com/ridgelanded/zm_qol`, private, tagged **v1.1.1 → v1.12.4**.
+- GitHub: `github.com/DavidHiFi/zm_qol`, private, tagged **v1.1.1 → v1.12.4**.
 
 ---
 

@@ -129,4 +129,4 @@ Checkpoint 11 §3 still applies in full. Additions:
   All **42** scripts parse clean as of v1.12.0.
 - OAT — `H:\Claude\oat-windows\Unlinker.exe`.
 - Logs — newest is `%LOCALAPPDATA%\Plutonium\storage\t6\main\console_zm.log`.
-- GitHub: `github.com/ridgelanded/zm_qol`, private, tagged **v1.1.1 → v1.12.0**.
+- GitHub: `github.com/DavidHiFi/zm_qol`, private, tagged **v1.1.1 → v1.12.0**.

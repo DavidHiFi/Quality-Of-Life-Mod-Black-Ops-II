@@ -295,4 +295,4 @@ files and wants a session with room to verify.
   `.csc` changes. **Verify deployed file sizes and timestamps afterwards.**
 - Logs — `%LOCALAPPDATA%\Plutonium\storage\t6\main\console_zm.log`.
 - Screenshots — newest in `G:\Gallery`.
-- GitHub `github.com/ridgelanded/zm_qol`, private, tags v1.1.1 → **v1.51.2**.
+- GitHub `github.com/DavidHiFi/zm_qol`, private, tags v1.1.1 → **v1.51.2**.

@@ -138,4 +138,4 @@ The user has asked twice. Current state: real MODEL, imitation BEHAVIOUR.
   imports without guessing.
 - `build_ff.bat` now `--load`s zm_tomb.ff, zm_prison.ff and zm_prison_patch.ff.
 - Logs — `%LOCALAPPDATA%\Plutonium\storage\t6\main\console_zm.log`.
-- GitHub `github.com/ridgelanded/zm_qol`, private, tags v1.1.1 → **v1.18.1**.
+- GitHub `github.com/DavidHiFi/zm_qol`, private, tags v1.1.1 → **v1.18.1**.

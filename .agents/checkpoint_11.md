@@ -131,5 +131,5 @@ pattern as `disable_tank`.
 - OAT Unlinker — `H:\Claude\oat-windows\Unlinker.exe`; `--list <zone.ff>` answers
   "is this asset actually loaded?", `--include-assets mapents` dumps map entities.
 - Mapents are plain text and readable straight out of `mod.iwd`.
-- GitHub: `github.com/ridgelanded/zm_qol`, private, tagged **v1.1.1 → v1.8.2**.
+- GitHub: `github.com/DavidHiFi/zm_qol`, private, tagged **v1.1.1 → v1.8.2**.
   Separate commit per fix, `chore: release vX.Y.Z` + tag each round.

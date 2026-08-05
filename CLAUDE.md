@@ -34,7 +34,7 @@ Two rules that apply to every session:
 | | |
 |---|---|
 | Project root | `H:\Claude\Projects Sources\zm_qol\` |
-| Repo | **Git repo**, branch `main`, backed up to the private `github.com/ridgelanded/zm_qol`. Binaries tracked on purpose — see §5. |
+| Repo | **Git repo**, branch `main`, backed up to the private `github.com/DavidHiFi/zm_qol`. Binaries tracked on purpose — see §5. |
 | Toolchain | Windows + PowerShell for the normal loop; **OpenAssetTools at `H:\Claude\oat-windows`** (`Linker.exe`, `Unlinker.exe`, `ImageConverter.exe`) when an asset has to go into `mod.ff`. |
 | Build (scripts) | `build.bat` — re-zips the raw folders into `mod.iwd`, deploys, and refreshes any `.lua` that Plutonium's `raw\` is shadowing. This is all a GSC/LUI change needs. |
 | Build (assets) | `build_ff.bat` — relinks `mod.ff`. Only needed after editing `zone_source\` or `zone_assets\`. |

@@ -212,4 +212,4 @@ cabinet-scale — never `playfxontag()` those.
 - `build.bat` for `.gsc`; `build_ff.bat` also when `zone_source`/`.csc` changes.
 - Logs — `%LOCALAPPDATA%\Plutonium\storage\t6\main\console_zm.log`.
 - Screenshots — newest in `G:\Gallery`.
-- GitHub `github.com/ridgelanded/zm_qol`, private, tags v1.1.1 → **v1.32.0**.
+- GitHub `github.com/DavidHiFi/zm_qol`, private, tags v1.1.1 → **v1.32.0**.
