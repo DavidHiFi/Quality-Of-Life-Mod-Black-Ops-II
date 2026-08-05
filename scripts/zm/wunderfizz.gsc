@@ -383,11 +383,57 @@ setupWunderfizz()
 			//  below looked absent from every map and was nearly "fixed" - power-up fx
 			//  live in common_zm.ff, loaded everywhere. A map's .ff is not the whole
 			//  of what a map loads.
-			if( getdvarintdefault( "zmqol_wf_fx_ug", 1 ) )
-				level._effect[ "wunderfizz_loop" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_ug_bolt_emit" );
-			else
-				level._effect[ "wunderfizz_loop" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_bolt_emit" );
+			//  🛑 v1.50.0 - OFF THE RAYGUN FAMILY ENTIRELY. User: "the wunderfizz
+			//  machine visual fx still aren't quite right they're green and purple
+			//  and all that they should all be blue electrical zap effects like
+			//  origins."
+			//
+			//  Both raygun variants were wrong and the _ug_ swap was a wasted
+			//  round: the Ray Gun Mark II is green, its Pack-a-Punched form is
+			//  PURPLE, and neither is blue. That was inferred from the naming
+			//  rather than observed, and the note above it said so.
+			//
+			//  What was wrong before that is the actual mistake: the search was
+			//  restricted to effects present on ALL SIX maps, and that intersection
+			//  is 224 effects with no blue electrical entry in it. The machine does
+			//  not need one effect - it needs the best effect ON EACH MAP, which is
+			//  the same realisation the location marker reached back in v1.40.0 and
+			//  then lost when the marker was unified. Measured per map:
+			//
+			//    zm_tomb                     fx_tomb_dieselmagic_*      the genuine
+			//    transit/buried/prison/highrise
+			//                                electrical/fx_elec_player_torso   arcs
+			//                                electrical/fx_elec_player_md      zap
+			//    zm_nuked                    electrical/fx_zm_elec_arc_vert
+			//
+			//  fx_elec_player_* is the TranZit electric trap's electrocution
+			//  effect - blue arcs crawling over a body-sized volume, which is as
+			//  close to Origins' dieselmagic arcs as anything outside Origins gets.
+			//  Nuketown is the one map without it; fx_zm_elec_arc_vert is its own
+			//  electrical arc and the only one it has.
+			//
+			//  ✅ ONE-SHOT, VERIFIED, NOT ASSUMED. _zm_traps.gsc:682-714 plays each
+			//  of these with a single playfxontag per electrocution - no loop, no
+			//  stopfx - so retriggering on a beat is the correct way to hold them
+			//  on screen, and cannot produce the stacking blob that a looping
+			//  effect would.
+			str_arc = "electrical/fx_elec_player_torso";
+			str_zap = "electrical/fx_elec_player_md";
 
+			if( level.script == "zm_nuked" )
+			{
+				str_arc = "electrical/fx_zm_elec_arc_vert";
+				str_zap = "electrical/fx_zm_elec_arc_vert";
+			}
+
+			//  zmqol_wf_fx_ug 1 goes back to the raygun set for A/B comparison.
+			if( getdvarintdefault( "zmqol_wf_fx_ug", 0 ) )
+			{
+				str_arc = "weapon/raygun2/fx_zm_raygun2_ug_bolt_emit";
+				str_zap = "weapon/raygun2/fx_zm_raygun2_ug_impact";
+			}
+
+			level._effect[ "wunderfizz_loop" ]    = loadfx( str_arc );
 			level._effect[ "perk_machine_light" ] = loadfx( "misc/fx_zombie_powerup_on" );
 			level._effect[ "perk_machine_steam" ] = loadfx( "misc/fx_zombie_powerup_grab" );
 
@@ -405,13 +451,11 @@ setupWunderfizz()
 			//  "Best-looking up close" and "right size" are different questions and
 			//  only the second one matters for something that fires unattended. The
 			//  raygun impact is a point burst the size of a bullet hit, which is what
-			//  a marker on a machine should be, and it is present on all six maps
-			//  (verified against each map's .ff and _patch.ff, not against a script
-			//  that loadfx's it). Blue on the _ug_ branch, per the note above.
-			if( getdvarintdefault( "zmqol_wf_fx_ug", 1 ) )
-				level._effect[ "perk_machine_location" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_ug_impact" );
-			else
-				level._effect[ "perk_machine_location" ] = loadfx( "weapon/raygun2/fx_zm_raygun2_impact" );
+			//  a marker on a machine should be. It takes the blue electrical set
+			//  above for the same reason everything else does - and being a
+			//  body-scale electrocution rather than a spawn cue, it is still small
+			//  enough not to be seen across the map, which was v1.42.0's fix.
+			level._effect[ "perk_machine_location" ] = loadfx( str_zap );
 		}
 
 		level.zmqol_wf_fx_set = n_set;
@@ -1810,7 +1854,26 @@ zmqol_wf_spin_fx()
 		//  the person using it anything - it only stops the crackle being drawn for
 		//  a player on the far side of the map who is not part of the event.
 		if( self zmqol_wf_fx_nearby() )
+		{
 			playfxontag( level._effect[ "wunderfizz_loop" ], self, "j_ball" );
+
+			//  🛑 AND ON THE BOTTLE. User: "the blue electrical effects around the
+			//  perk bottle while spinning seem to be absent."
+			//
+			//  Correct, and it was never played there. Origins runs TWO threads
+			//  while the machine cycles - fx_activation_electric_loop and
+			//  fx_bottle_cycling (_zm_perk_random.csc:165,178) - and BOTH play on
+			//  self.glow_location, a script_model spawned at the machine's origin,
+			//  not on the ball. This port had one thread, on j_ball, so all the
+			//  electricity was up at the orb and the bottle cycling below it was
+			//  bare.
+			//
+			//  self.bottle is the cycling bottle entity that perk_bottle_motion()
+			//  floats out in front of the machine, so this puts the arcs exactly
+			//  where the user is looking during a spin.
+			if( isdefined( self.bottle ) )
+				playfxontag( level._effect[ "wunderfizz_loop" ], self.bottle, "tag_origin" );
+		}
 
 		if( level.script != "zm_tomb" )
 			n_beat = randomfloatrange( 0.7, 1.1 );
