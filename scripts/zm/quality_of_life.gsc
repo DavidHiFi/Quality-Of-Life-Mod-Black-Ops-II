@@ -2046,9 +2046,9 @@ remove_perk_limit()
     level waittill( "start_of_round" );
     wait 0.05;
 
-    // 🛑 THE FLOOR IS 11, NOT 9. User, on Origins: "it says i can only get 9 perks
-    // make sure that every map with the real actual wunderfizz machine let's you
-    // get all 11 perks in bo2 zombies."
+    // 🛑 THE FLOOR IS 12, NOT 11, AND NOT 9. User, on Origins: "it says i can only
+    // get 9 perks make sure that every map with the real actual wunderfizz machine
+    // let's you get all the perks in bo2 zombies."
     //
     // Deriving the cap from getPerks().size was supposed to make the cap follow
     // the mod, and it does - on the maps where the mod PLACES a machine. Origins
@@ -2056,10 +2056,22 @@ remove_perk_limit()
     // the old floor became the cap again, which is the exact failure this function
     // was rewritten to stop.
     //
-    // Eleven is the number of perks Black Ops II Zombies actually has, so it is a
-    // floor rather than a guess, and the max() below still lets a map with more
-    // than eleven offerings raise it further.
-    n_limit = 11;
+    // 📝 v1.55.4: the floor was 11 and 11 was WRONG. Black Ops II Zombies has
+    // TWELVE perks, and the count is not a matter of opinion - it is exactly the
+    // twelve specialties zmqol_perk_from_alias() maps, which is the same twelve
+    // zmqol_map_perks() enumerates:
+    //     armorvest (Jugger-Nog)      fastreload (Speed Cola)
+    //     rof (Double Tap 2.0)        quickrevive (Quick Revive)
+    //     longersprint (Stamin-Up)    additionalprimaryweapon (Mule Kick)
+    //     flakjacket (PhD Flopper)    deadshot (Deadshot Daiquiri)
+    //     scavenger (Tombstone)       finalstand (Who's Who)
+    //     grenadepulldeath (Electric Cherry)   nomotionsensor (Vulture Aid)
+    // The user hit this by getting all twelve out of the Diner machine and
+    // counting them. On a map where the mod places its own machine the max()
+    // below already raised the cap to 12 on its own, so Diner behaved; the stale
+    // floor only bit on maps using their OWN machine - which is Origins, the very
+    // map the comment above was written for.
+    n_limit = 12;
     a_perks = scripts\zm\wunderfizz::getPerks();
 
     if ( isdefined( a_perks ) && a_perks.size > n_limit )
@@ -2582,6 +2594,7 @@ zmqol_dev_command_listener()
             {
                 player.zmqol_ghost = 1;
                 player.ignoreme = 1;
+                player thread zmqol_ghost_enforce();
                 player iprintln( "^2[zm_qol] ghost ON ^7- zombies ignore you" );
             }
         }
@@ -2605,6 +2618,7 @@ zmqol_dev_command_listener()
                 player.zmqol_afk = 1;
                 player.ignoreme = 1;
                 player enableinvulnerability();
+                player thread zmqol_ghost_enforce();
                 player iprintln( "^2[zm_qol] AFK ON ^7- ignored and invulnerable" );
             }
         }
@@ -2871,6 +2885,66 @@ zmqol_map_perks()
 //  falls through to the normal unknown-command path instead of doing something
 //  surprising.
 // ============================================================================
+// ============================================================================
+//  zmqol_ghost_enforce  -  .ghost / .afk stay on until YOU turn them off
+//
+//  🛑 THE BUG, root-caused rather than guessed. Reported: "ghost is still kinda
+//  inconsistent, I find myself having to constantly disable and re-enable it
+//  because the zombies will sometimes start targeting me again."
+//
+//  .ghost sets self.ignoreme = 1 exactly once. Stock sets it back to 0 in at
+//  least five places, none of which know this mod exists:
+//
+//      _zm.gsc:1381  player_spawn_protection()  loops 60 frames setting
+//                    ignoreme = 1, then UNCONDITIONALLY ends with ignoreme = 0.
+//                    This is the big one - it runs on spawn, so every respawn
+//                    silently cancels ghost about three seconds in.
+//      _zm.gsc:2598  the respawn path, ignoreme = 0 alongside reviveplayer()
+//      _zm_laststand.gsc:445, :984, :1053   revive / laststand exit
+//
+//  That is the whole symptom: not a flicker, a hard cancel that persists until
+//  the command is toggled. Nothing was wrong with the flag itself.
+//
+//  🌟 WHY THIS RE-ASSERTS INSTEAD OF PATCHING THOSE FIVE SITES. Patching them
+//  means either five replaceFuncs on core stock functions or reimplementing
+//  player_spawn_protection - and it would only cover the reset paths I managed
+//  to find. Re-asserting cannot miss one. It is also strictly safer: every
+//  writer above sets ignoreme to a literal, so there is no state to corrupt by
+//  writing 1 over it, and stock's own spawn protection is *also* setting it to 1
+//  for those three seconds, so the two never disagree while it matters.
+//
+//  Zombie target selection reads ignoreme live every time it picks - stock
+//  _zm.gsc:5105 and _zm_utility::is_player_valid( player, checkignoremeflag )
+//  both test the current value - so restoring it within a frame restores the
+//  behaviour with it. There is no cached "this zombie has chosen you" state
+//  keyed off the old value.
+//
+//  Self-replacing: the first act is to notify its own endon, so re-issuing
+//  .ghost or .afk swaps the thread rather than stacking a second copy. It exits
+//  on its own the moment both flags are off, so an un-ghosted player runs
+//  nothing.
+// ============================================================================
+zmqol_ghost_enforce()
+{
+    self endon( "disconnect" );
+    self notify( "zmqol_ghost_enforce" );
+    self endon( "zmqol_ghost_enforce" );
+
+    while ( isdefined( self ) )
+    {
+        b_ghost = isdefined( self.zmqol_ghost ) && self.zmqol_ghost;
+        b_afk   = isdefined( self.zmqol_afk )   && self.zmqol_afk;
+
+        if ( !b_ghost && !b_afk )
+            return;
+
+        if ( !isdefined( self.ignoreme ) || !self.ignoreme )
+            self.ignoreme = 1;
+
+        wait 0.05;
+    }
+}
+
 zmqol_perk_from_alias( str_alias )
 {
     switch ( str_alias )
