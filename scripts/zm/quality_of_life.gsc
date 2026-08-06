@@ -2114,26 +2114,49 @@ zmqol_fog_apply_client()
             }
             else
             {
-                //  The map's own fog, read back from the engine. A map that
-                //  authored none reports 0, so fall back to TranZit's real
-                //  numbers (createart: start 138.679, half 1011.62) rather than
-                //  to zero, which would clamp the view to nothing.
-                n_start = getdvarfloat( "g_fogStartDistReadOnly" );
-
-                if ( !isdefined( n_start ) || n_start <= 0 )
-                    n_start = 138.679;
-
-                n_half = getdvarfloat( "g_fogHalfDistReadOnly" );
-
-                if ( !isdefined( n_half ) || n_half <= n_start )
-                    n_half = n_start * 7.3;
-
+                //  🛑 r_fogTweak SWAPS IN EVERY r_fog* DVAR, NOT JUST THE TWO
+                //  DISTANCES. Caught in the pre-mortem before this ever shipped,
+                //  by reading the dvar dump out of a real boot's console_zm.log:
+                //
+                //      dvar              default        TranZit's real value
+                //      r_fogHalfHeight   1              10834.5
+                //      r_fogBaseHeight   0              1145.21
+                //      r_fogOpacity      0.25           0.8546
+                //      r_fogColor        0.5 0.5 0.5    0.501961 x3  (matches)
+                //
+                //  Setting only BaseDist/HalfDist would have left half-height at
+                //  ONE unit - a paper-thin sheet of fog at ground level, not fog.
+                //  Every parameter has to go out together.
+                //
+                //  🛑 AND THE MAP'S FOG CANNOT BE READ BACK AT RUNTIME. The same
+                //  dump shows the engine reporting
+                //      g_fogStartDistReadOnly "0"
+                //      g_fogHalfDistReadOnly  "0.1"
+                //      g_fogColorReadOnly     "1 0 0 1"
+                //  which is not any map's fog. So the values below are LITERALS
+                //  taken from the map's own createart script, not read-backs.
+                //
+                //  Source, verified: maps\mp\createart\zm_transit_art.gsc:24-40
+                //  and zm_nuked_art.gsc - the two are identical. Those cover
+                //  every map the user reported (Diner, TranZit, Bus Depot, Farm
+                //  are all zm_transit) plus Nuketown.
+                //
+                //  📝 Die Rise, Mob, Buried and Origins ship no createart script
+                //  in the dump OR in their fastfiles - checked both - so their
+                //  real fog values are not obtainable offline. They get this same
+                //  profile, and `.fog` says so, rather than pretending it is
+                //  theirs. If one looks wrong on those maps, say which and it
+                //  gets its own entry.
                 n_scale = zmqol_fog_scale();
 
                 self setclientdvar( "r_fog", "1" );
                 self setclientdvar( "r_fogTweak", "1" );
-                self setclientdvar( "r_fogBaseDist", "" + ( n_start * n_scale ) );
-                self setclientdvar( "r_fogHalfDist", "" + ( n_half * n_scale ) );
+                self setclientdvar( "r_fogBaseDist",   "" + ( 138.679 * n_scale ) );
+                self setclientdvar( "r_fogHalfDist",   "" + ( 1011.62 * n_scale ) );
+                self setclientdvar( "r_fogHalfHeight", "10834.5" );
+                self setclientdvar( "r_fogBaseHeight", "1145.21" );
+                self setclientdvar( "r_fogColor",      "0.501961 0.501961 0.501961" );
+                self setclientdvar( "r_fogOpacity",    "0.8546" );
             }
         }
 
