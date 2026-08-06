@@ -6306,7 +6306,10 @@ fade_out_intro_screen_zm_instant( hold_black_time, fade_out_time, destroyed_afte
 
     level.introscreen fadeovertime( fade_out_time );
     level.introscreen.alpha = 0;
-    wait 0.05;                      // stock: wait 1.6
+
+    // 🛑 ORIGINS PAYS STOCK'S FULL 1.6s. See zmqol_intro_hold_time() below.
+    wait( zmqol_intro_hold_time() );
+
     level.passed_introscreen = 1;
     players = get_players();
 
@@ -6331,6 +6334,61 @@ fade_out_intro_screen_zm_instant( hold_black_time, fade_out_time, destroyed_afte
         level.introscreen destroy();
 
     flag_set( "initial_blackscreen_passed" );
+    println( "[zm_qol] intro: held " + zmqol_intro_hold_time() + "s, passed_introscreen=1, hud_visible set on " + players.size + " player(s)" );
+}
+
+// ============================================================================
+//  zmqol_intro_hold_time  -  how long to sit on black after the fade
+//
+//  Stock maps\mp\zombies\_zm::fade_out_intro_screen_zm waits a hardcoded 1.6s
+//  here. This mod cut it to 0.05 to kill dead time at the start of every game,
+//  and that shortcut is kept - EXCEPT on Origins, which pays stock's full 1.6.
+//
+//  🛑 WHY ORIGINS IS DIFFERENT, and what is actually known vs suspected.
+//
+//  KNOWN: the generator capture ring intermittently does not draw. It is NOT a
+//  hudelem (checkpoint 17 said so and was wrong) and it is NOT a clientfield -
+//  it is the OBJECTIVE/waypoint system, zm_tomb_capture_zones.gsc:1506:
+//        objective_setprogress( self.n_objective_index, self.n_current_progress / 100 );
+//  all of which is stock code this mod does not replace. The capture itself
+//  still completes; only the display is missing. Confirmed by the user
+//  2026-08-06: "nothing drew at all".
+//
+//  KNOWN: no commit has ever successfully targeted this. The one that tried
+//  (0aa9f46, "free hudelems for the generator ring") aimed at the hudelem pool,
+//  which checkpoint 18 established the ring does not use. So "it worked last
+//  release and broke this release" is not a regression - it is the same
+//  unfixed intermittent race landing differently on different boots.
+//
+//  SUSPECTED, and this is the change: these three lines
+//        level.passed_introscreen = 1;
+//        players[i] setclientuivisibilityflag( "hud_visible", 1 );
+//        flag_set( "initial_blackscreen_passed" );
+//  all fire 1.55s earlier than Treyarch ever ran them. Origins is the map that
+//  hangs the most off that flag - initial_round_wait_func() waits on it, and
+//  everything downstream of start_zombie_round_logic (including the per-zone
+//  capture threads that own the objective) is sequenced behind it. An
+//  intermittent, presentation-only failure on exactly the map with the deepest
+//  chain off that flag is the shape of a startup race, and this was already the
+//  leading theory in checkpoint 18 - it was simply never acted on.
+//
+//  🛑 THIS IS A TEST AS MUCH AS A FIX, and it is deliberately falsifiable. The
+//  probe in zm_tomb\zm_tomb.gsc now logs whether the SERVER side is advancing
+//  while nothing draws. Next boot says which it is:
+//    - ring draws          -> the race was real, this is the fix, keep it
+//    - progress advances,  -> server fine, purely client-side; the intro timing
+//      still no ring          is NOT the cause and this hold should be reverted
+//    - progress never      -> server side, and the objective is a red herring
+//      advances
+//
+//  Costs 1.55s of black screen on one map, and nothing anywhere else.
+// ============================================================================
+zmqol_intro_hold_time()
+{
+    if ( getdvar( "mapname" ) == "zm_tomb" )
+        return 1.6;   // stock
+
+    return 0.05;
 }
 
 // ============================================================================

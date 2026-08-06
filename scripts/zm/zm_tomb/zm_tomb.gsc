@@ -484,7 +484,17 @@ zmqol_probe_capture_zones()
                 if ( isdefined( zone.script_noteworthy ) )
                     str_name = zone.script_noteworthy;
 
-                println( "[zm_qol] capture probe: zone " + i + " (" + str_name + ") progress " + zone.n_current_progress );
+                // The objective index IS the ring. If progress is climbing and
+                // obj is a real index with the zone contested, the server has
+                // done everything it is supposed to and a missing ring is
+                // purely client-side - which falsifies the intro-timing fix in
+                // quality_of_life.gsc::zmqol_intro_hold_time().
+                str_obj = "unset";
+
+                if ( isdefined( zone.n_objective_index ) )
+                    str_obj = "" + zone.n_objective_index;
+
+                println( "[zm_qol] capture probe: zone " + i + " (" + str_name + ") progress " + zone.n_current_progress + " obj=" + str_obj + " contested=" + zone ent_flag( "zone_contested" ) + " inzone=" + zone maps\mp\zm_tomb_capture_zones::get_players_in_capture_zone().size );
                 a_last[i] = zone.n_current_progress;
             }
         }
