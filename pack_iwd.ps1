@@ -26,37 +26,7 @@ try {
     # 'character' holds stock scripts the GAME fails to ship in every gametype's
     # fastfile set - see character\c_buried_player_reporter_dam.gsc for the case
     # that made this necessary (Buried survival could not load without it).
-    #
-    # 'fx' is how the T5 wonder weapons get their effects, and it is the ONLY way
-    # they can. OpenAssetTools cannot link an FxEffectDef, so a raw .efx is
-    # invisible to the Linker and no fx entry for them can go in the zone - and
-    # 23 of their 27 effects exist in no Black Ops II fastfile at all, so there is
-    # nothing for a zone entry to resolve against either. Plutonium loads raw .efx
-    # straight out of mod.iwd at runtime instead.
-    #
-    # 🌟 That is measured, not inferred. The creators' own shipped mod
-    # (H:\Claude\T6-Declassified-Public) carries ZERO fx assets in its mod.ff and
-    # 30 raw .efx inside its mod.iwd, and the upstream open-source zone
-    # (Wonder_Weapons-T6ZM) declares no fx either. Drop this folder from the list
-    # and the guns fire with no lightning, no freeze and no impacts.
-    #
-    # 🛑 'xanim' IS THE SAME STORY AS 'fx' AND LEAVING IT OUT IS A HARD CRASH, not a
-    # missing animation. v1.56.0 shipped the wonder weapons' modified animtrees
-    # (animtrees\zm_<map>_basic.atr) while their 43 ai_zombie_thundergun_* xanims
-    # existed nowhere the game could reach - the .atr referenced 18 animations that
-    # were not in mod.ff, not in zm_transit.ff and not in mod.iwd - and Plutonium
-    # died on map load.
-    #
-    # The upstream README says the per-map scripts\zm\<map>\anims_*.gsc make the
-    # LINKER pull each xanim in as an animtree dependency. That is true of a
-    # pipeline that COMPILES scripts. OAT stores a T6 script as raw text and never
-    # parses it, so nothing is extracted and the xanims silently do not arrive -
-    # the zone links clean and the game still crashes.
-    #
-    # 🌟 Measured: the creators' shipped mod.iwd carries 43 thundergun xanims and
-    # their mod.ff, mod_load.ff and mod_patch.ff carry ZERO. Raw out of the iwd is
-    # how they are meant to travel.
-    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui_mp','weapons','xanim')
+    $folders  = @('attachmentunique','character','images','maps','scripts','ui_mp','weapons')
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 

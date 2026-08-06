@@ -84,24 +84,6 @@ echo   Staging current .csc sources into zone_assets ...
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$proj='%PROJ%'; $n=0; Get-ChildItem -LiteralPath (Join-Path $proj 'scripts') -Recurse -Filter *.csc | ForEach-Object { $rel=$_.FullName.Substring($proj.Length+1); $dst=Join-Path (Join-Path $proj 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [stage] ' + $rel); $n++ }; Write-Host ('    ' + $n + ' client script(s) staged')"
 if errorlevel 1 ( echo   ERROR: could not stage .csc sources. & exit /b 1 )
 
-REM --- stage the .gsc and .csc the T5 wonder weapons DECLARE in the zone --------
-REM  Normally this project declares no .gsc in any zone at all - Plutonium runs
-REM  them raw out of mod.iwd, which is the note above. The wonder weapons are the
-REM  one exception and it is not optional:
-REM
-REM    scripts\zm\<map>\anims_<gun>.gsc are dependency carriers. Each one opens
-REM    #using_animtree("zm_<map>_basic") and then assigns every zombie reaction
-REM    xanim to a throwaway variable. Those assignments do nothing at runtime -
-REM    their whole job is to make the LINKER pull each xanim in as a dependency
-REM    of that map's animtree. That is why the zone declares no xanim entries.
-REM    Drop them and the guns fire while every zombie plays no reaction at all.
-REM
-REM  A declared script must resolve from the asset search path, so anything the
-REM  zone names has to be staged into zone_assets first. Mirrors the .csc step.
-echo   Staging wonder-weapon script sources into zone_assets ...
-"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$proj='%PROJ%'; $zone=Join-Path $proj 'zone_source\mod_locations.zone'; $n=0; if(Test-Path $zone){ Select-String -LiteralPath $zone -Pattern '^script,(.+)$' | ForEach-Object { $rel=$_.Matches[0].Groups[1].Value.Trim() -replace '/','\'; $src=Join-Path $proj $rel; if(Test-Path -LiteralPath $src){ $dst=Join-Path (Join-Path $proj 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $src -Destination $dst -Force; $n++ } else { Write-Host ('    [WARN] declared but not on disk: ' + $rel) } } }; Write-Host ('    ' + $n + ' declared script(s) staged')"
-if errorlevel 1 ( echo   ERROR: could not stage declared script sources. & exit /b 1 )
-
 REM --- stage the sound bank source --------------------------------------------
 REM  A T6 sound alias is built from a 60-column CSV plus the WAV/FLAC it names in
 REM  its FileSource column. To add ONE alias the Linker still has to rebuild the
@@ -200,21 +182,6 @@ REM  zm_whos_who visionset) are all gated behind level.whos_who_client_setup and
 REM  level.vsmgr_prio_visionset_zm_whos_who, which ONLY Die Rise sets. Off Die
 REM  Rise the perk self-gates down to one clientfield and no client assets.
 REM
-REM  common_zm.ff was added LAST for the T5 wonder weapons and its POSITION IS THE
-REM  POINT. It owns the 20 techniquesets their materials need that no other loaded
-REM  fastfile has - effect_*, mc_lit_sm_*, wc_lit_sm_*, trivial_9z33feqw,
-REM  particlecloud_w7046j83, distortion_81587199. First-loaded-wins, so appending
-REM  it supplies only what nothing above already provided; move it up the list and
-REM  it shadows assets the maps above are meant to own.
-REM
-REM  Related: the package shipped 34 .techset files and NO techniques\ folder. The
-REM  Linker prefers disk over a loaded fastfile, so those incomplete copies beat
-REM  the complete ones and the link died with
-REM      Missing sub asset "pimp_technique_zprepass_541cbafd" of type "technique"
-REM  They are deliberately NOT in zone_assets - all 35 resolve from loaded
-REM  fastfiles instead, which is also what the upstream project does (its zone
-REM  declares no techniquesets at all and lets dependencies pull them in).
-REM
 REM  🛑 Do NOT put REM lines between the caret-continued --load arguments below.
 REM  cmd does not treat them as comments there - they are passed to the Linker as
 REM  arguments, and it fails with: Could not find zone definition file for
@@ -232,7 +199,6 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\zm_buried.ff" ^
   --load "%BO2_DIR%\zone\all\zm_buried_patch.ff" ^
   --load "%BO2_DIR%\zone\all\zm_highrise.ff" ^
-  --load "%BO2_DIR%\zone\all\common_zm.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^
