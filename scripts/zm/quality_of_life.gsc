@@ -2007,8 +2007,6 @@ create_dvar( dvar, set )
 // ============================================================================
 nofog_onplayerconnect()
 {
-    level thread zmqol_fog_think();
-
     for (;;)
     {
         level waittill( "connected", player );
@@ -2025,59 +2023,46 @@ nofog_onplayerspawned()
         self waittill( "spawned_player" );
 }
 
-//  r_fog is the blunt instrument: 0 removes the engine's distance fog
-//  completely, which is what this mod used to do. It is still how ".fog off"
-//  works, but it is no longer the default - see zmqol_fog_think().
-zmqol_fog_apply_client()
-{
-    self endon( "disconnect" );
-
-    for (;;)
-    {
-        self setclientdvar( "r_fog", ( zmqol_fog_mode() == 0 ) ? "0" : "1" );
-        self waittill( "spawned_player" );
-    }
-}
-
 // ============================================================================
-//  zmqol_fog_think  -  PUSH THE FOG BACK instead of deleting it
+//  FOG  -  push it back instead of deleting it
 //
-//  User: "instead of entirely removing the fog, are you able to push the fog
-//  all the way back just a tad outside the actual playable area, so you can see
+//  User: "instead of entirely removing the fog, are you able to push the fog all
+//  the way back just a tad outside the actual playable area, so you can see
 //  clearly a bit far outside the map but not completely to the point where you
 //  can see the map's furthest draw distance / drop off point?"
 //
-//  Exactly the right instinct: with r_fog 0 the map's geometry simply stops and
-//  you can see the edge of the world, which is what the Diner screenshot shows.
+//  With r_fog 0 the geometry simply stops and you can see the edge of the world.
 //
-//  🌟 THE MAP'S OWN FOG IS READABLE AT RUNTIME, so nothing here is hardcoded and
-//  nothing is per-map. The engine exposes the compiled art settings as three
-//  read-only dvars, all three confirmed present in Plutonium's dvar list:
-//        g_fogStartDistReadOnly   where the fog begins
-//        g_fogHalfDistReadOnly    where it reaches half opacity
-//        g_fogColorReadOnly       "r g b", as a string
-//  Stock reads exactly these in maps\mp\_art.gsc::setfogsliders(). So this takes
-//  the map's OWN colour and distances and only moves the distances outward - the
-//  fog still looks like that map's fog, it just starts further away.
+//  🛑 v1.57.0 TRIED setexpfog() AND IT DID NOTHING - recorded so it is not tried
+//  again. The zombies maps set their fog with setvolfog(), not setexpfog():
+//        maps\mp\createart\zm_transit_art.gsc:41   setvolfog( start_dist, ... )
+//  and an exp-fog call does not override volumetric fog. The `.fog` command ran,
+//  printed its confirmation, and the view never changed.
 //
-//  setexpfog( startDist, halfwayDist, r, g, b, transitionTime ) is the lever, and
-//  it overrides whatever the map compiled in. Stock's own "disable fog" path is
-//  the same call with an absurd distance - _art.gsc:212 uses
-//  setexpfog( 100000000, 100000001, 0, 0, 0, 0 ) - which is the proof that
-//  pushing the start distance out is the supported way to do this.
+//  🌟 THE ACTUAL LEVER IS THE RENDERER'S OWN TWEAK DVARS, and the engine
+//  documents them itself - these are Plutonium's own descriptions:
+//        r_fogTweak      "enable dvar tweaks"          <- the master switch
+//        r_fogBaseDist   "start distance"
+//        r_fogHalfDist   "distance at which fog is 50%"
+//        r_fog           "Set to 0 to disable fog"
+//  They are CLIENT dvars, so they go out per player with setclientdvar - the
+//  same mechanism as the r_fog 0 this mod already used successfully, which is
+//  the evidence that this route reaches the renderer at all.
 //
-//  📝 THE SCALE IS TUNABLE LIVE because the right number is a matter of taste and
-//  differs per map, and guessing it would just cost a round trip. `.fog 8` sets
-//  it instantly, no rebuild. Tell me the value that looks right and it becomes
-//  the default.
+//  The map's own numbers are read back from g_fogStartDistReadOnly /
+//  g_fogHalfDistReadOnly (both confirmed present in Plutonium's dvar list, and
+//  stock reads them in maps\mp\_art.gsc::setfogsliders). So the fog keeps the
+//  map's own character and only its DISTANCE moves - nothing is hardcoded and
+//  nothing is per-map.
 //
-//  Re-applied on a slow loop: some maps drive their own fog as you move between
-//  zones (TranZit especially), and a one-shot call would be overwritten.
+//  📝 Sent only when a value actually changes, never on a timer. Re-blasting
+//  four client dvars every second is exactly the reliable-command flood this
+//  project's own notes warn about (EXE_SERVERCOMMANDOVERFLOW).
 // ============================================================================
 zmqol_fog_mode()
 {
-    //  0 = off entirely (the old r_fog 0 behaviour)
-    //  1 = pushed back   (default)
+    //  0 = off entirely (r_fog 0, the mod's old behaviour)
+    //  1 = pushed back  (default)
     //  2 = stock, untouched
     if ( !isdefined( level.zmqol_fog_mode ) )
         level.zmqol_fog_mode = 1;
@@ -2093,45 +2078,66 @@ zmqol_fog_scale()
     return level.zmqol_fog_scale;
 }
 
-zmqol_fog_think()
+//  Bumped by the .fog command so every player's thread re-sends on the next tick.
+zmqol_fog_dirty()
 {
-    level endon( "end_game" );
+    if ( !isdefined( level.zmqol_fog_rev ) )
+        level.zmqol_fog_rev = 0;
 
-    //  Let the map finish applying its own art before reading it back.
-    wait 2;
+    level.zmqol_fog_rev++;
+}
+
+zmqol_fog_apply_client()
+{
+    self endon( "disconnect" );
+
+    n_applied_rev = -1;
 
     for (;;)
     {
-        if ( zmqol_fog_mode() == 1 )
+        if ( !isdefined( level.zmqol_fog_rev ) )
+            level.zmqol_fog_rev = 0;
+
+        if ( level.zmqol_fog_rev != n_applied_rev )
         {
-            n_start = getdvarfloat( "g_fogStartDistReadOnly" );
-            n_half  = getdvarfloat( "g_fogHalfDistReadOnly" );
+            n_applied_rev = level.zmqol_fog_rev;
+            n_mode = zmqol_fog_mode();
 
-            //  A map with no fog authored reports 0/0. Scaling zero stays zero and
-            //  would clamp the world to nothing, so fall back to a sane pair.
-            if ( !isdefined( n_start ) || n_start <= 0 )
-                n_start = 500;
-
-            if ( !isdefined( n_half ) || n_half <= n_start )
-                n_half = n_start * 2;
-
-            a_col = strtok( getdvar( "g_fogColorReadOnly" ), " " );
-            r = 0.5;
-            g = 0.5;
-            b = 0.5;
-
-            if ( isdefined( a_col ) && a_col.size >= 3 )
+            if ( n_mode == 0 )
             {
-                r = float( a_col[0] );
-                g = float( a_col[1] );
-                b = float( a_col[2] );
+                self setclientdvar( "r_fog", "0" );
             }
+            else if ( n_mode == 2 )
+            {
+                self setclientdvar( "r_fogTweak", "0" );
+                self setclientdvar( "r_fog", "1" );
+            }
+            else
+            {
+                //  The map's own fog, read back from the engine. A map that
+                //  authored none reports 0, so fall back to TranZit's real
+                //  numbers (createart: start 138.679, half 1011.62) rather than
+                //  to zero, which would clamp the view to nothing.
+                n_start = getdvarfloat( "g_fogStartDistReadOnly" );
 
-            n_scale = zmqol_fog_scale();
-            setexpfog( n_start * n_scale, n_half * n_scale, r, g, b, 0 );
+                if ( !isdefined( n_start ) || n_start <= 0 )
+                    n_start = 138.679;
+
+                n_half = getdvarfloat( "g_fogHalfDistReadOnly" );
+
+                if ( !isdefined( n_half ) || n_half <= n_start )
+                    n_half = n_start * 7.3;
+
+                n_scale = zmqol_fog_scale();
+
+                self setclientdvar( "r_fog", "1" );
+                self setclientdvar( "r_fogTweak", "1" );
+                self setclientdvar( "r_fogBaseDist", "" + ( n_start * n_scale ) );
+                self setclientdvar( "r_fogHalfDist", "" + ( n_half * n_scale ) );
+            }
         }
 
-        wait 1;
+        wait 0.5;
     }
 }
 
@@ -2819,11 +2825,13 @@ zmqol_dev_command_listener()
             if ( str_arg == "off" )
             {
                 level.zmqol_fog_mode = 0;
+                zmqol_fog_dirty();
                 player iprintln( "^3[zm_qol] fog ^1OFF ^7- no fog at all" );
             }
             else if ( str_arg == "stock" )
             {
                 level.zmqol_fog_mode = 2;
+                zmqol_fog_dirty();
                 player iprintln( "^3[zm_qol] fog ^2STOCK ^7- the map's own fog, untouched ^8(rejoin to fully restore)" );
             }
             else if ( str_arg == "" )
@@ -2847,6 +2855,7 @@ zmqol_dev_command_listener()
 
                 level.zmqol_fog_scale = n_scale;
                 level.zmqol_fog_mode  = 1;
+                zmqol_fog_dirty();
                 player iprintln( "^2[zm_qol] fog pushed back ^3x" + n_scale + "^2 - higher sees further" );
             }
         }
