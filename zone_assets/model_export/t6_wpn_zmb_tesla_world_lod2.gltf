@@ -1,0 +1,329 @@
+{
+    "asset": {
+        "version": "2.0",
+        "generator": "OpenAssetTools v0.32.0"
+    },
+    "scene": 0,
+    "scenes": [
+        {
+            "nodes": [
+                4
+            ]
+        }
+    ],
+    "nodes": [
+        {
+            "name": "tag_weapon",
+            "translation": [
+                0.0,
+                0.0,
+                -0.0
+            ],
+            "rotation": [
+                -0.7071068286895752,
+                1.2101619262239183e-08,
+                1.2101619262239183e-08,
+                0.7071068286895752
+            ],
+            "children": [
+                1,
+                2
+            ]
+        },
+        {
+            "name": "tag_brass",
+            "translation": [
+                -0.5452298521995544,
+                3.4767651557922363,
+                -0.15665531158447266
+            ],
+            "rotation": [
+                0.5643155574798584,
+                -0.5643177032470703,
+                0.42606762051582336,
+                0.426098495721817
+            ]
+        },
+        {
+            "name": "tag_flash",
+            "translation": [
+                30.816730499267578,
+                -0.010064125061035156,
+                1.0194156169891357
+            ],
+            "rotation": [
+                0.0,
+                0.0,
+                7.006129010278528e-11,
+                1.0
+            ]
+        },
+        {
+            "name": "surf0",
+            "skin": 0,
+            "mesh": 0
+        },
+        {
+            "name": "t6_wpn_zmb_tesla_world_lod2_skel",
+            "children": [
+                3,
+                0
+            ]
+        }
+    ],
+    "materials": [
+        {
+            "name": "mc/mtl_t6_wpn_zmb_tesla_vacuum_camo",
+            "pbrMetallicRoughness": {
+                "baseColorTexture": {
+                    "index": 0
+                },
+                "metallicFactor": 0.0
+            },
+            "normalTexture": {
+                "index": 1
+            },
+            "doubleSided": true
+        },
+        {
+            "name": "mc/mtl_t6_wpn_zmb_tesla_vacuum_glass",
+            "pbrMetallicRoughness": {
+                "baseColorTexture": {
+                    "index": 2
+                },
+                "metallicFactor": 0.0
+            },
+            "normalTexture": {
+                "index": 3
+            },
+            "doubleSided": true
+        },
+        {
+            "name": "mc/mtl_t6_wpn_zmb_tesla_chamber_glass",
+            "pbrMetallicRoughness": {
+                "baseColorTexture": {
+                    "index": 4
+                },
+                "metallicFactor": 0.0
+            },
+            "normalTexture": {
+                "index": 5
+            },
+            "doubleSided": true
+        },
+        {
+            "name": "mc/mtl_t6_wpn_zmb_tesla_chamber",
+            "pbrMetallicRoughness": {
+                "baseColorTexture": {
+                    "index": 6
+                },
+                "metallicFactor": 0.0
+            },
+            "normalTexture": {
+                "index": 7
+            },
+            "doubleSided": true
+        },
+        {
+            "name": "mc/mtl_t6_wpn_zmb_tesla_camo",
+            "pbrMetallicRoughness": {
+                "baseColorTexture": {
+                    "index": 8
+                },
+                "metallicFactor": 0.0
+            },
+            "normalTexture": {
+                "index": 9
+            },
+            "doubleSided": true
+        }
+    ],
+    "meshes": [
+        {
+            "primitives": [
+                {
+                    "attributes": {
+                        "POSITION": 0,
+                        "NORMAL": 1,
+                        "TEXCOORD_0": 2,
+                        "JOINTS_0": 3,
+                        "WEIGHTS_0": 4
+                    },
+                    "indices": 6,
+                    "material": 4,
+                    "mode": 4
+                }
+            ]
+        }
+    ],
+    "textures": [
+        {
+            "source": 0
+        },
+        {
+            "source": 1
+        },
+        {
+            "source": 2
+        },
+        {
+            "source": 3
+        },
+        {
+            "source": 4
+        },
+        {
+            "source": 5
+        },
+        {
+            "source": 6
+        },
+        {
+            "source": 7
+        },
+        {
+            "source": 8
+        },
+        {
+            "source": 9
+        }
+    ],
+    "images": [
+        {
+            "uri": "../images/~-gmtl_t6_wpn_zmb_tesla_vacuum_camo_col.dds"
+        },
+        {
+            "uri": "../images/mtl_t6_wpn_zmb_tesla_vacuum_camo_nml.dds"
+        },
+        {
+            "uri": "../images/~-gmtl_t6_wpn_zmb_tesla_vacuum_glass_col.dds"
+        },
+        {
+            "uri": "../images/mtl_t6_wpn_zmb_tesla_vacuum_glass_nml.dds"
+        },
+        {
+            "uri": "../images/~-gmtl_t6_wpn_zmb_tesla_glass_col.dds"
+        },
+        {
+            "uri": "../images/mtl_t6_wpn_zmb_tesla_glass_nml.dds"
+        },
+        {
+            "uri": "../images/~-gmtl_t6_wpn_zmb_tesla_chamber_col.dds"
+        },
+        {
+            "uri": "../images/mtl_t6_wpn_zmb_tesla_chamber_nml.dds"
+        },
+        {
+            "uri": "../images/~-gmtl_t6_wpn_zmb_tesla_camo_col.dds"
+        },
+        {
+            "uri": "../images/mtl_t6_wpn_zmb_tesla_nml.dds"
+        }
+    ],
+    "skins": [
+        {
+            "inverseBindMatrices": 5,
+            "skeleton": 0,
+            "joints": [
+                0,
+                1,
+                2
+            ]
+        }
+    ],
+    "accessors": [
+        {
+            "bufferView": 0,
+            "byteOffset": 0,
+            "componentType": 5126,
+            "count": 44,
+            "type": "VEC3",
+            "min": [
+                -21.892051696777344,
+                -12.220093727111816,
+                -4.0830512046813965
+            ],
+            "max": [
+                30.19240951538086,
+                5.170897960662842,
+                2.913949966430664
+            ]
+        },
+        {
+            "bufferView": 0,
+            "byteOffset": 12,
+            "componentType": 5126,
+            "count": 44,
+            "type": "VEC3"
+        },
+        {
+            "bufferView": 0,
+            "byteOffset": 24,
+            "componentType": 5126,
+            "count": 44,
+            "type": "VEC2"
+        },
+        {
+            "bufferView": 1,
+            "componentType": 5121,
+            "count": 44,
+            "type": "VEC4"
+        },
+        {
+            "bufferView": 2,
+            "componentType": 5126,
+            "count": 44,
+            "type": "VEC4"
+        },
+        {
+            "bufferView": 3,
+            "componentType": 5126,
+            "count": 3,
+            "type": "MAT4"
+        },
+        {
+            "bufferView": 4,
+            "componentType": 5123,
+            "count": 60,
+            "type": "SCALAR"
+        }
+    ],
+    "bufferViews": [
+        {
+            "buffer": 0,
+            "byteLength": 1408,
+            "byteOffset": 0,
+            "byteStride": 32,
+            "target": 34962
+        },
+        {
+            "buffer": 0,
+            "byteLength": 176,
+            "byteOffset": 1408,
+            "target": 34962
+        },
+        {
+            "buffer": 0,
+            "byteLength": 704,
+            "byteOffset": 1584,
+            "target": 34962
+        },
+        {
+            "buffer": 0,
+            "byteLength": 192,
+            "byteOffset": 2288
+        },
+        {
+            "buffer": 0,
+            "byteLength": 120,
+            "byteOffset": 2480,
+            "target": 34963
+        }
+    ],
+    "buffers": [
+        {
+            "byteLength": 2600,
+            "uri": "data:application/octet-stream;base64,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"
+        }
+    ]
+}

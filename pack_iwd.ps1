@@ -26,7 +26,20 @@ try {
     # 'character' holds stock scripts the GAME fails to ship in every gametype's
     # fastfile set - see character\c_buried_player_reporter_dam.gsc for the case
     # that made this necessary (Buried survival could not load without it).
-    $folders  = @('attachmentunique','character','images','maps','scripts','ui_mp','weapons')
+    #
+    # 'fx' is how the T5 wonder weapons get their effects, and it is the ONLY way
+    # they can. OpenAssetTools cannot link an FxEffectDef, so a raw .efx is
+    # invisible to the Linker and no fx entry for them can go in the zone - and
+    # 23 of their 27 effects exist in no Black Ops II fastfile at all, so there is
+    # nothing for a zone entry to resolve against either. Plutonium loads raw .efx
+    # straight out of mod.iwd at runtime instead.
+    #
+    # 🌟 That is measured, not inferred. The creators' own shipped mod
+    # (H:\Claude\T6-Declassified-Public) carries ZERO fx assets in its mod.ff and
+    # 30 raw .efx inside its mod.iwd, and the upstream open-source zone
+    # (Wonder_Weapons-T6ZM) declares no fx either. Drop this folder from the list
+    # and the guns fire with no lightning, no freeze and no impacts.
+    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui_mp','weapons')
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 
