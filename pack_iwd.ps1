@@ -39,7 +39,24 @@ try {
     # 30 raw .efx inside its mod.iwd, and the upstream open-source zone
     # (Wonder_Weapons-T6ZM) declares no fx either. Drop this folder from the list
     # and the guns fire with no lightning, no freeze and no impacts.
-    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui_mp','weapons')
+    #
+    # 🛑 'xanim' IS THE SAME STORY AS 'fx' AND LEAVING IT OUT IS A HARD CRASH, not a
+    # missing animation. v1.56.0 shipped the wonder weapons' modified animtrees
+    # (animtrees\zm_<map>_basic.atr) while their 43 ai_zombie_thundergun_* xanims
+    # existed nowhere the game could reach - the .atr referenced 18 animations that
+    # were not in mod.ff, not in zm_transit.ff and not in mod.iwd - and Plutonium
+    # died on map load.
+    #
+    # The upstream README says the per-map scripts\zm\<map>\anims_*.gsc make the
+    # LINKER pull each xanim in as an animtree dependency. That is true of a
+    # pipeline that COMPILES scripts. OAT stores a T6 script as raw text and never
+    # parses it, so nothing is extracted and the xanims silently do not arrive -
+    # the zone links clean and the game still crashes.
+    #
+    # 🌟 Measured: the creators' shipped mod.iwd carries 43 thundergun xanims and
+    # their mod.ff, mod_load.ff and mod_patch.ff carry ZERO. Raw out of the iwd is
+    # how they are meant to travel.
+    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui_mp','weapons','xanim')
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 

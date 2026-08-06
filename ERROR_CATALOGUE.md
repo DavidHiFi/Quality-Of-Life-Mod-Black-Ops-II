@@ -183,6 +183,48 @@ The user's explicit standard: **perfectly, or not at all.** Precedents to avoid 
 
 ---
 
+## 10. 🛑 A RAW-LOADED ASSET CLASS LEFT OUT OF `mod.iwd` — HARD CRASH ON MAP LOAD
+
+**v1.56.0 crashed Plutonium outright.** The wonder weapons' modified animtrees
+(`animtrees/zm_<map>_basic.atr`) shipped inside `mod.ff` and referenced 18
+`ai_zombie_thundergun_*` animations that existed **nowhere the game could reach** — not in
+`mod.ff`, not in `zm_transit.ff`, not in `mod.iwd`.
+
+**Two asset classes travel RAW inside `mod.iwd`, never in the fastfile:**
+
+| class | folder | why it cannot be linked |
+|---|---|---|
+| effects | `fx\**.efx` | OAT cannot link an `FxEffectDef` at all |
+| animations | `xanim\*` | nothing in the zone declares them — see below |
+
+🛑 **The trap that produced it.** The upstream README says the per-map
+`scripts\zm\<map>\anims_*.gsc` files make the Linker pull each xanim in as a dependency of that
+map's animtree. **That is only true of a pipeline that COMPILES scripts.** OAT stores a T6
+script as raw text and never parses it, so nothing is extracted — **the zone links with 0
+errors and the game still crashes.** A clean link is not evidence the animations arrived.
+
+### ✅ Pre-flight check — run before shipping any animtree
+
+For every `.atr` the mod ships, confirm each animation it names is reachable:
+
+```bash
+for a in $(grep -oE "ai_zombie_[a-z_0-9]*" zone_assets/animtrees/<map>_basic.atr | sort -u); do
+    [ -f "xanim/$a" ] || echo "MISSING $a"
+done
+```
+
+Then confirm `pack_iwd.ps1`'s `$folders` list contains **both** `fx` and `xanim`, and that the
+deployed `mod.iwd` actually holds them.
+
+📝 The same omission hit the effects. The merge package shipped only `fx/maps/zombie/**` and
+none of the 21 under `fx/weapon/{thunder_gun,freeze_gun,muzzleflashes}/**`. **Diff the log's
+"Could not load fx" lines against a previous boot rather than counting them** — this project's
+logs carry ~90 normally, so the count is meaningless; only the *set difference* shows what you
+broke. That diff is what turned this crash from "somewhere in 684 changed files" into 21 named
+effects in one step.
+
+---
+
 ## The pre-flight sequence, in order
 
 1. `gsc-tool -m parse -g t6 -s pc -y <file>` (`-i client` for `.csc`) — syntax only; it will happily

@@ -823,3 +823,19 @@ image,hud_flamethrower_reticle
 material,hud_flamethrower_reticle
 image,hud_thundergun
 material,hud_thundergun
+
+// ----------------------------------------------------------------------------
+//  v1.56.1 - the five fx materials the raw .efx reference.
+//
+//  The wonder weapons' weapon\thunder_gun\ and weapon\freeze_gun\ effects load
+//  raw from mod.iwd, but the MATERIALS they sample cannot - a material is a real
+//  linked asset. These five exist in no Black Ops II fastfile and were not in the
+//  merge package either; they were recovered out of the creators' own mod.ff.
+//  Without them the log fills with "Could not load material gfx_fxt_smk_whisp_*"
+//  and the gun effects render untextured.
+// ----------------------------------------------------------------------------
+material,gfx_fxt_bio_bloodgush
+material,gfx_fxt_smk_whisp_spiral
+material,gfx_fxt_smk_whisp_spiral_add
+material,gfx_fxt_smk_whisp_spiral_add_z5
+material,gfx_fxt_smk_whisp_spiral_z120
