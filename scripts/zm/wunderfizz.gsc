@@ -107,6 +107,14 @@ zmqol_wf_machine_model()
 main()
 {
     precachemodel( "zombie_teddybear" );
+
+    //  v1.56.3 - the real departure bottle. Stock Origins precaches this at
+    //  _zm_perk_random.gsc:188; it ships in mod.ff now (see the REAL WUNDERFIZZ
+    //  block in zone_source\mod_locations.zone), so it is safe on every map.
+    //  zombie_teddybear above stays precached - the secret-song easter egg uses
+    //  it, and it is still the safety fallback in get_perk_weapon_model().
+    precachemodel( "t6_wpn_zmb_perk_bottle_bear_world" );
+
     precachemodel( zmqol_wf_machine_model() );
 
     //  The bottles for perks THIS MOD adds to maps that never had them. A map
@@ -262,7 +270,24 @@ setupWunderfizz()
 	//  On Origins the machine now uses its GENUINE effects - zm_tomb.ff owns all
 	//  ten fx_tomb_dieselmagic_*, so there it is the real thing, not a stand-in.
 	// ------------------------------------------------------------------------
-	if( level.script == "zm_tomb" )
+	//  🌟 v1.56.3 - EVERY MAP NOW GETS ORIGINS' GENUINE EFFECTS.
+	//
+	//  This used to be `if ( level.script == "zm_tomb" )`, and that single line is
+	//  why the machine looked right on Origins and wrong everywhere else. The
+	//  fx_tomb_dieselmagic_* set was pulled from the zone at v1.22.0, so off
+	//  Origins there was nothing to load and the else branch below substituted
+	//  EMP bursts and power-up energy - the harsh white bolts the user reported.
+	//
+	//  The four effects are now declared in zone_source\mod_locations.zone and
+	//  ship in mod.ff, so they resolve on all six maps. See the block there for
+	//  the measurement that showed re-adding them is safe (shared assets are
+	//  byte-identical across maps; only DIFFERING copies matter in a collision).
+	//
+	//  The else branch is deliberately KEPT rather than deleted. It is the
+	//  fallback if these ever fail to resolve, and its comments are a worked
+	//  record of four rounds of picking substitutes - worth keeping so nobody
+	//  repeats that search. It simply should not be reachable now.
+	if ( isdefined( level._effect ) )
 	{
 		level._effect[ "wunderfizz_loop" ]       = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_on" );
 		level._effect[ "perk_machine_light" ]    = loadfx( "maps/zombie_tomb/fx_tomb_dieselmagic_light" );
@@ -1454,7 +1479,13 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 							self.zmqol_wf_cycling = 0;
 							if((self.uses >= RandomIntRange(3,7)) && (level.wunderfizz_locations > 1))
 							{
-								self.bottle setModel("zombie_teddybear");
+								//  v1.56.3 - the REAL bear bottle, not the teddy prop.
+								//  Stock Origins does exactly this at
+								//  _zm_perk_random.gsc:356. The model was pulled
+								//  from the zone at v1.22.0 and "zombie_teddybear"
+								//  (an actual teddy bear prop) stood in for it,
+								//  which is what the user saw. It ships again now.
+								self.bottle setModel( "t6_wpn_zmb_perk_bottle_bear_world" );
 								level notify("wunderSpinStop");
 								if( isdefined( wunderfx ) ) wunderfx Delete();
 								// Departing: kill the orb light, wind the ball down,
@@ -1941,15 +1972,15 @@ zmqol_wf_lightning()
 	//  nowhere. So this line has been a no-op the whole time; deleting it changes
 	//  nothing anyone has heard, and stops the file claiming a sound it never made.
 	//
-	//  Off Origins the cadence is also stretched. Stock's 3-4s suits a soft
-	//  identify beam; a hellhound lightning strike or a raygun impact on that beat
-	//  is the "exaggerated" part the user pointed at, so those get room to breathe.
+	//  v1.56.3 - ONE CADENCE, EVERY MAP. This used to wait 7-10s off Origins
+	//  instead of stock's 3-4s, because off Origins the "identify" effect was a
+	//  raygun impact standing in for the real beam and firing it every 3 seconds
+	//  looked exaggerated. Every map now plays the genuine
+	//  fx_tomb_dieselmagic_identify, so stock's cadence is correct everywhere and
+	//  the stretched timing would just make the machine feel dead by comparison.
 	for( ;; )
 	{
-		if( level.script == "zm_tomb" )
-			wait randomfloatrange( 3.0, 4.0 );
-		else
-			wait randomfloatrange( 7.0, 10.0 );
+		wait randomfloatrange( 3.0, 4.0 );
 
 		if( self.location != level.currentWunderfizzLocation )
 			continue;
@@ -1979,32 +2010,19 @@ zmqol_wf_departure_steam()
 	if( !isdefined( level._effect[ "perk_machine_steam" ] ) )
 		return;
 
-	//  On Origins this is stock's own fx_tomb_dieselmagic_steam, so it gets
-	//  stock's own cadence - 0.1s for 5 seconds. Off Origins it is an electrical
-	//  burst instead of steam, and 50 of those in 5 seconds is a strobe, so that
-	//  branch keeps the slower beat.
-	if( level.script == "zm_tomb" )
-	{
-		n_end = GetTime() + 5000;
-		while( GetTime() < n_end )
-		{
-			if( self zmqol_wf_fx_nearby() )
-				playfxontag( level._effect[ "perk_machine_steam" ], self, "tag_origin" );
+	//  v1.56.3 - STOCK'S CADENCE ON EVERY MAP: 0.1s for 5 seconds. This used to
+	//  fork, because off Origins "perk_machine_steam" was an electrical burst
+	//  standing in for the real steam and 50 bursts in 5 seconds is a strobe.
+	//  Every map now loads the genuine fx_tomb_dieselmagic_steam, so the fork is
+	//  gone and the departure puff is identical everywhere.
+	n_end = GetTime() + 5000;
 
-			wait 0.1;
-		}
-		return;
-	}
-
-	n_ticks = 0;
-
-	while( n_ticks < 7 )
+	while( GetTime() < n_end )
 	{
 		if( self zmqol_wf_fx_nearby() )
 			playfxontag( level._effect[ "perk_machine_steam" ], self, "tag_origin" );
 
-		wait 0.7;
-		n_ticks++;
+		wait 0.1;
 	}
 }
 

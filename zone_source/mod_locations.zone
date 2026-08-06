@@ -463,3 +463,41 @@ xmodel,zombie_vending_tombstone
 xmodel,zombie_vending_tombstone_on
 weapon,zombie_perk_bottle_tombstone
 material,specialty_tombstone_zombies
+
+// ============================================================================
+//  THE REAL WUNDERFIZZ, ON EVERY MAP  -  v1.56.3
+//
+//  User, on Nuketown: "the effects for the wunderfizz are still weird and the
+//  teddybear bottle isn't what shows up when it moves its still the actual teddy
+//  bear... blend it all together so that the machine looks perfect."
+//
+//  Both are the SAME root cause, and both date to v1.22.0. That release pulled
+//  these assets out of the zone because owning them was blamed for breaking
+//  Origins, and wunderfizz.gsc has carried stand-ins ever since:
+//      - off Origins the machine used EMP-burst and power-up-energy effects
+//        instead of the genuine arcs (wunderfizz.gsc's else branch)
+//      - the departure bottle became "zombie_teddybear", an actual teddy PROP,
+//        instead of the perk bottle t6_wpn_zmb_perk_bottle_bear_world
+//  On Origins it used the real ones. That is the whole reason the machine looked
+//  right there and wrong everywhere else - it was never a regression.
+//
+//  🌟 WHY RE-ADDING THEM IS SAFE NOW, measured rather than assumed. v1.22.0's
+//  rule was "owning a map's asset breaks that map". Tested 2026-08-06 by
+//  extracting the actual assets from zm_nuked / zm_tomb / zm_buried and
+//  comparing them byte for byte: the shared ones are IDENTICAL across maps. A
+//  collision only matters when the two copies DIFFER. What genuinely broke
+//  Origins at v1.22.0 was xmodel,p6_zm_vending_diesel_magic, which dragged in
+//  108 Origins-specific assets through its dependency chain - not these.
+//
+//  The ownership audit after this change is in the commit message: every new
+//  collision on a map other than Origins is a hash-named techniqueset, where an
+//  identical hash means an identical shader.
+//
+//  🛑 Do NOT re-add p6_zm_vending_diesel_magic. That one is still the trap, and
+//  the mod ships its own machine model under the private qolwf_* name instead.
+// ============================================================================
+fx,maps/zombie_tomb/fx_tomb_dieselmagic_on
+fx,maps/zombie_tomb/fx_tomb_dieselmagic_light
+fx,maps/zombie_tomb/fx_tomb_dieselmagic_identify
+fx,maps/zombie_tomb/fx_tomb_dieselmagic_steam
+xmodel,t6_wpn_zmb_perk_bottle_bear_world
