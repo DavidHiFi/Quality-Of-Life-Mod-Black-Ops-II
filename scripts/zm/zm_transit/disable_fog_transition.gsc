@@ -68,6 +68,9 @@ main()
 {
     if ( is_classic() )
         replaceFunc( maps\mp\zm_transit_fx::precache_createfx_fx, ::Transition_Disabled );
+
+    //  Closes the arc the map's own fog never covered - see zmqol_fog_ring().
+    level thread zmqol_fog_ring();
 }
 
 Transition_Disabled()
@@ -150,4 +153,105 @@ Transition_Disabled()
     level._effect["glass_impact"] = loadfx( "maps/zombie/fx_zmb_tranzit_window_dest_lg" );
     level._effect["fx_zmb_tranzit_spark_blue_lg_os"] = loadfx( "maps/zombie/fx_zmb_tranzit_spark_blue_lg_os" );
     level._effect["spawn_cloud"] = loadfx( "maps/zombie/fx_zmb_race_zombie_spawn_cloud" );
+}
+
+// ============================================================================
+//  zmqol_fog_ring  -  close the gap the map's own fog leaves
+//
+//  User, after the transition walls came back: "the fog clouds seem to be in
+//  the normal position, i can still see the drop off point and some areas like
+//  the road continuing on to farm doesn't have the fog cloud at all... make it
+//  full circle and encompass the map to conceal the ugly far away area."
+//
+//  Correct, and measurable. Every stock fog wall near Diner sits NORTH of it:
+//        (-3783, -6804)  (-4166, -6435)  (-5615, -6469)  (-6482, -6923)
+//  while the Diner play area is x -6550..-3522, y -7983..-6512 (measured from
+//  the 39 placement coordinates in scripts\zm\locs\zm_transit_loc_diner.gsc).
+//  So stock screens only the bus-route boundary - the one direction you could
+//  look in stock TranZit. South, east and the Farm road were never covered
+//  because with fog ON you could never see that far anyway.
+//
+//  This adds the missing arc. Positions are a rectangle offset roughly 700
+//  units outside the measured play area, spaced ~780 apart so the 1200-wide
+//  effect overlaps its neighbours instead of leaving seams.
+//
+//  🌟 spawnfx + triggerfx is how stock makes a PERSISTENT fog wall - see
+//  maps\mp\_fx.gsc::create_triggerfx(), which is what every "oneshotfx"
+//  createfx entity with a negative delay ends up calling. playfx would fire
+//  once and vanish; playloopedfx is for a different entity class. Both
+//  builtins are documented and used 8 times each in the stock ZM scripts.
+//
+//  fx_zmb_fog_thick_1200x600 is deliberately chosen over the transition
+//  effects: it was never one of the three this file suppresses, so it is
+//  registered on every gametype regardless of the is_classic() gate above.
+//
+//  🛑 DINER ONLY, for now. Its bounds are the ones that were actually
+//  measured. Town, Farm and Bus Depot need the same treatment and their own
+//  measured rectangles - they are NOT guessed here.
+// ============================================================================
+zmqol_fog_ring()
+{
+    level endon( "end_game" );
+
+    if ( is_classic() )
+        return;
+
+    if ( getdvar( "ui_zm_mapstartlocation" ) != "diner" )
+        return;
+
+    //  precache_createfx_fx has to have run before the effect exists.
+    n_wait = 0;
+
+    while ( !isdefined( level._effect ) || !isdefined( level._effect[ "fx_zmb_fog_thick_1200x600" ] ) )
+    {
+        wait 0.5;
+        n_wait += 0.5;
+
+        if ( n_wait > 30 )
+        {
+            println( "[zm_qol] fog ring: fx_zmb_fog_thick_1200x600 never registered - no ring" );
+            return;
+        }
+    }
+
+    v_centre = ( -5036, -7247, -30 );
+    a_pos    = [];
+
+    //  South edge - the Farm road side, the gap the user pointed at.
+    a_pos[ a_pos.size ] = ( -7000, -8500, -30 );
+    a_pos[ a_pos.size ] = ( -6220, -8500, -30 );
+    a_pos[ a_pos.size ] = ( -5440, -8500, -30 );
+    a_pos[ a_pos.size ] = ( -4660, -8500, -30 );
+    a_pos[ a_pos.size ] = ( -3880, -8500, -30 );
+    a_pos[ a_pos.size ] = ( -3100, -8500, -30 );
+
+    //  East edge.
+    a_pos[ a_pos.size ] = ( -3050, -7740, -30 );
+    a_pos[ a_pos.size ] = ( -3050, -6980, -30 );
+    a_pos[ a_pos.size ] = ( -3050, -6400, -30 );
+
+    //  West edge.
+    a_pos[ a_pos.size ] = ( -7100, -7740, -30 );
+    a_pos[ a_pos.size ] = ( -7100, -6980, -30 );
+    a_pos[ a_pos.size ] = ( -7100, -6400, -30 );
+
+    n_made = 0;
+
+    for ( i = 0; i < a_pos.size; i++ )
+    {
+        //  Face each wall inward, so the effect's visible side is the one the
+        //  player looks at rather than its back.
+        v_fwd = vectornormalize( v_centre - a_pos[i] );
+        e_fx  = spawnfx( level._effect[ "fx_zmb_fog_thick_1200x600" ], a_pos[i], v_fwd, ( 0, 0, 1 ) );
+
+        if ( isdefined( e_fx ) )
+        {
+            triggerfx( e_fx );
+            n_made++;
+        }
+
+        wait 0.05;
+    }
+
+    println( "[zm_qol] fog ring: " + n_made + " of " + a_pos.size + " fog walls spawned around diner" );
 }
