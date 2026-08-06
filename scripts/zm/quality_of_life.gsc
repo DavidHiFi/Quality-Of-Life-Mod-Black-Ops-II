@@ -2007,11 +2007,13 @@ create_dvar( dvar, set )
 // ============================================================================
 nofog_onplayerconnect()
 {
+    level thread zmqol_fog_think();
+
     for (;;)
     {
         level waittill( "connected", player );
         player thread nofog_onplayerspawned();
-        player setclientdvar( "r_fog", "0" );
+        player thread zmqol_fog_apply_client();
         player setclientdvar( "r_dof_enable", "0" );
     }
 }
@@ -2021,6 +2023,116 @@ nofog_onplayerspawned()
     self endon( "disconnect" );
     for (;;)
         self waittill( "spawned_player" );
+}
+
+//  r_fog is the blunt instrument: 0 removes the engine's distance fog
+//  completely, which is what this mod used to do. It is still how ".fog off"
+//  works, but it is no longer the default - see zmqol_fog_think().
+zmqol_fog_apply_client()
+{
+    self endon( "disconnect" );
+
+    for (;;)
+    {
+        self setclientdvar( "r_fog", ( zmqol_fog_mode() == 0 ) ? "0" : "1" );
+        self waittill( "spawned_player" );
+    }
+}
+
+// ============================================================================
+//  zmqol_fog_think  -  PUSH THE FOG BACK instead of deleting it
+//
+//  User: "instead of entirely removing the fog, are you able to push the fog
+//  all the way back just a tad outside the actual playable area, so you can see
+//  clearly a bit far outside the map but not completely to the point where you
+//  can see the map's furthest draw distance / drop off point?"
+//
+//  Exactly the right instinct: with r_fog 0 the map's geometry simply stops and
+//  you can see the edge of the world, which is what the Diner screenshot shows.
+//
+//  🌟 THE MAP'S OWN FOG IS READABLE AT RUNTIME, so nothing here is hardcoded and
+//  nothing is per-map. The engine exposes the compiled art settings as three
+//  read-only dvars, all three confirmed present in Plutonium's dvar list:
+//        g_fogStartDistReadOnly   where the fog begins
+//        g_fogHalfDistReadOnly    where it reaches half opacity
+//        g_fogColorReadOnly       "r g b", as a string
+//  Stock reads exactly these in maps\mp\_art.gsc::setfogsliders(). So this takes
+//  the map's OWN colour and distances and only moves the distances outward - the
+//  fog still looks like that map's fog, it just starts further away.
+//
+//  setexpfog( startDist, halfwayDist, r, g, b, transitionTime ) is the lever, and
+//  it overrides whatever the map compiled in. Stock's own "disable fog" path is
+//  the same call with an absurd distance - _art.gsc:212 uses
+//  setexpfog( 100000000, 100000001, 0, 0, 0, 0 ) - which is the proof that
+//  pushing the start distance out is the supported way to do this.
+//
+//  📝 THE SCALE IS TUNABLE LIVE because the right number is a matter of taste and
+//  differs per map, and guessing it would just cost a round trip. `.fog 8` sets
+//  it instantly, no rebuild. Tell me the value that looks right and it becomes
+//  the default.
+//
+//  Re-applied on a slow loop: some maps drive their own fog as you move between
+//  zones (TranZit especially), and a one-shot call would be overwritten.
+// ============================================================================
+zmqol_fog_mode()
+{
+    //  0 = off entirely (the old r_fog 0 behaviour)
+    //  1 = pushed back   (default)
+    //  2 = stock, untouched
+    if ( !isdefined( level.zmqol_fog_mode ) )
+        level.zmqol_fog_mode = 1;
+
+    return level.zmqol_fog_mode;
+}
+
+zmqol_fog_scale()
+{
+    if ( !isdefined( level.zmqol_fog_scale ) )
+        level.zmqol_fog_scale = 6.0;
+
+    return level.zmqol_fog_scale;
+}
+
+zmqol_fog_think()
+{
+    level endon( "end_game" );
+
+    //  Let the map finish applying its own art before reading it back.
+    wait 2;
+
+    for (;;)
+    {
+        if ( zmqol_fog_mode() == 1 )
+        {
+            n_start = getdvarfloat( "g_fogStartDistReadOnly" );
+            n_half  = getdvarfloat( "g_fogHalfDistReadOnly" );
+
+            //  A map with no fog authored reports 0/0. Scaling zero stays zero and
+            //  would clamp the world to nothing, so fall back to a sane pair.
+            if ( !isdefined( n_start ) || n_start <= 0 )
+                n_start = 500;
+
+            if ( !isdefined( n_half ) || n_half <= n_start )
+                n_half = n_start * 2;
+
+            a_col = strtok( getdvar( "g_fogColorReadOnly" ), " " );
+            r = 0.5;
+            g = 0.5;
+            b = 0.5;
+
+            if ( isdefined( a_col ) && a_col.size >= 3 )
+            {
+                r = float( a_col[0] );
+                g = float( a_col[1] );
+                b = float( a_col[2] );
+            }
+
+            n_scale = zmqol_fog_scale();
+            setexpfog( n_start * n_scale, n_half * n_scale, r, g, b, 0 );
+        }
+
+        wait 1;
+    }
 }
 
 // ============================================================================
@@ -2688,6 +2800,54 @@ zmqol_dev_command_listener()
                 level.zmqol_nospawns = 1;
                 flag_clear( "spawn_zombies" );
                 player iprintln( "^2[zm_qol] zombie spawning OFF ^7- existing zombies remain" );
+            }
+        }
+        else if ( cmd == "fog" )
+        {
+            //  .fog              show the current setting
+            //  .fog <number>     pushed back, that multiple of the map's own
+            //                    fog distance. 1 = stock distance, higher = further
+            //  .fog off          no fog at all (the mod's old behaviour, r_fog 0)
+            //  .fog stock        hand the map's own fog straight back
+            //  `tokens` is the handler's own split of the chat line and `message`
+            //  was already lowercased above, so no tolower() here.
+            str_arg = "";
+
+            if ( tokens.size > 1 )
+                str_arg = tokens[1];
+
+            if ( str_arg == "off" )
+            {
+                level.zmqol_fog_mode = 0;
+                player iprintln( "^3[zm_qol] fog ^1OFF ^7- no fog at all" );
+            }
+            else if ( str_arg == "stock" )
+            {
+                level.zmqol_fog_mode = 2;
+                player iprintln( "^3[zm_qol] fog ^2STOCK ^7- the map's own fog, untouched ^8(rejoin to fully restore)" );
+            }
+            else if ( str_arg == "" )
+            {
+                if ( zmqol_fog_mode() == 0 )
+                    player iprintln( "^3[zm_qol] fog ^1OFF^7. Try ^3.fog 6 ^7to push it back instead" );
+                else if ( zmqol_fog_mode() == 2 )
+                    player iprintln( "^3[zm_qol] fog ^2STOCK^7. Try ^3.fog 6 ^7to push it back" );
+                else
+                    player iprintln( "^3[zm_qol] fog pushed back ^2x" + zmqol_fog_scale() + "^7 - ^3.fog <number>^7, ^3.fog off^7, ^3.fog stock" );
+            }
+            else
+            {
+                n_scale = float( str_arg );
+
+                if ( n_scale < 1 )
+                    n_scale = 1;
+
+                if ( n_scale > 100 )
+                    n_scale = 100;
+
+                level.zmqol_fog_scale = n_scale;
+                level.zmqol_fog_mode  = 1;
+                player iprintln( "^2[zm_qol] fog pushed back ^3x" + n_scale + "^2 - higher sees further" );
             }
         }
         else if ( cmd == "where" )
