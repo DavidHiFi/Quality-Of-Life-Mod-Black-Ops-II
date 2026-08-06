@@ -427,3 +427,39 @@ material,specialty_chugabud_zombies
 //  loaded as donors for Electric Cherry and Vulture Aid, and both carry it.
 // ============================================================================
 xmodel,zombie_firesale
+
+// ============================================================================
+//  TOMBSTONE EVERYWHERE  -  the 12th perk
+//
+//  User, on Nuketown: ".giveperks and i have 11 perks but im missing tombstone
+//  nuketown and all the survival maps should be able to have all 12 perks".
+//
+//  Correct diagnosis, and the TranZit survival locations were never the problem:
+//  Diner/Town/Farm/Depot are all zm_transit, which OWNS every Tombstone asset,
+//  so they already had 12. Nuketown, Die Rise, Mob and Buried did not, and
+//  quality_of_life.gsc's perks() deliberately never set
+//  level.zombiemode_using_tombstone_perk on them - because doing so runs
+//      precachemodel( "ch_tombstone1" )
+//  and precaching a model the level does not have is FATAL at load. The perk was
+//  off because the assets were missing, not by preference.
+//
+//  Measured: all five live in zm_transit.ff and NOWHERE else -
+//      xmodel    ch_tombstone1                 the gravestone that marks the drop
+//      xmodel    zombie_vending_tombstone      machine, off
+//      xmodel    zombie_vending_tombstone_on   machine, on
+//      weapon    zombie_perk_bottle_tombstone  the drinkable bottle
+//      material  specialty_tombstone_zombies   the HUD icon
+//  so build_ff.bat now --loads zm_transit.ff (LAST, first-loaded-wins) purely as
+//  a donor for these.
+//
+//  🛑 THE FLAG MUST BE SET ON BOTH SIDES. perks() in quality_of_life.gsc and
+//  perks() in scripts\zm\zm_expanded.csc both gate a registerclientfield on
+//  level.zombiemode_using_tombstone_perk, so setting it on one side only is a
+//  one-field-wide set mismatch and EXE_CLIENT_FIELD_MISMATCH before the map
+//  starts. Both were changed together.
+// ============================================================================
+xmodel,ch_tombstone1
+xmodel,zombie_vending_tombstone
+xmodel,zombie_vending_tombstone_on
+weapon,zombie_perk_bottle_tombstone
+material,specialty_tombstone_zombies

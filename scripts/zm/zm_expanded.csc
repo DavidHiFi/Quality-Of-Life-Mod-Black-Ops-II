@@ -345,6 +345,14 @@ perks()
 		level.zombiemode_using_divetonuke_perk = 1;
         clientscripts\mp\zombies\_zm_perk_divetonuke::enable_divetonuke_perk_for_level();
 
+		//  🛑 EXACT TWIN of the same line in quality_of_life.gsc::perks().
+		//  perks_register_clientfield gates registerclientfield("toplayer",
+		//  "perk_tombstone", ...) on this flag on BOTH sides, so if these two
+		//  functions ever disagree the toplayer set is one field wider on one
+		//  side and everyone is dropped with EXE_CLIENT_FIELD_MISMATCH before
+		//  the map starts. Change one, change the other.
+		level.zombiemode_using_tombstone_perk = 1;
+
 		level thread toggle_vending_deadshot_power_on_think();
 		level thread toggle_vending_deadshot_power_off_think();
 		level thread toggle_vending_divetonuke_power_on_think();

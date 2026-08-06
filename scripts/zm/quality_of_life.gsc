@@ -4336,6 +4336,23 @@ perks()
         level.zombiemode_using_additionalprimaryweapon_perk = 1;
         level.zombiemode_using_divetonuke_perk = 1;
         maps\mp\zombies\_zm_perk_divetonuke::enable_divetonuke_perk_for_level();
+
+        //  v1.56.2 - THE 12TH PERK. Tombstone used to be absent here, and it was
+        //  absent for a real reason: setting this flag makes the precache block
+        //  further down run precachemodel( "ch_tombstone1" ), and precaching a
+        //  model the level does not own is fatal at load. All five Tombstone
+        //  assets live in zm_transit.ff and nowhere else, which is exactly why
+        //  the TranZit survival locations (Diner/Town/Farm/Depot) already had
+        //  twelve perks while Nuketown had eleven.
+        //
+        //  They now ship in mod.ff - see the TOMBSTONE EVERYWHERE block in
+        //  zone_source\mod_locations.zone - so the flag is safe on every map in
+        //  this list.
+        //
+        //  🛑 The twin in scripts\zm\zm_expanded.csc::perks() MUST set this too.
+        //  Both sides gate a registerclientfield on it, so one-sided is
+        //  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+        level.zombiemode_using_tombstone_perk = 1;
     }
 
     zmqol_enable_electric_cherry();
