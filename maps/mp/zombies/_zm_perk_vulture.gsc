@@ -101,7 +101,9 @@ init_vulture()
     if ( zmqol_vulture_has_actor_field() )
         registerclientfield( "actor", "vulture_perk_actor", 12000, 2, "int" );
 
-    registerclientfield( "scriptmover", "vulture_perk_scriptmover", 12000, 4, "int" );
+    if ( zmqol_vulture_has_scriptmover_field() )
+        registerclientfield( "scriptmover", "vulture_perk_scriptmover", 12000, 4, "int" );
+
     registerclientfield( "zbarrier", "vulture_perk_zbarrier", 12000, 1, "int" );
     registerclientfield( "toplayer", "sndVultureStink", 12000, 1, "int" );
     registerclientfield( "world", "vulture_perk_disable_solo_quick_revive_glow", 12000, 1, "int" );
@@ -132,32 +134,60 @@ init_vulture()
 }
 
 // ============================================================================
-//  zm_qol: THE TWO FIELDS ORIGINS AND MOB CANNOT AFFORD
+//  zm_qol: THE THREE FIELDS ORIGINS AND MOB CANNOT AFFORD
 //
 //  Vulture Aid registers eight clientfields across four sets, and two maps ran
-//  out of room in two DIFFERENT sets:
+//  out of room in THREE different sets:
 //
-//    zm_tomb   Client Field Set ACTOR is out of space     <- vulture_perk_actor, 2 bits
-//    zm_prison Client Field Set TOPLAYER is out of space  <- vulture_perk_disease_meter, 5 bits
+//    zm_tomb   Client Field Set ACTOR is out of space        <- vulture_perk_actor, 2 bits
+//    zm_prison Client Field Set TOPLAYER is out of space     <- vulture_perk_disease_meter, 5 bits
+//    zm_tomb   Client Field Set SCRIPTMOVER is out of space  <- vulture_perk_scriptmover, 4 bits
 //
-//  Origins is heavy on actor (templars, crusaders, capture zones, panzer); Mob
-//  is heavy on toplayer (afterlife, the plane, the shield, brutus). The field
-//  named in the error is whichever one asks LAST, so on both maps the message
-//  names the MAP's field, not ours - read it as "someone before me used the
-//  space".
+//  The field named in the error is whichever one asks LAST, so the message
+//  names the MAP's field as often as ours - read it as "someone before me used
+//  the space".
 //
-//  🌟 Both expensive fields are PURELY COSMETIC, which is what makes this
-//  possible at all:
-//    vulture_perk_actor          zombie eye glow + stink trail on the zombie
-//    vulture_perk_disease_meter  the stink meter fill fraction
-//  Dropping one costs that map one visual and nothing else. The bonus drops,
-//  the wallbuy/box/machine glows, the mystery-box vision and the perk itself
-//  are all on other fields and are untouched.
+//  🌟 EVERY CLIENTFIELD SET IS EXACTLY 32 BITS WIDE, and this is measured, not
+//  assumed. `Black Ops 2 Grand Resources\T6-Data-Archive-main\ZM\Clientfields\`
+//  holds a per-map runtime dump of every registered field and its width. Total
+//  them per set and Origins classic reads:
+//
+//        scriptmover  32 / 32   <- ZERO free. Highest of any map in the game.
+//        actor        31 / 32   <- ONE free
+//        toplayer     61 / 64
+//
+//  Both crashes fall straight out of those numbers. Vulture's 2-bit actor field
+//  fits in one free bit only if you round down, so stock's 1-bit
+//  zone_capture_zombie asked after it and got the error - which is exactly what
+//  checkpoint 17 saw and could not explain. And nothing whatsoever fits in
+//  scriptmover, so no narrower encoding rescues it: the four flags in
+//  vulture_perk_scriptmover are disjoint enough to pack into a 3-bit enum, and
+//  it would not have helped, because zero free bits means zero.
+//
+//  📝 Treyarch hit this same wall. Origins is the ONLY map in the game that
+//  sets level._no_equipment_activated_clientfield (zm_tomb.gsc:100), which
+//  suppresses the 4-bit equipment_activated field every other zombies map
+//  registers. Without that cut Origins would be at 36/32 on its own.
+//
+//  🛑 WHAT DROPPING THE SCRIPTMOVER FIELD ACTUALLY COSTS ON ORIGINS. The other
+//  two drops were free - a zombie eye glow and a meter. This one is not, and it
+//  should not be described as cosmetic-only:
+//    vulture_stink_fx      the stink pile. Its entity is a bare tag_origin
+//                          (initialize_stink_entity_pool), so the clientfield
+//                          IS its entire visual - the pile becomes INVISIBLE.
+//                          It still works; zombies are still distracted by it.
+//    vulture_drop_fx       glow on a bonus drop. The drop itself still renders,
+//    vulture_drop_pickup   because delay_showing_vulture_ent setmodel()s and
+//                          show()s it independently of the field.
+//    vulture_powerup_drop  the green highlight on powerups.
+//  Buying any of it back means taking bits off a stock Origins system
+//  (element_glow_fx 4, bryce_cake 2), which breaks the base map to decorate an
+//  added perk. Not a trade this project makes.
 //
 //  🛑 THE CLIENT MUST DROP THE IDENTICAL FIELD. A field registered on one side
 //  only makes that set one width wider on that side, which is
 //  EXE_CLIENT_FIELD_MISMATCH for everyone before the map starts. The client
-//  twin of these two functions is in scripts\zm\zm_expanded.csc - it is a
+//  twins of these three functions are in scripts\zm\zm_expanded.csc - it is a
 //  separate compilation unit so the copy is unavoidable, and it is the first
 //  place to look if a clientfield error ever appears.
 //
@@ -174,6 +204,11 @@ zmqol_vulture_has_actor_field()
 zmqol_vulture_has_disease_meter()
 {
     return getdvar( "mapname" ) != "zm_prison";
+}
+
+zmqol_vulture_has_scriptmover_field()
+{
+    return getdvar( "mapname" ) != "zm_tomb";
 }
 
 add_additional_stink_locations_for_zone( str_zone, a_zones )
@@ -1163,6 +1198,9 @@ vulture_debug_text( str_text )
 
 vulture_clientfield_scriptmover_set( str_field_name )
 {
+    if ( !zmqol_vulture_has_scriptmover_field() )   // zm_qol: not registered on Origins
+        return;
+
     assert( isdefined( level.perk_vulture.clientfields.scriptmovers[str_field_name] ), str_field_name + " is not a valid client field for vulture perk!" );
     n_value = self getclientfield( "vulture_perk_scriptmover" );
     n_value = n_value | 1 << level.perk_vulture.clientfields.scriptmovers[str_field_name];
@@ -1171,6 +1209,9 @@ vulture_clientfield_scriptmover_set( str_field_name )
 
 vulture_clientfield_scriptmover_clear( str_field_name )
 {
+    if ( !zmqol_vulture_has_scriptmover_field() )   // zm_qol: not registered on Origins
+        return;
+
     assert( isdefined( level.perk_vulture.clientfields.scriptmovers[str_field_name] ), str_field_name + " is not a valid client field for vulture perk!" );
     n_value = self getclientfield( "vulture_perk_scriptmover" );
     n_value = n_value & ~( 1 << level.perk_vulture.clientfields.scriptmovers[str_field_name] );

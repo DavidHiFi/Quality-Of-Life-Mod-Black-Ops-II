@@ -370,13 +370,15 @@ zmqol_vulture_enabled()
 }
 
 // ============================================================================
-//  zm_qol: THE TWO FIELDS ORIGINS AND MOB CANNOT AFFORD  (CLIENT)
+//  zm_qol: THE THREE FIELDS ORIGINS AND MOB CANNOT AFFORD  (CLIENT)
 //
-//  🛑 EXACT TWINS of the same two functions in
-//  maps\mp\zombies\_zm_perk_vulture.gsc - the full reasoning lives there. Drop a
-//  field on one side only and that set is one width wider on that side, which is
-//  EXE_CLIENT_FIELD_MISMATCH for everyone before the map starts. If a clientfield
-//  error ever appears for Vulture, compare these four functions FIRST.
+//  🛑 EXACT TWINS of the same three functions in
+//  maps\mp\zombies\_zm_perk_vulture.gsc - the full reasoning lives there,
+//  including the measured proof that every clientfield set is 32 bits wide and
+//  that Origins classic already spends 32 of 32 on scriptmover. Drop a field on
+//  one side only and that set is one width wider on that side, which is
+//  EXE_CLIENT_FIELD_MISMATCH for everyone before the map starts. If a
+//  clientfield error ever appears for Vulture, compare these SIX functions FIRST.
 // ============================================================================
 zmqol_vulture_has_actor_field()
 {
@@ -388,12 +390,20 @@ zmqol_vulture_has_disease_meter()
 	return getDvar( "mapname" ) != "zm_prison";
 }
 
+zmqol_vulture_has_scriptmover_field()
+{
+	return getDvar( "mapname" ) != "zm_tomb";
+}
+
 // ============================================================================
 //  zmqol_init_vulture_trimmed  -  Vulture Aid on Origins and Mob at last
 //
 //  Origins and Mob were the last two maps without the 11th perk, each blocked by
-//  ONE clientfield it had no room for (actor on Origins, toplayer on Mob). Both
-//  blockers are cosmetic-only fields, so the perk works without them.
+//  clientfields it had no room for: actor AND scriptmover on Origins, toplayer
+//  on Mob. The perk itself, its drops, its wallbuy/machine/box glows and its
+//  mystery-box vision all live on other fields and work everywhere. What Origins
+//  gives up is the FX layer on the stink pile and the drops - see the server
+//  file for exactly what that looks like in play.
 //
 //  🛑 WHY THIS IS A COPY OF init_vulture AND NOT AN EDIT OF THE REAL FILE.
 //  The obvious move is to ship clientscripts\mp\zombies\_zm_perk_vulture.csc as
@@ -438,7 +448,9 @@ zmqol_init_vulture_trimmed()
 	if ( zmqol_vulture_has_actor_field() )
 		registerclientfield( "actor", "vulture_perk_actor", 12000, 2, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_callback_actor, 0, 0 );
 
-	registerclientfield( "scriptmover", "vulture_perk_scriptmover", 12000, 4, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_callback_scriptmover, 0, 0 );
+	if ( zmqol_vulture_has_scriptmover_field() )
+		registerclientfield( "scriptmover", "vulture_perk_scriptmover", 12000, 4, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_callback_scriptmover, 0, 0 );
+
 	registerclientfield( "zbarrier", "vulture_perk_zbarrier", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_vision_mystery_box, 0, 0 );
 	registerclientfield( "toplayer", "sndVultureStink", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::sndvulturestink );
 	registerclientfield( "world", "vulture_perk_disable_solo_quick_revive_glow", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_disable_solo_quick_revive_glow, 0, 0 );
