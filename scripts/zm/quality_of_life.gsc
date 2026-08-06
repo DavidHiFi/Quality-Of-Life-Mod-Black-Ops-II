@@ -2147,16 +2147,48 @@ zmqol_fog_apply_client()
                 //  profile, and `.fog` says so, rather than pretending it is
                 //  theirs. If one looks wrong on those maps, say which and it
                 //  gets its own entry.
+                //  🛑 THE r_fog* TWEAK DVARS ARE REFUSED. v1.57.2 pushed
+                //  r_fogTweak/r_fogBaseDist/... with setclientdvar and the view
+                //  did not change AT ALL - not even wrongly, which is the tell.
+                //  Had r_fogTweak taken, the half-height and opacity swap alone
+                //  would have altered the look. They are almost certainly
+                //  cheat/developer-flagged, so the client drops them. Plain
+                //  r_fog is NOT flagged - ".fog off" works - which is exactly
+                //  why the two behave differently.
+                //
+                //  🌟 setvolfog IS the call the map itself makes, so it cannot be
+                //  refused and cannot be the wrong kind of fog:
+                //      maps\mp\createart\zm_transit_art.gsc:41
+                //  That file is a plain retail map script - no /# #/ wrapper -
+                //  and every argument below is its own literal, in its own order,
+                //  with ONLY the two distances scaled.
+                //
+                //  Global rather than per-player, because that is what setvolfog
+                //  is. r_fog is still forced back to 1 first, or a previous
+                //  ".fog off" would leave this invisible.
+                self setclientdvar( "r_fog", "1" );
+                self setclientdvar( "r_fogTweak", "0" );
+
                 n_scale = zmqol_fog_scale();
 
-                self setclientdvar( "r_fog", "1" );
-                self setclientdvar( "r_fogTweak", "1" );
-                self setclientdvar( "r_fogBaseDist",   "" + ( 138.679 * n_scale ) );
-                self setclientdvar( "r_fogHalfDist",   "" + ( 1011.62 * n_scale ) );
-                self setclientdvar( "r_fogHalfHeight", "10834.5" );
-                self setclientdvar( "r_fogBaseHeight", "1145.21" );
-                self setclientdvar( "r_fogColor",      "0.501961 0.501961 0.501961" );
-                self setclientdvar( "r_fogOpacity",    "0.8546" );
+                setvolfog( 138.679 * n_scale,   // start_dist   <- scaled
+                           1011.62 * n_scale,   // half_dist    <- scaled
+                           10834.5,             // half_height
+                           1145.21,             // base_height
+                           0.501961,            // fog_r
+                           0.501961,            // fog_g
+                           0.501961,            // fog_b
+                           7.5834,              // fog_scale
+                           0.501961,            // sun_col_r
+                           0.501961,            // sun_col_g
+                           0.501961,            // sun_col_b
+                           -0.99,               // sun_dir_x
+                           0.06,                // sun_dir_y
+                           -0.11,               // sun_dir_z
+                           0,                   // sun_start_ang
+                           0,                   // sun_stop_ang
+                           0,                   // time
+                           0.8546 );            // max_fog_opacity
             }
         }
 
