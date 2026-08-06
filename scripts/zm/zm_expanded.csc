@@ -53,7 +53,75 @@ main()
 	// EXE_CLIENT_FIELD_MISMATCH before the map starts.
 	replaceFunc( clientscripts\mp\_utility_code::struct_class_init, ::struct_class_init );
 
+	// CLIENT HALF OF FIRE SALE. Missing since v1.54.0 - see the block below.
+	zmqol_enable_fire_sale();
+
 	perks();
+}
+
+// ============================================================================
+//  zmqol_enable_fire_sale  (CLIENT)  -  EXACT TWIN of the same function in
+//                                       scripts\zm\quality_of_life.gsc
+//
+//  🛑 THE BUG THIS FIXES, and it was fatal, not cosmetic:
+//        *****MISMATCHED CLIENTFIELDS*****
+//        Clientfield powerup_fire_sale in set [toplayer] is not registered on the client
+//        Server Disconnected - EXE_CLIENT_FIELD_MISMATCH
+//  on TranZit (any location, reported on Diner) and Die Rise. Latent since
+//  v1.54.0 shipped Fire Sale server-side with no client half; it only surfaced
+//  now because those two maps had not been booted since.
+//
+//  🌟 WHY A ONE-LINE SERVER CHANGE NEEDED A CLIENT TWIN AT ALL. The powerup
+//  clientfield is not registered by name anywhere - it is registered as a side
+//  effect of a LIST. Both sides run their own add_zombie_powerup(), and both
+//  open with the same gate:
+//        if ( isdefined( level.zombie_include_powerups ) &&
+//             !isdefined( level.zombie_include_powerups[powerup_name] ) )
+//            return;
+//  level.zombie_include_powerups is per-VM. Adding "fire_sale" to the SERVER's
+//  list made the server register toplayer/powerup_fire_sale; the client's list
+//  was untouched, so the client skipped it, and the sets came out one field
+//  apart. Stock's own lists disagree the same way - zm_transit.csc:335 and
+//  zm_highrise.csc:198 both omit fire_sale, matching their server halves
+//  exactly. That symmetry is the thing v1.54.0 broke.
+//
+//  📝 Both sides register IDENTICALLY - ("toplayer", "powerup_fire_sale", 1, 2,
+//  "int") - because both derive it from the same add_zombie_powerup arguments.
+//  Server _zm_powerups.gsc:100 passes client_field_name "powerup_fire_sale" and
+//  no clientfield_version, so both default to version 1 and 2 bits. Nothing has
+//  to be kept in sync by hand beyond the map list in these two functions.
+//
+//  🛑 ORDERING, verified rather than assumed. Both maps' client scripts do:
+//        start_zombie_stuff() { ... include_powerups();
+//                                   clientscripts\mp\zombies\_zm::init(); ... }
+//  and _zm.csc:63 is where _zm_powerups::init() runs. So the list must be
+//  complete before _zm::init(). This main() runs before the map's - proven by
+//  the animtree crash documented at the top of this file, where our
+//  scriptmodelsuseanimtree() landed at client index 0 ahead of the map's - and
+//  include_zombie_powerup() is purely additive (it creates the array only if
+//  undefined and never clears it), so writing early cannot lose the map's own
+//  entries when include_powerups() runs afterwards.
+//
+//  🛑 THE MAP GATE IS NOT COSMETIC. On a map whose client never calls
+//  include_powerups() at all, level.zombie_include_powerups stays undefined and
+//  the gate above lets EVERY powerup through. Creating the array there would
+//  flip that gate and filter every powerup down to fire_sale alone. Both maps
+//  named here do populate it (zm_transit.csc:335, zm_highrise.csc:198), which
+//  is exactly why the list must stay these two and must match the server's.
+//
+//  The client's add_zombie_powerup precaches NOTHING - unlike the server's,
+//  which precaches the zombie_firesale model (already shipped in
+//  zone_source\mod_locations.zone). So this half needs no asset and no mod.ff
+//  relink.
+// ============================================================================
+zmqol_enable_fire_sale()
+{
+	map = getDvar( "mapname" );
+
+	if ( map != "zm_transit" && map != "zm_highrise" )
+		return;     // the other four include it themselves, on both sides
+
+	clientscripts\mp\zombies\_zm_utility::include_powerup( "fire_sale" );
 }
 
 // ============================================================================
