@@ -42,10 +42,23 @@ try {
             Get-ChildItem -Path $folderPath -Recurse -File | ForEach-Object {
                 # entry path relative to project root, forward slashes
                 $rel   = $_.FullName.Substring($rootPath.Length + 1) -replace '\\','/'
-                $entry = $zip.CreateEntry($rel, [System.IO.Compression.CompressionLevel]::Optimal)
+
+                # .iwi is ALREADY a compressed texture (DXT/BC blocks). Deflating it
+                # again buys almost nothing and costs a great deal of time - images\
+                # is ~2.1 GB since the upscaled texture pack landed, and running that
+                # through Optimal turns every build into a multi-minute wait for a
+                # couple of percent. Store them instead; the game reads stored and
+                # deflated entries identically.
+                $level = if ($_.Extension -ieq '.iwi') {
+                    [System.IO.Compression.CompressionLevel]::NoCompression
+                } else {
+                    [System.IO.Compression.CompressionLevel]::Optimal
+                }
+
+                $entry = $zip.CreateEntry($rel, $level)
                 $es    = $entry.Open()
-                $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
-                $es.Write($bytes, 0, $bytes.Length)
+                $fsIn  = [System.IO.File]::OpenRead($_.FullName)
+                try { $fsIn.CopyTo($es) } finally { $fsIn.Dispose() }
                 $es.Dispose()
                 $count++
             }
