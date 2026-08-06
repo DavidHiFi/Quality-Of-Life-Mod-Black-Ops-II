@@ -22,10 +22,52 @@
 // ============================================================================
 
 #include maps\mp\_utility;
+//  For is_classic(), used by main() below. It reads getdvar("ui_zm_gamemodegroup"),
+//  which is set before map scripts run, so it is valid this early.
+#include maps\mp\zombies\_zm_utility;
 
+// ============================================================================
+//  🛑 v1.57.4 - THE FOG WALLS COME BACK ON SURVIVAL, AND WHY
+//
+//  User wanted the fog "pushed all the way back just a tad outside the actual
+//  playable area" instead of deleted, because with it gone you can see the map
+//  end. Four attempts to move the fog DISTANCE all failed:
+//
+//      setexpfog                       no effect - maps use volumetric fog
+//      setvolfog (the map's own call)  no effect
+//      r_fogTweak/r_fogBaseDist/...    no effect via setclientdvar
+//      the same dvars typed straight   no effect
+//      into the CLIENT CONSOLE
+//
+//  That last one is conclusive and worth keeping: it was never setclientdvar
+//  being refused. This build's renderer ignores fog-distance changes entirely.
+//  Only the on/off switch, r_fog, does anything. FOG DISTANCE IS NOT
+//  CONTROLLABLE HERE - do not spend another round trying.
+//
+//  🌟 So the distance is left alone and the EDGE is hidden instead, with the
+//  map's own scenery fog. These three effects are one-shot createfx entities
+//  placed by zm_transit_fx, and stock TranZit uses them as the thick walls that
+//  screen one zone from the next. They are particle FX, so r_fog 0 does not
+//  touch them - which is exactly the combination asked for: clear near view,
+//  something solid at the horizon.
+//
+//  Measured from maps\mp\createfx\zm_transit_fx.gsc, four of them ring Diner:
+//        (-3783, -6804)   ~610 units out
+//        (-4166, -6435)   ~910
+//        (-5615, -6469)   ~1750
+//        (-6482, -6923)   ~2450
+//  which is a wall just past the playable area rather than across it.
+//
+//  🛑 CLASSIC TRANZIT KEEPS THEM DISABLED. On the bus route these sit BETWEEN
+//  zones, in the middle of where you drive, and screening them off is the whole
+//  reason this file exists. Survival locations are a single zone, so the same
+//  walls land on the boundary instead. Same !is_classic() split the rest of the
+//  survival work uses.
+// ============================================================================
 main()
 {
-    replaceFunc( maps\mp\zm_transit_fx::precache_createfx_fx, ::Transition_Disabled );
+    if ( is_classic() )
+        replaceFunc( maps\mp\zm_transit_fx::precache_createfx_fx, ::Transition_Disabled );
 }
 
 Transition_Disabled()
