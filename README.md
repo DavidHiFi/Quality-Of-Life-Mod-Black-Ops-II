@@ -1,8 +1,9 @@
 # Quality Of Life
 
 A Plutonium T6 (Black Ops II) Zombies mod: **all weapons + all perks on every map**,
-the **BO2 Death Machine** power-up, extra survival locations, and a stack of QoL
-tweaks. All gameplay is plain GSC you can edit — no compiling, no linker.
+the **BO2 Death Machine** power-up, **Diner as a Survival location**, upscaled
+textures, and a stack of QoL tweaks. All gameplay is plain GSC you can edit — no
+compiling, no linker.
 
 ## How to change something (the whole loop)
 
@@ -23,7 +24,7 @@ Only if you changed a **client script (`.csc`)** or a real asset under
 scripts\zm\        <- EDIT THESE (all the gameplay)
    quality_of_life.gsc        all weapons + perks + Death Machine + QoL, merged into one file
    zm_buried\, zm_tomb\, ...  per-map scripts (server .gsc + client .csc)
-   locs\, replaced\           custom survival locations and stock-function overrides
+   locs\, replaced\           the Diner survival location and stock-function overrides
 maps\mp\*.d3dbsp   <- map entity files shipped in mod.iwd
 zone_source\       <- what gets linked into mod.ff (build_ff.bat)
 build.bat          <- edit -> double-click -> play
@@ -40,8 +41,9 @@ source folders is built or don't-touch.
 - **Death Machine** power-up drop. Dvars: `sv_deathmachine_duration` (30), `sv_deathmachine_powerup`.
 - **Instant Pack-a-Punch**, **BO4 Max Ammo**, **wall buys refill the mag**.
 - **Prone at a perk machine = +100 points** (once per machine, every map).
-- **Extra survival locations** ported from BO2-Reimagined — Diner, Tunnel, Cornfield,
-  Docks, Borough, Maze and the Origins arenas.
+- **Diner as a Survival location** on TranZit, ported from BO2-Reimagined. Treyarch left
+  the map data in the game but never shipped it as a Survival start. This is the only
+  added location — `scripts\zm\locs\` holds exactly one location script.
 - Hitmarkers, on-screen counters, high-round fix, Cold-War round HUD, no perk limit,
   animated camos, area names (TranZit), perk pop-up HUD.
 
