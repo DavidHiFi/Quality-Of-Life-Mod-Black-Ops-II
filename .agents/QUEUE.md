@@ -8,7 +8,65 @@ acknowledged, not begun.
 
 ---
 
-## 1. IN FLIGHT — deployed, AWAITING THE USER'S VERIFICATION
+## 1. IN FLIGHT — Origins Wunderfizz replacement (research done, not yet built)
+
+**User, 2026-08-07:** replace Origins' native Wunderfizz machines with the mod's, keeping the
+generator-power gating per location and the moving-location behaviour. "Make it seamlessly
+replace the origins ones."
+
+🛑 **This reverses an earlier instruction** recorded in `wunderfizz.gsc` ("NO ADDED MACHINE ON
+ORIGINS. User, twice: get rid of them, keep the vanilla ones"). The user has been told; proceed.
+
+### 🌟 THE BLOCKER IS DEAD — measured 2026-08-07
+
+The queue said Origins' `scriptmover` set is 32/32 full, and it is (22 fields, 32 bits, from
+`clientfields_zm_tomb_zclassic_tomb.txt`). **That only blocks REGISTERING a new field.** Origins
+already registers the six the Wunderfizz needs, in `_zm_perk_random.gsc::init()`:
+
+| field | bits |
+|---|---|
+| `perk_bottle_cycle_state` | 2 |
+| `turn_active_perk_light_red` / `_green` | 1 + 1 |
+| `turn_on_location_indicator` | 1 |
+| `turn_active_perk_ball_light` | 1 |
+| `zone_captured` | 1 |
+
+**Drive those instead of registering `clientfield_perk_intro_fx`, and the wall is gone.**
+
+### The design that follows from the architecture
+
+Origins' machines are **map entities** — `getentarray( "random_perk_machine", "targetname" )` —
+and everything the user wants kept is bolted to those entities:
+
+- generator gating → `machine_power_indicators()` / `conditional_power_indicators()`, via
+  `zone_captured`
+- relocation → `machine_selector()`, plus `start_machine` (`script_noteworthy`) and the
+  `j_ball` hidepart that gives one machine the ball
+- the real model, animtree, unitrigger and all six clientfields
+
+So **do not delete the entities and spawn the mod's script_models.** That path needs a new
+clientfield (impossible) and throws away the gating and relocation. The correct build keeps the
+native entities and `replaceFunc`s the *behaviour* onto them from `_zm_perk_random`.
+
+📝 Note for whoever builds it: stock `get_perk_weapon_model()` already falls back to
+`level._custom_perks[perk].perk_bottle`, so custom-perk bottles are supported natively.
+
+---
+
+## 1b. PREVIOUS IN FLIGHT — REVERTED, closed
+
+### Diner fog — **REVERTED at v1.57.7**
+User: *"still didn't move... forget it for now, just turn the fog back off entirely."* Both files
+restored byte-identical to `d7cb7db` (pre-fog). `r_fog 0` is forced again and `.fog` is gone.
+What was learned stands: fog **distance** cannot be changed on this build, and the ring did spawn
+correctly (12/12) — it just never looked right. **Do not re-open.**
+
+### Texture pack — **REMOVED at v1.57.7**
+2,788 `.iwi` deleted, `mod.iwd` 2,210 MB → 53.9 MB. The mod's own 64 images kept (git-tracked was
+the keep-list). Pack still at `H:\Claude\Projects Sources\add textures to mod`. The user loads
+textures from `%LOCALAPPDATA%\Plutonium\storage\t6\images\` instead. README corrected.
+
+<details><summary>old entry, superseded</summary>
 
 ### Diner fog: default OFF + ring stacked two rows high — **v1.57.6**
 
@@ -33,6 +91,7 @@ cloud bank should now be tall enough to cover the hillside rather than sitting u
 Verified offline: both files parse; deployed `mod.iwd` byte-identical to source; vector add and
 vector indexing confirmed as stock GSC idioms; stock TranZit already places 587 createfx effects.
 
+</details>
 🛑 **Unverified:** whether `spawnfx` anchors the effect at its centre or its base. +500 against a
 ~600-tall effect overlaps either way, so this cannot leave a seam — but if the upper row reads as
 clouds floating in the sky, that anchor question is the reason and the offset is the dial.
