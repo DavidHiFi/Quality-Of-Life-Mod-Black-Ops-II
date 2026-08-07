@@ -274,13 +274,36 @@ added_weapons()
 //  flag unguarded - the replacement keeps that slot and adds no wait, so the
 //  ordering is unchanged.
 // ============================================================================
+//  🛑 v1.62.0 - `== 1` WAS NOT ENOUGH, AND THIS PROJECT ALREADY KNEW WHY.
+//
+//  quality_of_life.gsc::onallplayersready_instant carries this measured note:
+//      "getnumexpectedplayers() never becomes non-zero - which is what happens
+//       on solo and custom games launched from the Mods menu, since there is no
+//       real party populating it"
+//  Nobody connected that to this function. `getnumexpectedplayers() == 1` is
+//  FALSE when the engine reports 0, so this set is_forever_solo_game = 0 and Mob
+//  kept its co-op rules while playing alone - one plane part at a time.
+//
+//  Origins escapes it: its call site (zm_tomb.gsc:290) runs later in the load
+//  than Mob's (zm_prison.gsc:222), and by then the count has resolved - which is
+//  exactly why the Origins log line reads `expected=1` while Mob misbehaves.
+//
+//  So the test is now `<= 1`. It differs from `== 1` ONLY when the engine says
+//  0, which is precisely the broken case, so it cannot regress a game that was
+//  already working.
+//
+//  📝 Trade-off, stated rather than hidden: a genuine 2-player co-op game whose
+//  count has not resolved at this point would also read as solo. Both counts are
+//  logged below so a single boot shows exactly what the engine reported.
 qol_check_solo_status()
 {
-    if ( getnumexpectedplayers() == 1 )
+    n_expected = getnumexpectedplayers();
+
+    if ( n_expected <= 1 )
         level.is_forever_solo_game = 1;
     else
         level.is_forever_solo_game = 0;
 
-    println( "[zm_qol] solo status: expected=" + getnumexpectedplayers() + " is_forever_solo_game=" + level.is_forever_solo_game );
+    println( "[zm_qol] solo status: expected=" + n_expected + " connected=" + getnumconnectedplayers() + " is_forever_solo_game=" + level.is_forever_solo_game );
 }
 

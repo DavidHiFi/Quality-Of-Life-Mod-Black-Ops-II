@@ -1239,12 +1239,19 @@ origins_change_patch()
 //  call site - stock reads it here itself. Evaluated once, never re-checked,
 //  which is what "forever solo" means in stock too.
 // ============================================================================
+//  v1.62.0: `<= 1`, matching zm_prison's copy. Origins already reported
+//  expected=1 in a real boot log, so this changes nothing here today - it is
+//  kept identical to Mob's on purpose, so the two cannot drift and so Origins
+//  is covered if its call site ever resolves the count as late as Mob's does.
+//  See the long note above zm_prison.gsc::qol_check_solo_status.
 qol_check_solo_status()
 {
-    if ( getnumexpectedplayers() == 1 )
+    n_expected = getnumexpectedplayers();
+
+    if ( n_expected <= 1 )
         level.is_forever_solo_game = 1;
     else
         level.is_forever_solo_game = 0;
 
-    println( "[zm_qol] solo status: expected=" + getnumexpectedplayers() + " is_forever_solo_game=" + level.is_forever_solo_game );
+    println( "[zm_qol] solo status: expected=" + n_expected + " connected=" + getnumconnectedplayers() + " is_forever_solo_game=" + level.is_forever_solo_game );
 }
