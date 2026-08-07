@@ -52,6 +52,11 @@ main()
     replaceFunc( maps\mp\zombies\_zm_perk_random::init_machines,        ::zmqol_tomb_no_native_wunderfizz );
     replaceFunc( maps\mp\zombies\_zm_perk_random::start_random_machine, ::zmqol_tomb_no_native_wunderfizz );
 
+    //  v1.59.1 - MP40 wall-buys hand out the ADJUSTABLE STOCK version.
+    //  Must run in main(), before _zm_weapons::init_spawnable_weapon_upgrade()
+    //  reads these structs. See the function for why this is safe.
+    zmqol_tomb_mp40_stalker_wallbuys();
+
     // --- custom survival start locations: Trenches, Excavation Site, Church, The Crazy Place ---
 
     // ========================================================================
@@ -487,6 +492,71 @@ zmqol_tomb_perk_is_stock( str_perk )
 //  progress never moves, it is server-side and the zone objects are the place to
 //  look.
 // ============================================================================
+// ============================================================================
+//  zmqol_tomb_mp40_stalker_wallbuys  -  Origins' MP40 wall-buys give the same
+//  adjustable-stock MP40 the mystery box gives.
+//
+//  User, 2026-08-07: "make sure that the mp40 wallbuys give you the mp40
+//  adjustable stock just like my friend did, the same mp40 adjustable stock
+//  that you get if you get the mp40 out of the mystery box."
+//
+//  🌟 THIS NEEDS NO NEW ASSET AND NO WEAPON REGISTRATION. Stock Origins already
+//  ships both guns and already registers the stalker one (zm_tomb.gsc):
+//
+//      add_zombie_weapon( "mp40_zm",         "mp40_upgraded_zm",         ... 1300 ... )
+//      add_zombie_weapon( "mp40_stalker_zm", "mp40_stalker_upgraded_zm", ... 1300 ... )
+//      include_weapon( "mp40_zm", 0 )          <- buyable, NOT in the box
+//      include_weapon( "mp40_stalker_zm" )     <- in the box
+//      add_shared_ammo_weapon( "mp40_stalker_zm", "mp40_zm" )
+//
+//  Both are registered at the same 1300 cost and already share ammo, so
+//  pointing the wall-buys at the stalker variant changes which of two
+//  already-present weapons is handed over. Nothing is precached, nothing is
+//  added to the box, and the cost does not move.
+//
+//  🛑 TIMING: this MUST run in main(). maps\mp\zombies\_zm_weapons::
+//  init_spawnable_weapon_upgrade() reads .zombie_weapon_upgrade off these
+//  structs during init and builds the trigger and its hint string from it.
+//  Editing them afterwards would change nothing.
+//
+//  📝 It also prints every MP40 wall-buy it finds, which is the probe for the
+//  second half of the same report: the wall-buy by the mound in No Man's Land
+//  shows its chalk but offers no buy prompt. The mapents dump of zm_tomb.ff has
+//  THREE structs, all identical in shape:
+//        (3237, -429, 195)   (-517, 4503, -285)   (-640, 693, 199)
+//  If this line reports 3, all three structs exist and the missing prompt is
+//  downstream in trigger creation. If it reports fewer, the struct itself is
+//  not reaching the game and that is a different problem entirely. Either way
+//  the next boot answers it without another round trip.
+// ============================================================================
+zmqol_tomb_mp40_stalker_wallbuys()
+{
+    a_structs = getstructarray( "weapon_upgrade", "targetname" );
+    n_found   = 0;
+    str_where = "";
+
+    for ( i = 0; i < a_structs.size; i++ )
+    {
+        if ( !isdefined( a_structs[i] ) || !isdefined( a_structs[i].zombie_weapon_upgrade ) )
+            continue;
+
+        if ( a_structs[i].zombie_weapon_upgrade != "mp40_zm" )
+            continue;
+
+        a_structs[i].zombie_weapon_upgrade = "mp40_stalker_zm";
+        n_found++;
+
+        if ( isdefined( a_structs[i].origin ) )
+        {
+            str_where = str_where + "(" + int( a_structs[i].origin[0] ) + ","
+                                        + int( a_structs[i].origin[1] ) + ","
+                                        + int( a_structs[i].origin[2] ) + ") ";
+        }
+    }
+
+    println( "[zm_qol] origins mp40: retagged " + n_found + " of " + a_structs.size + " weapon_upgrade struct(s) to mp40_stalker_zm  at " + str_where );
+}
+
 zmqol_tomb_no_native_wunderfizz()
 {
     //  Deliberately empty - the replacement for BOTH
