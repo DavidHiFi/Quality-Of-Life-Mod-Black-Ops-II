@@ -1,9 +1,13 @@
 # Quality Of Life
 
 A Plutonium T6 (Black Ops II) Zombies mod: **all weapons + all perks on every map**,
-the **BO2 Death Machine** power-up, **Diner as a Survival location**, upscaled
-textures, and a stack of QoL tweaks. All gameplay is plain GSC you can edit — no
-compiling, no linker.
+the **BO2 Death Machine** power-up, **Diner as a Survival location**, and a stack of
+QoL tweaks. All gameplay is plain GSC you can edit — no compiling, no linker.
+
+> **Textures:** this mod no longer ships an upscaled texture pack. It was removed in
+> v1.57.7 because loose `.iwi` files in `mod.iwd` did not reliably override the stock
+> art, and it cost 2 GB for no visible result. Load a texture pack from
+> `%LOCALAPPDATA%\Plutonium\storage\t6\images\` instead — that path works.
 
 ## How to change something (the whole loop)
 
