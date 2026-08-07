@@ -5953,17 +5953,32 @@ zmqol_perk_hud_build()
         if ( str_shader == "" )
             continue;
 
+        //  🛑 SIZE AND POSITION ARE MEASURED, not picked. v1.61.0 used 32x32 at
+        //  y -44 and the row came out far too big and overlapped the "Zombies:"
+        //  counter.
+        //
+        //  HUD elements work in a 640x480 VIRTUAL space, not screen pixels - so
+        //  32 units is 32/640 of the screen WIDTH, which on 1920 is ~96 real
+        //  pixels per icon. That is the whole reason they were huge.
+        //
+        //  Measured off a screenshot of the ENGINE's own row (2000px wide image
+        //  = 640 units, so 1 unit = 3.125px):
+        //        icon width   ~58px  ->  ~19 units
+        //        icon spacing ~63px  ->  ~20 units
+        //        bottom edge  ~72 units above the screen bottom
+        //  Those are the numbers below. Matching stock's row is the goal; this
+        //  is a replacement for it, not a redesign of it.
         e = newclienthudelem( self );
         e.horzalign = "user_left";
         e.vertalign = "user_bottom";
         e.alignx    = "left";
         e.aligny    = "bottom";
-        e.x         = 8 + ( n * 34 );
-        e.y         = -44;
+        e.x         = 8 + ( n * 21 );
+        e.y         = -72;
         e.alpha     = 1;
         e.foreground = 1;
         e.hidewheninmenu = 1;
-        e setshader( str_shader, 32, 32 );
+        e setshader( str_shader, 20, 20 );
 
         self.zmqol_perkicons[ self.zmqol_perkicons.size ] = e;
         n++;
@@ -6002,7 +6017,16 @@ zmqol_perk_hud_think()
             self zmqol_perk_hud_build();
         }
 
-        wait 0.25;
+        //  🛑 0.05, NOT 0.25. At a quarter second the row visibly lagged behind
+        //  the perks - with .giveperks handing out twelve in sequence the last
+        //  icon arrived seconds after the command. 0.05 is one server frame and
+        //  makes it look instant.
+        //
+        //  It is cheap despite the rate: the tick only builds a 12-character
+        //  string from hasperk() and compares it. The expensive part - tearing
+        //  down and recreating hud elements - still happens ONLY when that
+        //  string changes, which in normal play is once per perk bought.
+        wait 0.05;
     }
 }
 
