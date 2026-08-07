@@ -52,10 +52,10 @@ main()
     replaceFunc( maps\mp\zombies\_zm_perk_random::init_machines,        ::zmqol_tomb_no_native_wunderfizz );
     replaceFunc( maps\mp\zombies\_zm_perk_random::start_random_machine, ::zmqol_tomb_no_native_wunderfizz );
 
-    //  v1.59.1 - MP40 wall-buys hand out the ADJUSTABLE STOCK version.
-    //  Must run in main(), before _zm_weapons::init_spawnable_weapon_upgrade()
-    //  reads these structs. See the function for why this is safe.
-    zmqol_tomb_mp40_stalker_wallbuys();
+    //  v1.59.2 - MP40 wall-buys hand out the ADJUSTABLE STOCK version.
+    //  THREADED, and it waits for the wall-buy stubs to exist - the v1.59.1
+    //  version ran inline here and found zero structs. See the function.
+    level thread zmqol_tomb_mp40_stalker_wallbuys();
 
     // --- custom survival start locations: Trenches, Excavation Site, Church, The Crazy Place ---
 
@@ -531,30 +531,90 @@ zmqol_tomb_perk_is_stock( str_perk )
 // ============================================================================
 zmqol_tomb_mp40_stalker_wallbuys()
 {
-    a_structs = getstructarray( "weapon_upgrade", "targetname" );
-    n_found   = 0;
-    str_where = "";
+    level endon( "end_game" );
 
-    for ( i = 0; i < a_structs.size; i++ )
+    //  🛑 v1.59.2 - THE v1.59.1 VERSION RAN IN main() AND DID NOTHING. Its own
+    //  probe said so: "retagged 0 of 0 weapon_upgrade struct(s)".
+    //  getstructarray() reads level.struct, which is built by the MAP's main()
+    //  from the mapents - and this mod's main() runs BEFORE the map's (proven by
+    //  the animtree ordering documented in zm_expanded.csc). So at main() there
+    //  are literally no structs to retag yet. Retagging structs is the wrong
+    //  lever anyway; see below.
+    //
+    //  🌟 THE RIGHT LEVER IS THE UNITRIGGER STUB, and it is timing-proof.
+    //  _zm_weapons.gsc:1120 reads the weapon LIVE at purchase:
+    //        weapon = self.stub.zombie_weapon_upgrade;
+    //  so rewriting the stub after the wall-buys are built is enough, and does
+    //  not race init_spawnable_weapon_upgrade() at all. Stock keeps every stub
+    //  in level._unitriggers.trigger_stubs (_zm_unitrigger.gsc:123).
+    //
+    //  The hint needs no repair: get_weapon_hint() returns &"ZOMBIE_WEAPON_MP40"
+    //  for BOTH variants and both cost 1300, so the prompt is identical either
+    //  way. hint_string and cost are refreshed regardless, using stock's own
+    //  idiom from _zm_weapons.gsc:1261, so nothing can drift.
+    n_wait = 0;
+
+    while ( !isdefined( level._unitriggers ) || !isdefined( level._unitriggers.trigger_stubs ) || level._unitriggers.trigger_stubs.size == 0 )
     {
-        if ( !isdefined( a_structs[i] ) || !isdefined( a_structs[i].zombie_weapon_upgrade ) )
-            continue;
+        wait 0.5;
+        n_wait += 0.5;
 
-        if ( a_structs[i].zombie_weapon_upgrade != "mp40_zm" )
-            continue;
-
-        a_structs[i].zombie_weapon_upgrade = "mp40_stalker_zm";
-        n_found++;
-
-        if ( isdefined( a_structs[i].origin ) )
+        if ( n_wait > 30 )
         {
-            str_where = str_where + "(" + int( a_structs[i].origin[0] ) + ","
-                                        + int( a_structs[i].origin[1] ) + ","
-                                        + int( a_structs[i].origin[2] ) + ") ";
+            println( "[zm_qol] origins mp40: no unitrigger stubs after 30s - wallbuys never registered" );
+            return;
         }
     }
 
-    println( "[zm_qol] origins mp40: retagged " + n_found + " of " + a_structs.size + " weapon_upgrade struct(s) to mp40_stalker_zm  at " + str_where );
+    //  Let every wall-buy finish registering before walking the list.
+    wait 2;
+
+    a_stubs   = level._unitriggers.trigger_stubs;
+    n_mp40    = 0;
+    n_wb      = 0;
+    str_where = "";
+
+    for ( i = 0; i < a_stubs.size; i++ )
+    {
+        if ( !isdefined( a_stubs[i] ) || !isdefined( a_stubs[i].zombie_weapon_upgrade ) )
+            continue;
+
+        n_wb++;
+
+        //  DIAGNOSTIC for the second half of the report: the wall-buy by the
+        //  mound in No Man's Land shows chalk but offers no buy prompt. Every
+        //  wall-buy stub that exists is printed with its weapon and position, so
+        //  the log says outright whether that one was ever built. The mapents
+        //  dump has three mp40 structs, at (3237,-429,195), (-517,4503,-285) and
+        //  (-640,693,199) - if fewer than three appear here, the trigger is not
+        //  being created and that is a separate fault from the weapon it hands
+        //  out.
+        if ( a_stubs[i].zombie_weapon_upgrade == "mp40_zm" || a_stubs[i].zombie_weapon_upgrade == "mp40_stalker_zm" )
+        {
+            if ( isdefined( a_stubs[i].origin ) )
+            {
+                str_where = str_where + a_stubs[i].zombie_weapon_upgrade + "("
+                          + int( a_stubs[i].origin[0] ) + "," + int( a_stubs[i].origin[1] ) + "," + int( a_stubs[i].origin[2] ) + ") ";
+            }
+        }
+
+        if ( a_stubs[i].zombie_weapon_upgrade != "mp40_zm" )
+            continue;
+
+        a_stubs[i].zombie_weapon_upgrade = "mp40_stalker_zm";
+
+        //  .weapon_upgrade is set alongside it at _zm_weapons.gsc:957; keep the
+        //  pair consistent rather than leaving one naming the old gun.
+        if ( isdefined( a_stubs[i].weapon_upgrade ) )
+            a_stubs[i].weapon_upgrade = "mp40_stalker_zm";
+
+        a_stubs[i].hint_string = maps\mp\zombies\_zm_weapons::get_weapon_hint( "mp40_stalker_zm" );
+        a_stubs[i].cost        = maps\mp\zombies\_zm_weapons::get_weapon_cost( "mp40_stalker_zm" );
+
+        n_mp40++;
+    }
+
+    println( "[zm_qol] origins mp40: retagged " + n_mp40 + " mp40 wallbuy stub(s) to mp40_stalker_zm; " + n_wb + " wallbuy stub(s) total; mp40 at " + str_where );
 }
 
 zmqol_tomb_no_native_wunderfizz()

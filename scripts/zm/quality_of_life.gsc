@@ -2011,7 +2011,33 @@ nofog_onplayerconnect()
     {
         level waittill( "connected", player );
         player thread nofog_onplayerspawned();
-        player setclientdvar( "r_fog", "0" );
+
+        //  🛑 v1.59.2 - FOG IS ON BY DEFAULT AGAIN. r_fog 0 is NOT forced here
+        //  any more.
+        //
+        //  User, 2026-08-07: "make it so that fog by default is enabled because
+        //  of the visual inconsistencies that are present when disabling the fog
+        //  with r_fog set to 0, but keep the fog cloud textures off, that's the
+        //  real issue."
+        //
+        //  Those are two different things and only one of them was ever the
+        //  problem:
+        //    - r_fog 0 kills the map's ATMOSPHERIC fog. Turning it off is what
+        //      exposes the world edge and the flat, wrong-looking distance.
+        //    - the fog CLOUD sprites are separate FX entities, suppressed on
+        //      TranZit by scripts\zm\zm_transit\disable_fog_transition.gsc,
+        //      which comments out the three fx_zmb_fog_transition_* loads so
+        //      they are never registered and never spawn.
+        //  That suppression is untouched and stays. Only the dvar changes.
+        //
+        //  Set to 1 EXPLICITLY rather than just not touching it. Every previous
+        //  build forced r_fog 0 on this line, and a client that has been running
+        //  those builds can be sitting on a persisted 0 - "stop setting it"
+        //  would leave those players with no fog and no idea why. This makes the
+        //  default deterministic instead of inherited.
+        player setclientdvar( "r_fog", "1" );
+
+        //  r_dof_enable stays 0 - depth of field was never part of the report.
         player setclientdvar( "r_dof_enable", "0" );
     }
 }
@@ -2620,6 +2646,39 @@ zmqol_dev_command_listener()
                 player enableinvulnerability();
                 player thread zmqol_ghost_enforce();
                 player iprintln( "^2[zm_qol] AFK ON ^7- ignored and invulnerable" );
+            }
+        }
+        else if ( cmd == "fog" )
+        {
+            //  v1.59.2 - a plain on/off toggle, nothing else.
+            //
+            //  The v1.57.x ".fog <number>" is deliberately NOT back. Fog
+            //  DISTANCE cannot be changed on this build - checkpoint 20 §2 -
+            //  and a command that pretends otherwise cost several boots. This
+            //  only touches r_fog, which is the one fog control that is known
+            //  to work.
+            //
+            //  Default is ON (see nofog_onplayerconnect). The fog CLOUD sprites
+            //  stay suppressed on TranZit either way; that is FX registration in
+            //  disable_fog_transition.gsc and has nothing to do with this dvar.
+            str_arg = "";
+
+            if ( tokens.size > 1 )
+                str_arg = tokens[1];
+
+            if ( str_arg == "off" )
+            {
+                player setclientdvar( "r_fog", "0" );
+                player iprintln( "^1[zm_qol] fog OFF ^7- the world edge will be visible" );
+            }
+            else if ( str_arg == "on" )
+            {
+                player setclientdvar( "r_fog", "1" );
+                player iprintln( "^2[zm_qol] fog ON ^7(default)" );
+            }
+            else
+            {
+                player iprintln( "^3[zm_qol] ^3.fog on ^7or ^3.fog off ^8(on by default)" );
             }
         }
         else if ( cmd == "fly" )
@@ -3820,6 +3879,38 @@ zmqol_fly_bind_wasd()
     self notifyonplayercommand( "zmqol_fly_r_dn", "+moveright" );
     self notifyonplayercommand( "zmqol_fly_r_up", "-moveright" );
 
+    //  🛑 v1.59.2 - RESYNC THE MOMENT THE CHAT BOX OPENS. This is the real fix
+    //  for "it keeps moving on its own".
+    //
+    //  User, 2026-08-07: "sometimes after i stop pressing anything my character
+    //  while in fly mode will keep moving on it's own in a certain direction,
+    //  and the only way i have been able to fix it is by pressing the key that
+    //  goes which ever direction that is being moved."
+    //
+    //  That last detail identifies the fault exactly. Pressing the drifting
+    //  direction fixes it because press-then-release delivers the "-" notify
+    //  that never arrived - so the state is a flag STUCK ON, not bad movement
+    //  maths.
+    //
+    //  And the swallowed key-up has one dominant cause: opening chat takes
+    //  keyboard focus, so a key held at that instant sends "+moveleft" and never
+    //  "-moveleft". Every command in this mod is typed in chat, and flying is
+    //  when the user types the most (.where, .fog, .fly itself), which is why it
+    //  keeps happening mid-flight.
+    //
+    //  v1.5x already re-zeroed at takeoff and landing, which cannot help a
+    //  release lost DURING a flight. Binding the chat-open commands themselves
+    //  closes that window: the flags are wiped at the exact moment focus is
+    //  taken, before the client can drop anything.
+    //
+    //  Both binds because T and Y are separate commands, and the mod's own
+    //  commands are typed in either. These are ordinary console commands, the
+    //  same class as the +forward binds above.
+    self notifyonplayercommand( "zmqol_fly_chat", "chatmodepublic" );
+    self notifyonplayercommand( "zmqol_fly_chat", "chatmodeteam" );
+
+    self thread zmqol_fly_chat_resync();
+
     self thread zmqol_fly_key_watch( "zmqol_fly_f_dn", "f", 1 );
     self thread zmqol_fly_key_watch( "zmqol_fly_f_up", "f", 0 );
     self thread zmqol_fly_key_watch( "zmqol_fly_b_dn", "b", 1 );
@@ -3839,6 +3930,35 @@ zmqol_fly_key_watch( str_notify, str_key, n_val )
     {
         self waittill( str_notify );
         self.zmqol_fly_keys[str_key] = n_val;
+    }
+}
+
+// ============================================================================
+//  zmqol_fly_chat_resync  -  wipe the held-key flags whenever chat opens.
+//
+//  See the block in zmqol_fly_bind_wasd(). Opening chat takes keyboard focus,
+//  so a movement key held at that instant can have its key-up swallowed and the
+//  flag sticks on for the rest of the flight - which is the drift the user
+//  reported and which pressing that same direction manually clears.
+//
+//  Runs for the whole match, not just while flying, because the flags are set
+//  by watchers that also run for the whole match: a key stuck while walking
+//  around would otherwise be waiting to bite at the next takeoff.
+//
+//  Wiping on chat-open cannot cost a real input. Movement is suspended while
+//  the chat box has focus anyway, and any key still physically down re-arms
+//  itself on its next press - one keystroke against a permanent drift, the same
+//  trade the takeoff resync already makes.
+// ============================================================================
+zmqol_fly_chat_resync()
+{
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    for ( ;; )
+    {
+        self waittill( "zmqol_fly_chat" );
+        self zmqol_fly_clear_keys();
     }
 }
 

@@ -1553,6 +1553,33 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 	self.zmqol_wf_glow_loc setmodel( "tag_origin" );
 	self.zmqol_wf_glow_loc.angles = angles;
 
+	//  🛑 v1.59.2 - hide() as well as tag_origin. The user reports small metal
+	//  balls hanging in the sky above every machine. The LOD theory (v1.59.1,
+	//  lod1 was a 20x decimated mesh switching in at 3500 units) was WRONG - it
+	//  shipped and the balls are still there. This anchor is the only entity
+	//  this session added per machine, so it is eliminated as a suspect the
+	//  cheap way rather than argued about: a hidden entity cannot draw, whatever
+	//  its model resolved to.
+	//
+	//  playfxontag still works on a hidden entity - visibility governs the
+	//  MODEL, not effects parented to its tags, which is how stock hangs fx on
+	//  invisible tag_origin movers.
+	self.zmqol_wf_glow_loc hide();
+
+	//  PROBE: where every piece of this machine actually is. If the balls are
+	//  still there after the hide above, they are not this anchor, and these
+	//  lines say what else sits near the machine and at what height - a "way up
+	//  in the sky" ball has to have a z far above the machine's own, and nothing
+	//  here should.
+	//  Guarded: an undefined .bottle here would throw and kill this machine's
+	//  whole thread, which would cost far more than the probe is worth.
+	if ( isdefined( self.bottle ) )
+	{
+		println( "[zm_qol] wf parts: machine(" + int( origin[0] ) + "," + int( origin[1] ) + "," + int( origin[2] )
+		       + ") glow(" + int( self.zmqol_wf_glow_loc.origin[0] ) + "," + int( self.zmqol_wf_glow_loc.origin[1] ) + "," + int( self.zmqol_wf_glow_loc.origin[2] )
+		       + ") bottle(" + int( self.bottle.origin[0] ) + "," + int( self.bottle.origin[1] ) + "," + int( self.bottle.origin[2] ) + ")" );
+	}
+
 	//  🛑 The ball must be PUT AWAY on every machine that is not the live one.
 	//
 	//  User: "some of the machines still have the ball at the top even though
