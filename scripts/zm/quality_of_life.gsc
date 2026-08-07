@@ -88,6 +88,11 @@ main()
     replaceFunc( maps\mp\zombies\_zm_perks::perks_register_clientfield, ::perks_register_clientfield );
     replaceFunc( maps\mp\zombies\_zm::init_client_flags, ::init_client_flags );
     replaceFunc( maps\mp\zombies\_zm_perks::give_perk, ::give_perk );
+
+    //  v1.59.8 - PROBE ONLY, zero behaviour change. See set_perk_clientfield()
+    //  below: it is stock's body copied exactly, with one println added, to
+    //  find out why every perk icon becomes PhD after a Who's Who revive.
+    replaceFunc( maps\mp\zombies\_zm_perks::set_perk_clientfield, ::set_perk_clientfield );
     replaceFunc( maps\mp\zombies\_zm_perks::default_vending_precaching, ::default_vending_precaching );
 
     // --- animated_camo + buried_animated_camo (combined override, see notes on
@@ -5342,6 +5347,96 @@ init_client_flags()
 // IMPORTANT for the new module: keep appending the perk to self.perks_active
 // BEFORE notify("perk_acquired") (as below) - the listener reads the last
 // entry of perks_active to work out which perk was just awarded.
+// ============================================================================
+//  set_perk_clientfield  -  PROBE. Stock's body, copied exactly, plus one
+//  println. NOTHING about the behaviour changes.
+//
+//  User, 2026-08-07, on Diner: .giveperks, then went down and was revived by
+//  Who's Who - and every perk icon on the HUD became the PhD Flopper shader,
+//  and stayed that way after the revive.
+//
+//  🛑 WHY A PROBE RATHER THAN A FIX. The whole icon chain has been read and
+//  every link in it is either stock or a faithful copy:
+//    - .giveperks goes through _zm_perks::give_perk, not a shortcut
+//    - this mod's give_perk calls set_perk_clientfield( perk, 1 ) correctly
+//    - stock's set_perk_clientfield is a clean switch with no fall-through
+//      (specialty_flakjacket -> "perk_dive_to_nuke", which IS the PhD icon)
+//    - the client registration and perk_init_code_callbacks() are stock's
+//  So nothing readable offline explains it, and the honest next step is to
+//  find out which field is actually written during the revive rather than
+//  guess a fifth time.
+//
+//  What the log will show: one line per perk clientfield write, with the perk
+//  and the field. Go down, get revived by Who's Who, then read them back. If
+//  every line during the revive says "perk_dive_to_nuke", something is calling
+//  this with the wrong perk. If the lines are correct and the icons are still
+//  wrong, the fault is client-side and the server is exonerated.
+//
+//  📝 The default branch now logs too. Stock's default is a silent break, so a
+//  perk arriving here with no case - which is exactly what a wrongly-named perk
+//  would do - currently vanishes without trace.
+// ============================================================================
+set_perk_clientfield( perk, state )
+{
+    str_field = "(none - default branch)";
+
+    switch ( perk )
+    {
+        case "specialty_additionalprimaryweapon":
+            self setclientfieldtoplayer( "perk_additional_primary_weapon", state );
+            str_field = "perk_additional_primary_weapon";
+            break;
+        case "specialty_deadshot":
+            self setclientfieldtoplayer( "perk_dead_shot", state );
+            str_field = "perk_dead_shot";
+            break;
+        case "specialty_flakjacket":
+            self setclientfieldtoplayer( "perk_dive_to_nuke", state );
+            str_field = "perk_dive_to_nuke";
+            break;
+        case "specialty_rof":
+            self setclientfieldtoplayer( "perk_double_tap", state );
+            str_field = "perk_double_tap";
+            break;
+        case "specialty_armorvest":
+            self setclientfieldtoplayer( "perk_juggernaut", state );
+            str_field = "perk_juggernaut";
+            break;
+        case "specialty_longersprint":
+            self setclientfieldtoplayer( "perk_marathon", state );
+            str_field = "perk_marathon";
+            break;
+        case "specialty_quickrevive":
+            self setclientfieldtoplayer( "perk_quick_revive", state );
+            str_field = "perk_quick_revive";
+            break;
+        case "specialty_fastreload":
+            self setclientfieldtoplayer( "perk_sleight_of_hand", state );
+            str_field = "perk_sleight_of_hand";
+            break;
+        case "specialty_scavenger":
+            self setclientfieldtoplayer( "perk_tombstone", state );
+            str_field = "perk_tombstone";
+            break;
+        case "specialty_finalstand":
+            self setclientfieldtoplayer( "perk_chugabud", state );
+            str_field = "perk_chugabud";
+            break;
+        default:
+            break;
+    }
+
+    if ( isdefined( level._custom_perks[perk] ) && isdefined( level._custom_perks[perk].clientfield_set ) )
+    {
+        self [[ level._custom_perks[perk].clientfield_set ]]( state );
+
+        if ( str_field == "(none - default branch)" )
+            str_field = "(custom perk clientfield_set)";
+    }
+
+    println( "[zm_qol] perkfield: " + perk + " -> " + str_field + " = " + state );
+}
+
 give_perk( perk, bought )
 {
     self setperk( perk );
