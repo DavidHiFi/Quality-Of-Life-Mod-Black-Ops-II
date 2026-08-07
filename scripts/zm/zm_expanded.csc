@@ -359,6 +359,25 @@ perks()
 		level thread toggle_vending_divetonuke_power_off_think();
 	}
 
+	//  🛑 EXACT TWIN of the zm_tomb block in quality_of_life.gsc::perks().
+	//  v1.58.2 - Origins was missing Tombstone from the replaced Wunderfizz.
+	//
+	//  Both sides gate registerclientfield( "toplayer", "perk_tombstone" ) on
+	//  this flag, so if these two functions disagree the toplayer set is one
+	//  field wider on one side and every player is dropped with
+	//  EXE_CLIENT_FIELD_MISMATCH before the map starts. Change one, change the
+	//  other.
+	//
+	//  Only the flag - deliberately NOT the divetonuke enable or the vending
+	//  threads above. Origins already has dive-to-nuke, marathon, deadshot and
+	//  additional-primary natively (all four are in its stock clientfield
+	//  dump); Tombstone is the only genuine gap. See the server twin for the
+	//  measured budget that makes this safe.
+	if ( getDvar( "mapname" ) == "zm_tomb" )
+	{
+		level.zombiemode_using_tombstone_perk = 1;
+	}
+
 	zmqol_enable_electric_cherry();
 	zmqol_enable_vulture();
 	zmqol_enable_whoswho();
