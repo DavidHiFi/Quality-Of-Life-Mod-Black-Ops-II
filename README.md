@@ -48,6 +48,8 @@ source folders is built or don't-touch.
 - **Diner as a Survival location** on TranZit, ported from BO2-Reimagined. Treyarch left
   the map data in the game but never shipped it as a Survival start. This is the only
   added location — `scripts\zm\locs\` holds exactly one location script.
+- **Tombstone's HUD icon fixed** — stock ships it with the badge frame upside down
+  relative to every other perk. Uses BO2-Reimagined's corrected 64x64 icon.
 - Hitmarkers, on-screen counters, high-round fix, Cold-War round HUD, no perk limit,
   animated camos, area names (TranZit), perk pop-up HUD.
 
