@@ -10,24 +10,32 @@ acknowledged, not begun.
 
 ## 1. IN FLIGHT — deployed, AWAITING THE USER'S VERIFICATION
 
-### Fog pushed back instead of removed — **v1.57.0**
-Reads each map's own fog (`g_fogStartDistReadOnly` / `HalfDist` / `Color`) and re-applies it with
-the distances scaled out, so the fog still looks like that map's fog but starts further away and
-hides the world edge.
+### Diner fog: default OFF + ring stacked two rows high — **v1.57.6**
 
-**Tune it live, no rebuild:**
-| command | effect |
-|---|---|
-| `.fog` | show the current setting |
-| `.fog <number>` | multiple of the map's own fog distance — **default 6**, higher sees further |
-| `.fog off` | no fog at all (the mod's previous behaviour) |
-| `.fog stock` | the map's own fog, untouched |
+**Confirmed working already (2026-08-07 boot):** the ring spawns —
+`[zm_qol] fog ring: 12 of 12 fog walls spawned around diner`.
 
-**Tell me the number that looks right and it becomes the default.** Check on Diner/TranZit where
-the world edge was visible.
+Two defects the user's screenshot exposed, both fixed here:
 
-Verified offline: parses, deployed `mod.iwd` carries `zmqol_fog_think` and the `.fog` command, and
-the old forced `r_fog 0` is gone.
+1. **Default was fog ON.** Mode 1 ("pushed back") was the default and is a proven no-op —
+   checkpoint 20 §2: fog *distance* cannot be changed on this build, only `r_fog` on/off. So every
+   game started on stock fog and the user typed `.fog off` by hand. **Default is now 0 = off.**
+   `.fog <number>` no longer claims to have moved anything.
+2. **The ring was too short.** 600-tall walls at the boundary hid what sat just past the edge, but
+   the distant hillside rose over the top. **Second row stacked at +500 → 24 walls, ~1100 tall.**
+   Ring distance deliberately unchanged (user's choice: "raise them where they are").
+
+**What to check:** boot Diner. Fog should be **off from the start with no command typed**, and the
+cloud bank should now be tall enough to cover the hillside rather than sitting under it.
+
+**The new log line reports both rows:** `fog ring: 24 of 24 ... (12 per row, 2 rows)`.
+
+Verified offline: both files parse; deployed `mod.iwd` byte-identical to source; vector add and
+vector indexing confirmed as stock GSC idioms; stock TranZit already places 587 createfx effects.
+
+🛑 **Unverified:** whether `spawnfx` anchors the effect at its centre or its base. +500 against a
+~600-tall effect overlaps either way, so this cannot leave a seam — but if the upper row reads as
+clouds floating in the sky, that anchor question is the reason and the offset is the dial.
 
 ---
 
