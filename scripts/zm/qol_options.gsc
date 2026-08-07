@@ -379,51 +379,122 @@ qol_opt_night_on()
     //        night_exposure 0.75   (lighter)
     //  then tell me the value that looks right and it becomes the default.
     //  ========================================================================
-    //  🛑 r_filmUseTweaks IS THE BLACK SCREEN. Its own description says so:
-    //        "r_filmUseTweaks": "Overide film effects with tweak dvar values"
-    //  Setting it to 1 replaces the map's entire film grade with the
-    //  r_filmTweak* values - and nothing here ever set those, so the picture is
-    //  overridden with nothing. Remix drove them through the vc_* dvars, and
-    //  the whole vc_* family returns ZERO matches in Plutonium's
-    //  dvar_descriptions.json on this build. So the port enabled the override
-    //  and lost the half that filled it in.
+    //  ========================================================================
+    //  v1.59.5 - PORTED FROM THE WORKING MOD, after three failed attempts at
+    //  reasoning it out from dvar descriptions.
     //
-    //  It is not set any more, and neither is r_bloomTweaks ("enbale bloom
-    //  tweaks" - same shape, an override with no values behind it).
+    //  Source: BO2-GSC-Releases\Zombies Mods\Nightmode\Source Code\
+    //          _zm_nightmode.gsc  - a dedicated, shipped night-mode mod.
     //
-    //  🛑 AND EXPOSURE WAS A RED HERRING. v1.59.3 lowered r_exposureValue from
-    //  3.9 to 1.25 believing lower meant brighter; the screen went from
-    //  near-blank to FULLY black, which proves the opposite - Remix's 3.9 was
-    //  BRIGHTENING to claw back what the film override had taken. With the
-    //  override gone there is nothing to compensate for, so exposure is not
-    //  touched at all.
+    //  🛑 THE BLACK SCREEN WAS A DUPLICATED LINE IN REMIX. This mod's values
+    //  came from BO2-Remix\src\scripts\zm\remix\_visual.gsc, which sets vc_rgbh
+    //  TWICE:
+    //        line 86:  vc_rgbh  "0.07 0 0.25 0"      <- the real value
+    //        line 90:  vc_rgbh  "0.015 0 0.07 0"     <- overwrites it
+    //  vc_rgbh is the HIGHLIGHT end of the grade. Capped at 0.015 the brightest
+    //  the picture can ever be is ~1.5%, which is a black screen. The working
+    //  mod sets it ONCE, to "0.1 0 0.3 0". Remix's second line is a bug that
+    //  was faithfully copied in.
     //
-    //  🌟 WHAT IS USED INSTEAD, and why it cannot repeat this failure: the
-    //  light grid is the world's own lighting, it has an explicit enable, and
-    //  both halves exist on this build -
-    //        "r_lightGridEnableTweaks": "Enable tweaks of the light color from
-    //                                    the light grid"
-    //        "r_lightGridIntensity":    "Adjust the intensity of light color
-    //                                    from the light grid"
-    //  One lever, dimming real lighting rather than overriding the frame. Its
-    //  worst case is NO EFFECT - a night mode that does not darken enough -
-    //  never a black screen. After three failures that trade is the point.
+    //  Two more values were wrong in the same way, and both push the same
+    //  direction:
+    //        r_lightTweakSunLight      zm_qol 16  ->  working mod 1
+    //        r_sky_intensity_factor0   zm_qol 3   ->  working mod 0
     //
-    //  Tune live, no rebuild:   night_intensity 0.2   (darker)
-    //                           night_intensity 0.6   (lighter)
-    n_intensity = getdvarfloatdefault( "night_intensity", 0.35 );
+    //  📝 AND I WAS WRONG ABOUT vc_* NOT EXISTING (v1.59.3/v1.59.4). They are
+    //  absent from Plutonium's dvar_descriptions.json, and I read that as "not
+    //  on this build". That file documents dvars; it does not enumerate every
+    //  tweak dvar. A shipped mod depends on these and works. Absence from a
+    //  description list is not absence from the engine - do not repeat that
+    //  inference.
+    //
+    //  vc_fbm / vc_fsm are the baseline the working mod sets before any of the
+    //  tweaks; they were never ported and are included now.
+    //
+    //  Deliberately NOT ported: r_lodBiasRigid / r_lodBiasSkinned at -1000.
+    //  They force maximum model detail - a performance change, unrelated to
+    //  darkness, and not something to inflict as a side effect of a light
+    //  toggle.
+    //  ========================================================================
+    self setclientdvar( "r_dof_enable", 0 );
+    self setclientdvar( "r_enablePlayerShadow", 1 );
+    self setclientdvar( "r_skyTransition", 1 );
+    self setclientdvar( "sm_sunquality", 2 );
+    self setclientdvar( "vc_fbm", "0 0 0 0" );
+    self setclientdvar( "vc_fsm", "1 1 1 1" );
 
-    //  Clamped away from 0, so no value of this dvar can black the screen out.
-    if ( n_intensity < 0.05 )
-        n_intensity = 0.05;
+    self setclientdvar( "r_filmUseTweaks", 1 );
+    self setclientdvar( "r_bloomTweaks", 1 );
+    self setclientdvar( "r_exposureTweak", 1 );
+    self setclientdvar( "vc_rgbh", "0.1 0 0.3 0" );
+    self setclientdvar( "vc_yl", "0 0 0.25 0" );
+    self setclientdvar( "vc_yh", "0.02 0 0.1 0" );
+    self setclientdvar( "vc_rgbl", "0.02 0 0.1 0" );
+    self setclientdvar( "r_lightTweakSunLight", 1 );
+    self setclientdvar( "r_sky_intensity_factor0", 0 );
 
-    if ( n_intensity > 1 )
-        n_intensity = 1;
+    n_exposure = 3.9;
 
-    self setclientdvar( "r_lightGridEnableTweaks", 1 );
-    self setclientdvar( "r_lightGridIntensity", n_intensity );
+    if ( level.script == "zm_buried" )
+        n_exposure = 3.5;
+    else if ( level.script == "zm_tomb" )
+        n_exposure = 4;
+    else if ( level.script == "zm_nuked" )
+        n_exposure = 5.6;
+    else if ( level.script == "zm_highrise" )
+        n_exposure = 3.9;
 
-    println( "[zm_qol] night_mode ON - light grid intensity " + n_intensity + " (tune with the night_intensity dvar)" );
+    self setclientdvar( "r_exposureValue", n_exposure );
+
+    //  Buried, Mob and Origins actively re-assert their own lighting, so the
+    //  working mod holds the values down in a loop. Ported with it.
+    self thread qol_opt_night_visual_fix();
+
+    println( "[zm_qol] night_mode ON - ported from _zm_nightmode.gsc, exposure " + n_exposure );
+}
+
+// ----------------------------------------------------------------------------
+//  qol_opt_night_visual_fix  -  straight port of visual_fix() from
+//  BO2-GSC-Releases\Zombies Mods\Nightmode\Source Code\_zm_nightmode.gsc
+//
+//  Three maps fight the settings back after they are applied - Buried re-raises
+//  the sky, Mob and Origins re-raise the sun - so the values are re-asserted
+//  until they stick. Without this those maps look untouched, which is exactly
+//  the "does nothing at all" failure mode to avoid.
+//
+//  float() around the getdvar reads: getdvar returns a STRING, and the upstream
+//  loop compares and decrements it directly. That is the one place this port
+//  deviates, and only to make the comparison numeric rather than relying on
+//  string coercion.
+// ----------------------------------------------------------------------------
+qol_opt_night_visual_fix()
+{
+    level endon( "game_ended" );
+    self endon( "disconnect" );
+    self endon( "disable_nightmode" );
+
+    if ( level.script == "zm_buried" )
+    {
+        while ( float( getdvar( "r_sky_intensity_factor0" ) ) != 0 )
+        {
+            self setclientdvar( "r_lightTweakSunLight", 1 );
+            self setclientdvar( "r_sky_intensity_factor0", 0 );
+            wait 0.05;
+        }
+    }
+    else if ( level.script == "zm_prison" || level.script == "zm_tomb" )
+    {
+        while ( float( getdvar( "r_lightTweakSunLight" ) ) != 0 )
+        {
+            for ( i = float( getdvar( "r_lightTweakSunLight" ) ); i >= 0; i = ( i - 0.05 ) )
+            {
+                self setclientdvar( "r_lightTweakSunLight", i );
+                wait 0.05;
+            }
+
+            wait 0.05;
+        }
+    }
 }
 
 qol_opt_night_off()
@@ -433,11 +504,26 @@ qol_opt_night_off()
     //  earlier may still have r_filmUseTweaks stuck at 1 from that session, and
     //  that alone is the black screen. Clearing them here makes turning night
     //  mode OFF a way out of it rather than a no-op.
+    //  🛑 FIRST, and it is not optional: this stops qol_opt_night_visual_fix(),
+    //  which endons on it. That loop holds the sun at 0 on Mob and Origins and
+    //  the sky at 0 on Buried - leave it running and the restore below is
+    //  overwritten within 0.05s and night mode cannot be turned off.
+    //  disable_night_mode() in the source mod opens with the same notify.
+    self notify( "disable_nightmode" );
+
     self setclientdvar( "r_lightGridEnableTweaks", 0 );
     self setclientdvar( "r_lightGridIntensity", 1 );
     self setclientdvar( "r_filmUseTweaks", 0 );
     self setclientdvar( "r_bloomTweaks", 0 );
     self setclientdvar( "r_exposureTweak", 0 );
+
+    //  The grade itself, cleared exactly as the source mod's
+    //  disable_night_mode() does. Without these the blue tint survives the
+    //  toggle even with the film override off.
+    self setclientdvar( "vc_rgbh", "0 0 0 0" );
+    self setclientdvar( "vc_yl",   "0 0 0 0" );
+    self setclientdvar( "vc_yh",   "0 0 0 0" );
+    self setclientdvar( "vc_rgbl", "0 0 0 0" );
 
     if ( isdefined( level.qol_default_exposure ) )
     {
