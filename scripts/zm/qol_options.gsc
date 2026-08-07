@@ -379,40 +379,65 @@ qol_opt_night_on()
     //        night_exposure 0.75   (lighter)
     //  then tell me the value that looks right and it becomes the default.
     //  ========================================================================
-    self setclientdvar( "r_filmUseTweaks", 1 );
-    self setclientdvar( "r_bloomTweaks", 1 );
-    self setclientdvar( "r_exposureTweak", 1 );
+    //  🛑 r_filmUseTweaks IS THE BLACK SCREEN. Its own description says so:
+    //        "r_filmUseTweaks": "Overide film effects with tweak dvar values"
+    //  Setting it to 1 replaces the map's entire film grade with the
+    //  r_filmTweak* values - and nothing here ever set those, so the picture is
+    //  overridden with nothing. Remix drove them through the vc_* dvars, and
+    //  the whole vc_* family returns ZERO matches in Plutonium's
+    //  dvar_descriptions.json on this build. So the port enabled the override
+    //  and lost the half that filled it in.
+    //
+    //  It is not set any more, and neither is r_bloomTweaks ("enbale bloom
+    //  tweaks" - same shape, an override with no values behind it).
+    //
+    //  🛑 AND EXPOSURE WAS A RED HERRING. v1.59.3 lowered r_exposureValue from
+    //  3.9 to 1.25 believing lower meant brighter; the screen went from
+    //  near-blank to FULLY black, which proves the opposite - Remix's 3.9 was
+    //  BRIGHTENING to claw back what the film override had taken. With the
+    //  override gone there is nothing to compensate for, so exposure is not
+    //  touched at all.
+    //
+    //  🌟 WHAT IS USED INSTEAD, and why it cannot repeat this failure: the
+    //  light grid is the world's own lighting, it has an explicit enable, and
+    //  both halves exist on this build -
+    //        "r_lightGridEnableTweaks": "Enable tweaks of the light color from
+    //                                    the light grid"
+    //        "r_lightGridIntensity":    "Adjust the intensity of light color
+    //                                    from the light grid"
+    //  One lever, dimming real lighting rather than overriding the frame. Its
+    //  worst case is NO EFFECT - a night mode that does not darken enough -
+    //  never a black screen. After three failures that trade is the point.
+    //
+    //  Tune live, no rebuild:   night_intensity 0.2   (darker)
+    //                           night_intensity 0.6   (lighter)
+    n_intensity = getdvarfloatdefault( "night_intensity", 0.35 );
 
-    //  These two DO exist and do the actual "night" work - the sun is dimmed
-    //  and the sky pushed up, which darkens the world without crushing the
-    //  whole frame the way exposure does.
-    self setclientdvar( "r_lightTweakSunLight", 16 );
-    self setclientdvar( "r_sky_intensity_factor0", 3 );
+    //  Clamped away from 0, so no value of this dvar can black the screen out.
+    if ( n_intensity < 0.05 )
+        n_intensity = 0.05;
 
-    n_exposure = getdvarfloatdefault( "night_exposure", 1.25 );
+    if ( n_intensity > 1 )
+        n_intensity = 1;
 
-    //  Clamp, so a typo cannot reproduce the original black screen. 4 stops is
-    //  1/16th brightness and already past usable.
-    if ( n_exposure < 0 )
-        n_exposure = 0;
+    self setclientdvar( "r_lightGridEnableTweaks", 1 );
+    self setclientdvar( "r_lightGridIntensity", n_intensity );
 
-    if ( n_exposure > 4 )
-        n_exposure = 4;
-
-    self setclientdvar( "r_exposureValue", n_exposure );
-
-    println( "[zm_qol] night_mode ON - exposure " + n_exposure + " ev stops (tune with the night_exposure dvar)" );
+    println( "[zm_qol] night_mode ON - light grid intensity " + n_intensity + " (tune with the night_intensity dvar)" );
 }
 
 qol_opt_night_off()
 {
+    //  Undo the light grid, and explicitly clear the three overrides older
+    //  builds switched on - anyone toggling night mode after running v1.59.3 or
+    //  earlier may still have r_filmUseTweaks stuck at 1 from that session, and
+    //  that alone is the black screen. Clearing them here makes turning night
+    //  mode OFF a way out of it rather than a no-op.
+    self setclientdvar( "r_lightGridEnableTweaks", 0 );
+    self setclientdvar( "r_lightGridIntensity", 1 );
     self setclientdvar( "r_filmUseTweaks", 0 );
     self setclientdvar( "r_bloomTweaks", 0 );
     self setclientdvar( "r_exposureTweak", 0 );
-
-    //  The vc_* resets are gone with their counterparts in qol_opt_night_on -
-    //  that dvar family does not exist on this build, so these four lines were
-    //  resetting nothing.
 
     if ( isdefined( level.qol_default_exposure ) )
     {
