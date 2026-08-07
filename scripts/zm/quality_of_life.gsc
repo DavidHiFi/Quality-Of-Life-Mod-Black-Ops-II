@@ -2653,6 +2653,48 @@ zmqol_dev_command_listener()
                 player iprintln( "^2[zm_qol] AFK ON ^7- ignored and invulnerable" );
             }
         }
+        else if ( cmd == "nightmode" || cmd == "night" )
+        {
+            //  v1.59.6 - chat front-end for the night_mode dvar.
+            //
+            //  Deliberately just sets the dvar rather than calling
+            //  qol_opt_night_on/off directly: qol_options.gsc::qol_opt_night_mode()
+            //  polls that dvar and owns the on/off transition, including
+            //  starting and stopping visual_fix. Driving the perk from two
+            //  places would let the two disagree - the dvar would read 0 while
+            //  the screen was dark, and the next poll would fight it.
+            //
+            //  One owner, two front-ends: console `night_mode 1` and this.
+            str_arg = "";
+
+            if ( tokens.size > 1 )
+                str_arg = tokens[1];
+
+            if ( str_arg == "off" || str_arg == "0" )
+            {
+                setdvar( "night_mode", "0" );
+                player iprintln( "^1[zm_qol] night mode OFF" );
+            }
+            else if ( str_arg == "on" || str_arg == "1" )
+            {
+                setdvar( "night_mode", "1" );
+                player iprintln( "^2[zm_qol] night mode ON" );
+            }
+            else
+            {
+                //  No argument = toggle, which is what a bind wants.
+                if ( getdvarintdefault( "night_mode", 0 ) )
+                {
+                    setdvar( "night_mode", "0" );
+                    player iprintln( "^1[zm_qol] night mode OFF" );
+                }
+                else
+                {
+                    setdvar( "night_mode", "1" );
+                    player iprintln( "^2[zm_qol] night mode ON" );
+                }
+            }
+        }
         else if ( cmd == "fog" )
         {
             //  v1.59.2 - a plain on/off toggle, nothing else.
@@ -2688,16 +2730,22 @@ zmqol_dev_command_listener()
         }
         else if ( cmd == "fly" )
         {
+            //  setdvar keeps the "fly" console dvar in step with reality -
+            //  zmqol_fly_dvar_watch() compares against the real state, so a
+            //  stale dvar here would have the next poll undo this toggle a
+            //  quarter-second later.
             if ( isdefined( player.zmqol_fly ) && player.zmqol_fly )
             {
                 player.zmqol_fly = 0;
                 player notify( "zmqol_fly_off" );
+                setdvar( "fly", "0" );
                 player iprintln( "^1[zm_qol] fly OFF" );
             }
             else
             {
                 player.zmqol_fly = 1;
                 player thread zmqol_fly_think();
+                setdvar( "fly", "1" );
                 player iprintln( "^2[zm_qol] fly ON ^7- WASD to move, JUMP up, STANCE down, SPRINT boost" );
             }
         }
@@ -3368,8 +3416,8 @@ zmqol_help_lines()
     a_lines = [];
     a_lines[a_lines.size] = "^5Quality Of Life ^7- chat commands (prefix ^3.^7 ^3!^7 or ^3/^7)";
     a_lines[a_lines.size] = "^3.help ^7show/hide   ^3.p <n> ^7points   ^3.where ^7coords";
-    a_lines[a_lines.size] = "^3.god ^7godmode   ^3.ghost ^7ignored   ^3.afk ^7both";
-    a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance up/down, melee stops)";
+    a_lines[a_lines.size] = "^3.god ^7god   ^3.ghost ^7ignored   ^3.afk ^7both   ^3.nightmode ^7on/off";
+    a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance, melee stops)   ^3.fog ^7on/off";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
     a_lines[a_lines.size] = "^3.giveperks^7/^3.removeperks ^7  ^3.nozmspawns ^7spawns";
@@ -3378,7 +3426,7 @@ zmqol_help_lines()
     //  so it rides on the same line as the syntax rather than getting its own.
     a_lines[a_lines.size] = "^3.give^7/^3.remove^7 + ^3jug speed dtap stam mule revive deadshot phd tombstone whoswho cherry vulture";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
-    a_lines[a_lines.size] = "^5console: ^3rapid_fire night_mode character coop_pause no_power lod_fix";
+    a_lines[a_lines.size] = "^5console: ^3fly night_mode rapid_fire character coop_pause no_power lod_fix";
     a_lines[a_lines.size] = "^5console: ^3hud_all hud_timer hud_health_bar hud_remaining hud_zone";
     a_lines[a_lines.size] = "^5console: ^3hud_round_timer hud_color ^7\"1 1 1\"  ^3hud_color_health";
 
@@ -4035,6 +4083,67 @@ zmqol_fly_key_bind()
 
     self notifyonplayercommand( "zmqol_fly_key", "+actionslot 7" );
     self thread zmqol_fly_key_toggle();
+    self thread zmqol_fly_dvar_watch();
+}
+
+// ============================================================================
+//  zmqol_fly_dvar_watch  -  the "fly" console dvar.
+//
+//  User, 2026-08-07: "add my custom fly command as a dvar/console command so i
+//  can also open up the console and do fly so i can bind it to a key."
+//
+//      fly 1              turn it on
+//      fly 0              turn it off
+//      bind x "toggle fly 0 1"
+//
+//  🌟 THE SAME MECHANISM night_mode USES, and that one is now confirmed working
+//  from the console by the user. This mod runs through Plutonium's Mods menu,
+//  where the host IS the client - one process - so a dvar typed at the console
+//  is readable by getdvar() here. That is why night_mode works, and it is the
+//  reason to copy its shape rather than invent a second one.
+//
+//  🛑 COMPARED AGAINST THE ACTUAL FLY STATE, never against the dvar's previous
+//  value. The other two front-ends (.fly in chat, the +actionslot 7 bind) write
+//  the dvar back when they toggle, so all three stay in agreement; a
+//  previous-value comparison would fight them - toggling by chat would leave
+//  the dvar reading 0 while flying, and the next poll would land the player.
+//  Comparing to reality makes every path idempotent.
+//
+//  📝 The dvar is global rather than per-player, which is right for the Mods
+//  menu (host plays alone or hosts) but would toggle every player at once on a
+//  server. The chat command and the key bind are both per-player and remain the
+//  correct choice there.
+// ============================================================================
+zmqol_fly_dvar_watch()
+{
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    if ( getdvar( "fly" ) == "" )
+        setdvar( "fly", "0" );
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        n_want = getdvarintdefault( "fly", 0 );
+        b_now  = ( isdefined( self.zmqol_fly ) && self.zmqol_fly );
+
+        if ( n_want && !b_now )
+        {
+            self zmqol_fly_clear_keys();
+            self.zmqol_fly = 1;
+            self thread zmqol_fly_think();
+            self iprintln( "^2[zm_qol] fly ON" );
+        }
+        else if ( !n_want && b_now )
+        {
+            self zmqol_fly_clear_keys();
+            self.zmqol_fly = 0;
+            self notify( "zmqol_fly_off" );
+            self iprintln( "^1[zm_qol] fly OFF" );
+        }
+    }
 }
 
 zmqol_fly_key_toggle()
@@ -4052,12 +4161,19 @@ zmqol_fly_key_toggle()
         {
             self.zmqol_fly = 0;
             self notify( "zmqol_fly_off" );
+
+            //  Keep the "fly" dvar in step - zmqol_fly_dvar_watch() compares it
+            //  against the real state, so leaving it at 1 here would have the
+            //  next poll take off again a quarter-second later.
+            setdvar( "fly", "0" );
+
             self iprintln( "^1[zm_qol] fly OFF" );
         }
         else
         {
             self.zmqol_fly = 1;
             self thread zmqol_fly_think();
+            setdvar( "fly", "1" );
             self iprintln( "^2[zm_qol] fly ON" );
         }
     }
