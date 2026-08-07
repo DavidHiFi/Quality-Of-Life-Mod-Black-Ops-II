@@ -2039,6 +2039,11 @@ nofog_onplayerconnect()
 
         //  r_dof_enable stays 0 - depth of field was never part of the report.
         player setclientdvar( "r_dof_enable", "0" );
+
+        //  Bindable fly toggle - see zmqol_fly_key_bind(). Installed here
+        //  because this is a per-player connect hook that always runs, and the
+        //  bind must exist before the first flight, not after it.
+        player zmqol_fly_key_bind();
     }
 }
 
@@ -3911,6 +3916,29 @@ zmqol_fly_bind_wasd()
 
     self thread zmqol_fly_chat_resync();
 
+    //  v1.59.3 - A BINDABLE FLY TOGGLE, so flying no longer requires opening
+    //  chat. User: "make the .fly mode a dvar or whatever it's called,
+    //  something i can enter in the console as well not just a chat command,
+    //  this way i can bind it to a specific key."
+    //
+    //  GSC cannot register a new console command, so this rides an existing one
+    //  the game already accepts and Zombies never uses. "+actionslot 7" is on
+    //  the authoritative subscribable list
+    //  (T6-Data-Archive-main\MPZM\Script\User Input\
+    //   NOTIFYONPLAYERCOMMAND_NOTIFIES.txt, which is also where chatmodepublic
+    //  was confirmed) and slots 5-7 have no Zombies binding to collide with.
+    //
+    //      bind x "+actionslot 7"
+    //
+    //  🌟 And it fixes the drift by construction for anyone who uses it: the
+    //  whole reason keys get stuck is that opening chat swallows a key-up. A
+    //  key bind never opens chat, so the failure cannot occur in the first
+    //  place. Toggling this way is strictly safer than typing .fly.
+    //  (The bind itself is installed at CONNECT, not here - see
+    //  zmqol_fly_key_bind(). This function only runs on the first takeoff, so
+    //  binding here would mean the key did nothing until you had already flown
+    //  once by typing .fly, which defeats the point of having a bind.)
+
     self thread zmqol_fly_key_watch( "zmqol_fly_f_dn", "f", 1 );
     self thread zmqol_fly_key_watch( "zmqol_fly_f_up", "f", 0 );
     self thread zmqol_fly_key_watch( "zmqol_fly_b_dn", "b", 1 );
@@ -3959,6 +3987,79 @@ zmqol_fly_chat_resync()
     {
         self waittill( "zmqol_fly_chat" );
         self zmqol_fly_clear_keys();
+    }
+}
+
+// ============================================================================
+//  zmqol_fly_key_toggle  -  the bindable half of .fly
+//
+//      bind x "+actionslot 7"
+//
+//  Same toggle the chat command performs, minus the chat box. Bound once per
+//  player in zmqol_fly_bind_wasd(), which is called on every takeoff and guards
+//  itself, so the bind exists from the first flight onward.
+//
+//  The keys are wiped on every toggle whichever way it was triggered - takeoff
+//  and landing were already resync points and this keeps that true for the
+//  bind.
+// ============================================================================
+// ============================================================================
+//  zmqol_fly_key_bind  -  install the bindable fly toggle, once, at connect.
+//
+//      bind x "+actionslot 7"
+//
+//  User, 2026-08-07: "make the .fly mode a dvar or whatever it's called,
+//  something i can enter in the console as well not just a chat command, this
+//  way i can bind it to a specific key so i dont have to keep opening chat."
+//
+//  GSC cannot register a new console command, so this rides one the game
+//  already accepts and Zombies never uses. "+actionslot 7" is on the
+//  authoritative subscribable list (T6-Data-Archive-main\MPZM\Script\
+//  User Input\NOTIFYONPLAYERCOMMAND_NOTIFIES.txt - the same file that confirmed
+//  chatmodepublic), and actionslots 5-7 have no Zombies binding to collide
+//  with. Typing "+actionslot 7" straight into the console works too.
+//
+//  🌟 It also sidesteps the drift entirely. Keys get stuck because opening chat
+//  swallows a key-up; a key bind never opens chat, so with this bound the
+//  failure cannot happen at all. It is strictly safer than typing .fly.
+//
+//  At CONNECT rather than at takeoff, or the bind would not exist until after
+//  the first chat-typed flight. Guarded so it cannot stack duplicate notifies.
+// ============================================================================
+zmqol_fly_key_bind()
+{
+    if ( isdefined( self.zmqol_fly_key_bound ) )
+        return;
+
+    self.zmqol_fly_key_bound = 1;
+
+    self notifyonplayercommand( "zmqol_fly_key", "+actionslot 7" );
+    self thread zmqol_fly_key_toggle();
+}
+
+zmqol_fly_key_toggle()
+{
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    for ( ;; )
+    {
+        self waittill( "zmqol_fly_key" );
+
+        self zmqol_fly_clear_keys();
+
+        if ( isdefined( self.zmqol_fly ) && self.zmqol_fly )
+        {
+            self.zmqol_fly = 0;
+            self notify( "zmqol_fly_off" );
+            self iprintln( "^1[zm_qol] fly OFF" );
+        }
+        else
+        {
+            self.zmqol_fly = 1;
+            self thread zmqol_fly_think();
+            self iprintln( "^2[zm_qol] fly ON" );
+        }
     }
 }
 

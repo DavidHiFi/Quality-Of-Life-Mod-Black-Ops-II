@@ -569,6 +569,40 @@ zmqol_tomb_mp40_stalker_wallbuys()
     //  Let every wall-buy finish registering before walking the list.
     wait 2;
 
+    //  🛑 v1.59.3 - REFUSE TO TOUCH ANYTHING UNLESS THE REPLACEMENT WEAPON IS
+    //  REALLY REGISTERED. v1.59.2 retagged all three wallbuys and KILLED THE BUY
+    //  PROMPT on every one of them - chalk still drawn, no prompt, unbuyable.
+    //
+    //  The mechanism, from stock (_zm_weapons.gsc):
+    //      get_weapon_hint( w ) { return level.zombie_weapons[w].hint; }
+    //      get_weapon_cost( w ) { return level.zombie_weapons[w].cost; }
+    //  Both index level.zombie_weapons directly. If "mp40_stalker_zm" is not in
+    //  that table at the moment this runs, BOTH return undefined - and the
+    //  prompt is built from them, so an undefined hint is exactly a wallbuy with
+    //  no prompt. Worse, the trigger re-derives the hint from
+    //  .zombie_weapon_upgrade later (line 1218), so even leaving hint_string
+    //  alone would not have saved it.
+    //
+    //  So the whole change is now gated on the table entry existing. If it does
+    //  not, nothing is touched and the wallbuys keep working exactly as stock -
+    //  a missing feature instead of a broken wallbuy. The log says which
+    //  happened, so this cannot fail silently again.
+    if ( !isdefined( level.zombie_weapons ) || !isdefined( level.zombie_weapons[ "mp40_stalker_zm" ] ) )
+    {
+        println( "[zm_qol] origins mp40: mp40_stalker_zm is NOT in level.zombie_weapons - RETAG SKIPPED, wallbuys left stock" );
+        return;
+    }
+
+    //  And never write an undefined into the stub, even now.
+    str_hint = maps\mp\zombies\_zm_weapons::get_weapon_hint( "mp40_stalker_zm" );
+    n_cost   = maps\mp\zombies\_zm_weapons::get_weapon_cost( "mp40_stalker_zm" );
+
+    if ( !isdefined( str_hint ) || !isdefined( n_cost ) )
+    {
+        println( "[zm_qol] origins mp40: hint or cost undefined for mp40_stalker_zm - RETAG SKIPPED, wallbuys left stock" );
+        return;
+    }
+
     a_stubs   = level._unitriggers.trigger_stubs;
     n_mp40    = 0;
     n_wb      = 0;
@@ -608,8 +642,8 @@ zmqol_tomb_mp40_stalker_wallbuys()
         if ( isdefined( a_stubs[i].weapon_upgrade ) )
             a_stubs[i].weapon_upgrade = "mp40_stalker_zm";
 
-        a_stubs[i].hint_string = maps\mp\zombies\_zm_weapons::get_weapon_hint( "mp40_stalker_zm" );
-        a_stubs[i].cost        = maps\mp\zombies\_zm_weapons::get_weapon_cost( "mp40_stalker_zm" );
+        a_stubs[i].hint_string = str_hint;
+        a_stubs[i].cost        = n_cost;
 
         n_mp40++;
     }

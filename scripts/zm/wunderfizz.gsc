@@ -1601,8 +1601,34 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 	//  where only the j_ball TAG is confirmed to exist (it is used by
 	//  playfxontag/gettagorigin). The animtree is the mod's own and is known to
 	//  drive this machine already.
+	//  🛑 v1.59.3 - hidepart, NOT the shut_down animation. The animation IS the
+	//  sky-ball bug.
+	//
+	//  Evidence, and it is conclusive. The user confirmed the balls are ORIGINS
+	//  ONLY - Diner has none - and the v1.59.2 probe showed every entity this
+	//  file spawns sitting at sane heights (glow = machine+65, bottle =
+	//  machine+55, nothing near the sky). So it is not an entity, and it is not
+	//  the model or its LOD, because Diner runs the identical model.
+	//
+	//  What differs is the number of machines. Diner filters down to ONE, which
+	//  is always the active one and therefore never dormant. Origins has SIX,
+	//  five of them dormant - and v1.58.1 put every dormant machine into
+	//  "shut_down", which is the animation that FLIES THE BALL AWAY. That parks
+	//  j_ball on a bone far above the model. It only draws at distance because
+	//  up close a bone that far outside the model's bounds is culled, which is
+	//  exactly the "disappears when I get close" the user described. The balls
+	//  also first appeared in the report immediately after v1.58.1.
+	//
+	//  So: stock's method instead. _zm_perk_random.gsc::machines_setup does
+	//      machine hidepart( "j_ball" )
+	//  on every machine that is not the starting one. That removes the ball
+	//  rather than animating it somewhere, so there is nothing left to float.
+	//
+	//  j_ball is confirmed present on the mod's rebuilt model - this file
+	//  already calls playfxontag(...,"j_ball") and gettagorigin("j_ball") on it
+	//  successfully, and hidepart uses the same bone namespace.
 	if( level.currentWunderfizzLocation != self.location )
-		self zmqol_wf_anim( "shut_down" );
+		self hidepart( "j_ball" );
 
 	if( level.script == "zm_tomb" )
 	{
@@ -1647,6 +1673,11 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 			// the state cannot outlive one cycle.
 			if( isdefined( self.bottle ) )
 				self.bottle setModel( "tag_origin" );
+
+			//  The other half of the hidepart above: a machine going live gets
+			//  its ball back before the turn-on animation plays. Harmless if it
+			//  was never hidden - showpart on a visible part is a no-op.
+			self showpart( "j_ball" );
 
 			self zmqol_wf_anim( "start" );
 			wait 1;
@@ -1740,6 +1771,19 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 								self zmqol_wf_anim( "shut_down" );
 								self thread zmqol_wf_departure_steam();
 								wait 7;
+
+								//  🛑 v1.59.3 - PUT THE BALL AWAY once the fly-away has
+								//  played. The animation is kept because the user likes it
+								//  ("others have the ball fly away like they're supposed to
+								//  when they move"), but its END POSE is the sky-ball: it
+								//  leaves j_ball parked on a bone high above the machine,
+								//  which is what floats in the sky over Origins.
+								//
+								//  The 7s wait above is the animation's own duration, so by
+								//  here the departure has been seen and the ball can go.
+								//  showpart() on arrival brings it back.
+								self hidepart( "j_ball" );
+
 								self.bottle setModel("tag_origin");
 								level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
 								level notify("wunderfizzMove");

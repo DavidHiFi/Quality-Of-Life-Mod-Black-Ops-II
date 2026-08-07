@@ -345,30 +345,63 @@ qol_opt_night_mode()
 
 qol_opt_night_on()
 {
+    //  ========================================================================
+    //  v1.59.3 - WHY THIS USED TO RENDER A BLACK SCREEN.
+    //
+    //  User, twice: "the night mode toggle command in console still is scuffed
+    //  as hell, when i enable it the screen seems to go just black."
+    //
+    //  Two findings, both from Plutonium's own dvar_descriptions.json rather
+    //  than from reasoning:
+    //
+    //  1. "r_exposureValue": "exposure ev stops". It is an EV OFFSET, and every
+    //     stop HALVES the image. The old values came from Remix - 3.9 by
+    //     default, up to 5.6 on Nuketown - which is between 1/15th and 1/48th
+    //     brightness. That is the black screen, on its own, with nothing else
+    //     wrong.
+    //
+    //  2. 🛑 THE ENTIRE vc_* FAMILY DOES NOT EXIST ON THIS BUILD. vc_yl, vc_yh,
+    //     vc_rgbl and vc_rgbh return ZERO matches in dvar_descriptions.json,
+    //     while r_exposureValue and r_filmUseTweaks are both present. Those four
+    //     lines were the half that tinted the picture blue and lifted it back
+    //     up - so only the darkening half ever applied. They are deleted rather
+    //     than left in: a setclientdvar to a non-existent dvar is silent, and
+    //     four silent lines are exactly what made this look like a colour
+    //     problem instead of an exposure one.
+    //
+    //  The port was faithful to Remix. Remix simply targets a build where the
+    //  other half of it works.
+    //
+    //  📝 TUNABLE, because the RIGHT number needs eyes and this has already
+    //  cost boots. Default 1.25 stops - a bit over half brightness, which reads
+    //  as dusk rather than a blackout. Change it live with:
+    //        night_exposure 2      (darker)
+    //        night_exposure 0.75   (lighter)
+    //  then tell me the value that looks right and it becomes the default.
+    //  ========================================================================
     self setclientdvar( "r_filmUseTweaks", 1 );
     self setclientdvar( "r_bloomTweaks", 1 );
     self setclientdvar( "r_exposureTweak", 1 );
-    self setclientdvar( "vc_yl", "0 0 0.25 0" );
-    self setclientdvar( "vc_yh", "0.015 0 0.07 0" );
-    self setclientdvar( "vc_rgbl", "0.015 0 0.07 0" );
-    self setclientdvar( "vc_rgbh", "0.015 0 0.07 0" );
+
+    //  These two DO exist and do the actual "night" work - the sun is dimmed
+    //  and the sky pushed up, which darkens the world without crushing the
+    //  whole frame the way exposure does.
     self setclientdvar( "r_lightTweakSunLight", 16 );
     self setclientdvar( "r_sky_intensity_factor0", 3 );
 
-    //  Per-map exposure, straight from Remix - the maps are lit differently
-    //  enough that one value washes some out and leaves others pitch black.
-    n_exposure = 3.9;
+    n_exposure = getdvarfloatdefault( "night_exposure", 1.25 );
 
-    if ( level.script == "zm_buried" )
-        n_exposure = 3.5;
-    else if ( level.script == "zm_tomb" )
+    //  Clamp, so a typo cannot reproduce the original black screen. 4 stops is
+    //  1/16th brightness and already past usable.
+    if ( n_exposure < 0 )
+        n_exposure = 0;
+
+    if ( n_exposure > 4 )
         n_exposure = 4;
-    else if ( level.script == "zm_nuked" )
-        n_exposure = 5.6;
-    else if ( level.script == "zm_highrise" )
-        n_exposure = 3;
 
     self setclientdvar( "r_exposureValue", n_exposure );
+
+    println( "[zm_qol] night_mode ON - exposure " + n_exposure + " ev stops (tune with the night_exposure dvar)" );
 }
 
 qol_opt_night_off()
@@ -376,10 +409,10 @@ qol_opt_night_off()
     self setclientdvar( "r_filmUseTweaks", 0 );
     self setclientdvar( "r_bloomTweaks", 0 );
     self setclientdvar( "r_exposureTweak", 0 );
-    self setclientdvar( "vc_yl", "0 0 0 0" );
-    self setclientdvar( "vc_yh", "0 0 0 0" );
-    self setclientdvar( "vc_rgbl", "0 0 0 0" );
-    self setclientdvar( "vc_rgbh", "0 0 0 0" );
+
+    //  The vc_* resets are gone with their counterparts in qol_opt_night_on -
+    //  that dvar family does not exist on this build, so these four lines were
+    //  resetting nothing.
 
     if ( isdefined( level.qol_default_exposure ) )
     {
