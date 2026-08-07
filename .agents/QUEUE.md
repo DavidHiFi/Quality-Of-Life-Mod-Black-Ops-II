@@ -8,11 +8,99 @@ acknowledged, not begun.
 
 ---
 
-## 0. IN FLIGHT — v1.61.1, perk icon row sizing (deployed, awaiting one look)
+## 0. IN FLIGHT — v1.61.2, the stock perk row is back (deployed, not booted)
 
-The PhD-icon spam is **FIXED and confirmed** ("that issue is solved"). v1.61.1
-only resizes the row — 20x20 units, 21 spacing, y -72, measured off the
-engine's own row. Boot Diner, look at it, say bigger/smaller if wrong.
+**User, 2026-08-08:** *"you fucked up the icon size… made them too big, then
+too small… the animation is still broken or slow. Revert it but just fix the
+PHD being spammed on all the perk slots, that's all I wanted you to fix
+originally but you went and changed a bunch of other stuff."*
+
+Fair. v1.61.0 replaced the game's own perk row with a GSC-drawn one — that was
+scope the user never asked for, and it cost the icon size and the pulse
+animation. **v1.61.2 reverts both perk-HUD commits in full.** `mod.ff` rebuilt
+SHA256-identical to `4854411:mod.ff`; 0 `zmqol_perk_hud` in the deployed
+`mod.iwd`.
+
+### 🌟 THE PhD ROOT CAUSE — FOUND, and checkpoint 21 §5 was WRONG
+
+Checkpoint 21 concluded the row was drawn by "engine code bound by
+`setupclientfieldcodecallbacks`" that "no GSC change can inspect or correct".
+**That is false. The row is LUI**, and the file is readable:
+
+| | |
+|---|---|
+| stock, compiled | `BO2-Raw-files\ui_mp\t6\zombie\hudperkszombie.lua` (Lua 5.1 bytecode) |
+| readable source | `BO2-Reimagined\ui_mp\t6\zombie\hudperkszombie.lua` (405 lines, plain text) |
+
+`setupclientfieldcodecallbacks` only makes the engine **dispatch a LUI event**
+named after the clientfield. `CoD.Perks.Update` handles it.
+
+**The bug is an off-by-one in `CoD.Perks.RemovePerkIcon`:**
+
+```lua
+for PerkIndex = OwnedPerkIndex, #CoD.Perks.ClientFieldNames, 1 do
+    PerkWidget = Menu.perks[PerkIndex]
+    if not PerkWidget.perkId then break
+    elseif PerkIndex ~= #CoD.Perks.ClientFieldNames then
+        NextPerkWidget = Menu.perks[PerkIndex + 1]
+    end                       -- 🛑 no else - NextPerkWidget keeps slot 12
+```
+
+Removing a perk **shifts every icon down one slot**. On the last index there is
+no next slot, so `NextPerkWidget` still points at slot 12 from the previous
+iteration. Slot 12 then copies **itself** and `break`s without ever clearing.
+
+- **Own ≤11 perks** (every stock map): slot 12 is empty, the loop hits
+  `elseif not NextPerkWidget.perkId`, clears correctly. **Stock never sees this.**
+- **Own all 12** (only this mod): slot 12 never clears. Each removal duplicates
+  the tail, so removing all 12 collapses the row to twelve copies of one icon —
+  and it is permanent, because with every `perkId` non-nil `Update` can never
+  fill a slot again and `RemovePerkIcon` can never empty one.
+
+Which icon? Whatever landed in slot 12 — the **last** perk acquired. The
+v1.60 probe recorded `perk_dive_to_nuke registered exactly ONCE and LAST`
+and filed it as an exoneration. It was the answer.
+
+Matches the report exactly: `.giveperks` (fills all 12) → down (removes all 12)
+→ every icon PhD, permanently.
+
+### THE FIX — one `else` branch, in one LUI file
+
+```lua
+elseif PerkIndex ~= #CoD.Perks.ClientFieldNames then
+    NextPerkWidget = Menu.perks[PerkIndex + 1]
+else
+    NextPerkWidget = nil          -- <- the whole fix
+end
+```
+
+🛑 **BLOCKED ON ONE THING: there is no stock-faithful source for this file.**
+LUI overrides in `ui_mp\` are **whole-file replacements** — the mod's three
+existing ones are full stock copies (873 / 591 / 362 lines). Reimagined's copy
+is stock **plus its own changes** (`SpecialtyToClientFieldNames`,
+`UpdatePerksPaused`, `UpdatePerkOrder`, a hardcoded `TopStart`, and stock's
+`STATE_PAUSED`/`STATE_TBD` handling removed from `Update`). Shipping it as-is
+would silently import Reimagined's perk-pause behaviour.
+
+**Decoded from the stock bytecode so far** (4-byte floats, offsets 1585-1650):
+
+| constant | stock value | Reimagined |
+|---|---|---|
+| `TopStart` | **-180 on DLC3 maps, -140 otherwise** (two constants + an `IsDLCMap(CoD.DLC3Maps)` test) | -140, hardcoded |
+| `IconSize` | 36 | 36 ✅ |
+| `Spacing` | 8 | 8 ✅ |
+| `STATE_NOTOWNED/OWNED/PAUSED/TBD` | 0 / 1 / 2 / 3 | same ✅ |
+
+🛑 `STATE_PAUSED` **is reachable here** — the mod registers perk fields 2 bits
+wide when `emp_grenade_zm` is included, and stock `zm_transit.gsc:1926` includes
+it. So the pause path cannot just be dropped.
+
+**Next step, before writing any Lua:** get a faithful stock decompile of
+`hudperkszombie.lua` (a Lua 5.1 decompiler — unluac/luadec — on
+`BO2-Raw-files\ui_mp\t6\zombie\hudperkszombie.lua`), or find whatever stock LUI
+source produced this mod's existing `hudpowerupszombie.lua`. **Do not
+hand-reconstruct `Update`'s paused branches from constant order — that is a
+guess, and a bad LUI file hard-crashes the game.**
 
 ## 0b. NEXT UP, in the order the user raised them
 
