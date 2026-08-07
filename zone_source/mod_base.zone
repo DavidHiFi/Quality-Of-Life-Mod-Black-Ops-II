@@ -1,4 +1,12 @@
 // Call Of Duty: Black Ops II
+//
+// 🛑 HAND-EDITED, and a --regen-base WILL REVERT IT. See v1.59.7:
+//    the five m1911 image lines (search 1911) were changed from
+//    "image,<name>" to "image,,<name>" - embedded to REFERENCED - so mod.ff
+//    stops owning stock image headers it has no pixels for. That ownership is
+//    what corrupts a player custom texture pack. If you regenerate this file,
+//    re-apply that change.
+//
 >game,T6
 
 >level.ipak_read,zm
@@ -1875,10 +1883,10 @@ fx,"weapon//grenade/fx_trail_grenade"
 weapon,m32_zm
 fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_m32_3p
 weapon,m32_upgraded_zm
-image,~~-gmtl_t6_wpn_pistol_m1911_s~5546ff61
-image,mtl_t6_wpn_pistol_m1911_nml
-image,~-gmtl_t6_wpn_pistol_m1911_col
-image,~mtl_t6_wpn_pistol_m1911_ir-r~c412f4cb
+image,,~~-gmtl_t6_wpn_pistol_m1911_s~5546ff61
+image,,mtl_t6_wpn_pistol_m1911_nml
+image,,~-gmtl_t6_wpn_pistol_m1911_col
+image,,~mtl_t6_wpn_pistol_m1911_ir-r~c412f4cb
 material,mc/mtl_t6_wpn_pistol_m1911_thermal
 material,mc/mtl_t6_wpn_pistol_m1911
 material,mc/mtl_t6_wpn_pistol_m1911_camo1
@@ -1922,7 +1930,7 @@ xanim,viewmodel_m1911_d2p_loop_empty
 xanim,viewmodel_m1911_d2p_out_empty
 xanim,viewmodel_m1911_ads_up
 xanim,viewmodel_m1911_ads_down
-image,menu_mp_weapons_1911
+image,,menu_mp_weapons_1911
 material,menu_mp_weapons_1911
 camo,camo_m1911
 weapon,m1911_zm
