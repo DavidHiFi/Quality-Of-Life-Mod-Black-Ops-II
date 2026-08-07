@@ -15,6 +15,43 @@ main()
     replaceFunc( maps\mp\zm_tomb_ee_side::check_for_change, ::origins_change_patch ); // prone "loose change" -> 100
     replaceFunc( maps\mp\zm_tomb_utility::check_solo_status, ::qol_check_solo_status ); // 1 player = solo rules
 
+    // ========================================================================
+    //  v1.58.0 - STRIP ORIGINS' NATIVE WUNDERFIZZ. The mod's own machines take
+    //  their place, so every map has the same machine. User, 2026-08-07:
+    //  "get rid of the actual pre-existing wunderfizz machines from origins,
+    //  and just put the custom ones that are already good and working."
+    //
+    //  Why the native ones had to go rather than be improved: the mod fed its
+    //  perk list into stock's rotation, and stock's cycling code was never
+    //  written for a list that size. The user got duplicate bottles for perks
+    //  already owned (get_weighted_random_perk falls through to keys[0] once
+    //  everything is owned) and bottles landing off to the left - which is
+    //  stock's perk_bottle_motion() reading .origin off an entity that is
+    //  still mid-moveto. wunderfizz.gsc ALREADY fixes that exact bug; see the
+    //  comment block above its own perk_bottle_motion(). Replacing is
+    //  therefore strictly less work than patching, and lands on code the user
+    //  has already confirmed working on five other maps.
+    //
+    //  🛑 BOTH of these are suppressed, and NEITHER is _zm_perk_random::init().
+    //  init() must keep running: it performs six registerclientfield calls,
+    //  and the matching .csc registers the same six. Skip them server-side and
+    //  the register lists diverge -> EXE_CLIENT_FIELD_MISMATCH drops every
+    //  player at load. Only the MACHINE SETUP is suppressed.
+    //
+    //      init_machines()        builds the unitriggers (the buy prompt)
+    //      start_random_machine() threads machines_setup + machine_selector
+    //                             (the ball, the animtree, the relocation)
+    //
+    //  init_machines is reached as `level thread init_machines()` from init()
+    //  - an unqualified same-file call, hookable BECAUSE it is threaded.
+    //  start_random_machine is called qualified from stock zm_tomb.gsc:256.
+    //  Both are registered here in main(), not init(), because both are
+    //  threaded at map-init and a replaceFunc registered in init() would land
+    //  after they had already run.
+    // ========================================================================
+    replaceFunc( maps\mp\zombies\_zm_perk_random::init_machines,        ::zmqol_tomb_no_native_wunderfizz );
+    replaceFunc( maps\mp\zombies\_zm_perk_random::start_random_machine, ::zmqol_tomb_no_native_wunderfizz );
+
     // --- custom survival start locations: Trenches, Excavation Site, Church, The Crazy Place ---
 
     // ========================================================================
@@ -205,6 +242,7 @@ zmqol_register_survival_visionset()
 
 init()
 {
+    level thread zmqol_hide_native_wunderfizz();
     level thread zmqol_probe_capture_zones();
     zmqol_register_survival_visionset();
     level thread zmqol_power_up_all_generators();
@@ -449,6 +487,65 @@ zmqol_tomb_perk_is_stock( str_perk )
 //  progress never moves, it is server-side and the zone objects are the place to
 //  look.
 // ============================================================================
+zmqol_tomb_no_native_wunderfizz()
+{
+    //  Deliberately empty - the replacement for BOTH
+    //  _zm_perk_random::init_machines and ::start_random_machine.
+    //
+    //  Both are reached with `level thread ...`, so an empty body just ends
+    //  that thread and nothing downstream runs: no unitriggers (no buy
+    //  prompt), no ball, no animtree use, no machine_selector, no
+    //  machine_think. The six map entities themselves are left alone - see
+    //  zmqol_hide_native_wunderfizz for why they must survive.
+}
+
+// ============================================================================
+//  zmqol_hide_native_wunderfizz  -  make the six vanilla machines invisible
+//  WITHOUT deleting them.
+//
+//  🛑 DO NOT DELETE THESE ENTITIES. zm_tomb_capture_zones.gsc builds a
+//  per-zone array out of them (`...zones[str_zone_name].perk_machines_random`,
+//  lines 369-377) and sets `.is_locked` on each member as generators come and
+//  go:
+//
+//      enable_random_perk_machines_in_zone()   ->  .is_locked = 0
+//      disable_random_perk_machines_in_zone()  ->  .is_locked = 1
+//
+//  That IS the generator gating the user asked to keep, and the mod's own
+//  machines read it back via zmqol_wf_tomb_native_for() in wunderfizz.gsc.
+//  Delete these and the gating dies with them - and stock would be iterating
+//  an array of deleted entities on every zone change.
+//
+//  Hidden two ways on purpose: setmodel( "tag_origin" ) is the technique this
+//  project has already proven (wunderfizz.gsc uses it on the perk bottle), and
+//  hide() is belt and braces so invisibility does not rest on either alone.
+//  Verified from the zm_tomb.ff mapents dump: all six are classname
+//  "script_model", targetname "random_perk_machine" - both calls are valid.
+// ============================================================================
+zmqol_hide_native_wunderfizz()
+{
+    level endon( "end_game" );
+
+    //  Map-placed, so they exist from load - but give the map's own init a
+    //  frame to finish before touching them.
+    wait 0.05;
+
+    a_native = getentarray( "random_perk_machine", "targetname" );
+    n_hidden = 0;
+
+    for ( i = 0; i < a_native.size; i++ )
+    {
+        if ( !isdefined( a_native[i] ) )
+            continue;
+
+        a_native[i] setmodel( "tag_origin" );
+        a_native[i] hide();
+        n_hidden++;
+    }
+
+    println( "[zm_qol] origins wunderfizz: hid " + n_hidden + " of " + a_native.size + " native machine(s) - the mod's own replace them" );
+}
+
 zmqol_probe_capture_zones()
 {
     if ( !is_classic() )

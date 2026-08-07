@@ -508,22 +508,46 @@ setupWunderfizz()
 
 	if(level.script == "zm_tomb")
     {
-		//  🛑 NO ADDED MACHINE ON ORIGINS. User, twice: "the added wunderfizz
-		//  machines are still there in origins get rid of them keep the vanilla
-		//  ones and just add all perks to the machine like the other maps."
+		//  ====================================================================
+		//  v1.58.0 - THE MOD'S MACHINES NOW REPLACE ORIGINS' NATIVE SIX.
 		//
-		//  Origins is the map the Wunderfizz comes FROM. It already has four of
-		//  them, with the real model, the real animations, the real fx and the
-		//  real sounds, and they move between locations on their own. Everything
-		//  this file rebuilds by hand off Origins is native here, so adding a
-		//  fifth was only ever duplicating the map's own furniture with a worse
-		//  copy of it.
+		//  This branch used to be empty, on an earlier instruction to keep the
+		//  vanilla machines. The user reversed that on 2026-08-07 after the
+		//  vanilla ones misbehaved with the mod's perk list - duplicate bottles
+		//  for perks already owned, and bottles landing off to the left:
+		//  "get rid of the actual pre-existing wunderfizz machines from origins,
+		//  and just put the custom ones that are already good and working."
 		//
-		//  What the mod contributes on Origins instead is the PERK LIST - see
-		//  scripts\zm\zm_tomb\zm_tomb.gsc, which feeds every perk this mod enables
-		//  into level._random_perk_machine_perk_list so the map's own machines
-		//  hand them out. That is the right split: stock owns the machine, the mod
-		//  owns what comes out of it.
+		//  🛑 THERE ARE SIX, NOT FOUR. An earlier comment in this file claimed
+		//  four and it was wrong; the user corrected it and the map settles it.
+		//  Counted from the real thing - Unlinker mapents dump of zm_tomb.ff:
+		//  6 x classname script_model / targetname random_perk_machine, one per
+		//  generator, model p6_zm_vending_diesel_magic. Two of them additionally
+		//  carry script_noteworthy "start_machine", which is stock's random pick
+		//  of a starting location.
+		//
+		//  🌟 POSITIONS ARE READ FROM THE MAP, NEVER TYPED. Whatever Treyarch
+		//  placed is what the mod's machines inherit - origin AND angles - so
+		//  they cannot drift from vanilla and there is no coordinate here to get
+		//  wrong. It also means this is self-correcting if the count is ever
+		//  different from six on a variant of the map.
+		//
+		//  The native entities are NOT deleted, only hidden - see
+		//  scripts\zm\zm_tomb\zm_tomb.gsc::zmqol_hide_native_wunderfizz. They
+		//  stay alive to receive .is_locked from Origins' own capture-zone code,
+		//  which is how the generator gating survives this swap.
+		//  ====================================================================
+		a_native = getentarray( "random_perk_machine", "targetname" );
+
+		for( i = 0; i < a_native.size; i++ )
+		{
+			if( !isdefined( a_native[i] ) )
+				continue;
+
+			zmqol_wf_add( a_native[i].origin, a_native[i].angles, zmqol_wf_machine_model() );
+		}
+
+		println( "[zm_qol] wunderfizz: origins - mirrored " + a_native.size + " native machine location(s)" );
     }
     else if(level.script == "zm_nuked")
     {
@@ -654,6 +678,73 @@ setupWunderfizz()
 //  than the whole list. One reachable machine that stays put is the requested
 //  behaviour; falling back to all six would just reproduce the bug.
 // ============================================================================
+// ============================================================================
+//  zmqol_wf_tomb_native_for  -  the hidden vanilla machine standing at this
+//  spot, or undefined off Origins.
+//
+//  The mod's machines are placed AT the six native origins (see the zm_tomb
+//  branch of setupWunderfizz), so "nearest native" is an exact pairing, not an
+//  approximation - the distance is zero. Nearest-by-distance is used rather
+//  than pairing by array index because zmqol_wf_place() may filter or reorder
+//  the pending list, and an index pairing would then silently point a machine
+//  at the wrong generator's lock.
+//
+//  Looked up ONCE per machine and cached by the caller; this walks six
+//  entities and must not run in a polling loop.
+// ============================================================================
+zmqol_wf_tomb_native_for( v_origin )
+{
+	if( level.script != "zm_tomb" )
+		return undefined;
+
+	a_native = getentarray( "random_perk_machine", "targetname" );
+	e_best   = undefined;
+	n_best   = 0;
+
+	for( i = 0; i < a_native.size; i++ )
+	{
+		if( !isdefined( a_native[i] ) )
+			continue;
+
+		n_dist = distancesquared( v_origin, a_native[i].origin );
+
+		if( !isdefined( e_best ) || n_dist < n_best )
+		{
+			e_best = a_native[i];
+			n_best = n_dist;
+		}
+	}
+
+	return e_best;
+}
+
+// ============================================================================
+//  zmqol_wf_tomb_locked  -  is this machine's generator still off?
+//
+//  Origins has no global "power_on" flag; power is per zone and per generator.
+//  zm_tomb_capture_zones.gsc sets .is_locked on every random_perk_machine in a
+//  zone - 0 when that generator is captured, 1 when it is lost - through
+//  enable_random_perk_machines_in_zone() / disable_random_perk_machines_in_zone().
+//
+//  Reading it back means the gating IS stock's, not a reimplementation of it,
+//  so it cannot drift from vanilla behaviour and it keeps working if a zone is
+//  contested and lost again later.
+//
+//  Defaults to UNLOCKED when the flag is missing. .is_locked is undefined until
+//  the capture-zone code first touches a machine, and defaulting to locked
+//  would leave a machine permanently unusable if that never happened.
+// ============================================================================
+zmqol_wf_tomb_locked( e_native )
+{
+	if( !isdefined( e_native ) )
+		return false;
+
+	if( !isdefined( e_native.is_locked ) )
+		return false;
+
+	return ( e_native.is_locked == 1 );
+}
+
 zmqol_wf_add( origin, angles, model )
 {
 	s_place = spawnstruct();
@@ -677,17 +768,35 @@ zmqol_wf_place()
 
 	n_candidates = level.zmqol_wf_pending.size;
 
-	a_place = zmqol_wf_clear_of_perk_machines( a_place );
-
-	for( i = 0; i < a_place.size; i++ )
+	//  🛑 ORIGINS SKIPS EVERY POSITION ADJUSTER, ON PURPOSE.
+	//
+	//  On every other map these coordinates are the mod's own picks and need
+	//  vetting - moved off perk machines, snapped to walls, pushed out of
+	//  geometry. On Origins they are TREYARCH'S OWN machine positions, read
+	//  straight out of the map by the zm_tomb branch above. They are correct by
+	//  definition and must arrive unmodified, or the swap stops being seamless.
+	//
+	//  zmqol_wf_clear_of_perk_machines is the dangerous one: it DROPS entries,
+	//  and it would be judging vanilla Wunderfizz spots against the mod's own
+	//  clearance rule. Origins packs perks tightly - a single rejection there
+	//  means a generator with no machine at all, which reads in game as "the
+	//  replacement is broken". zmqol_wf_unclip would also nudge a machine that
+	//  is already sitting exactly where it belongs.
+	if( level.script != "zm_tomb" )
 	{
-		if( isdefined( a_place[i].snap_yaw ) )
-			a_place[i] = zmqol_wf_wall_snap( a_place[i] );
-	}
+		a_place = zmqol_wf_clear_of_perk_machines( a_place );
 
-	//  Every machine, on every map, gets pushed out of whatever it is buried in.
-	for( i = 0; i < a_place.size; i++ )
-		a_place[i] = zmqol_wf_unclip( a_place[i] );
+		for( i = 0; i < a_place.size; i++ )
+		{
+			if( isdefined( a_place[i].snap_yaw ) )
+				a_place[i] = zmqol_wf_wall_snap( a_place[i] );
+		}
+
+		//  Every machine, on every other map, gets pushed out of whatever it is
+		//  buried in.
+		for( i = 0; i < a_place.size; i++ )
+			a_place[i] = zmqol_wf_unclip( a_place[i] );
+	}
 
 	for( i = 0; i < a_place.size; i++ )
 		wunderfizzSetup( a_place[i].origin, a_place[i].angles, a_place[i].model );
@@ -1387,7 +1496,25 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 	// was guarded into doing nothing at all - which is why there was no location
 	// beam. Replaced by zmqol_wf_ball_glow(), started when this machine becomes
 	// the active one, using Origins' real fx_tomb_dieselmagic_identify.
-	if(level.wunderfizzChecksPower && level.script != "zm_prison" && level.script != "zm_nuked")
+	//  Origins' generator, cached once. Undefined on every other map, which is
+	//  what makes every zm_tomb test below cost nothing elsewhere.
+	e_native_gen = zmqol_wf_tomb_native_for( origin );
+
+	if( level.script == "zm_tomb" )
+	{
+		//  🛑 ORIGINS DOES NOT HAVE "power_on". Power there is per generator,
+		//  per zone, and it can be LOST again when a zone is contested - so this
+		//  cannot be a one-shot flag_wait like the branch below. The live check
+		//  is repeated in the buy loop as well; this one only holds the machine
+		//  before it first goes live.
+		trig SetHintString( "Activate the Generator First" );
+
+		while( zmqol_wf_tomb_locked( e_native_gen ) )
+			wait 0.5;
+
+		trig SetHintString(" ");
+	}
+	else if(level.wunderfizzChecksPower && level.script != "zm_prison" && level.script != "zm_nuked")
 	{
 		trig SetHintString("Power Must Be Activated First");
 		flag_wait("power_on");
@@ -1423,6 +1550,20 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 			self thread zmqol_wf_ball_glow();
 			for(;;)
 			{
+				//  🛑 RE-CHECK THE GENERATOR EVERY PASS, do not trust the gate
+				//  above. Origins zones can be lost after being captured, and a
+				//  machine that went live once must lock again if its generator
+				//  goes down. Skipping straight back to the top also means no
+				//  `trig waittill("trigger")` is armed while locked, so there is
+				//  no buy prompt and no way to purchase - "visible but locked",
+				//  which is the behaviour the user picked and what stock does.
+				if( zmqol_wf_tomb_locked( e_native_gen ) )
+				{
+					trig SetHintString( "Activate the Generator First" );
+					wait 0.5;
+					continue;
+				}
+
 				trig SetHintString("Hold ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
 				trig waittill("trigger", player);
 				if(player UseButtonPressed() && player.score >= cost && player.isDrinkingPerk == 0)
