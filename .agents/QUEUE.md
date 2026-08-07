@@ -8,7 +8,65 @@ acknowledged, not begun.
 
 ---
 
-## 0. IN FLIGHT — v1.61.3, Tombstone icon (deployed, not booted)
+## 0. IN FLIGHT — v1.62.0, solo play (PART 1 OF 3 shipped)
+
+**User, 2026-08-08:** solo should be solo, not a custom game. Three parts:
+(1) the solo **intro cutscene** on classic maps, (2) the menu header saying
+**"CUSTOM GAMES"**, (3) **solo gameplay logic** — all Mob plane parts carried
+at once. **Keep** instant start and Diner selection exactly as they are.
+
+### ✅ PART 3 SHIPPED — the gameplay half
+
+`qol_check_solo_status` tested `getnumexpectedplayers() == 1`. The engine
+reports **0** on Mods-menu launches — this project had already measured that
+and written it in `onallplayersready_instant`, but never connected it here. So
+`level.is_forever_solo_game` was 0 while playing alone, and
+`zm_alcatraz_craftables` gates `is_shared = 1` on all five plane pieces and
+five fuel cans behind that flag. Now `<= 1`, in both maps' copies.
+
+Origins looked fine only because its call site (`zm_tomb.gsc:290`) runs later
+in the load than Mob's (`zm_prison.gsc:222`), so the count had resolved —
+that is why its log said `expected=1`. The replaceFunc always took.
+
+Log line now prints both counts:
+`[zm_qol] solo status: expected=N connected=N is_forever_solo_game=N`
+
+📝 Stock's solo gate is **only** these two functions — every
+`sessionmodeisonlinegame` / `sessionmodeisprivate` use in the stock dump was
+checked; the rest are banking, weapon locker, achievements, leaderboards.
+
+### ❌ PARTS 1 AND 2 NOT STARTED — and they are not GSC
+
+🛑 **There is no cinematic code anywhere in the 2,093-file stock dump** —
+grep for `cinematic` / `playbink` / `intro_movie` returns only
+`scr_cinematic_autofocus` in `_art.gsc`. The intro plays from the **menu
+system**, before the map loads. So no GSC hook can reach it.
+
+Both parts trace to one root: **the mod launches through the private-game
+(Custom Games) lobby.** `ui_mp\t6\zombie\selectmaplistzombie.lua`'s own header
+says the map/mode pickers are "reachable from the private game lobby" — that
+flow is exactly what gives us Diner selection and instant start, which the
+user wants kept.
+
+So the work is: keep the private-lobby flow, but make it *present and behave*
+as Solo. Unknowns to settle before writing anything:
+- where the "CUSTOM GAMES" title is set (not in either LUI file the mod
+  ships; likely `patch_ui_zm.ff` or Plutonium's own compiled menus)
+- what actually triggers the intro movie on the stock Solo path
+- 🛑 `quality_of_life.gsc:6696` records that the lobby countdown lives in
+  Plutonium's **compiled** `CoD.Lobby` module with no source found. The same
+  may be true here — but `patch_ui_zm.ff` **is** dumpable
+  (`Unlinker --include-assets rawfile`, CLAUDE.md §8), which the earlier
+  session did not try.
+
+**Next step: dump `patch_ui_zm.ff`'s 48 LUI files and find where the lobby
+title and the Solo launch path live.** Same open blocker as the PhD fix — the
+files are LuaJIT bytecode and need a Lua 5.1 decompiler to edit safely.
+
+---
+
+## 0b. DONE — v1.61.3, Tombstone icon ✅ CONFIRMED
+**User: "the tombstone icon looks perfect"**
 
 **User, 2026-08-08, with a screenshot:** stock draws the Tombstone perk icon
 with its badge frame **upside down relative to every other perk**. Reimagined
@@ -44,7 +102,11 @@ others, "RIP" upright, skull on top.
 
 ---
 
-## 0a. ALSO DEPLOYED, NOT BOOTED — v1.61.2, the stock perk row is back
+## 0c. DONE — v1.61.2, stock perk row restored ✅ CONFIRMED (user: "phd bug seems to be gone")
+
+🛑 CAVEAT: stock's off-by-one is still in the Lua. It only fires after owning
+ALL 12 perks and then losing them (.giveperks then a down). Dormant, not fixed.
+The root cause and the one-line fix are recorded below.
 
 **User, 2026-08-08:** *"you fucked up the icon size… made them too big, then
 too small… the animation is still broken or slow. Revert it but just fix the
@@ -138,7 +200,7 @@ source produced this mod's existing `hudpowerupszombie.lua`. **Do not
 hand-reconstruct `Update`'s paused branches from constant order — that is a
 guess, and a bad LUI file hard-crashes the game.**
 
-## 0b. NEXT UP, in the order the user raised them
+## 0d. NEXT UP, in the order the user raised them
 
 1. **Solo behaves like a custom game** — no intro cutscene on classic maps,
    and the menu header reads "CUSTOM GAMES". Asked for twice. Only the map
