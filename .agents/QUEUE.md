@@ -33,23 +33,44 @@ already registers the six the Wunderfizz needs, in `_zm_perk_random.gsc::init()`
 
 **Drive those instead of registering `clientfield_perk_intro_fx`, and the wall is gone.**
 
-### The design that follows from the architecture
+### 🛑 CORRECTION — the above worried about the wrong thing entirely
 
-Origins' machines are **map entities** — `getentarray( "random_perk_machine", "targetname" )` —
-and everything the user wants kept is bolted to those entities:
+**`wunderfizz.gsc` makes ZERO `setclientfield` calls** (`grep -c` → 0). It avoids clientfields on
+purpose — see its BALL SPIN + EFFECTS note: five registrations from a root script on six maps is
+the fastest route to `EXE_CLIENT_FIELD_MISMATCH`, so the fx are spawned server-side with
+`playfx`/`playfxontag` instead.
 
-- generator gating → `machine_power_indicators()` / `conditional_power_indicators()`, via
-  `zone_captured`
-- relocation → `machine_selector()`, plus `start_machine` (`script_noteworthy`) and the
-  `j_ball` hidepart that gives one machine the ball
-- the real model, animtree, unitrigger and all six clientfields
+**So the mod's machine needs no registration at all, and Origins' 32/32 wall does not apply to
+it.** The wall only ever blocked driving the *native* machine. Strip-and-replace is the cheap path,
+not the expensive one.
 
-So **do not delete the entities and spawn the mod's script_models.** That path needs a new
-clientfield (impossible) and throws away the gating and relocation. The correct build keeps the
-native entities and `replaceFunc`s the *behaviour* onto them from `_zm_perk_random`.
+### THE PLAN — user's design, 2026-08-07
 
-📝 Note for whoever builds it: stock `get_perk_weapon_model()` already falls back to
-`level._custom_perks[perk].perk_bottle`, so custom-perk bottles are supported natively.
+User: *"whenever you tried to modify the vanilla origins wunderfizz machines you just made them
+super buggy — duplicate perk bottles for ones i already owned, perk bottles jumping off to the
+left. Why not just strip them from origins entirely, then add the wunderfizz machines that you've
+added to other maps… so all wunderfizz machines on any map look the same and give all 12 perks."*
+
+Correct call. The mod's machine already carries relocation (`chooseLocation` /
+`currentWunderfizzLocation`), ball behaviour and all 12 perks. Only generator gating is
+Origins-specific.
+
+1. **Suppress the native machines** — but 🛑 **DO NOT touch `_zm_perk_random::init()`**. Its six
+   `registerclientfield` calls must keep running or the server/client register lists diverge and
+   every player eats `EXE_CLIENT_FIELD_MISMATCH`. Suppress `init_machines()` / `machines_setup()`
+   and hide the entities instead; leave registration alone.
+2. **Place the mod's machines at the native locations** — read them at runtime from
+   `getentarray( "random_perk_machine", "targetname" )` (origin + angles) and feed `zmqol_wf_add`.
+   Exact, and nothing is guessed or hardcoded.
+3. **Generator gating** — the native entities stay alive (hidden, no unitrigger), so
+   `zm_tomb_capture_zones.gsc::enable_random_perk_machines_in_zone()` /
+   `disable_…()` keep setting `.is_locked` on them exactly as stock does. The mod's machine at each
+   location reads its paired native entity's `.is_locked`. **Stock's own capture logic drives the
+   gating with no reimplementation.**
+4. **Ball / relocation** — already the mod's own; verify the two relocation systems do not both run.
+
+📝 Stock `get_perk_weapon_model()` falls back to `level._custom_perks[perk].perk_bottle`, so custom
+bottles were supported natively — that was never the bug the user hit.
 
 ---
 
