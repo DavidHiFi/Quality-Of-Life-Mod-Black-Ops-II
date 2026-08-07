@@ -806,7 +806,35 @@ perks_register_clientfield()
 			}
 		}
 	}
-	level thread perk_init_code_callbacks();
+	//  🛑 v1.61.0 - THE ENGINE'S PERK ICONS ARE DELIBERATELY NOT ENABLED.
+	//
+	//  Stock calls perk_init_code_callbacks() here, which hands each perk field
+	//  to setupclientfieldcodecallbacks() and lets ENGINE code draw the icon
+	//  row. That row is what renders every perk as PhD Flopper.
+	//
+	//  Everything script controls was verified correct first, with logs, not
+	//  reasoning:
+	//    - 158 set_perk_clientfield calls, all correct, all clearing to 0
+	//    - 12 fields registered, no duplicates, perk_dive_to_nuke exactly once
+	//    - server and client registration lists diffed IDENTICAL, so no index
+	//      desync
+	//    - getperkshader() maps 12 perks to 12 distinct shaders
+	//  The fault is inside the engine's own handling, which no GSC change can
+	//  inspect or correct.
+	//
+	//  So the row is not handed to the engine at all. quality_of_life.gsc::
+	//  zmqol_perk_hud_think() draws it from hasperk() instead - data the mod
+	//  owns end to end, with no engine lookup involved, so it cannot collapse
+	//  to one icon.
+	//
+	//  📝 This does NOT affect clientfield REGISTRATION, which is what has to
+	//  match the server. registerclientfield() above is untouched;
+	//  setupclientfieldcodecallbacks only binds engine code to an
+	//  already-registered field. Skipping it cannot cause
+	//  EXE_CLIENT_FIELD_MISMATCH - the server never calls it either.
+	//
+	//  📝 Custom perks keep their clientfield_register (run above). Only the
+	//  icon-drawing code callbacks are skipped.
 }
 
 init_client_flag_callback_funcs()
