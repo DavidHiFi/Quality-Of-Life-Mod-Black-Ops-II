@@ -431,3 +431,35 @@ Never verified: whether `spawnfx` anchors the effect at its centre or its base.
 | v1.55.x | **Who's Who** confirmed working |
 | v1.54.1 | Origins generator progress bar reported fixed |
 | — | **Every classic and survival map loads** — confirmed 2026-08-06 |
+
+---
+
+## 0g. 🌟 THE LUI BLOCKER IS MOSTLY DEAD — Reimagined ships readable source
+
+**2026-08-08, after the unluac attempt.** Patching unluac turned out to be far bigger than
+"four header deviations": splicing the header and trying **every** offset from 236 to 274
+still fails (`Illegal number`, `unmapped type code 146`), so T6's **function and constant
+encoding deviate too**, not just the header. Patching it = reverse-engineering Treyarch's Lua
+fork, not a small change.
+
+**And it is very likely unnecessary.** `H:\Claude\BO2-Reimagined\` ships **35 LUI files as
+plain readable source**, covering both blocked items:
+
+| file | lines | covers |
+|---|---|---|
+| `ui\t6\menus\privateonlinegamelobby.lua` | 112 | 🌟 **line 10 is `Engine.Localize("MPUI_CUSTOM_GAMES_CAPS")`, passed to `addTitle` on line 16 — this IS the "CUSTOM GAMES" header** |
+| `ui_mp\t6\hud\loading.lua` | ~580 | the loading screen (the "stock art while loading" complaint) |
+| `ui_mp\t6\zombie\hudperkszombie.lua` | 405 | the perk row with the PhD off-by-one |
+| `ui_mp\t6\menus\privategamelobby_project.lua` | — | lobby buttons; **this mod already ships its own copy** |
+
+🛑 **They are stock PLUS Reimagined's own changes** — reconcile against stock before shipping,
+do not paste blind. Stock constants are readable straight out of the bytecode without any
+decompiler; that is how stock's `TopStart` (-180 DLC3 / -140 otherwise), `IconSize` 36 and
+`Spacing` 8 were recovered.
+
+**unluac stays at `H:\Claude\unluac\`** (jar + official hg source + findings) in case a file
+turns up that Reimagined does not carry. See `H:\Claude\unluac\README_T6.md`.
+
+### Next concrete step
+Reconcile `privateonlinegamelobby.lua` against stock and change the title — **it ships alone**,
+because a bad LUI file hard-crashes the game.
