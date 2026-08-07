@@ -8,7 +8,43 @@ acknowledged, not begun.
 
 ---
 
-## 0. IN FLIGHT — v1.61.2, the stock perk row is back (deployed, not booted)
+## 0. IN FLIGHT — v1.61.3, Tombstone icon (deployed, not booted)
+
+**User, 2026-08-08, with a screenshot:** stock draws the Tombstone perk icon
+with its badge frame **upside down relative to every other perk**. Reimagined
+fixes it; import that.
+
+🛑 **The literal request would have looked worse than stock.** The ask was
+"flip it 180 degrees". Rotated and rendered out to check: the frame does line
+up, but **"RIP" ends up upside down and the skull ends up at the bottom**.
+Reimagined did not rotate the art — they re-composited it, frame down, text and
+skull upright. **Their asset is what shipped.** Rendering the intermediate
+before shipping is what caught this.
+
+`zone_assets\images\specialty_tombstone_zombies.iwi` (64x64 DXT5, Reimagined's,
+byte-identical). Same pipeline as the 62 `.iwi` already shipping — including
+`specialty_vulture_zombies`, another perk HUD icon that works in game. No zone
+edit needed: the material already pulled the image, and a raw file on the
+search path makes the Linker compile from disk (`src: disk` in the link log).
+
+🛑 It could **not** just be dropped in `images\` — `mod.ff` owned a **32x32**
+header for it, and a loose `.iwi` read through a mismatched header renders
+garbage (the measured purple/green m1911). The relink makes header and pixels
+come from the same file.
+
+Verified: asset list identical before/after (3813 lines, nothing re-owned);
+`mod.ff` hash changed `dd18acf3` → `986a498b`; deployed `mod.iwd` carries the
+file at 64x64 DXT5, SHA256-identical to Reimagined's.
+
+📝 64x64 where its 11 neighbours are 32x32 — Reimagined's choice. Slightly
+crisper. Downscale on request.
+
+**Boot and look at the Tombstone icon.** Frame should point down like the
+others, "RIP" upright, skull on top.
+
+---
+
+## 0a. ALSO DEPLOYED, NOT BOOTED — v1.61.2, the stock perk row is back
 
 **User, 2026-08-08:** *"you fucked up the icon size… made them too big, then
 too small… the animation is still broken or slow. Revert it but just fix the
