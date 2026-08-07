@@ -8,7 +8,33 @@ acknowledged, not begun.
 
 ---
 
-## 1. IN FLIGHT — Origins Wunderfizz replacement (research done, not yet built)
+## 0. IN FLIGHT — v1.61.1, perk icon row sizing (deployed, awaiting one look)
+
+The PhD-icon spam is **FIXED and confirmed** ("that issue is solved"). v1.61.1
+only resizes the row — 20x20 units, 21 spacing, y -72, measured off the
+engine's own row. Boot Diner, look at it, say bigger/smaller if wrong.
+
+## 0b. NEXT UP, in the order the user raised them
+
+1. **Solo behaves like a custom game** — no intro cutscene on classic maps,
+   and the menu header reads "CUSTOM GAMES". Asked for twice. Only the map
+   list (Diner survival) and instant-start should differ from stock solo.
+2. **God mode drops after Mob's afterlife** — `.god` still reads ON but the
+   player can die. Must survive afterlife in/out. Also confirm death barriers
+   behave normally when god is OFF and the player is not flying.
+3. **Mob Wunderfizz overlaps the shield part spawn** — move that machine.
+4. **Custom texture packs conflict** — `mod.ff` declares 776 header-only
+   images and loads before the map, so a player's own `.iwi` is read through
+   our header (a tester's m1911 rendered purple/green). 🛑 The v1.59.7
+   attempt - rewriting `image,<name>` to `image,,<name>` - FAILED and broke
+   textures on two maps; OAT produced an asset literally named `,<name>`.
+   Needs a different approach entirely.
+5. **Stray 254 MB `cmn_root.all.sabl`** in `build\zm_qol\` — not one of the 6
+   mod files. Do not zip it to anyone.
+
+---
+
+## 1. DONE — Origins Wunderfizz replacement (shipped v1.58.x, confirmed)
 
 **User, 2026-08-07:** replace Origins' native Wunderfizz machines with the mod's, keeping the
 generator-power gating per location and the moving-location behaviour. "Make it seamlessly
