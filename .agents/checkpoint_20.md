@@ -148,9 +148,15 @@ and plays but at stock texture resolution** until the pack is copied back from
 
 ## 6. WORKSPACE / ENVIRONMENT CHANGES
 
-- **GitHub clones moved to `D:\GitHub\`** (`zm_qol`, `TestCord`). GitHub Desktop
-  needs them re-added. 🛑 That `zm_qol` clone is a **stale v1.18.1** and is NOT
-  the working copy — the live one is still `H:\Claude\Projects Sources\zm_qol`.
+- **GitHub clones moved to `D:\GitHub\`** (`zm_qol`). GitHub Desktop needs it
+  re-added. 🛑 That `zm_qol` clone is a **stale v1.18.1** and is NOT the working
+  copy — the live one is still `H:\Claude\Projects Sources\zm_qol`.
+  🛑 **`TestCord` was moved BY MISTAKE and should never have been touched** — it
+  was not in the `GitHub` folder and is not the user's project (it is
+  `TestcordDev/TestCord`, a Discord client mod that runs from
+  `C:\Users\localuser\Documents\TestCord`). Moving it broke their Discord; the
+  user restored it themselves on 2026-08-07. **Move exactly what is named,
+  nothing a scan turns up next to it.**
 - `build_ff.bat` now `--load`s `common_zm.ff` and `zm_transit.ff`, both LAST
   (first-loaded-wins), as donors for techniquesets and the Tombstone assets.
 - `pack_iwd.ps1` stores `.iwi` uncompressed — already DXT-compressed, so

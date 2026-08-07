@@ -175,6 +175,14 @@ Transition_Disabled()
 //  units outside the measured play area, spaced ~780 apart so the 1200-wide
 //  effect overlaps its neighbours instead of leaving seams.
 //
+//  v1.57.6 - TWO ROWS, 24 walls. One row of 600-tall fog was a low fence at
+//  the boundary: it hid what sat just past the edge, but the distant hillside
+//  rose straight over the top of it, so with fog off the drop-off still read
+//  as "normal". The second row is stacked at +500 and the ring distance is
+//  deliberately unchanged - pushing it further out was the alternative and was
+//  not chosen, because whether this effect still renders at 4000+ units is
+//  unverified and would have been a guess.
+//
 //  🌟 spawnfx + triggerfx is how stock makes a PERSISTENT fog wall - see
 //  maps\mp\_fx.gsc::create_triggerfx(), which is what every "oneshotfx"
 //  createfx entity with a negative delay ends up calling. playfx would fire
@@ -235,13 +243,39 @@ zmqol_fog_ring()
     a_pos[ a_pos.size ] = ( -7100, -6980, -30 );
     a_pos[ a_pos.size ] = ( -7100, -6400, -30 );
 
+    //  ── Second row, stacked directly on top of the first ────────────────
+    //  User, 2026-08-07, with fog off and the world edge still showing over
+    //  the top: "raise them where they are". The ring distance is unchanged;
+    //  only its height doubles.
+    //
+    //  The effect is 1200 WIDE x 600 TALL - the naming convention is settled
+    //  by its own family (fx_zmb_fog_thick_600x600 is the square one,
+    //  fx_zmb_ash_ember_2000x1000 the same pattern). That is read off the
+    //  name, not measured out of the .efx, so treat 600 as approximate.
+    //
+    //  🌟 +500 rather than +600 on purpose. spawnfx may anchor the effect at
+    //  its centre or at its base - which one is NOT established here - but a
+    //  500 offset against a ~600 effect leaves the two rows OVERLAPPING
+    //  either way. A seam between them would be visible; an overlap is not.
+    n_base_row = a_pos.size;
+
+    for ( i = 0; i < n_base_row; i++ )
+        a_pos[ a_pos.size ] = a_pos[i] + ( 0, 0, 500 );
+
     n_made = 0;
 
     for ( i = 0; i < a_pos.size; i++ )
     {
         //  Face each wall inward, so the effect's visible side is the one the
         //  player looks at rather than its back.
-        v_fwd = vectornormalize( v_centre - a_pos[i] );
+        //
+        //  🛑 Flatten the centre to THIS wall's own height first. v_centre is
+        //  at z -30, so aiming the upper row at it would pitch those walls
+        //  downwards instead of standing them upright. Stock's own fog walls
+        //  are yaw-only (vectorscale( ( 0, 1, 0 ), yaw ) in zm_transit_fx.gsc)
+        //  and this keeps every row matching that.
+        v_level_centre = ( v_centre[0], v_centre[1], a_pos[i][2] );
+        v_fwd = vectornormalize( v_level_centre - a_pos[i] );
         e_fx  = spawnfx( level._effect[ "fx_zmb_fog_thick_1200x600" ], a_pos[i], v_fwd, ( 0, 0, 1 ) );
 
         if ( isdefined( e_fx ) )
@@ -253,5 +287,5 @@ zmqol_fog_ring()
         wait 0.05;
     }
 
-    println( "[zm_qol] fog ring: " + n_made + " of " + a_pos.size + " fog walls spawned around diner" );
+    println( "[zm_qol] fog ring: " + n_made + " of " + a_pos.size + " fog walls spawned around diner (" + n_base_row + " per row, 2 rows)" );
 }

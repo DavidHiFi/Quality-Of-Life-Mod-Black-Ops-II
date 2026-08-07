@@ -2061,11 +2061,23 @@ nofog_onplayerspawned()
 // ============================================================================
 zmqol_fog_mode()
 {
-    //  0 = off entirely (r_fog 0, the mod's old behaviour)
-    //  1 = pushed back  (default)
+    //  0 = off entirely (r_fog 0, the mod's old behaviour)  <- DEFAULT
+    //  1 = "pushed back"
     //  2 = stock, untouched
+    //
+    //  🛑 THE DEFAULT IS 0, AND MODE 1 IS A KNOWN NO-OP. Checkpoint 20 §2
+    //  proved fog DISTANCE cannot be changed on this build: setexpfog,
+    //  setvolfog, the r_fog* tweak dvars via setclientdvar, and those same
+    //  dvars typed straight into the client console are all refused. Only
+    //  r_fog on/off does anything. So mode 1 sets r_fog 1 and then achieves
+    //  nothing that mode 2 does not - it hands back the map's stock fog.
+    //
+    //  Shipping 1 as the default meant every single game started with stock
+    //  fog and the user had to type ".fog off" by hand each time (reported
+    //  2026-08-07 with a screenshot). The honest default is the one mode that
+    //  is actually known to work.
     if ( !isdefined( level.zmqol_fog_mode ) )
-        level.zmqol_fog_mode = 1;
+        level.zmqol_fog_mode = 0;
 
     return level.zmqol_fog_mode;
 }
@@ -2896,7 +2908,7 @@ zmqol_dev_command_listener()
                 else if ( zmqol_fog_mode() == 2 )
                     player iprintln( "^3[zm_qol] fog ^2STOCK^7. Try ^3.fog 6 ^7to push it back" );
                 else
-                    player iprintln( "^3[zm_qol] fog pushed back ^2x" + zmqol_fog_scale() + "^7 - ^3.fog <number>^7, ^3.fog off^7, ^3.fog stock" );
+                    player iprintln( "^3[zm_qol] fog ^2STOCK ^8(distance is not changeable on this build)^7 - ^3.fog off^7, ^3.fog stock" );
             }
             else
             {
@@ -2911,7 +2923,12 @@ zmqol_dev_command_listener()
                 level.zmqol_fog_scale = n_scale;
                 level.zmqol_fog_mode  = 1;
                 zmqol_fog_dirty();
-                player iprintln( "^2[zm_qol] fog pushed back ^3x" + n_scale + "^2 - higher sees further" );
+
+                //  Do not claim the distance moved - it does not, and saying so
+                //  once cost a boot already. Mode 1 is stock fog with extra
+                //  steps; the number is kept only so the dvar path stays live
+                //  if a future build ever honours r_fogTweak.
+                player iprintln( "^1[zm_qol] fog distance cannot be changed on this build ^7- this is the map's stock fog. Use ^3.fog off" );
             }
         }
         else if ( cmd == "where" )
