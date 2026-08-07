@@ -1500,6 +1500,60 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 	//  what makes every zm_tomb test below cost nothing elsewhere.
 	e_native_gen = zmqol_wf_tomb_native_for( origin );
 
+	// ========================================================================
+	//  v1.58.1 - THE STATIC GLOW ANCHOR. This is stock's self.glow_location.
+	//
+	//  User, 2026-08-07: "the visual effects spin around and look all funky
+	//  whenever i buy from the wunderfizz machine and spin it, the effects are
+	//  supposed to be near identical to the original fx."
+	//
+	//  Correct, and the cause is exact. _zm_perk_random.csc attaches each
+	//  effect to a SPECIFIC anchor, and only one of them is the ball:
+	//
+	//      perk_machine_light                 -> "j_ball"      (ball glow)
+	//      perk_machine_light_red / _green    -> "tag_origin"  (machine)
+	//      perk_machine_steam                 -> "tag_origin"  (machine)
+	//      perk_machine_activation_electric_loop
+	//                                         -> self.glow_location "tag_origin"
+	//
+	//  That last one - fx_tomb_dieselmagic_on, this file's "wunderfizz_loop" -
+	//  was being played on "j_ball" here. j_ball SPINS during a purchase
+	//  (%qolwf_diesel_ballspin_loop), so the whole electrical effect rotated
+	//  with it. Stock hangs it on a separate, motionless script_model instead,
+	//  which is why stock's never wheels around.
+	//
+	//  Built the same way stock builds it (_zm_perk_random.gsc::machines_setup):
+	//  a script_model on "tag_origin", 65 units above the machine, sharing the
+	//  machine's angles.
+	// ========================================================================
+	self.zmqol_wf_glow_loc = spawn( "script_model", origin + ( 0, 0, 65 ) );
+	self.zmqol_wf_glow_loc setmodel( "tag_origin" );
+	self.zmqol_wf_glow_loc.angles = angles;
+
+	//  🛑 The ball must be PUT AWAY on every machine that is not the live one.
+	//
+	//  User: "some of the machines still have the ball at the top even though
+	//  they're not the active machine, but others have the ball fly away like
+	//  they're supposed to when they move."
+	//
+	//  Both halves of that are one bug. The ball only ever left because a
+	//  DEPARTING machine plays "shut_down" on its way out - so a machine that
+	//  has never once been active never played it and sat there holding a ball
+	//  it should not have. Worse on Origins: a machine whose generator is still
+	//  off blocks in the power gate below and never even reaches the dormant
+	//  branch, which is why the unpowered generators kept theirs.
+	//
+	//  Setting the off pose HERE, before the power gate, covers all three cases
+	//  - never-active, dormant, and generator-locked.
+	//
+	//  Deliberately the animation rather than stock's hidepart( "j_ball" ):
+	//  hidepart needs a part on the model, and this is the mod's REBUILT model,
+	//  where only the j_ball TAG is confirmed to exist (it is used by
+	//  playfxontag/gettagorigin). The animtree is the mod's own and is known to
+	//  drive this machine already.
+	if( level.currentWunderfizzLocation != self.location )
+		self zmqol_wf_anim( "shut_down" );
+
 	if( level.script == "zm_tomb" )
 	{
 		//  🛑 ORIGINS DOES NOT HAVE "power_on". Power there is per generator,
@@ -1911,7 +1965,12 @@ zmqol_wf_idle_arcs()
 		if( !self zmqol_wf_fx_nearby() )
 			continue;
 
-		playfxontag( level._effect[ "wunderfizz_loop" ], self, "j_ball" );
+		//  On the static anchor, never on j_ball - see the zmqol_wf_glow_loc
+		//  block in wunderfizz(). j_ball spins and dragged this effect round
+		//  with it.
+		if( isdefined( self.zmqol_wf_glow_loc ) )
+			playfxontag( level._effect[ "wunderfizz_loop" ], self.zmqol_wf_glow_loc, "tag_origin" );
+
 		self playsound( "zmqol_wf_sparks" );
 	}
 }
@@ -2062,7 +2121,13 @@ zmqol_wf_spin_fx()
 		//  a player on the far side of the map who is not part of the event.
 		if( self zmqol_wf_fx_nearby() )
 		{
-			playfxontag( level._effect[ "wunderfizz_loop" ], self, "j_ball" );
+			//  🛑 On the static anchor, NOT on j_ball. This is the one the user
+			//  actually sees wheeling around, because it plays for the whole
+			//  spin while %qolwf_diesel_ballspin_loop rotates the ball. Stock
+			//  plays it on self.glow_location - a motionless script_model - and
+			//  the comment below already said so while the code did otherwise.
+			if( isdefined( self.zmqol_wf_glow_loc ) )
+				playfxontag( level._effect[ "wunderfizz_loop" ], self.zmqol_wf_glow_loc, "tag_origin" );
 
 			//  🛑 AND ON THE BOTTLE. User: "the blue electrical effects around the
 			//  perk bottle while spinning seem to be absent."
