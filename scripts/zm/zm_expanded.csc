@@ -359,6 +359,23 @@ perks()
 		level thread toggle_vending_divetonuke_power_off_think();
 	}
 
+	//  🛑 EXACT TWIN of the zm_tomb block in quality_of_life.gsc::perks().
+	//  v1.58.4 - Origins gets Tombstone, paid for by dropping the Vulture
+	//  disease meter there (5 bits freed, 2 spent). The v1.58.2 attempt failed
+	//  because nothing was freed first.
+	//
+	//  Both sides gate registerclientfield( "toplayer", "perk_tombstone" ) on
+	//  this flag. Disagree and the set is one field wider on one side and every
+	//  player is dropped with EXE_CLIENT_FIELD_MISMATCH before the map starts.
+	//
+	//  Only the flag - NOT the divetonuke enable or the vending threads above.
+	//  Origins already has dive-to-nuke, marathon, deadshot and
+	//  additional-primary natively; Tombstone is its only real gap.
+	if ( getDvar( "mapname" ) == "zm_tomb" )
+	{
+		level.zombiemode_using_tombstone_perk = 1;
+	}
+
 	zmqol_enable_electric_cherry();
 	zmqol_enable_vulture();
 	zmqol_enable_whoswho();
@@ -461,9 +478,22 @@ zmqol_vulture_has_actor_field()
 	return getDvar( "mapname" ) != "zm_tomb";
 }
 
+//  🛑 EXACT TWIN of zmqol_vulture_has_disease_meter() in
+//  maps\mp\zombies\_zm_perk_vulture.gsc - read the reasoning there.
+//
+//  v1.58.4 - zm_tomb added. The 5 bits this frees on Origins' toplayer pay for
+//  perk_tombstone (2 bits), which failed to fit on 2026-08-07 and took the map
+//  down at the menu. Origins keeps Vulture and loses the stink meter, the same
+//  deal Mob has had since v1.55.0.
+//
+//  If these two functions ever disagree, the toplayer set is 5 bits wider on
+//  one side and every player is dropped with EXE_CLIENT_FIELD_MISMATCH before
+//  the map starts.
 zmqol_vulture_has_disease_meter()
 {
-	return getDvar( "mapname" ) != "zm_prison";
+	map = getDvar( "mapname" );
+
+	return ( map != "zm_prison" && map != "zm_tomb" );
 }
 
 zmqol_vulture_has_scriptmover_field()

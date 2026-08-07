@@ -1483,6 +1483,29 @@ wunderfizzSetup(origin, angles, model)
 	wunderfizzMachine.location = level.wunderfizz_locations;
 	wunderfizzMachine.uses = 0;
 	perks = getPerks();
+
+	//  PROBE (passive, one line, first machine only). The user reports Who's Who
+	//  "never offered by the Wunderfizz" on Origins, yet every offline check says
+	//  it should be: zmqol_whoswho_enabled() excludes only Die Rise and Mob, the
+	//  flag is set in perks() during main() which runs well before this, the boot
+	//  log confirms stock's turn_chugabud_on ran, and getPerkName/getPerkModel/
+	//  getPerkBottleModel all have specialty_finalstand entries.
+	//
+	//  So rather than guess a fifth time, print what this machine was ACTUALLY
+	//  built with. The list is snapshotted HERE, once, and never rebuilt - so if
+	//  specialty_finalstand is absent from this line it was absent at map init
+	//  and no amount of spinning could ever produce it.
+	if( !isdefined( level.zmqol_wf_logged_perks ) )
+	{
+		level.zmqol_wf_logged_perks = 1;
+		str_list = "";
+
+		for( i = 0; i < perks.size; i++ )
+			str_list = str_list + perks[i] + " ";
+
+		println( "[zm_qol] wunderfizz: perk list (" + perks.size + ") = " + str_list );
+	}
+
 	cost = level.wunderfizzCost;
 	trig = spawn("trigger_radius", origin, 1, 50, 50);
 	trig SetCursorHint("HINT_NOICON");

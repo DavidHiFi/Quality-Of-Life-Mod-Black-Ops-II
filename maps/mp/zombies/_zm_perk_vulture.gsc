@@ -201,9 +201,37 @@ zmqol_vulture_has_actor_field()
     return getdvar( "mapname" ) != "zm_tomb";
 }
 
+//  v1.58.4 - ORIGINS DROPS THE DISEASE METER TOO, to pay for Tombstone.
+//
+//  vulture_perk_disease_meter is 5 bits in the toplayer set. Origins' toplayer
+//  was measured EXACTLY FULL by a failed boot on 2026-08-07:
+//
+//      Trying to assign 1 bits for netfield vulture_perk_toplayer
+//      but Client Field Set toplayer is out of space.
+//
+//  Read that the way checkpoint 20 §2 says to - the field named is whichever
+//  asks LAST, not the cause. perk_tombstone (2 bits on Origins, which has
+//  emp_grenade_zm) had just taken the last 2 free bits, so vulture's next 1 bit
+//  had nowhere to go. That gives an exact figure: Origins had 2 free bits, and
+//  with Vulture in it has 0.
+//
+//  Dropping the disease meter here frees 5, so Tombstone's 2 fit with 3 to
+//  spare rather than 0 - deliberately not a change that lands exactly on the
+//  ceiling, because the last one did and that is how the boot was lost.
+//
+//  The user chose this trade explicitly on 2026-08-07 ("drop a vulture cosmetic
+//  for it"). Origins keeps the perk and loses the stink meter - exactly the
+//  deal Mob has had since v1.55.0, using this same gate.
+//
+//  🛑 The client twin is zm_expanded.csc::zmqol_vulture_has_disease_meter().
+//  These two decide whether a registerclientfield runs; if they disagree the
+//  toplayer set is 5 bits wider on one side and everyone is dropped with
+//  EXE_CLIENT_FIELD_MISMATCH before the map starts.
 zmqol_vulture_has_disease_meter()
 {
-    return getdvar( "mapname" ) != "zm_prison";
+    map = getdvar( "mapname" );
+
+    return ( map != "zm_prison" && map != "zm_tomb" );
 }
 
 zmqol_vulture_has_scriptmover_field()
