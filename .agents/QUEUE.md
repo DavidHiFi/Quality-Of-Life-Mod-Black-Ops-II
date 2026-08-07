@@ -91,10 +91,9 @@ cloud bank should now be tall enough to cover the hillside rather than sitting u
 Verified offline: both files parse; deployed `mod.iwd` byte-identical to source; vector add and
 vector indexing confirmed as stock GSC idioms; stock TranZit already places 587 createfx effects.
 
+Never verified: whether `spawnfx` anchors the effect at its centre or its base.
+
 </details>
-🛑 **Unverified:** whether `spawnfx` anchors the effect at its centre or its base. +500 against a
-~600-tall effect overlaps either way, so this cannot leave a seam — but if the upper row reads as
-clouds floating in the sky, that anchor question is the reason and the offset is the dial.
 
 ---
 
@@ -108,9 +107,7 @@ clouds floating in the sky, that anchor question is the reason and the offset is
 2. **`night_mode 1` is broken** — the screen goes fully black (screenshot 2026-08-06). Came in from
    another script. Either fix it properly or remove it.
 3. **`character` command does nothing** — no visible effect at all.
-4. **Origins Wunderfizz replacement** — replace Origins' native machines with the mod's, keeping
-   generator-power gating, relocation, ball behaviour and per-machine ball visibility.
-   Blocker on record: Origins' `scriptmover` clientfield set is **32/32 full**.
+4. ~~Origins Wunderfizz replacement~~ — **moved to §1, in flight.**
 5. **Galvaknuckles wallbuy on Bus Depot** — in the Tombstone room. Town, Farm and Diner already
    have one; Bus Depot does not. 🛑 Survival **only** — must NOT appear on TranZit proper, where
    the Diner wallbuy already covers it. Same `!is_classic()` gating as the other survival edits.
