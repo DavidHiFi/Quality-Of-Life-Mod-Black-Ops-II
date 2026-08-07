@@ -459,6 +459,19 @@ zmqol_vulture_enabled()
 	if ( map == "zm_buried" )
 		return 0;
 
+	//  🛑 EXACT TWIN of zmqol_vulture_enabled() in quality_of_life.gsc - the
+	//  full reasoning lives there. v1.59.0: Vulture is OFF on Origins because it
+	//  cannot be complete there. It needs 4 scriptmover bits on a map that is
+	//  32/32 and 2 actor bits on a map that is 31/32, the 32 ceiling is measured
+	//  across all 48 map dumps AND was hit for real by this project, and every
+	//  one of Origins' 32 scriptmover bits belongs to the map's own systems.
+	//
+	//  If this and the server twin ever disagree, the sets differ in width
+	//  between server and client and every player is dropped with
+	//  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+	if ( map == "zm_tomb" )
+		return 0;
+
 	return 1;
 }
 
@@ -489,11 +502,11 @@ zmqol_vulture_has_actor_field()
 //  If these two functions ever disagree, the toplayer set is 5 bits wider on
 //  one side and every player is dropped with EXE_CLIENT_FIELD_MISMATCH before
 //  the map starts.
+//  📝 zm_tomb briefly appeared here in v1.58.4 and is gone again in v1.59.0 -
+//  Vulture is off on Origins entirely now, so this never runs there. Mob stays.
 zmqol_vulture_has_disease_meter()
 {
-	map = getDvar( "mapname" );
-
-	return ( map != "zm_prison" && map != "zm_tomb" );
+	return getDvar( "mapname" ) != "zm_prison";
 }
 
 zmqol_vulture_has_scriptmover_field()

@@ -4709,6 +4709,54 @@ zmqol_vulture_enabled()
     if ( map == "zm_buried" )   // ships the perk itself
         return 0;
 
+    // ========================================================================
+    //  v1.59.0 - VULTURE IS OFF ON ORIGINS, and this is not a budget tweak. It
+    //  is the "perfectly or not at all" rule applied to a perk that CANNOT be
+    //  whole here.
+    //
+    //  User, 2026-08-07, final rule: "It's either the thing I want you to add
+    //  is added exactly how it'd work with it's original implementation fully
+    //  intact, no compromises, or you don't even bother."
+    //
+    //  🛑 PROVEN IMPOSSIBLE, not assumed. Vulture needs bits in two sets that
+    //  Origins has none of:
+    //
+    //      vulture_perk_scriptmover   4 bits   scriptmover   Origins 32/32
+    //      vulture_perk_actor         2 bits   actor         Origins 31/32
+    //
+    //  1. The ceiling is 32 and it is measured, not inferred: across all 48
+    //     per-map dumps in Black Ops 2 Grand Resources\...\Clientfields\, NO
+    //     map exceeds 32 in either set - and the map that reaches exactly 32 in
+    //     scriptmover IS Origins.
+    //  2. The ceiling was also hit for real by this project:
+    //         zm_tomb: Trying to assign 1 bits for netfield zone_capture_zombie
+    //         but Client Field Set ACTOR is out of space
+    //     which is Origins' 31 stock bits plus vulture_perk_actor's 2.
+    //  3. None of Origins' 32 scriptmover bits belong to this mod. They are
+    //     element_glow_fx (4), staff_charger (3), powerup_fx (3),
+    //     play_artillery_barrage (2), perk_bottle_cycle_state (2), bryce_cake
+    //     (2) and the rest - the staffs, the generators, the tank. Freeing 4
+    //     means deleting an Origins system to bolt on a perk, which is a worse
+    //     compromise than not shipping the perk.
+    //
+    //  v1.55.0 shipped it here anyway with vulture_perk_actor and
+    //  vulture_perk_scriptmover dropped, calling it "each map loses exactly one
+    //  visual and keeps the perk". In practice Origins lost the zombie eye
+    //  glow, the stink trail, the stink pile and (from v1.58.4) the meter. That
+    //  is four missing visuals, and the user found every one of them.
+    //
+    //  📝 Nothing else needs changing when this returns 0. getPerks() gates
+    //  Vulture on level._custom_perks[ "specialty_nomotionsensor" ], which is
+    //  only defined by the enable path this guards, so the Wunderfizz list
+    //  drops to 11 by itself. The visionset registration asks this same
+    //  function. That is exactly why the list lives in ONE place.
+    //
+    //  🛑 The client twin is zm_expanded.csc::zmqol_vulture_enabled(). Both
+    //  must agree or the toplayer/actor sets differ in width between server and
+    //  client and everyone is dropped with EXE_CLIENT_FIELD_MISMATCH.
+    if ( map == "zm_tomb" )     // cannot be complete here - see above
+        return 0;
+
     return 1;
 }
 

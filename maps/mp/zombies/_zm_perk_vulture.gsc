@@ -227,11 +227,14 @@ zmqol_vulture_has_actor_field()
 //  These two decide whether a registerclientfield runs; if they disagree the
 //  toplayer set is 5 bits wider on one side and everyone is dropped with
 //  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+//  📝 zm_tomb was briefly listed here (v1.58.4) to free 5 toplayer bits for
+//  Tombstone. It is gone again because v1.59.0 turns Vulture OFF on Origins
+//  entirely - see zmqol_vulture_enabled() in quality_of_life.gsc - so nothing
+//  in this file registers there any more and the exception would be dead and
+//  misleading. Mob remains, where the perk DOES ship and only the meter is cut.
 zmqol_vulture_has_disease_meter()
 {
-    map = getdvar( "mapname" );
-
-    return ( map != "zm_prison" && map != "zm_tomb" );
+    return getdvar( "mapname" ) != "zm_prison";
 }
 
 zmqol_vulture_has_scriptmover_field()
