@@ -61,7 +61,7 @@ as Solo. Unknowns to settle before writing anything:
 
 **Next step: dump `patch_ui_zm.ff`'s 48 LUI files and find where the lobby
 title and the Solo launch path live.** Same open blocker as the PhD fix — the
-files are LuaJIT bytecode and need a Lua 5.1 decompiler to edit safely.
+files are bytecode and need a decompiler to edit safely. **See §0e.**
 
 ---
 
@@ -200,7 +200,42 @@ source produced this mod's existing `hudpowerupszombie.lua`. **Do not
 hand-reconstruct `Update`'s paused branches from constant order — that is a
 guess, and a bad LUI file hard-crashes the game.**
 
-## 0d. NEXT UP, in the order the user raised them
+## 0e. 🛑 BLOCKER FOR BOTH LUI ITEMS — unluac is installed but CANNOT read T6 Lua
+
+**User, 2026-08-08:** *"yeah go ahead and grab unluac no guesses though make sure it works"*.
+Grabbed, verified genuine, verified running — and it **does not work on T6 files**. Said
+plainly rather than reported as a win.
+
+`H:Claudeunluac` — official SourceForge build `unluac_2025_12_23.jar`, v1.2.3.569,
+SHA256 `98BE0FA8…538FCC`. Runs on the installed JRE 1.8.0_501.
+
+**T6 ships a modified Lua 5.1. Four deviations, all measured, not guessed:**
+
+| # | deviation | evidence |
+|---|---|---|
+| 1 | header **format byte = 13**, not 0 | unluac throws `non-standard lua format: 13`; `--luaj` does not bypass |
+| 2 | a **type table** follows the header, ending at offset 242 | parsed cleanly: `[2b][int32 count=13][4b]` then 13 x `[int32 len][name+NUL][int32 id]` |
+| 3 | constant type ids **shifted +1** | TNIL=1, TBOOLEAN=2, TNUMBER=4, TSTRING=5 (stock: 0/1/3/4); adds TIFUNCTION/TCFUNCTION/TUI64/TSTRUCT |
+| 4 | numbers are **4-byte floats**, not doubles | header says Number size 4; independently confirmed decoding `IconSize`=36.0f, `Spacing`=8.0f from hudperkszombie |
+
+Stripping the header gets further but not far enough — at the correct offset (246) unluac
+reaches the constant pool and dies on `Illegal number`, i.e. deviation 4, with 3 behind it.
+
+**Two routes, both real work:**
+- **A (recommended)** — install a JDK (none on this machine, `javac` absent), patch unluac
+  for the four deviations, rebuild. Few and well understood.
+- **B** — write a full T6→standard-5.1 bytecode transcoder. No downloads, more code, more
+  ways to be subtly wrong.
+
+🌟 **Ground truth for verifying either:** the mod's own
+`ui_mp	6zombiehudpowerupszombie.lua` is a known-good 591-line decompile of a stock
+file that works in game. A correct decompiler must reproduce it.
+
+Full write-up: `H:ClaudeunluacREADME_T6.md`.
+
+---
+
+## 0f. NEXT UP, in the order the user raised them
 
 1. **Solo behaves like a custom game** — no intro cutscene on classic maps,
    and the menu header reads "CUSTOM GAMES". Asked for twice. Only the map
