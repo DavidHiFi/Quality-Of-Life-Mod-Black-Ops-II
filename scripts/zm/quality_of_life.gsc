@@ -4355,46 +4355,6 @@ perks()
         level.zombiemode_using_tombstone_perk = 1;
     }
 
-    // ========================================================================
-    //  v1.58.2 - ORIGINS GETS THE 12TH PERK TOO, and ONLY the 12th.
-    //
-    //  User, 2026-08-07, on the replaced Wunderfizz: "there's one perk missing
-    //  tombstone cola". Correct - the machine said "You Have All 11 Perks",
-    //  because getPerks() gates specialty_scavenger on this flag and zm_tomb is
-    //  not in the map list above.
-    //
-    //  🛑 zm_tomb IS DELIBERATELY NOT ADDED TO THAT LIST. The block also calls
-    //  _zm_perk_divetonuke::enable_divetonuke_perk_for_level(), and Origins
-    //  ALREADY has dive-to-nuke natively - perk_dive_to_nuke is in its stock
-    //  clientfield dump. Re-enabling an already-enabled perk risks the
-    //  "Attempt to register ClientField ... already registered" fatal that the
-    //  Electric Cherry block above this function documents. Marathon, Deadshot
-    //  and Additional Primary are likewise already native on Origins (all three
-    //  are in its stock dump), so the ONLY thing Origins is actually missing is
-    //  Tombstone. Setting one flag is the whole fix.
-    //
-    //  🌟 THE CLIENTFIELD BUDGET WAS MEASURED, NOT ASSUMED, because overflowing
-    //  the toplayer set does not cost a perk - it stops the map loading.
-    //  From the per-map dumps in Black Ops 2 Grand Resources\...\Clientfields\:
-    //
-    //        map        non-perk   stock perk   total
-    //        zm_buried      48         15         63     <- mod runs all 12 here
-    //        zm_tomb        45         16         61
-    //
-    //  Origins carries 3 bits MORE headroom than Buried, where Tombstone
-    //  already ships and works. The delta from this change is exactly one
-    //  field, perk_tombstone, at `bits` wide (2 on Origins, which has
-    //  emp_grenade_zm). The mod REPLACES _zm_perks::perks_register_clientfield
-    //  on both sides rather than adding to it, so these do not stack on top of
-    //  stock's - the mod's list IS the perk list.
-    //
-    //  🛑 The twin in scripts\zm\zm_expanded.csc::perks() MUST match this
-    //  exactly, for the same reason the block above says so.
-    if ( getDvar( "mapname" ) == "zm_tomb" )
-    {
-        level.zombiemode_using_tombstone_perk = 1;
-    }
-
     zmqol_enable_electric_cherry();
     zmqol_enable_vulture();
     zmqol_enable_whoswho();
