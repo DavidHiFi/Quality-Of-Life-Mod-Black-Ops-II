@@ -3297,14 +3297,93 @@ zmqol_perk_slot_watcher()
         //     first free slot, and because its removals shift everything down,
         //     its free slots are always a contiguous tail - so "first free" is
         //     always the end, same as this append.
+        //
+        //  🛑 TWO PERKS CAN ARRIVE IN ONE FRAME, and then this scan order is NOT
+        //  the HUD's order. Measured cause, 2026-08-08: Who's Who's revive
+        //  (_zm_chugabud.gsc:295-335) and Mob's afterlife (_zm_afterlife.gsc:
+        //  1327-1345) both re-hand the whole loadout back through give_perk() in
+        //  one loop with NO waits, so the whole batch lands inside a single
+        //  server frame and the sampler below cannot separate them. That is the
+        //  "sometimes" in the user's report - .giveperks spaces its grants 0.1s
+        //  apart and is exactly tracked, a Who's Who revive is not.
+        //
+        //  🌟 So the batch is ranked by stock's OWN acquisition list. give_perk()
+        //  does `self.perks_active[self.perks_active.size] = perk` six lines
+        //  after `self set_perk_clientfield( perk, 1 )` (_zm_perks.gsc:2045 and
+        //  2060) - same function, no wait between them - and give_perk is the
+        //  ONLY place in the stock dump that writes a perk clientfield to 1 for
+        //  a perk the player did not already have (2688 is the unpause, which
+        //  writes 1 for a perk the row already holds). So perks_active' append
+        //  order IS the order the LUI received the icons.
+        a_new = [];
+
         for ( i = 0; i < a_all.size; i++ )
         {
             if ( self zmqol_holds_perk( a_all[i] ) && !isinarray( a_next, a_all[i] ) )
-                a_next[a_next.size] = a_all[i];
+                a_new[a_new.size] = a_all[i];
         }
+
+        if ( a_new.size > 1 )
+            a_new = self zmqol_order_by_acquisition( a_new );
+
+        for ( i = 0; i < a_new.size; i++ )
+            a_next[a_next.size] = a_new[i];
 
         self.zmqol_perk_slots = a_next;
     }
+}
+
+//  Put a_in into the order stock recorded the perks being acquired, newest LAST.
+//
+//  Reads self.perks_active, which give_perk() appends to in the same breath as
+//  the clientfield write that makes the LUI place the icon - see the banner in
+//  zmqol_perk_slot_watcher() for why that makes it the HUD's own order.
+//
+//  🛑 ONLY THE APPENDS ARE TRUSTED. perk_think()'s teardown removes from the
+//  same array with `arrayremovevalue( self.perks_active, perk, 0 )`, and that
+//  builtin's third parameter is NOT documented anywhere in the workspace - the
+//  stock dump has no definition for it (it is engine-side) and the GSC reference
+//  lists only the two-argument form. Whether it preserves the order of the
+//  surviving entries is therefore UNKNOWN, so nothing here depends on it: this
+//  is only ever called to rank perks that have just appeared, whose entries were
+//  appended at the tail moments earlier with no removal in between. Anything
+//  perks_active does not mention keeps the caller's order, at the end.
+zmqol_order_by_acquisition( a_in )
+{
+    a_out = [];
+
+    if ( isdefined( self.perks_active ) )
+    {
+        for ( i = 0; i < self.perks_active.size; i++ )
+        {
+            perk = self.perks_active[i];
+
+            if ( !isdefined( perk ) || !isinarray( a_in, perk ) )
+                continue;
+
+            //  Last occurrence wins. A perk bought again after being lost goes
+            //  to the END of the LUI's row too - Update() fills the first free
+            //  slot, and free slots are always a contiguous tail.
+            a_keep = [];
+
+            for ( j = 0; j < a_out.size; j++ )
+            {
+                if ( a_out[j] != perk )
+                    a_keep[a_keep.size] = a_out[j];
+            }
+
+            a_keep[a_keep.size] = perk;
+            a_out = a_keep;
+        }
+    }
+
+    for ( i = 0; i < a_in.size; i++ )
+    {
+        if ( !isinarray( a_out, a_in[i] ) )
+            a_out[a_out.size] = a_in[i];
+    }
+
+    return a_out;
 }
 
 zmqol_perk_slot_order()
@@ -3327,12 +3406,21 @@ zmqol_perk_slot_order()
     //  typed inside one). Order for these is unknown, which is why the log
     //  reports the count - tracked == held is the healthy reading.
     a_held = self zmqol_perks_still_held();
+    a_miss = [];
 
     for ( i = 0; i < a_held.size; i++ )
     {
         if ( !isinarray( a_order, a_held[i] ) )
-            a_order[a_order.size] = a_held[i];
+            a_miss[a_miss.size] = a_held[i];
     }
+
+    //  Ranked the same way the watcher ranks a batch, so even the backstop path
+    //  hands back the HUD's order rather than scan order.
+    if ( a_miss.size > 1 )
+        a_miss = self zmqol_order_by_acquisition( a_miss );
+
+    for ( i = 0; i < a_miss.size; i++ )
+        a_order[a_order.size] = a_miss[i];
 
     println( "[zm_qol] perk slots: tracked=" + n_tracked + " held=" + a_held.size + " total=" + a_order.size );
 
@@ -3374,11 +3462,47 @@ zmqol_perk_slot_order()
 //        removal is safe in any order
 //  So clearing the newest perk first is sufficient. Nothing else here changes.
 //
-//  ⚠️ NOT COVERED, and not claimed to be: going down while holding all twelve.
-//  That teardown is stock's own "player_downed" notify, in stock's order, and
-//  no ordering here reaches it. The real repair is one `else NextPerkWidget =
-//  nil` in the LUI - see QUEUE.md, still blocked on a stock-faithful base file
-//  because ui_mp overrides are whole-file replacements.
+// ============================================================================
+//  🛑 v1.62.5 - THE ORDER OF THE NOTIFIES WAS NEVER THE ORDER THE HUD SAW
+//
+//  Reported back 2026-08-08 after v1.62.2 was confirmed working once: the row
+//  still collapses to one icon SOMETIMES (the friend's run showed twelve Vulture
+//  Aids). Two measured reasons the notify-ordering alone cannot be enough, both
+//  fixed by clearing the clientfields here directly instead:
+//
+//  1. A NOTIFY IS NOT A WRITE. "<perk>_stop" only wakes perk_think, and what the
+//     LUI reacts to is perk_think's set_perk_clientfield( perk, 0 ) further down
+//     (_zm_perks.gsc:2204). perk_think returns EARLY - before that write - when
+//     self._retain_perks or self._retain_perks_array[perk] is set (2166-2171),
+//     which is exactly the Tombstone / Who's Who / afterlife state. A retained
+//     perk therefore keeps its icon no matter what order it was notified in, and
+//     the row never empties. That is the user's actual request: ".removeperks
+//     should also make sure to remove any and all of the perk shaders."
+//
+//  2. TWELVE WRITES IN ONE FRAME HAVE NO ORDER. Clientfield changes ride one
+//     snapshot per server frame, so a batch that lands in a single frame reaches
+//     the LUI in the engine's field order, not the script's. Every write below
+//     is therefore spaced 0.1s - the same spacing zmqol_give_all_perks() already
+//     uses, which is the spacing that produced twelve distinct icons in the
+//     user's confirmed v1.62.2 screenshot.
+//
+//  🌟 WHY THE SWEEP IS SAFE IN ANY ORDER. Stock's off-by-one needs the row to be
+//  FULL: with a free slot the loop reaches it and takes the clearing branch. So
+//  only the FIRST removal is order-critical, and phase 1 spends it on the last
+//  slot. Everything after it runs against a row of at most eleven.
+//
+//  🛑 set_perk_clientfield IS ONLY CALLED FOR PERKS THIS MAP REGISTERED. Stock
+//  registers the twelve fields conditionally (perks_register_clientfield,
+//  _zm_perks.gsc:3091, gated on level.zombiemode_using_<perk>_perk, plus each
+//  custom perk's own clientfield_register), and zmqol_map_perks() reads those
+//  same flags and the same level._custom_perks keys - so the two lists are the
+//  same list. Anything outside it is left alone rather than written blind.
+//
+//  ⚠️ STILL NOT COVERED, and not claimed to be: going down while holding all
+//  twelve. Who's Who's revive and Mob's afterlife clear every perk clientfield
+//  in ONE frame (_zm_chugabud.gsc:316-321, _zm_afterlife.gsc:1329-1334), so by
+//  reason 2 above that batch has no script-visible order at all. The real repair
+//  is one `else NextPerkWidget = nil` in the LUI - see QUEUE.md §A1.
 // ============================================================================
 zmqol_remove_all_perks()
 {
@@ -3386,35 +3510,49 @@ zmqol_remove_all_perks()
     n_taken = 0;
 
     a_order = self zmqol_perk_slot_order();
-    str_newest = undefined;
 
-    if ( a_order.size )
+    //  PHASE 1 - empty the HUD row, LAST SLOT FIRST.
+    for ( i = a_order.size - 1; i >= 0; i-- )
     {
-        str_newest = a_order[a_order.size - 1];
+        if ( !zmqol_perk_on_this_map( a_order[i] ) )
+            continue;
 
-        //  Notified even if hasperk() is false (a paused perk still occupies
-        //  the slot) - perk_think is still parked on the "<perk>_stop" wait
-        //  either way. Only counted when it was really held, so the total the
-        //  player is shown keeps matching the loop below.
-        if ( self hasperk( str_newest ) )
-            n_taken++;
-
-        println( "[zm_qol] removeperks: clearing last slot first -> " + str_newest + " (of " + a_order.size + " held)" );
-
-        self notify( str_newest + "_stop" );
-        wait 0.05;
+        self maps\mp\zombies\_zm_perks::set_perk_clientfield( a_order[i], 0 );
+        wait 0.1;
     }
+
+    //  PHASE 2 - and any icon this map can show that the order above missed.
+    n_swept = 0;
 
     for ( i = 0; i < a_perks.size; i++ )
     {
-        if ( isdefined( str_newest ) && a_perks[i] == str_newest )
+        if ( isinarray( a_order, a_perks[i] ) )
             continue;
 
-        if ( !self hasperk( a_perks[i] ) )
+        self maps\mp\zombies\_zm_perks::set_perk_clientfield( a_perks[i], 0 );
+        n_swept++;
+        wait 0.1;
+    }
+
+    println( "[zm_qol] removeperks: cleared " + a_order.size + " perk icon(s) newest-first, swept " + n_swept + " more" );
+
+    //  PHASE 3 - the functional teardown. Unchanged, and its order no longer
+    //  matters to the HUD: every icon is already gone, and perk_think's own
+    //  write of 0 is a no-op on a field that is already 0.
+    for ( i = 0; i < a_perks.size; i++ )
+    {
+        //  Notified even when hasperk() is false: a PAUSED perk is not "held"
+        //  but its perk_think is still parked on the "<perk>_stop" wait, and
+        //  leaving it parked would resurrect the perk when power came back.
+        //  Only counted when it was really held, so the total the player is
+        //  shown stays honest.
+        if ( !self zmqol_holds_perk( a_perks[i] ) )
             continue;
+
+        if ( self hasperk( a_perks[i] ) )
+            n_taken++;
 
         self notify( a_perks[i] + "_stop" );
-        n_taken++;
         wait 0.05;
     }
 

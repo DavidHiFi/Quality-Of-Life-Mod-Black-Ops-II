@@ -8,6 +8,88 @@ acknowledged, not begun.
 
 ---
 
+## 0aa. IN FLIGHT — v1.62.5, `.removeperks` now clears the perk icons itself
+
+**User, 2026-08-08 (second report):** the row still collapses to one icon
+**sometimes** — the friend's run showed twelve **Vulture Aid**, not PhD. Their
+instruction: *"make it so `.removeperks` … also makes sure to remove any and all
+of the perk shaders on the hud, because that's what causes that bug."*
+
+Correct diagnosis, and the reason v1.62.2 was not enough is measurable.
+
+### Two defects v1.62.2's notify-ordering could not reach
+
+1. **A notify is not a write.** `"<perk>_stop"` only wakes `perk_think`; the LUI
+   reacts to `perk_think`'s `set_perk_clientfield( perk, 0 )` further down
+   (`_zm_perks.gsc:2204`). `perk_think` **returns early, before that write**,
+   when `self._retain_perks` / `_retain_perks_array[perk]` is set
+   (`_zm_perks.gsc:2166-2171`) — the Tombstone / Who's Who / afterlife state. A
+   retained perk keeps its icon regardless of removal order.
+2. **Twelve writes in one frame have no order.** Clientfields ride one snapshot
+   per server frame, so a batch landing in a single frame reaches the LUI in the
+   engine's field order, not the script's.
+
+### 🌟 The order source is now stock's own array, not a sampler
+
+`zmqol_perk_slot_watcher()` sampled `hasperk()` every frame, so **two perks
+arriving in one frame were appended in scan order** — and Who's Who's revive
+(`_zm_chugabud.gsc:295-335`) and Mob's afterlife (`_zm_afterlife.gsc:1327-1345`)
+both re-hand the whole loadout through `give_perk()` **in one loop with no
+waits**. That is the "sometimes", and it matches *"he died with whos who"*.
+
+`give_perk()` appends `self.perks_active` six lines after
+`set_perk_clientfield( perk, 1 )` — same function, no wait between — and
+give_perk is the **only** place in the stock dump that drives a perk field 0→1
+(`_zm_perks.gsc:2688` is the unpause, on a perk the row already holds). So
+`perks_active`' append order **is** the LUI's slot order. A same-frame batch is
+now ranked by it.
+
+🛑 **Only the appends are trusted.** `arrayremovevalue( self.perks_active, perk,
+0 )`'s third parameter is undocumented — the stock dump has no definition (engine
+builtin) and the GSC reference lists only the two-arg form — so whether it
+preserves the survivors' order is **unknown**. Nothing depends on it: the ranking
+only ever runs on perks appended at the tail moments earlier.
+
+### What shipped
+
+- **Phase 1** — write the clientfields to 0 **ourselves, last slot first, 0.1s
+  apart** (the same spacing `.giveperks` uses, the spacing that produced the
+  user's confirmed 12-distinct-icon screenshot).
+- **Phase 2** — sweep every other perk this map registered. Safe in any order:
+  stock's off-by-one needs the row **full**, and phase 1 already freed a slot.
+- **Phase 3** — the functional teardown by notify, unchanged; paused perks are
+  now notified too (their `perk_think` is still parked).
+
+🛑 **No blind writes.** `set_perk_clientfield` is only called for perks in
+`zmqol_map_perks()`, which reads the *same* flags and the *same*
+`level._custom_perks` keys as the mod's own replaced `perks_register_clientfield`
+(`quality_of_life.gsc:5627`). Independently proven in game: `.giveperks` already
+writes all of these fields and all 12 icons appear.
+
+Verified: parses; deployed `mod.iwd` byte-identical to source; both new
+`_zm_perks::set_perk_clientfield` call sites confirmed inside the deployed file.
+
+**Test: `.giveperks`, then `.removeperks`. The perk row must end up completely
+empty.** New log line: `[zm_qol] removeperks: cleared N perk icon(s)
+newest-first, swept M more`.
+
+### ⚠️ Still not covered, and not claimed
+
+- **Going down while holding all twelve.** Who's Who's revive and Mob's afterlife
+  clear every perk field in **one frame**, so that batch has no script-visible
+  order at all. Only the LUI fix (§A1) repairs it.
+- **`.remove<perk>` on a full row** is the same defect, one perk at a time — the
+  next item below.
+
+## 0ab. QUEUED — `.remove<perk>` corrupts a full row too, and the fix is designed
+
+`zmqol_remove_one_perk()` still just notifies. With all 12 held, removing
+anything below slot 12 fires the same off-by-one. **The fix does not need to
+change what the command does:** clear the newest perk's field, clear the
+target's, then write the newest back to 1. `Update()` refills the first free
+slot, which is where a correct removal would have left it — same final row, three
+writes. Queued rather than shipped so v1.62.5 boots alone.
+
 ## 0a. NEXT TWO, both scoped and measured 2026-08-08 (friend's session)
 
 **User's friend played the mod. Report:** PhD icons still spam; *"that bug happened
