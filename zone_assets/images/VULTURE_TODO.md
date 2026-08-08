@@ -1,4 +1,55 @@
-# Vulture Aid — 14 images still shipping with no pixel data
+# Vulture Aid — image pixel data
+
+> ## 🛑 v1.62.3 — THE `.dds` DUMP LIES ABOUT ALPHA. USE THE `.png` SOURCES.
+>
+> **Reported 2026-08-08, with a screenshot:** Vulture Aid's see-through-wall markers (mystery
+> box, perk machines, wall buys) drew as *"a coloured sort of blur effect, not the actual
+> icons"*.
+>
+> All 11 `fxt_zmb_*` icon textures had shipped as **IWI format `0x02` (RGB24) — no alpha
+> channel at all.** Measured, not guessed: 128×128×3 + 64 = 49216 bytes, exactly the file size
+> on disk.
+>
+> **Why, and this is the part that will catch the next person.** In
+> `H:\Claude\All .DDS Files for Zombies\All .DDS'\`, those 11 files declare
+> `DDPF_RGB` with **`Amask = 0x00000000`** — no alpha — yet the 4th byte of every pixel really
+> does vary 0–255. **The alpha is present in the bytes and absent from the header.**
+> ImageConverter believes the header, writes RGB24, and throws the shape away. An fx particle
+> keeps its silhouette in alpha, so what is left is a full 128×128 coloured quad: the blur.
+>
+> 🌟 **The `.png` copies in
+> `H:\Claude\BO2 Files Organized By Volkz\Files\zm\Hud\Buried\Vulture Icons\` are intact** —
+> `Format32bppArgb`, alpha 0–255, same dimensions. Convert from those:
+>
+> ```
+> png2dds.ps1 -In <name>.png -Out <name>.dds      # A8B8G8R8
+> ImageConverter.exe --t6 <name>.dds              # -> IWI format 0x01
+> copy <name>.iwi zone_assets\images\ ; build_ff.bat ; build.bat
+> ```
+>
+> **Format `0x01` is right here, not `0x0d`.** Uncompressed ARGB32 is already the most common
+> format in this mod (30 of 65 shipped images, including the working Wunderfizz textures). No
+> block compressor exists on this machine, and at 64 KB per icon the size is irrelevant.
+>
+> 🛑 **`build_ff.bat` is NOT optional for this.** `mod.ff` held format-`0x02` *headers* built
+> from the old files. Swapping only the `.iwi` leaves header and pixels disagreeing, which is
+> the measured purple/green m1911 failure — worse than the blur. Relinking makes both come from
+> the same file; the proof is `Loaded image "fxt_zmb_..." (src: disk)` in the link log.
+> Asset list verified identical afterwards (3813 lines, nothing re-owned).
+>
+> **Verify a converted icon before shipping it:** paint the alpha channel as greyscale and look
+> at it. Correct output is a *shape mask* — the perk badge silhouette, crossed rifles, a skull,
+> a "?" — with the artwork living in RGB. An all-white alpha means it was lost again.
+>
+> ### Still open after this
+> `fxt_zmb_question_mark` + `material gfx_fxt_zmb_question_mark` are in `zm_buried.ff` and
+> **not** in `mod.ff`. `_zm_perk_vulture.csc` loads `fx_zm_vulture_glow_question` as
+> `vulture_perk_wallbuy_dynamic` — the marker for wall buys with no dedicated weapon icon — so
+> that one may still be wrong. Not yet confirmed either way in game. The material dumps cleanly
+> with `Unlinker --include-assets material zm_buried.ff`, and the PNG is intact, so the fix is
+> the documented add-an-asset path plus a `mod_locations.zone` entry.
+
+## Original note — 14 images still shipping with no pixel data
 
 > **v1.42.0 — `specialty_vulture_zombies_glow` is done**, and it was not on either list below
 > because nothing had noticed it was pulled in at all. It is not referenced by a script or by

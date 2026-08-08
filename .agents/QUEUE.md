@@ -8,7 +8,65 @@ acknowledged, not begun.
 
 ---
 
-## 0a2. IN FLIGHT — v1.62.1, `.removeperks` no longer duplicates the PhD icon
+## 0a1. IN FLIGHT — v1.62.3, Vulture Aid's through-wall icons were shapeless
+
+**User, 2026-08-08, with a screenshot:** the markers Vulture Aid shows through
+walls (mystery box, perk machines, wall buys) are *"just a coloured sort of blur
+effect, not the actual icons"*.
+
+**Measured cause.** All 11 `fxt_zmb_*` icon textures shipped as IWI format
+`0x02` — **RGB24, no alpha channel** (128×128×3 + 64 = 49216 bytes, exactly the
+size on disk). An fx particle carries its silhouette in alpha, so the whole
+128×128 quad drew as a solid colour: the blur.
+
+🛑 **The `.dds` dump is the trap.** In `All .DDS Files for Zombies\`, those 11
+declare `DDPF_RGB` with `Amask = 0x00000000` — while the 4th byte of every pixel
+really does vary 0–255. **The alpha is in the bytes and missing from the
+header.** ImageConverter believes the header and discards the shape. The `.png`
+copies under `BO2 Files Organized By Volkz\...\Vulture Icons\` are intact, so
+they are the source now.
+
+Rebuilt via the project's own `png2dds.ps1` → `ImageConverter --t6` → format
+`0x01` (ARGB32, alpha intact — already the most common format in this mod, 30 of
+65 images). Alpha rendered out and eyeballed first, per the Tombstone lesson:
+correct output is a shape mask (badge silhouette / crossed rifles / skull / "?"),
+artwork in RGB.
+
+`build_ff.bat` was mandatory — `mod.ff` held format-`0x02` headers, and header vs
+pixel mismatch is the measured purple/green m1911 failure. All 11 relinked
+`(src: disk)`; asset list identical at 3813 lines, nothing re-owned; `mod.ff`
+`986a498b` → `c0f7371a`.
+
+**Boot and look at a perk machine / the box through a wall with Vulture Aid.**
+Icons should have their real shapes.
+
+⚠️ **Possibly still wrong, and not claimed fixed:** `fxt_zmb_question_mark` and
+its material are in `zm_buried.ff` and **not** in `mod.ff`.
+`fx_zm_vulture_glow_question` is loaded as `vulture_perk_wallbuy_dynamic` — the
+marker for wall buys with no dedicated weapon icon. If that one is still a blur,
+the material dumps cleanly and the PNG is intact; it needs the add-an-asset path
+plus a `mod_locations.zone` entry.
+
+---
+
+## 0a2. ✅ DONE — v1.62.2, `.removeperks` no longer duplicates the PhD icon
+
+**CONFIRMED by the user, 2026-08-08:** *"you seemed to have fixed phd with the
+perks commands"* — screenshot shows all 12 icons distinct. Log matches the
+prediction exactly:
+
+```
+[zm_qol] perk slots: tracked=12 held=12 total=12
+[zm_qol] removeperks: clearing last slot first -> specialty_flakjacket
+```
+
+🛑 **Took two rounds. v1.62.1 tracked order inside our `give_perk` override and
+measured `tracked=0` — that replaceFunc is NOT taking, even for `.giveperks`'
+fully qualified call, and presumably never has (the override is byte-equivalent
+to stock, so nothing ever noticed). v1.62.2 OBSERVES order with a watcher
+instead and never looks at an acquisition path.** Details below.
+
+
 
 **User, 2026-08-08, with a screenshot:** `.giveperks` then `.removeperks` strips
 every perk's *effect* correctly but leaves the HUD showing **twelve PhD icons**.
