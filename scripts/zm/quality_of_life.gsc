@@ -240,6 +240,7 @@ init()
     zmqol_register_vulture_visionset();
     zmqol_dev_commands();
     level thread zmqol_credits_banner();
+    level thread zmqol_perk_slot_connect();
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
@@ -3175,7 +3176,12 @@ zmqol_give_all_perks()
 
         self maps\mp\zombies\_zm_perks::give_perk( a_perks[i], 0 );
         n_given++;
-        wait 0.05;
+
+        //  0.1, not 0.05, on purpose: zmqol_perk_slot_watcher() samples every
+        //  0.05s, so two perks handed out inside one tick would be appended in
+        //  scan order rather than the order the HUD received them. Two server
+        //  frames between grants guarantees the watcher sees each one alone.
+        wait 0.1;
     }
 
     return n_given;
@@ -3192,17 +3198,115 @@ zmqol_give_all_perks()
 //  STATE_PAUSED and PausedAlpha (read out of the shipped bytecode's string
 //  table), i.e. a paused perk is DIMMED in its slot, not removed from the row.
 //  Dropping them here would mis-identify the last slot during a blackout.
-//  🛑 AND IT DELIBERATELY DOES NOT TRUST THE give_perk HOOK. Perks bought at a
-//  machine reach give_perk through stock's wait_give_perk (_zm_perks.gsc:1965),
-//  which calls it UNQUALIFIED, SAME-FILE and SYNCHRONOUSLY - the exact shape
-//  CLAUDE.md §4 failure mode 1 says cannot be replaceFunc'd. The evidence says
-//  it can: BO2-Reimagined replaceFuncs give_perk (_zm_reimagined.gsc:126),
-//  does NOT define its own wait_give_perk, and its give_perk drops stock's
-//  drink blur - a change visible on every machine purchase in a shipped mod.
-//  That is strong inference, not a measurement, so it is not load-bearing here:
-//  any held perk missing from the tracked list is appended below, which keeps
-//  the list COMPLETE even if the hook never fires. Order for those is unknown,
-//  but the fallback is still no worse than the unordered removal this replaces.
+// ============================================================================
+//  🛑 THE give_perk HOOK DOES NOT FIRE. MEASURED, 2026-08-08.
+//
+//  v1.62.1 tracked acquisition order from inside our give_perk() override. The
+//  probe it shipped said, after a ".giveperks" that the log itself records:
+//
+//      [zm_qol] perk slots: tracked=0 held=12 total=12
+//
+//  Zero. And .giveperks reaches give_perk by a FULLY QUALIFIED external call
+//  (maps\mp\zombies\_zm_perks::give_perk), the case replaceFunc is least
+//  supposed to miss - so this is not the unqualified-same-file question at all.
+//  replaceFunc( _zm_perks::give_perk, ::give_perk ) in main() simply is not
+//  taking, and it never has: our override is byte-equivalent to stock's, so
+//  nothing has ever depended on it and nothing ever looked broken.
+//
+//  📝 That also RETRACTS what v1.62.1's comments inferred from BO2-Reimagined
+//  (that a synchronous same-file call is hookable). The inference was reasoned
+//  from a shipped mod's design; this is a direct measurement of this mod, and
+//  the measurement wins. The hook question is now irrelevant here either way -
+//  nothing below reads give_perk.
+//
+//  🌟 SO ORDER IS OBSERVED, NOT REPORTED. zmqol_perk_slot_watcher() samples the
+//  perks the player is holding and maintains the list itself:
+//      - a perk that has appeared is APPENDED
+//      - a perk that has gone is deleted, PRESERVING ORDER
+//  which is exactly what CoD.Perks.Update and CoD.Perks.RemovePerkIcon do to
+//  the LUI's slot array. Same two operations, same result, and it cannot miss
+//  an acquisition path because it never looks at one.
+// ============================================================================
+zmqol_perk_slot_connect()
+{
+    level endon( "end_game" );
+
+    for ( ;; )
+    {
+        level waittill( "connected", player );
+        player thread zmqol_perk_slot_spawn();
+    }
+}
+
+zmqol_perk_slot_spawn()
+{
+    self endon( "disconnect" );
+
+    for ( ;; )
+    {
+        self waittill( "spawned_player" );
+        self thread zmqol_perk_slot_watcher();
+    }
+}
+
+//  A perk occupies a HUD slot while it is held OR paused. perk_pause() calls
+//  unsetperk() and writes clientfield value 2 (_zm_perks.gsc:2650), so hasperk()
+//  goes false while the icon stays on screen - stock's hudperkszombie.lua
+//  carries both STATE_PAUSED and PausedAlpha (read out of the shipped bytecode's
+//  string table), i.e. a paused perk is DIMMED in its slot, not removed from the
+//  row. Testing hasperk() alone would drop a perk out of the list during a
+//  blackout and then re-append it on power-up, in the wrong place.
+zmqol_holds_perk( perk )
+{
+    if ( self hasperk( perk ) )
+        return 1;
+
+    if ( self maps\mp\zombies\_zm_perks::has_perk_paused( perk ) )
+        return 1;
+
+    return 0;
+}
+
+zmqol_perk_slot_watcher()
+{
+    self endon( "disconnect" );
+    self notify( "zmqol_perk_slot_watcher" );
+    self endon( "zmqol_perk_slot_watcher" );
+
+    if ( !isdefined( self.zmqol_perk_slots ) )
+        self.zmqol_perk_slots = [];
+
+    a_all = zmqol_all_specialties();
+
+    for ( ;; )
+    {
+        wait 0.05;
+
+        //  1. ORDERED delete of anything no longer in a slot. This is the same
+        //     operation as the LUI's shift-down, which is the whole reason the
+        //     two arrays stay in agreement.
+        a_next = [];
+
+        for ( i = 0; i < self.zmqol_perk_slots.size; i++ )
+        {
+            if ( self zmqol_holds_perk( self.zmqol_perk_slots[i] ) )
+                a_next[a_next.size] = self.zmqol_perk_slots[i];
+        }
+
+        //  2. Append whatever is newly held. The LUI puts a new icon in its
+        //     first free slot, and because its removals shift everything down,
+        //     its free slots are always a contiguous tail - so "first free" is
+        //     always the end, same as this append.
+        for ( i = 0; i < a_all.size; i++ )
+        {
+            if ( self zmqol_holds_perk( a_all[i] ) && !isinarray( a_next, a_all[i] ) )
+                a_next[a_next.size] = a_all[i];
+        }
+
+        self.zmqol_perk_slots = a_next;
+    }
+}
+
 zmqol_perk_slot_order()
 {
     a_order = [];
@@ -3211,17 +3315,17 @@ zmqol_perk_slot_order()
     {
         for ( i = 0; i < self.zmqol_perk_slots.size; i++ )
         {
-            perk = self.zmqol_perk_slots[i];
-
-            if ( self hasperk( perk ) || self maps\mp\zombies\_zm_perks::has_perk_paused( perk ) )
-                a_order[a_order.size] = perk;
+            if ( self zmqol_holds_perk( self.zmqol_perk_slots[i] ) )
+                a_order[a_order.size] = self.zmqol_perk_slots[i];
         }
     }
 
     n_tracked = a_order.size;
 
-    //  Backstop: anything held that the tracker never saw. If the hook works
-    //  this loop adds nothing, and the log line below says so in one number.
+    //  Backstop, kept from v1.62.1: anything held that the watcher has not seen
+    //  yet (it samples on a 0.05s tick, and .removeperks could in principle be
+    //  typed inside one). Order for these is unknown, which is why the log
+    //  reports the count - tracked == held is the healthy reading.
     a_held = self zmqol_perks_still_held();
 
     for ( i = 0; i < a_held.size; i++ )
@@ -3335,6 +3439,30 @@ zmqol_remove_all_perks()
 //  The full specialty set a T6 zombies player can be holding. Only used as a
 //  backstop for .removeperks, so a perk added by some path zmqol_map_perks()
 //  does not know about still comes off.
+//  The full specialty set a T6 zombies player can be holding - one entry per
+//  slot in the perk row's LUI, which registers exactly twelve
+//  (CoD.Perks.ClientFieldNames[1..12]). Shared by zmqol_perks_still_held() and
+//  by zmqol_perk_slot_watcher(), so the two can never disagree on what "every
+//  perk" means.
+zmqol_all_specialties()
+{
+    a_all = [];
+    a_all[a_all.size] = "specialty_armorvest";
+    a_all[a_all.size] = "specialty_rof";
+    a_all[a_all.size] = "specialty_longersprint";
+    a_all[a_all.size] = "specialty_fastreload";
+    a_all[a_all.size] = "specialty_quickrevive";
+    a_all[a_all.size] = "specialty_additionalprimaryweapon";
+    a_all[a_all.size] = "specialty_deadshot";
+    a_all[a_all.size] = "specialty_scavenger";
+    a_all[a_all.size] = "specialty_finalstand";
+    a_all[a_all.size] = "specialty_grenadepulldeath";
+    a_all[a_all.size] = "specialty_flakjacket";
+    a_all[a_all.size] = "specialty_nomotionsensor";
+
+    return a_all;
+}
+
 zmqol_perks_still_held()
 {
     a_all = [];
@@ -5531,41 +5659,12 @@ give_perk( perk, bought )
         self.perks_active = [];
     self.perks_active[self.perks_active.size] = perk;
 
-    //  ------------------------------------------------------------------
-    //  ACQUISITION ORDER, kept deliberately in step with the
-    //  set_perk_clientfield( perk, 1 ) above. That clientfield write is what
-    //  makes the perk-row LUI put an icon on screen, and CoD.Perks.Update
-    //  drops it into the FIRST FREE SLOT - so the LUI's slot array is
-    //  "perks I own, in the order I got them". This array is the same thing,
-    //  which is what lets zmqol_remove_all_perks() below name the perk
-    //  sitting in the last slot without being able to read LUI state.
-    //
-    //  A re-acquired perk moves to the END in both: the LUI's removals shift
-    //  every icon down one, so its free slots are always a contiguous tail
-    //  and "first free" is always the end. Hence the remove-then-append here
-    //  rather than a plain append.
-    //
-    //  🛑 Do NOT reuse self.perks_active for this. Stock prunes it in
-    //  perk_think with arrayremovevalue (_zm_perks.gsc:2210), whose ordering
-    //  guarantee is not documented anywhere in this workspace - and an
-    //  unordered delete there would silently desync it from the LUI. This
-    //  array is never pruned; zmqol_perk_slot_order() filters it on read
-    //  instead, which is an ordered delete by construction.
-    //  ------------------------------------------------------------------
-    if ( !isdefined( self.zmqol_perk_slots ) )
-        self.zmqol_perk_slots = [];
-
-    a_slots = [];
-
-    for ( i_slot = 0; i_slot < self.zmqol_perk_slots.size; i_slot++ )
-    {
-        if ( self.zmqol_perk_slots[i_slot] != perk )
-            a_slots[a_slots.size] = self.zmqol_perk_slots[i_slot];
-    }
-
-    a_slots[a_slots.size] = perk;
-    self.zmqol_perk_slots = a_slots;
-
+    //  🛑 NOTHING IS TRACKED HERE. v1.62.1 recorded perk acquisition order in
+    //  this function; its probe measured tracked=0 after a .giveperks, i.e.
+    //  this override does not run - the replaceFunc in main() is not taking,
+    //  even for .giveperks' fully qualified call. It has presumably never run,
+    //  and nothing noticed because this body is byte-equivalent to stock's.
+    //  Slot order is now OBSERVED instead, by zmqol_perk_slot_watcher().
     self notify( "perk_acquired" );
     self thread perk_think( perk );
 }
