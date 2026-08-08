@@ -40,12 +40,27 @@ pixel mismatch is the measured purple/green m1911 failure. All 11 relinked
 **Boot and look at a perk machine / the box through a wall with Vulture Aid.**
 Icons should have their real shapes.
 
-⚠️ **Possibly still wrong, and not claimed fixed:** `fxt_zmb_question_mark` and
-its material are in `zm_buried.ff` and **not** in `mod.ff`.
-`fx_zm_vulture_glow_question` is loaded as `vulture_perk_wallbuy_dynamic` — the
-marker for wall buys with no dedicated weapon icon. If that one is still a blur,
-the material dumps cleanly and the PNG is intact; it needs the add-an-asset path
-plus a `mod_locations.zone` entry.
+### ✅ The question-mark marker is covered too — earlier caveat RETRACTED
+
+The user asked for `fxt_zmb_question_mark` to be added "so it's all fixed".
+**It did not need adding, and adding it would have been a mistake.**
+
+1. **The Linker resolves fx dependencies itself.** `mod_locations.zone` and
+   `mod_base.zone` list **zero** `gfx_fxt_perk_*` materials and **zero**
+   `fxt_zmb_*` images (`grep -c` → 0 in both), yet `mod.ff` carries all 11
+   images and all 22 materials — they arrive purely as dependencies of the
+   `fx,` lines. `fx,maps/zombie/fx_zm_vulture_glow_question` **is** listed
+   (`mod_locations.zone:332`), links with 0 errors, and pulls in no
+   question_mark. So the vulture "?" fx does not use it.
+2. **In `zm_buried.ff` question_mark belongs to a different effect** — its
+   image and material sit immediately before
+   `fx, maps/zombie/fx_zmb_wall_buy_question`, Buried's own wall-buy marker,
+   which `_zm_perk_vulture.csc` never loads.
+
+What the vulture "?" actually draws is `fxt_zmb_perk_magic_box`, whose alpha is
+a "?" and a hook (visible in the alpha contact sheet) — one of the 11 rebuilt
+above. 📝 Adding question_mark would have made `mod.ff` **own** a Buried asset
+it has no use for: the ownership trap that has broken maps here before.
 
 ---
 

@@ -41,13 +41,28 @@
 > at it. Correct output is a *shape mask* — the perk badge silhouette, crossed rifles, a skull,
 > a "?" — with the artwork living in RGB. An all-white alpha means it was lost again.
 >
-> ### Still open after this
-> `fxt_zmb_question_mark` + `material gfx_fxt_zmb_question_mark` are in `zm_buried.ff` and
-> **not** in `mod.ff`. `_zm_perk_vulture.csc` loads `fx_zm_vulture_glow_question` as
-> `vulture_perk_wallbuy_dynamic` — the marker for wall buys with no dedicated weapon icon — so
-> that one may still be wrong. Not yet confirmed either way in game. The material dumps cleanly
-> with `Unlinker --include-assets material zm_buried.ff`, and the PNG is intact, so the fix is
-> the documented add-an-asset path plus a `mod_locations.zone` entry.
+> ### ✅ NOTHING ELSE IS MISSING — and the earlier note here was WRONG
+>
+> This file briefly claimed `fxt_zmb_question_mark` + `gfx_fxt_zmb_question_mark` still needed
+> adding, because they are in `zm_buried.ff` and not in `mod.ff`. **Retracted — they are not
+> Vulture's.** Two independent checks:
+>
+> 1. **The Linker resolves fx dependencies by itself.** `mod_locations.zone` and
+>    `mod_base.zone` between them list **zero** `gfx_fxt_perk_*` materials and **zero**
+>    `fxt_zmb_*` images (`grep -c` → 0 in both), yet `mod.ff` carries all 11 images and all 22
+>    materials. They arrive purely as dependencies of the `fx,` lines. So a listed fx pulls in
+>    everything it needs — and `fx,maps/zombie/fx_zm_vulture_glow_question` **is** listed
+>    (`mod_locations.zone:332`), links with 0 errors, and pulls in no question_mark.
+> 2. **In `zm_buried.ff`, question_mark belongs to a different effect.** Its image and material
+>    sit immediately before `fx, maps/zombie/fx_zmb_wall_buy_question` — Buried's own wall-buy
+>    marker, which `_zm_perk_vulture.csc` never loads.
+>
+> What `fx_zm_vulture_glow_question` actually draws is `fxt_zmb_perk_magic_box`, whose alpha is
+> a "?" and a hook — visible in the alpha contact sheet. That is one of the 11 fixed above, so
+> **v1.62.3 covers the wall-buy "?" marker too.**
+>
+> 📝 Adding question_mark would have been pure cost: `mod.ff` would then **own** a Buried asset
+> it has no use for, which is the ownership trap that has broken maps here before.
 
 ## Original note — 14 images still shipping with no pixel data
 
