@@ -3181,13 +3181,131 @@ zmqol_give_all_perks()
     return n_given;
 }
 
+//  The perks the player is holding, in acquisition order, newest LAST. This is
+//  a read-time ordered filter of self.zmqol_perk_slots (appended by give_perk),
+//  which makes it an exact model of the perk-row LUI's own slot array - see the
+//  banner over zmqol_remove_all_perks() for what that is for.
+//
+//  Paused perks are INCLUDED on purpose. perk_pause() calls unsetperk() and
+//  writes clientfield value 2 (_zm_perks.gsc:2650), so hasperk() goes false
+//  while the icon stays on screen: stock's hudperkszombie.lua carries both
+//  STATE_PAUSED and PausedAlpha (read out of the shipped bytecode's string
+//  table), i.e. a paused perk is DIMMED in its slot, not removed from the row.
+//  Dropping them here would mis-identify the last slot during a blackout.
+//  🛑 AND IT DELIBERATELY DOES NOT TRUST THE give_perk HOOK. Perks bought at a
+//  machine reach give_perk through stock's wait_give_perk (_zm_perks.gsc:1965),
+//  which calls it UNQUALIFIED, SAME-FILE and SYNCHRONOUSLY - the exact shape
+//  CLAUDE.md §4 failure mode 1 says cannot be replaceFunc'd. The evidence says
+//  it can: BO2-Reimagined replaceFuncs give_perk (_zm_reimagined.gsc:126),
+//  does NOT define its own wait_give_perk, and its give_perk drops stock's
+//  drink blur - a change visible on every machine purchase in a shipped mod.
+//  That is strong inference, not a measurement, so it is not load-bearing here:
+//  any held perk missing from the tracked list is appended below, which keeps
+//  the list COMPLETE even if the hook never fires. Order for those is unknown,
+//  but the fallback is still no worse than the unordered removal this replaces.
+zmqol_perk_slot_order()
+{
+    a_order = [];
+
+    if ( isdefined( self.zmqol_perk_slots ) )
+    {
+        for ( i = 0; i < self.zmqol_perk_slots.size; i++ )
+        {
+            perk = self.zmqol_perk_slots[i];
+
+            if ( self hasperk( perk ) || self maps\mp\zombies\_zm_perks::has_perk_paused( perk ) )
+                a_order[a_order.size] = perk;
+        }
+    }
+
+    n_tracked = a_order.size;
+
+    //  Backstop: anything held that the tracker never saw. If the hook works
+    //  this loop adds nothing, and the log line below says so in one number.
+    a_held = self zmqol_perks_still_held();
+
+    for ( i = 0; i < a_held.size; i++ )
+    {
+        if ( !isinarray( a_order, a_held[i] ) )
+            a_order[a_order.size] = a_held[i];
+    }
+
+    println( "[zm_qol] perk slots: tracked=" + n_tracked + " held=" + a_held.size + " total=" + a_order.size );
+
+    return a_order;
+}
+
+// ============================================================================
+//  🛑 THE NEWEST PERK COMES OFF FIRST, AND THAT ORDERING IS THE WHOLE FIX
+//
+//  Reported 2026-08-08 with a screenshot: ".giveperks then .removeperks" strips
+//  every perk's EFFECT correctly but leaves the HUD showing twelve copies of
+//  PhD Flopper. The chat command is the trigger; the defect is stock's, in
+//  CoD.Perks.RemovePerkIcon (readable at
+//  BO2-Reimagined\ui_mp\t6\zombie\hudperkszombie.lua:170-207, and stock's own
+//  bytecode string table confirms the function set is unmodified there):
+//
+//      local PerkWidget, NextPerkWidget = nil, nil
+//      for PerkIndex = OwnedPerkIndex, 12, 1 do
+//          PerkWidget = Menu.perks[PerkIndex]
+//          if not PerkWidget.perkId then break
+//          elseif PerkIndex ~= 12 then
+//              NextPerkWidget = Menu.perks[PerkIndex + 1]
+//          end                    -- no else: on slot 12 this is still slot 12
+//
+//  Removing a perk shifts every icon down one slot. On the LAST slot there is
+//  no next slot, so NextPerkWidget still points at slot 12 from the previous
+//  pass - slot 12 copies ITSELF and never clears. Every removal then duplicates
+//  the tail, and once all twelve perkIds are non-nil the row can never be
+//  filled or emptied again, so it is stuck until the HUD is rebuilt.
+//
+//  🌟 THE CONDITION IS NARROW, WHICH IS WHY THIS IS FIXABLE FROM GSC. It fires
+//  ONLY when the row is 12/12 full AND the removed perk is below slot 12. With
+//  even one slot free the loop reaches the empty slot and clears correctly -
+//  that is why stock never sees it, and why this mod does: no perk limit.
+//  Two consequences:
+//      - removing the perk in slot 12 is always safe (NextPerkWidget is a
+//        function-local, freshly nil, so the first pass takes the clear path)
+//      - once slot 12 is empty the row is no longer full, so every REMAINING
+//        removal is safe in any order
+//  So clearing the newest perk first is sufficient. Nothing else here changes.
+//
+//  ⚠️ NOT COVERED, and not claimed to be: going down while holding all twelve.
+//  That teardown is stock's own "player_downed" notify, in stock's order, and
+//  no ordering here reaches it. The real repair is one `else NextPerkWidget =
+//  nil` in the LUI - see QUEUE.md, still blocked on a stock-faithful base file
+//  because ui_mp overrides are whole-file replacements.
+// ============================================================================
 zmqol_remove_all_perks()
 {
     a_perks = zmqol_map_perks();
     n_taken = 0;
 
+    a_order = self zmqol_perk_slot_order();
+    str_newest = undefined;
+
+    if ( a_order.size )
+    {
+        str_newest = a_order[a_order.size - 1];
+
+        //  Notified even if hasperk() is false (a paused perk still occupies
+        //  the slot) - perk_think is still parked on the "<perk>_stop" wait
+        //  either way. Only counted when it was really held, so the total the
+        //  player is shown keeps matching the loop below.
+        if ( self hasperk( str_newest ) )
+            n_taken++;
+
+        println( "[zm_qol] removeperks: clearing last slot first -> " + str_newest + " (of " + a_order.size + " held)" );
+
+        self notify( str_newest + "_stop" );
+        wait 0.05;
+    }
+
     for ( i = 0; i < a_perks.size; i++ )
     {
+        if ( isdefined( str_newest ) && a_perks[i] == str_newest )
+            continue;
+
         if ( !self hasperk( a_perks[i] ) )
             continue;
 
@@ -5412,6 +5530,41 @@ give_perk( perk, bought )
     if ( !isdefined( self.perks_active ) )
         self.perks_active = [];
     self.perks_active[self.perks_active.size] = perk;
+
+    //  ------------------------------------------------------------------
+    //  ACQUISITION ORDER, kept deliberately in step with the
+    //  set_perk_clientfield( perk, 1 ) above. That clientfield write is what
+    //  makes the perk-row LUI put an icon on screen, and CoD.Perks.Update
+    //  drops it into the FIRST FREE SLOT - so the LUI's slot array is
+    //  "perks I own, in the order I got them". This array is the same thing,
+    //  which is what lets zmqol_remove_all_perks() below name the perk
+    //  sitting in the last slot without being able to read LUI state.
+    //
+    //  A re-acquired perk moves to the END in both: the LUI's removals shift
+    //  every icon down one, so its free slots are always a contiguous tail
+    //  and "first free" is always the end. Hence the remove-then-append here
+    //  rather than a plain append.
+    //
+    //  🛑 Do NOT reuse self.perks_active for this. Stock prunes it in
+    //  perk_think with arrayremovevalue (_zm_perks.gsc:2210), whose ordering
+    //  guarantee is not documented anywhere in this workspace - and an
+    //  unordered delete there would silently desync it from the LUI. This
+    //  array is never pruned; zmqol_perk_slot_order() filters it on read
+    //  instead, which is an ordered delete by construction.
+    //  ------------------------------------------------------------------
+    if ( !isdefined( self.zmqol_perk_slots ) )
+        self.zmqol_perk_slots = [];
+
+    a_slots = [];
+
+    for ( i_slot = 0; i_slot < self.zmqol_perk_slots.size; i_slot++ )
+    {
+        if ( self.zmqol_perk_slots[i_slot] != perk )
+            a_slots[a_slots.size] = self.zmqol_perk_slots[i_slot];
+    }
+
+    a_slots[a_slots.size] = perk;
+    self.zmqol_perk_slots = a_slots;
 
     self notify( "perk_acquired" );
     self thread perk_think( perk );

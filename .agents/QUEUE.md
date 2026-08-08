@@ -8,7 +8,76 @@ acknowledged, not begun.
 
 ---
 
-## 0. IN FLIGHT — v1.62.0, solo play (PART 1 OF 3 shipped)
+## 0a2. IN FLIGHT — v1.62.1, `.removeperks` no longer duplicates the PhD icon
+
+**User, 2026-08-08, with a screenshot:** `.giveperks` then `.removeperks` strips
+every perk's *effect* correctly but leaves the HUD showing **twelve PhD icons**.
+User's theory: the chat command causes it. **Half right — it is the trigger, not
+the defect.**
+
+### The defect is stock's, and the condition is narrower than checkpoint 22 said
+
+`CoD.Perks.RemovePerkIcon` (readable at
+`BO2-Reimagined\ui_mp\t6\zombie\hudperkszombie.lua:170-207`) shifts every icon
+down one slot on a removal. `NextPerkWidget` is a **function-local** (line 171),
+but on the last index the `elseif` never reassigns it, so slot 12 points at
+**itself**, copies itself, and never clears.
+
+🌟 **The new finding that made a GSC fix possible:** it fires **only** when the
+row is **12/12 full AND the removed perk sits below slot 12**. One free slot and
+the loop reaches it and clears correctly — which is why stock never sees this
+and why this mod does (no perk limit). Two consequences:
+- removing the perk **in slot 12 is always safe** (fresh-nil local → clear path)
+- once slot 12 is empty the row is not full, so **every later removal is safe**
+
+So clearing the **newest** perk first is sufficient. `.removeperks` walked the
+perk list front-to-back, i.e. slot 1 first — precisely the poisoned path.
+
+### What shipped
+
+- `give_perk()` now appends to `self.zmqol_perk_slots` beside
+  `set_perk_clientfield( perk, 1 )` — the same write that makes the LUI append
+  an icon to its first free slot, so the two arrays agree by construction.
+  Re-acquired perks move to the end in both.
+- `zmqol_perk_slot_order()` filters that on read (an **ordered** delete, which
+  is exactly what the LUI's shift-down is). Paused perks are **included**:
+  stock's bytecode string table carries `STATE_PAUSED` and `PausedAlpha`, so a
+  paused perk is dimmed in its slot, not removed.
+- `zmqol_remove_all_perks()` clears the newest perk first, then runs unchanged.
+
+🛑 **Deliberately not load-bearing on the `give_perk` hook.** Machine purchases
+reach `give_perk` via stock's `wait_give_perk` (`_zm_perks.gsc:1965`) —
+unqualified, same-file, **synchronous**, the shape CLAUDE.md §4 failure mode 1
+says cannot be hooked. Any held perk missing from the tracked list is appended
+as a backstop, so the list stays complete either way.
+
+### ⚠️ NOT COVERED, and not claimed
+
+**Going down while holding all 12.** That teardown is stock's `player_downed`
+notify in stock's order; no GSC ordering reaches it. The real repair is still
+the one `else NextPerkWidget = nil` in the LUI — §0c.
+
+### 📝 CORRECTION TO CLAUDE.md §4 — synchronous same-file calls ARE hookable
+
+Reimagined replaceFuncs `give_perk` (`_zm_reimagined.gsc:126`), does **not**
+define its own `wait_give_perk`, and its `give_perk` drops stock's drink blur —
+visible on every machine purchase in a shipped, working mod. So the hook takes
+through a synchronous unqualified same-file call, not just a threaded one.
+Strong inference from a shipped mod, **not yet a direct measurement** — the new
+log line settles it on the next boot:
+
+```
+[zm_qol] perk slots: tracked=N held=N total=N
+[zm_qol] removeperks: clearing last slot first -> <perk> (of N held)
+```
+
+`tracked == held` proves the hook fires on every path.
+
+**Test: `.giveperks`, then `.removeperks`. The perk row must empty completely.**
+
+---
+
+## 0. ALSO IN FLIGHT, STILL UNBOOTED — v1.62.0, solo play (PART 1 OF 3 shipped)
 
 **User, 2026-08-08:** solo should be solo, not a custom game. Three parts:
 (1) the solo **intro cutscene** on classic maps, (2) the menu header saying
