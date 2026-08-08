@@ -8,6 +8,42 @@ acknowledged, not begun.
 
 ---
 
+## ⏳ IN FLIGHT — v1.62.6, the perk-row off-by-one, fixed in the LUI itself
+
+**DEPLOYED, NOT YET BOOTED.** Full write-up: `MOD_CATALOGUE.md` §3d, `STOCK_REFERENCE.md` §4/§4b.
+
+Fixes stock's `CoD.Perks.RemovePerkIcon` by reassigning that **one function** from
+`ui_mp/t6/zombie/hudpowerupszombie.lua` (already a mod override) at the top of
+`LUI.createMenu.PowerUpsArea`. Removal **order stops mattering**, so this covers the down,
+`.removeperks`, `.remove<perk>` and the friend's Vulture spam in one change.
+
+🛑 Deliberately **not** a whole-file replacement of `hudperkszombie.lua`: stock's `Update` has
+`STATE_PAUSED`/`STATE_TBD` branches no readable source carries, and `STATE_PAUSED` is reachable
+here (2-bit perk fields wherever `emp_grenade_zm` is included). Reproducing them would be a guess.
+
+**Verified offline, each claim traceable:**
+- parses as Lua 5.1 (`luaparse` via node — new capability, see `MOD_CATALOGUE.md` §9d)
+- diffed against Reimagined's readable copy: **exactly two lines differ**, the `else` and the `nil`
+- `RemovePerkIcon` is looked up at call time and is never captured by `registerEventHandler`
+- stock `hud.lua` creates `PerksArea` **then** `PowerUpsArea`, adjacent lines — the hook cannot be
+  too early
+- the file provably loads from `mod.iwd`: `Loaded menu file:
+  ui_mp/t6/zombie/hudpowerupszombie.lua` in the boot log, and it exists in no other search path
+- deployed `mod.iwd` entry is byte-identical to source; only `mod.json` + that `.lua` changed,
+  `mod.ff` untouched (no `build_ff.bat` needed)
+- with any free slot the loop breaks before index 12, so the new branch **cannot** run in ordinary
+  ≤11-perk play — no regression surface there
+
+**TEST: get all 12 perks, then go down.** The row must NOT collapse into copies of one icon.
+Probe if it still misbehaves: type `zmqol_lui_perkfix` in console — `1` means the patch installed
+and the cause is elsewhere.
+
+⚠️ Residual, stated not hidden: perks **retained** through a down (Tombstone / Who's Who /
+afterlife) never write their clientfield to 0 (`_zm_perks.gsc:2166-2171`), so those icons legitimately
+stay on the row. That is not this bug and is not corruption.
+
+---
+
 ## 0A. 🔴 USER REPORT 2026-08-09 — three separate findings, all measured from ONE log
 
 Boot: Diner survival, solo. Log = `console_zm.log` @ 03:35 (one boot, `loadmod: loaded mods/zm_qol`

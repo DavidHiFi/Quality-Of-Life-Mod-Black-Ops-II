@@ -325,7 +325,130 @@ end
 
 CoD.PowerUps.PatchAmmoCounters()
 
+-- ===========================================================================
+--  zm_qol - THE PERK-ROW OFF-BY-ONE FIX  (stock CoD.Perks.RemovePerkIcon)
+-- ===========================================================================
+--  Reported repeatedly: own all 12 perks, go down, and the whole perk row
+--  collapses into 12 copies of ONE icon, permanently. Whichever perk landed in
+--  slot 12 is the one that spams - PhD for the user, Vulture Aid for their
+--  friend. It is NOT the chat commands; a down reproduces it on its own
+--  (user, 2026-08-09, with a screenshot).
+--
+--  THE DEFECT IS STOCK'S, in ui_mp/t6/zombie/hudperkszombie.lua. Removing a
+--  perk shifts every icon down one slot:
+--
+--      elseif PerkIndex ~= #CoD.Perks.ClientFieldNames then
+--          NextPerkWidget = Menu.perks[PerkIndex + 1]
+--      end                          <- no else, so on the LAST index
+--                                      NextPerkWidget keeps slot 12 from the
+--                                      previous iteration
+--
+--  Slot 12 then copies ITSELF and breaks without ever clearing. It only fires
+--  when the row is 12/12 FULL, which is why Treyarch never saw it and this mod
+--  does - no perk limit. One free slot and the loop reaches it and clears
+--  correctly. Adding the missing `else NextPerkWidget = nil` sends slot 12
+--  down stock's OWN "no next widget" branch - the branch stock already uses
+--  when you remove the perk that is sitting in slot 12 - so nothing new is
+--  invented here.
+--
+--  🛑 WHY WE PATCH ONE FUNCTION INSTEAD OF SHIPPING hudperkszombie.lua.
+--  A ui_mp/ override is a WHOLE-FILE replacement, and there is no
+--  stock-faithful source for that file:
+--    - the stock copy is T6-modified Lua BYTECODE and no decompiler reads it
+--      (unluac fails on four measured deviations - see H:\Claude\unluac\);
+--    - BO2-Reimagined's readable copy is stock PLUS their changes, and their
+--      Update() DROPS stock's STATE_PAUSED / STATE_TBD branches. Stock's
+--      bytecode string table proves those branches exist (STATE_PAUSED,
+--      PausedAlpha and STATE_TBD are all constants of Update), and they are
+--      REACHABLE here - perk fields are 2 bits wide wherever emp_grenade_zm is
+--      included, e.g. stock zm_transit.gsc:1926. Shipping Reimagined's file
+--      would silently stop EMP-paused perks dimming. That is a regression, and
+--      reconstructing those branches from constant order would be a guess.
+--  Replacing only RemovePerkIcon leaves every branch we cannot read untouched.
+--
+--  The body below is stock's, character for character, plus the one `else`.
+--  Verified stock-identical, not assumed: the order of stock's own constants
+--  for this function - perkId, perkIcon, setAlpha, perkGlowIcon, close,
+--  meterContainer, setImage, GetMaterial, GetGlowMaterial - matches this
+--  source's first-use order exactly.
+--
+--  WHY THE HOOK LIVES IN THE POWERUPS FILE. CoD.Perks.RemovePerkIcon is looked
+--  up dynamically at call time (stock's Update does CoD.Perks.RemovePerkIcon(),
+--  and it is never captured by registerEventHandler), so reassigning the field
+--  is enough. Stock hud.lua creates PerksArea and PowerUpsArea on ADJACENT
+--  lines, PerksArea first - so by the time this file's PowerUpsArea runs,
+--  hudperkszombie.lua is fully loaded and CoD.Perks is complete. This file is
+--  already a zm_qol override and is confirmed to load from mod.iwd:
+--  "Loaded menu file: ui_mp/t6/zombie/hudpowerupszombie.lua" appears in the
+--  boot log while the file exists in NO other search path.
+-- ===========================================================================
+
+CoD.PowerUps.ZmqolFixedRemovePerkIcon = function (Menu, OwnedPerkIndex)
+	local PerkWidget, NextPerkWidget = nil, nil
+	for PerkIndex = OwnedPerkIndex, #CoD.Perks.ClientFieldNames, 1 do
+		PerkWidget = Menu.perks[PerkIndex]
+		if not PerkWidget.perkId then
+			break
+		elseif PerkIndex ~= #CoD.Perks.ClientFieldNames then
+			NextPerkWidget = Menu.perks[PerkIndex + 1]
+		else
+			NextPerkWidget = nil
+		end
+		if not NextPerkWidget then
+			PerkWidget.perkIcon:setAlpha(0)
+			if PerkWidget.perkGlowIcon then
+				PerkWidget.perkGlowIcon:setAlpha(0)
+			end
+			PerkWidget.perkId = nil
+			break
+		elseif not NextPerkWidget.perkId then
+			PerkWidget.perkIcon:setAlpha(0)
+			if PerkWidget.perkGlowIcon then
+				PerkWidget.perkGlowIcon:close()
+				PerkWidget.perkGlowIcon = nil
+			end
+			if PerkWidget.meterContainer then
+				PerkWidget.meterContainer:close()
+				PerkWidget.meterContainer = nil
+			end
+			PerkWidget.perkId = nil
+			break
+		else
+			PerkWidget.perkIcon:setImage(CoD.Perks.GetMaterial(Menu, NextPerkWidget.perkId))
+			local GlowMaterial = CoD.Perks.GetGlowMaterial(Menu, NextPerkWidget.perkId)
+			if GlowMaterial and PerkWidget.perkGlowIcon then
+				PerkWidget.perkGlowIcon:setImage(GlowMaterial)
+			end
+		end
+		PerkWidget.perkId = NextPerkWidget.perkId
+	end
+end
+
+--  Deliberately stateless: it compares the live field against our function
+--  rather than setting an "installed" flag. Both LUI files are loaded twice
+--  (once for the lobby, once for the game) and each load re-runs
+--  `CoD.Perks = {}` / `CoD.PowerUps = {}`, so a flag on either table could go
+--  out of step with the thing it describes. An identity test cannot. It also
+--  keeps us from adding a key to CoD.Perks, which is not our table.
+CoD.PowerUps.ZmqolInstallPerkRowFix = function ()
+	if CoD.Perks == nil or CoD.Perks.RemovePerkIcon == nil then
+		return
+	end
+	if CoD.Perks.RemovePerkIcon == CoD.PowerUps.ZmqolFixedRemovePerkIcon then
+		return
+	end
+	CoD.Perks.RemovePerkIcon = CoD.PowerUps.ZmqolFixedRemovePerkIcon
+	--  Probe, so a failed test still tells us WHICH half failed: type
+	--  "zmqol_lui_perkfix" in the console. 1 = the patch installed, so a
+	--  surviving bug is not this file. pcall + guard because setting an
+	--  unregistered dvar must never be able to take the HUD down with it.
+	if Engine ~= nil and Engine.SetDvar ~= nil then
+		pcall(Engine.SetDvar, "zmqol_lui_perkfix", 1)
+	end
+end
+
 LUI.createMenu.PowerUpsArea = function (f1_arg0)
+	CoD.PowerUps.ZmqolInstallPerkRowFix()
 	local f1_local0 = CoD.Menu.NewSafeAreaFromState("PowerUpsArea", f1_arg0)
 	f1_local0:setOwner(f1_arg0)
 	f1_local0.scaleContainer = CoD.SplitscreenScaler.new(nil, CoD.Zombie.SplitscreenMultiplier)

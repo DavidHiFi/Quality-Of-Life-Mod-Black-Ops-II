@@ -58,7 +58,7 @@ The mod is exactly **6 top-level files**. Only `mod.iwd`'s raw source folders ar
 | `scripts/zm/replaced/zm_transit_gamemodes.gsc` | 51 | TranZit | gamemode init replacement |
 | per-map `.csc` × 6 | 128–252 | one map each | client halves |
 | `clientscripts/mp/zombies/_zm_perk_vulture.csc` | — | — | **stock compiled bytecode**, shipped unmodified so it resolves off Buried |
-| `ui_mp/**/*.lua` × 3 | 873 / 591 / 362 | client | whole-file LUI replacements |
+| `ui_mp/**/*.lua` × 3 | 873 / 714 / 362 | client | whole-file LUI replacements. The powerups file also carries the perk-row fix — §3d |
 
 ---
 
@@ -156,6 +156,40 @@ the **newest** perk first, emptying the last slot so every later removal is safe
 🛑 It deliberately **observes** rather than hooking `give_perk`: measured `tracked=0` proves that
 `replaceFunc` is not taking (§9c). ❌ Not covered: going down while holding all 12 — that teardown
 is stock's own, in stock's order.
+
+## 3d. The perk-row off-by-one, fixed at the source 🚧 *(v1.62.6, deployed — NOT yet booted)*
+
+§3c and v1.62.5 both fixed the *chat-command* path by controlling removal order. **They could not
+reach a down**, and the user reproduced exactly that on 2026-08-09: twelve perks, killed by a
+zombie, row collapsed to twelve identical icons. Who's Who's revive and Mob's afterlife re-hand the
+whole loadout in **one frame with no waits**, so no script-visible order exists to correct.
+
+**This fixes the LUI defect itself, so removal order stops mattering anywhere** — the down,
+`.removeperks`, `.remove<perk>`, and the friend's Vulture Aid spam are one bug with one cause.
+
+**Implementation — one function replaced, not one file.** `ui_mp/t6/zombie/hudpowerupszombie.lua`
+(already a mod override) defines `CoD.PowerUps.ZmqolFixedRemovePerkIcon` and installs it over
+`CoD.Perks.RemovePerkIcon` from the top of `LUI.createMenu.PowerUpsArea`.
+
+Why that works, each part verified rather than assumed:
+
+| | |
+|---|---|
+| the field is looked up at call time | `RemovePerkIcon` is its own constant inside stock `Update`'s constant list ⇒ runtime `GETTABLE`, and it is never captured by `registerEventHandler` |
+| the hook is guaranteed to be late enough | stock `hud.lua` creates `PerksArea` then `PowerUpsArea` on **adjacent lines**, PerksArea first |
+| the file really does load from `mod.iwd` | `Loaded menu file: ui_mp/t6/zombie/hudpowerupszombie.lua` in the boot log, while the file exists in no other search path |
+| the body is stock's | diffed against `BO2-Reimagined`'s readable copy: **exactly two lines differ**, the added `else` and `NextPerkWidget = nil` |
+
+🌟 **Why not ship `hudperkszombie.lua` as a whole-file override:** stock's `Update` has
+`STATE_PAUSED` and `STATE_TBD` branches (proved by its bytecode constants) that no readable source
+carries — Reimagined dropped them. Perk fields are 2 bits wide wherever `emp_grenade_zm` is
+included (stock `zm_transit.gsc:1926`), so `STATE_PAUSED` is reachable and dropping it would stop
+EMP-paused perks dimming. Replacing one function leaves every branch we cannot read untouched.
+
+📝 **Zero regression surface for normal play:** with any free slot the loop breaks before it ever
+reaches index 12, so the new `else` cannot execute. It only changes the 12/12 case.
+
+🔎 Probe: console `zmqol_lui_perkfix` reads `1` once the patch has installed.
 
 ---
 
@@ -296,6 +330,18 @@ LUI file hard-crashes the game, so any LUI change ships alone. T6 LUI is a modif
 unluac cannot read; `BO2-Reimagined` ships 35 readable LUI files, but they are stock **plus** their
 own changes.
 
+🌟 **The way around the whole-file problem: patch one function from a file you already override.**
+LUI globals are plain tables and most handlers are looked up at call time, so
+`CoD.<Thing>.<Func> = <ours>` from any file that runs later replaces just that function and leaves
+the rest of the stock file — including branches no decompiler can read — completely untouched.
+§3d does this to fix the perk row. Two things must be checked first: that the target is **not**
+captured by `registerEventHandler` (a captured handler keeps the old reference), and that the
+patching file's entry point provably runs **after** the target file has loaded.
+
+🔧 **Lua syntax can be validated offline**, which removes most of the hard-crash risk:
+`npm install luaparse`, then `luaparse.parse(src, { luaVersion: '5.1' })`. It parses all four of
+this project's LUI files. Node is installed; there is no Lua interpreter on this machine.
+
 ---
 
 # 10. Known-broken and not-yet-done ❌
@@ -310,7 +356,7 @@ own changes.
 | Vulture marker on Wunderfizz | §5c |
 | Solo intro cutscene / "CUSTOM GAMES" header | §8 |
 | Prone bonus at Mob's Electric Cherry | no points |
-| PhD LUI off-by-one | dormant; real fix is one `else` in `hudperkszombie.lua` |
+| PhD LUI off-by-one | **fix deployed v1.62.6, NOT yet confirmed in game** — §3d |
 | Stray 254 MB `cmn_root.all.sabl` in `build\zm_qol\` | not one of the 6 files — do not ship it |
 
 `.agents/QUEUE.md` is the authority on ordering and what is in flight.

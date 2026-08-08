@@ -228,6 +228,28 @@ slot free the loop reaches the empty slot and clears correctly, which is why sto
 no unmodified map lets you hold 12 perks. Removing the perk *in* slot 12 is always safe, because
 `NextPerkWidget` is a fresh function-local.
 
+**zm_qol patches this** as of v1.62.6 — see `MOD_CATALOGUE.md` §3d. The whole fix is the missing
+`else NextPerkWidget = nil`, which routes slot 12 down stock's own "no next widget" branch: the
+same branch stock already takes when you remove the perk sitting *in* slot 12. It is installed by
+reassigning `CoD.Perks.RemovePerkIcon` from a file the mod already overrides, **not** by replacing
+`hudperkszombie.lua` — see §4b for why that file cannot be reproduced faithfully.
+
+## 4b. 🛑 `hudperkszombie.lua` cannot be reproduced from any readable source
+
+`CoD.Perks.Update`'s own constant list contains `STATE_PAUSED`, `PausedAlpha` **and** `STATE_TBD`,
+so stock handles both states inside `Update`. No readable source carries those branches:
+Reimagined's copy removed them and drives pausing from its own `perks_paused` event instead.
+
+Confirmed Reimagined-only, by searching stock's bytecode (0 hits each): `UpdatePerksPaused`,
+`UpdatePerkOrder`, `SpecialtyToClientFieldNames`, `perks_paused`, `hud_update_perk_order`,
+`perk_order`, `DvarString`.
+
+`STATE_PAUSED` is **reachable in this mod**, not theoretical — perk clientfields are 2 bits wide
+wherever `emp_grenade_zm` is included, e.g. stock `zm_transit.gsc:1926`. So shipping Reimagined's
+file would silently stop EMP-paused perks dimming in their slots. Stock's functions, in definition
+order, are exactly: `UpdateVisibility`, `GetMaterial`, `GetGlowMaterial`, `RemovePerkIcon`,
+`Update`, `IconPulseFinish`, `AddGlowIcon`, `AddVultureMeter`, `UpdateVultureDiseaseMeter`.
+
 **Fix would be one line** — `else NextPerkWidget = nil` — but `ui_mp/` overrides are whole-file
 replacements and no stock-faithful source of this file exists.
 
