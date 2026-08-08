@@ -8,6 +8,71 @@ acknowledged, not begun.
 
 ---
 
+## 0A. 🔴 USER REPORT 2026-08-09 — three separate findings, all measured from ONE log
+
+Boot: Diner survival, solo. Log = `console_zm.log` @ 03:35 (one boot, `loadmod: loaded mods/zm_qol`
+appears once). Screenshot: **12 identical PhD icons after a down**, player revived, 75080 points.
+
+### A. The down-with-12-perks case REPRODUCED — this is QUEUE §A1, and it was never claimed fixed
+
+User got 12 perks, let a zombie kill them, row collapsed to 12 copies. **Exactly the case v1.62.2
+and v1.62.5 both wrote down as NOT covered** (checkpoint 23 §2b: the revive paths clear every perk
+field in one loop with no waits, so no script-visible order exists to correct). The user is right
+that it is not the chat commands and not specifically PhD — it is whatever landed in slot 12.
+
+🌟 **This confirms the only real fix is the LUI one-liner** (`else NextPerkWidget = nil` in
+`CoD.Perks.RemovePerkIcon`). It fixes every variant at once: the down, `.removeperks`,
+`.remove<perk>`, and the friend's Vulture Aid spam. **Ships alone** — a bad LUI file hard-crashes.
+
+### B. 🌟 `.giveperks` is NOT broken — the input carried a stray `"`
+
+User: *"the .giveperks command doesn't do anything at all"*. **Correct, and the cause is measurable.**
+Every chat line in the log is clean except these two, which are the only ones with a trailing quote:
+
+```
+DavidHiFi^7: .giveperks"      <- typed twice, nothing happened either time
+DavidHiFi^7: .removeperks     <- no quote, worked: "cleared 12 perk icon(s)"
+```
+
+`quality_of_life.gsc:2585` does `cmd = getsubstr( tokens[0], 1 )` and every handler is an **exact**
+`cmd == "..."` compare, so `giveperks"` matches nothing and falls through the whole else-if chain
+in silence. The `give<perk>` prefix branch below it also fails (`zmqol_perk_from_alias( "perks\"" )`
+is undefined).
+
+**Fix: strip quotes from the message before tokenising.** Cheap, and it makes every command
+bind-proof — which is the same root as §0B below, because a bound `say` is where stray quotes come
+from.
+
+### C. 🔴 NEW DEFECT — v1.62.4's Vulture machine markers match NOTHING on Diner
+
+```
+[zm_qol] CLIENT vulture machines: 0 of 43 structs match 'zstandard_perks_diner'
+```
+
+**Zero of 43.** The wallbuy filter on the same boot succeeded with the sibling string
+(`enable_wallbuys - zstandard_diner: tagged 2 of 2`), so the dvars are right and the **`_perks_`
+infix is wrong** — the perk structs' `script_string` is evidently not `<gametype>_perks_<location>`
+on this map. Dump the real values with `Unlinker --include-assets mapents` on `zm_transit` before
+changing a character. Deployed-but-unverified since v1.62.4; now measured as broken.
+
+## 0B. 🆕 STANDING INSTRUCTION 2026-08-09 — every command must also be a dvar / console command
+
+**User:** *"from here on out make any and all of the chat commands available as console
+commands/dvars or whatever that's called, therefore you could bind more stuff, i already got you to
+make the `.fly` command a dvar just do the rest for all the commands"*
+
+- **New commands ship with both routes.** Not optional, not a follow-up.
+- **Existing commands get back-filled** — that is the work item.
+- **The precedent is already in the mod:** `.fly` has `zmqol_fly_dvar_watch()`, and every `.fly`
+  toggle also calls `setdvar( "fly", ... )` so the dvar never goes stale and the next poll cannot
+  undo the toggle. Copy that two-way shape.
+- Chat commands **stay**. This is an extra route, not a replacement.
+- 📝 Converges with QUEUE §2.1 (pause-menu options UI). Three routes — chat, dvar, menu — should
+  drive **one** implementation function per command, not three copies. Worth doing the refactor
+  once, when this lands.
+
+---
+
 ## 0aa. ✅ DONE — CONFIRMED IN GAME 2026-08-09 — v1.62.5, `.removeperks` clears the perk icons itself
 
 **User booted Diner survival, solo, `.giveperks` then `.removeperks`. Screenshot: the perk row is
