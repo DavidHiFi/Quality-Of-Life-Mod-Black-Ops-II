@@ -8,7 +8,85 @@ acknowledged, not begun.
 
 ---
 
-## 0a1. IN FLIGHT — v1.62.3, Vulture Aid's through-wall icons were shapeless
+## 0a0. IN FLIGHT — v1.62.4, Vulture Aid's perk-machine markers
+
+**User, 2026-08-08:** *"the wunderfizz machine, the perk machines, and the pack
+a punch machine all have their fx missing"* — "half-assed", wants Vulture Aid
+properly implemented on every map.
+
+### 🌟 First: one third of the report is stock behaviour, not a bug
+
+`vulture_vision_enable` gates each marker on
+`perk == "specialty_weapupgrade" || perk == "specialty_nomotionsensor" || !self hasperk( lc, perk )`.
+**A perk machine only glows while you do NOT own that perk.** The screenshot had
+all 12 perks, so every machine was correctly suppressed. User chose to KEEP this
+(asked, 2026-08-08). **Test with few or no perks, not after `.giveperks`.**
+
+### The two real defects, measured
+
+1. **Only one machine per perk type ever glowed.** `vulture_vision_init` does
+   `perk_machines[ struct.script_noteworthy ] = struct` — keyed by PERK NAME.
+   Buried has 8 structs / 8 distinct perks / one gametype, so Treyarch never saw
+   it. **`zm_transit` authors 21 such structs — five Speed Cola and three
+   Pack-a-Punch spots** across Diner/Town/Farm/Cornfield. 21 collapse to 8 and
+   the survivor is whichever came last.
+2. **`script_string` was ignored entirely** — the field naming the
+   gametype+location a spot belongs to. So the survivor was frequently a machine
+   that never spawned in your session. That is why nothing lit up at the Diner.
+
+### What shipped
+
+Stock's machine loop is **emptied** (`zmqol_vulture_after_connect` clears
+`perk_machines` right after stock's `vulture_vision_init` fills it) and replaced
+by ours, registered through stock's own published extension point
+(`custom_funcs_enable/_disable`). Wallbuys, mystery box, powerups, zombie eyes
+and the stink are untouched stock — they were never broken.
+
+🛑 **Why empty rather than fix stock's list:** its key is used for three things
+at once — the fx lookup, the `hasperk()` gate and the `fx_list_special` slot.
+Re-keying it uniquely so five Speed Colas can coexist breaks the other two, and
+every machine would glow even once owned.
+
+- Filter mirrors stock's server-side `perk_machine_spawn_init`
+  (`_zm_perks.gsc:2835-2861`) verbatim: `<gametype>_perks_<location>` tokenised
+  on spaces, structs with no `script_string` kept. Reads the same two dvars the
+  mod's proven `zmqol_wallbuy_match_string()` uses.
+- Stock registers glow fx for only **8** perks. Tombstone, Deadshot, Who's Who,
+  Electric Cherry and PhD fell through to stock's fallback — the **Speed Cola**
+  glow, which actively lies. They now get the neutral "?"
+  (`fx_zm_vulture_glow_question`). User's call, asked 2026-08-08.
+  🛑 There is no Tombstone/Wunderfizz glow fx in BO2 and **new fx cannot be
+  authored** — OAT dumps no `.efx`, so there is no round trip.
+- Buying a perk takes its markers down: stock's
+  `vulture_global_perk_client_callback` only knows its own one-per-perk fx, so
+  ours wraps it and clears every marker we placed for that perk.
+
+Verified: parses (`-i client`); `Loaded script "scripts/zm/zm_expanded.csc"
+(src: disk)`; asset list identical, nothing re-owned; all four new symbols
+confirmed inside the **deployed** `mod.ff`.
+
+**Test: start a game, buy Vulture Aid FIRST with few other perks, and look
+around.** Every machine for a perk you lack should be marked, plus PaP always.
+New log line names the count: `[zm_qol] CLIENT vulture machines: N of M structs
+match '<gametype>_perks_<location>'`.
+
+### ❌ NOT DONE THIS ROUND — the Wunderfizz marker
+
+Deliberately deferred, not forgotten. Its machines are placed **server-side at
+runtime**: coordinates are hardcoded per map (`wunderfizz.gsc:554+`) but a
+distance-and-clearance filter picks which survive (`placed 1 of 6 candidate
+location(s)`). **The client cannot know which without a new channel**, and both
+routes carry real risk:
+- a new clientfield — Origins' `scriptmover` set is already 32/32, which is why
+  the mod drops `vulture_perk_scriptmover` there. Would be a per-map compromise.
+- replicating the placement filter client-side — drift puts a marker where no
+  machine is.
+
+Needs the bit budget measured before choosing. Next item after this is verified.
+
+---
+
+## 0a1. DONE (deployed) — v1.62.3, Vulture Aid's through-wall icons were shapeless
 
 **User, 2026-08-08, with a screenshot:** the markers Vulture Aid shows through
 walls (mystery box, perk machines, wall buys) are *"just a coloured sort of blur

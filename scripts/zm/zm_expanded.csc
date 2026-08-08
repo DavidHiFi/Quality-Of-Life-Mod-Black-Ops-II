@@ -624,7 +624,262 @@ zmqol_init_vulture_trimmed()
 	level.perk_vulture.disable_solo_quick_revive_glow = 0;
 	level.perk_vulture.custom_funcs_enable = [];
 	level.perk_vulture.custom_funcs_disable = [];
+
+	//  Our perk-machine markers replace stock's entirely - see the banner over
+	//  zmqol_vulture_machines_build(). custom_funcs_enable / _disable are stock's
+	//  own published extension point (vulture_add_custom_func_on_enable,
+	//  _zm_perk_vulture.csc:98/106); assigning the slots directly is the same
+	//  thing without needing level.perk_vulture to already exist.
+	level.perk_vulture.custom_funcs_enable[0]  = ::zmqol_vulture_machines_enable;
+	level.perk_vulture.custom_funcs_disable[0] = ::zmqol_vulture_machines_disable;
+
 	level.zombie_eyes_clientfield_cb_additional = clientscripts\mp\zombies\_zm_perk_vulture::vulture_eye_glow_callback_from_system;
+}
+
+// ============================================================================
+//  zmqol_vulture_machines_*  (CLIENT)  -  Vulture Aid's perk-machine markers
+//
+//  🛑 STOCK'S VERSION ONLY EVER WORKED ON BURIED. vulture_vision_init() does:
+//
+//      foreach ( struct in getstructarray( "zm_perk_machine", "targetname" ) )
+//          level.perk_vulture.vulture_vision.perk_machines[ struct.script_noteworthy ] = struct;
+//
+//  keyed by PERK NAME, and it never reads script_string. On Buried that is
+//  harmless - 8 structs, 8 distinct perks, one gametype. Measured anywhere else
+//  it falls apart: zm_transit authors 21 of these structs, among them FIVE
+//  Speed Cola spots and THREE Pack-a-Punch spots spread over Diner, Town, Farm
+//  and Cornfield. Keyed by perk name those 21 collapse to 8, and the survivor is
+//  merely whichever came last - very often a machine belonging to a gametype or
+//  location that never spawned. That is the reported bug: no marker on the
+//  machine standing in front of you.
+//
+//  🌟 script_string IS the field that says which gametype+location a spot
+//  belongs to, and stock's own server-side perk_machine_spawn_init
+//  (_zm_perks.gsc:2835-2861) selects machines with exactly
+//  "<gametype>_perks_<location>" tokenised on spaces. This mirrors that test
+//  verbatim, so the markers cannot disagree with the machines that really spawn.
+//  A struct with no script_string spawns everywhere - stock's else branch - and
+//  is kept here for the same reason.
+//
+//  🛑 WHY STOCK'S LOOP IS EMPTIED RATHER THAN CORRECTED. Its array is keyed by
+//  perk name and that key is used for THREE things at once: the fx lookup, the
+//  hasperk() gate, and the fx_list_special slot. Re-keying it uniquely (so that
+//  five Speed Colas can coexist) breaks the other two - hasperk() would stop
+//  matching and every machine would glow even once owned. So the whole loop is
+//  ours: zmqol_vulture_after_connect() empties stock's list the moment its
+//  vulture_vision_init() has finished, and nothing of stock's machine path runs.
+//  Wallbuys, the mystery box, powerups, zombie eyes and the stink are all
+//  untouched stock - they were never broken.
+// ============================================================================
+zmqol_vulture_perks_match_string()
+{
+	//  Same two dvars as zmqol_wallbuy_match_string() above, and for the same
+	//  reason: _zm::init() has not assigned level.scr_zm_* yet this early, and
+	//  clientscripts\mp\zombies\_zm.csc:32-33 reads these very dvars.
+	str_gametype = getdvar( "ui_gametype" );
+	str_location = getdvar( "ui_zm_mapstartlocation" );
+
+	if ( ( str_location == "default" || str_location == "" ) && isDefined( level.default_start_location ) )
+		str_location = level.default_start_location;
+
+	if ( !isDefined( str_location ) || str_location == "" || str_gametype == "" )
+		return "";
+
+	return str_gametype + "_perks_" + str_location;
+}
+
+zmqol_vulture_machines_build()
+{
+	a_out = [];
+	a_structs = getstructarray( "zm_perk_machine", "targetname" );
+
+	if ( !isDefined( a_structs ) || a_structs.size < 1 )
+		return a_out;
+
+	str_match = zmqol_vulture_perks_match_string();
+
+	for ( i = 0; i < a_structs.size; i++ )
+	{
+		s_spot = a_structs[i];
+
+		if ( !isDefined( s_spot.origin ) || !isDefined( s_spot.script_noteworthy ) )
+			continue;
+
+		if ( isDefined( s_spot.script_string ) )
+		{
+			//  Empty match string means the location could not be resolved. Take
+			//  nothing rather than guess - a marker in the wrong place is worse
+			//  than no marker, and the log line below says so out loud.
+			if ( str_match == "" )
+				continue;
+
+			b_match = 0;
+			a_tokens = strtok( s_spot.script_string, " " );
+
+			for ( t = 0; t < a_tokens.size; t++ )
+			{
+				if ( a_tokens[t] == str_match )
+					b_match = 1;
+			}
+
+			if ( !b_match )
+				continue;
+		}
+
+		a_out[a_out.size] = s_spot;
+	}
+
+	println( "[zm_qol] CLIENT vulture machines: " + a_out.size + " of " + a_structs.size + " structs match '" + str_match + "'" );
+
+	return a_out;
+}
+
+//  Stock registers glow fx for only EIGHT perks (setup_perk_machine_fx), because
+//  Buried has only those eight machines. Every other machine falls through to
+//  stock's fallback, which is the SPEED COLA glow - actively wrong on the perks
+//  this mod adds to maps. There is no Tombstone / Deadshot / Who's Who /
+//  Electric Cherry / PhD glow effect anywhere in BO2 and new fx cannot be
+//  authored (OpenAssetTools dumps no .efx, so there is no round trip), so those
+//  five get the neutral "?" - level._effect["vulture_perk_wallbuy_dynamic"],
+//  which is maps/zombie/fx_zm_vulture_glow_question, already loaded above.
+//  It reads as "a machine is here" instead of naming the wrong perk.
+zmqol_vulture_machine_fx( str_perk )
+{
+	switch ( str_perk )
+	{
+		case "specialty_armorvest":               return "vulture_perk_machine_glow_juggernog";
+		case "specialty_rof":                     return "vulture_perk_machine_glow_doubletap";
+		case "specialty_quickrevive":             return "vulture_perk_machine_glow_revive";
+		case "specialty_fastreload":              return "vulture_perk_machine_glow_speed";
+		case "specialty_weapupgrade":             return "vulture_perk_machine_glow_pack_a_punch";
+		case "specialty_longersprint":            return "vulture_perk_machine_glow_marathon";
+		case "specialty_additionalprimaryweapon": return "vulture_perk_machine_glow_mule_kick";
+		case "specialty_nomotionsensor":          return "vulture_perk_machine_glow_vulture";
+	}
+
+	return "vulture_perk_wallbuy_dynamic";
+}
+
+//  Stock's gate, kept exactly: Pack-a-Punch and Vulture Aid always show, every
+//  other machine only while the player does NOT hold that perk - the point of
+//  the perk being to find what you still need. Solo Quick Revive obeys the same
+//  disable_solo_quick_revive_glow flag stock honours.
+zmqol_vulture_machine_should_show( localclientnumber, str_perk )
+{
+	if ( str_perk == "specialty_quickrevive" && isDefined( level.perk_vulture.disable_solo_quick_revive_glow ) && level.perk_vulture.disable_solo_quick_revive_glow )
+		return 0;
+
+	if ( str_perk == "specialty_weapupgrade" || str_perk == "specialty_nomotionsensor" )
+		return 1;
+
+	return !( self hasperk( localclientnumber, str_perk ) );
+}
+
+zmqol_vulture_machines_enable( localclientnumber )
+{
+	if ( !isDefined( level.zmqol_vulture_machines ) )
+		level.zmqol_vulture_machines = zmqol_vulture_machines_build();
+
+	//  Never stack a second set - vulture_toggle can fire again on a new-entity
+	//  snapshot with the markers already up.
+	self zmqol_vulture_machines_disable( localclientnumber );
+
+	a_ids = [];
+	a_perks = [];
+
+	for ( i = 0; i < level.zmqol_vulture_machines.size; i++ )
+	{
+		s_spot = level.zmqol_vulture_machines[i];
+		str_perk = s_spot.script_noteworthy;
+
+		if ( !( self zmqol_vulture_machine_should_show( localclientnumber, str_perk ) ) )
+			continue;
+
+		str_fx = zmqol_vulture_machine_fx( str_perk );
+
+		if ( !isDefined( level._effect[ str_fx ] ) )
+			continue;
+
+		v_angles = ( 0, 0, 0 );
+
+		if ( isDefined( s_spot.angles ) )
+			v_angles = s_spot.angles;
+
+		a_ids[ a_ids.size ] = playfx( localclientnumber, level._effect[ str_fx ], s_spot.origin, anglestoforward( v_angles ), anglestoup( v_angles ) );
+		a_perks[ a_perks.size ] = str_perk;
+	}
+
+	if ( !isDefined( level.zmqol_vulture_fx ) )
+		level.zmqol_vulture_fx = [];
+
+	level.zmqol_vulture_fx[ localclientnumber ] = spawnstruct();
+	level.zmqol_vulture_fx[ localclientnumber ].ids = a_ids;
+	level.zmqol_vulture_fx[ localclientnumber ].perks = a_perks;
+}
+
+zmqol_vulture_machines_disable( localclientnumber )
+{
+	if ( !isDefined( level.zmqol_vulture_fx ) || !isDefined( level.zmqol_vulture_fx[ localclientnumber ] ) )
+		return;
+
+	s_fx = level.zmqol_vulture_fx[ localclientnumber ];
+
+	for ( i = 0; i < s_fx.ids.size; i++ )
+	{
+		if ( isDefined( s_fx.ids[i] ) )
+			deletefx( localclientnumber, s_fx.ids[i], 1 );
+	}
+
+	level.zmqol_vulture_fx[ localclientnumber ] = undefined;
+}
+
+//  Buying a perk must take that machine's marker down. Stock does this in
+//  vulture_global_perk_client_callback by deleting fx_list_special[perk] - which
+//  only knows about stock's own one-per-perk fx, not ours. This runs stock's
+//  version first (the mystery box and the rest still depend on it) and then
+//  removes every marker we placed for that perk, of which there can be several.
+zmqol_vulture_global_perk_callback( localclientnumber, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self clientscripts\mp\zombies\_zm_perk_vulture::vulture_global_perk_client_callback( localclientnumber, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump );
+
+	if ( !isDefined( level.perk_vulture ) || !( newval & 1 ) )
+		return;
+
+	if ( !isDefined( level.zmqol_vulture_fx ) || !isDefined( level.zmqol_vulture_fx[ localclientnumber ] ) )
+		return;
+
+	if ( !isDefined( level.perk_vulture.vulture_vision ) || !isDefined( level.perk_vulture.vulture_vision.perk_clientfields ) )
+		return;
+
+	if ( !isDefined( level.perk_vulture.vulture_vision.perk_clientfields[ fieldname ] ) )
+		return;
+
+	str_perk = level.perk_vulture.vulture_vision.perk_clientfields[ fieldname ];
+
+	if ( self zmqol_vulture_machine_should_show( localclientnumber, str_perk ) )
+		return;
+
+	s_fx = level.zmqol_vulture_fx[ localclientnumber ];
+
+	for ( i = 0; i < s_fx.perks.size; i++ )
+	{
+		if ( s_fx.perks[i] != str_perk || !isDefined( s_fx.ids[i] ) )
+			continue;
+
+		deletefx( localclientnumber, s_fx.ids[i], 1 );
+		s_fx.ids[i] = undefined;
+	}
+}
+
+//  Runs after stock's vulture_setup_on_player_connect, because that one is
+//  registered first (inside enable_vulture_perk_for_level, which
+//  zmqol_enable_vulture calls before registering this). By now stock's
+//  vulture_vision_init has built its broken one-per-perk list; empty it so its
+//  loop in vulture_vision_enable is a no-op and only ours draws.
+zmqol_vulture_after_connect( localclientnumber )
+{
+	if ( isDefined( level.perk_vulture ) && isDefined( level.perk_vulture.vulture_vision ) )
+		level.perk_vulture.vulture_vision.perk_machines = [];
 }
 
 zmqol_enable_vulture()
@@ -641,6 +896,16 @@ zmqol_enable_vulture()
 	// ::init_vulture there one line ago; this is a plain field assignment on
 	// both sides, so nothing else about the perk's setup changes.
 	level._custom_perks[ "specialty_nomotionsensor" ].init_thread = ::zmqol_init_vulture_trimmed;
+
+	// Registered AFTER stock's own vulture_setup_on_player_connect (the line
+	// above put it there), so it runs second and can empty the perk-machine list
+	// stock's vulture_vision_init has just filled. See the banner over
+	// zmqol_vulture_machines_build() for why that list is unusable off Buried.
+	onplayerconnect_callback( ::zmqol_vulture_after_connect );
+
+	// Stock set this to its own callback one line ago; ours calls that and then
+	// clears the markers WE placed for the perk just acquired.
+	level.zombies_global_perk_client_callback = ::zmqol_vulture_global_perk_callback;
 }
 
 // ============================================================================
