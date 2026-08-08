@@ -22,6 +22,18 @@ Only if you changed a **client script (`.csc`)** or a real asset under
 `zone_source\` / `zone_assets\`, run **`build_ff.bat`** first — that relinks
 `mod.ff` — then `build.bat`.
 
+## Reference docs
+
+Two long-form catalogues, kept deliberately separate so "what we changed" is never confused with
+"what the game already did":
+
+| file | contents |
+|---|---|
+| [`MOD_CATALOGUE.md`](MOD_CATALOGUE.md) | every change and addition this mod makes, by category, with how each was implemented and what is still broken or unfinished |
+| [`STOCK_REFERENCE.md`](STOCK_REFERENCE.md) | **vanilla, unmodded** BO2 Zombies behaviour — perk internals, clientfield limits, the LUI perk row, Vulture Aid's stock implementation, asset/fastfile rules. Every entry cites a file you can re-open |
+
+**Update both in the same change that alters behaviour**, exactly like this README.
+
 ## Where stuff is
 
 ```
