@@ -8,9 +8,107 @@ acknowledged, not begun.
 
 ---
 
-## ⏳ IN FLIGHT — v1.62.6, the perk-row off-by-one, fixed in the LUI itself
+## ⏳ IN FLIGHT — v1.62.7, Electric Cherry's zap: mod.ff was shipping the WRONG SHADER
 
-**DEPLOYED, NOT YET BOOTED.** Full write-up: `MOD_CATALOGUE.md` §3d, `STOCK_REFERENCE.md` §4/§4b.
+**DEPLOYED, NOT YET BOOTED.** No script changed — this is a `build_ff.bat` `--load` order fix only.
+
+**User, 2026-08-09 (`TASKS_QUEUE_01.txt` task 1):** *"the electrical zapping visual fx that go onto
+the Zombies' bodies is really bright, it's like a big circle of effect and it's not the same as the
+regular Electric Cherry."* When asked, they confirmed it looks wrong **on Mob of the Dead and
+Origins too** — where the perk is stock and this mod adds nothing to it.
+
+🌟 **That answer is what cracked it.** A defect visible on maps the mod does not touch cannot be
+map-side; it has to be `mod.ff`, which loads before every map.
+
+### The mechanism, measured end to end
+
+OAT's Linker resolves each asset from the **first `--load`ed fastfile that holds a real definition**
+(a `type,,name` entry is a reference and carries no data, so it keeps looking). Two fastfiles can
+hold **different bytes under the same name** — stock ships per-map shader permutations. `build_ff.bat`
+listed `so_zsurvival_zm_transit.ff` 3rd and `zm_prison.ff` 8th, so `mod.ff` baked TranZit-survival's
+copy of `techniqueset effect_zeqqz943` — the shader behind the tesla-shock flare materials — and
+**overrode the correct one on every map, Mob and Origins included.**
+
+```
+techniqueset effect_zeqqz943, 4928 bytes in every case:
+  zm_prison / zm_tomb / zm_highrise   503675916d7525ca   <- all three identical
+  so_zsurvival_zm_transit             b6c22239cf5774a5   <- what mod.ff was shipping
+```
+
+### The fix
+
+`zm_prison.ff` + `zm_prison_patch.ff` moved ahead of every `so_*.ff`. Mob of the Dead is Electric
+Cherry's home map, so the perk's **entire chain now comes from one canonical donor** instead of being
+scavenged across four: the 5 alcatraz cherry fx, the 3 tesla fx, the bottle weapon and its two
+xmodels, the HUD + minimap icons, `vision/zm_electric_cherry.vision`, and every lightning
+material/techset beneath them.
+
+**Verified offline, each claim traceable:**
+- built `mod.ff` is **byte-identical** to the audited scratch build (`587f2f7c…`)
+- **asset list identical before and after** — 3812 lines, nothing re-owned, nothing dropped
+- 0 errors; the same 34 warnings as before, all pre-existing sound sample-rate notices
+- 64 assets change donor; **20 actually differ in content**, every one Electric Cherry's own or in
+  the tesla chain (each pair byte-compared by linking a one-asset zone from both donors)
+- the shipped techset is now byte-identical to `zm_prison.ff`'s, confirmed by extracting it back
+  **out of the built `mod.ff`**
+- deployed `mod.ff` md5 matches source; v1.62.6's LUI perk fix confirmed still inside the deployed
+  `mod.iwd` (`zmqol_lui_perkfix` and `NextPerkWidget = nil` both present)
+
+**TEST: get Electric Cherry, empty a clip, reload next to zombies.** The zap on their bodies should
+be lightning arcs, not a bright blob — and it should look the same on Diner as on Mob.
+
+⚠️ **Residual risks, stated not hidden:**
+1. **The reload fx that currently looks RIGHT also changed donor.** All four
+   `fx_alcatraz_electric_cherry_*` moved Origins→Mob and all four differ in bytes. Mob's are the
+   canonical ones, but this is a change to something that was not complained about. Check it still
+   looks right.
+2. Three generic lit-model techsets (`mc_lit_sm_r0c0d0n0_33ffej1u`, `_r0c0n0x0_q361191u`,
+   `_t0c0n0_9qf6e4qj`) differ on **every** map, so no donor is right for all of them. `mod.ff` has
+   always overridden them globally; this only changes which map they match. Not introduced here —
+   the real repair is to stop owning them, QUEUE §0f item 4.
+3. `fxt_fx_emp_ring_wave` improves: Origins' odd-one-out copy → the copy TranZit, Mob and Buried
+   all share.
+
+---
+
+## 🆕 THE USER'S TASK LIST — `H:\Claude\TASKS_QUEUE_01.txt`, given 2026-08-09
+
+**Do them top to bottom, one at a time.** Standing scope rule the user restated with it: *"if I ask
+you to add something don't just consider Diner — add it to all maps unless specified otherwise, or
+if you literally can't properly port it due to limitations of the game's engine."*
+
+| # | task | state |
+|---|---|---|
+| 1 | **Who's Who + Electric Cherry fx must be literal genuine ports.** EC: the zombie-body zap is a bright blob. Who's Who: no screen fx at all in the revive state. | EC half **in flight as v1.62.7**; Who's Who half **scoped, not started** — see §A2 below |
+| 2 | **Zombie Blood power-up** from Origins onto every map that can take it. Perfect or not at all. | not started |
+| 3 | **Blood Money power-up** from Origins onto every map — and unlike Origins (dig sites) it must **drop from zombie kills** like a normal power-up | not started |
+| 4 | **Semtex wall-buy** on Diner (shack wall to the left of the added Juggernog) and Bus Depot (next to the added Speed Cola) | not started |
+| 5 | **Galvaknuckles wall-buy** in Bus Depot's Tombstone room, left wall as you come in the outside door | not started — supersedes §2.5, which said the same thing |
+
+**Task 1, Who's Who half — decision taken 2026-08-09:** the user chose **remove Who's Who from
+Buried entirely** rather than ship it there without the downed-body glow (Buried's `actor`
+clientfield set is 32/32, re-measured today from `clientfields_zm_buried_zclassic_processing.txt`).
+So Who's Who ships complete on **TranZit/Diner, Nuketown and Origins**, and is dropped on Buried.
+
+🌟 **The working precedent is `BO2-Reimagined`**, which enables Who's Who on `zm_transit` in a
+shipped mod — `_zm_reimagined.gsc:1997-2003` (server) and `_zm_reimagined.csc:85-97` (client).
+Two assets have to be shipped in `mod.ff`, both **Die Rise-only** and both with an existing
+precedent in this project: `material generic_filter_afterlife` (same shape as the already-shipped
+`generic_filter_zombie_perk_vulture`) and `rawfile vision/zm_whos_who.vision` (same shape as the
+already-shipped `vision/zm_electric_cherry.vision`).
+🛑 `whoswhoaudio`/`whoswhofilter` live in **map-specific** `clientscripts\mp\zm_highrise_amb.csc`
+and must NOT be named from a root client script (AI_CONTEXT rule 2) — write our own; they are 6
+lines each and everything they call (`enable_filter_afterlife`, `chugabud_whos_who_shader`,
+`chugabud_setup_afterlife_filters`) is **core** `_zm_perks.csc` and safe to reference.
+📝 `level.chugabud_shellshock` is set **nowhere** in the 2,093-file stock dump, so the shellshock
+never fires in stock either — not part of the genuine article, do not add it.
+
+---
+
+## 0aaa. ✅ DONE — CONFIRMED IN GAME 2026-08-09 — v1.62.6, the perk row fixed in the LUI itself
+
+**User: "It seems to be fixed."** 12 perks, went down, the row no longer collapses into copies of
+one icon. Full write-up: `MOD_CATALOGUE.md` §3d, `STOCK_REFERENCE.md` §4/§4b.
 
 Fixes stock's `CoD.Perks.RemovePerkIcon` by reassigning that **one function** from
 `ui_mp/t6/zombie/hudpowerupszombie.lua` (already a mod override) at the top of

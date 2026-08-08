@@ -182,6 +182,44 @@ REM  zm_whos_who visionset) are all gated behind level.whos_who_client_setup and
 REM  level.vsmgr_prio_visionset_zm_whos_who, which ONLY Die Rise sets. Off Die
 REM  Rise the perk self-gates down to one clientfield and no client assets.
 REM
+REM  🛑🛑 --load ORDER IS NOT COSMETIC. IT DECIDES WHICH COPY OF A SHARED STOCK
+REM  ASSET THIS MOD SHIPS - AND mod.ff LOADS BEFORE EVERY MAP, SO THAT COPY WINS
+REM  ON EVERY MAP, INCLUDING THE ONES THE ASSET IS NATIVE TO.
+REM
+REM  The Linker resolves each asset from the FIRST --load'ed fastfile that carries
+REM  a real definition of it (a `type,,name` reference carries no data, so it keeps
+REM  looking). Two fastfiles can hold DIFFERENT bytes under the SAME name - stock
+REM  ships per-map shader permutations and per-map fx rebuilds - so whichever one
+REM  is listed first silently becomes the version every map gets.
+REM
+REM  🔴 THIS SHIPPED BROKEN FOR SEVERAL VERSIONS AND THE USER REPORTED IT (v1.62.7):
+REM  Electric Cherry's zap on zombies rendered as a bright blown-out blob instead of
+REM  lightning arcs - and it was wrong on Mob of the Dead and Origins TOO, where the
+REM  perk is stock and this mod adds nothing. Measured cause: so_zsurvival_zm_transit
+REM  was loaded 3rd and zm_prison 8th, so mod.ff baked TranZit-survival's copy of
+REM  techniqueset effect_zeqqz943 - the shader for the tesla-shock flare materials -
+REM  and overrode the correct one everywhere.
+REM
+REM      techniqueset effect_zeqqz943, 4928 bytes in every case:
+REM        zm_prison / zm_tomb / zm_highrise   503675916d7525ca   <- all identical
+REM        so_zsurvival_zm_transit             b6c22239cf5774a5   <- what shipped
+REM
+REM  🛑 SO: zm_prison.ff AND zm_prison_patch.ff MUST STAY AHEAD OF EVERY so_*.ff.
+REM  Mob of the Dead is Electric Cherry's home map, so loading it first makes the
+REM  perk's whole chain - the 5 alcatraz cherry fx, the 3 tesla fx, the bottle
+REM  weapon and its two xmodels, the HUD + minimap icons, the vision file and every
+REM  lightning material/techset under them - come from ONE canonical donor instead
+REM  of being scavenged across four. Verified: the built asset list is byte-identical
+REM  before and after (nothing re-owned, nothing dropped), 0 errors, same 34 sound
+REM  warnings; 64 assets change donor, of which 20 actually differ in content and
+REM  every one of those is either Electric Cherry's own or in the tesla fx chain.
+REM
+REM  📝 Known residual, NOT introduced by this ordering - three generic lit-model
+REM  techsets (mc_lit_sm_r0c0d0n0_33ffej1u, _r0c0n0x0_q361191u, _t0c0n0_9qf6e4qj)
+REM  differ on EVERY map, so no single donor is right for all of them. mod.ff has
+REM  always overridden them globally; this only changes which map they happen to
+REM  match. The real repair is to stop owning them at all - QUEUE §0f item 4.
+REM
 REM  🛑 Do NOT put REM lines between the caret-continued --load arguments below.
 REM  cmd does not treat them as comments there - they are passed to the Linker as
 REM  arguments, and it fails with: Could not find zone definition file for
@@ -189,13 +227,13 @@ REM  target "REM".
 "%OAT_BASE%\Linker.exe" ^
   --load "%PROJ%\zone_source\base\mod.ff" ^
   --load "%BO2_DIR%\zone\all\ui_zm.ff" ^
+  --load "%BO2_DIR%\zone\all\zm_prison.ff" ^
+  --load "%BO2_DIR%\zone\all\zm_prison_patch.ff" ^
   --load "%BO2_DIR%\zone\all\so_zsurvival_zm_transit.ff" ^
   --load "%BO2_DIR%\zone\all\so_zclassic_zm_prison.ff" ^
   --load "%BO2_DIR%\zone\all\so_zclassic_zm_buried.ff" ^
   --load "%BO2_DIR%\zone\all\so_zencounter_zm_buried.ff" ^
   --load "%BO2_DIR%\zone\all\zm_tomb.ff" ^
-  --load "%BO2_DIR%\zone\all\zm_prison.ff" ^
-  --load "%BO2_DIR%\zone\all\zm_prison_patch.ff" ^
   --load "%BO2_DIR%\zone\all\zm_buried.ff" ^
   --load "%BO2_DIR%\zone\all\zm_buried_patch.ff" ^
   --load "%BO2_DIR%\zone\all\zm_highrise.ff" ^
