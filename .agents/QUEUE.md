@@ -8,7 +8,18 @@ acknowledged, not begun.
 
 ---
 
-## 0aa. IN FLIGHT — v1.62.5, `.removeperks` now clears the perk icons itself
+## 0aa. ✅ DONE — CONFIRMED IN GAME 2026-08-09 — v1.62.5, `.removeperks` clears the perk icons itself
+
+**User booted Diner survival, solo, `.giveperks` then `.removeperks`. Screenshot: the perk row is
+completely EMPTY, feed reads `gave 12 perk(s)` / `removed 12 perk(s)`.** No duplicate icon, no
+leftover shader.
+
+📝 One observation, not a defect: the centre-screen "PhD Flopper" perk pop-up was still on screen in
+the shot. `.giveperks` fires 12 grants 0.1s apart and each pop-up runs for several seconds, so the
+tail of that queue outlives the command. Ask the user if it ever failed to clear on its own before
+treating it as anything.
+
+<details><summary>the diagnosis and what shipped</summary>
 
 **User, 2026-08-08 (second report):** the row still collapses to one icon
 **sometimes** — the friend's run showed twelve **Vulture Aid**, not PhD. Their
@@ -80,6 +91,8 @@ newest-first, swept M more`.
   order at all. Only the LUI fix (§A1) repairs it.
 - **`.remove<perk>` on a full row** is the same defect, one perk at a time — the
   next item below.
+
+</details>
 
 ## 0ab. QUEUED — `.remove<perk>` corrupts a full row too, and the fix is designed
 
