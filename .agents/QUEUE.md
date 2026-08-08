@@ -8,7 +8,113 @@ acknowledged, not begun.
 
 ---
 
-## 0a0. IN FLIGHT — v1.62.4, Vulture Aid's perk-machine markers
+## 0a. NEXT TWO, both scoped and measured 2026-08-08 (friend's session)
+
+**User's friend played the mod. Report:** PhD icons still spam; *"that bug happened
+for him when he died with whos who"*; Who's Who has **no visual fx at all** while
+its functionality works normally. User's read: *"it's for sure the chat commands
+unless you're certain i'm wrong"*.
+
+🛑 **CONFOUND, note before believing any of it:** the friend's screenshot shows
+**Hells Vengeance v2 (AlexibuscusGaming)** — a third-party GSC menu with its own
+Perks Menu — running alongside this mod. Any perk it grants or strips takes paths
+this mod never sees. Ask for one clean repro without it before treating any
+detail as this mod's.
+
+### ⭐ A1. PhD icon spam — the chat commands are NOT the cause
+
+**The user is half right and the half matters.** `.giveperks` creates the 12/12
+condition, but the *removal* that corrupts the row is **the down**, not the
+command. Evidence:
+
+- `.giveperks` → `.removeperks` was fixed in v1.62.2 and **the user verified it
+  themselves**: `tracked=12 held=12`, `clearing last slot first ->
+  specialty_flakjacket`, and *"you seemed to have fixed phd with the perks
+  commands"*.
+- Their own report names the trigger: *"he died with whos who"*.
+- A down fires `player_downed` (`_zm_laststand.gsc:215`, at the END of
+  `playerlaststand`), every `perk_think` wakes at once and removes its perk **in
+  stock's order** — a perk below slot 12 comes off first and the off-by-one fires.
+- v1.62.2's commit and QUEUE entry both said in writing: *"Not covered: going
+  down while holding all 12."* This is that exact case, reported back.
+
+**So the only real fix is the LUI one-liner** — `else NextPerkWidget = nil` in
+`CoD.Perks.RemovePerkIcon`.
+
+#### 🌟 THE LUI BLOCKER IS NOW MOSTLY GONE — measured
+
+The blocker was "Reimagined's copy is stock plus their changes, and stock's
+`STATE_PAUSED`/`STATE_TBD` handling in `Update` would have to be reconstructed —
+that is a guess." Two measurements shrink it to almost nothing:
+
+1. **`STATE_TBD` (3) is dead.** Across the entire ZM dump the only values ever
+   written to a perk clientfield are **0, 1 and 2** (`( perk, 0 )` ×5,
+   `( perk, 1 )` ×4, `( perk, 2 )` ×2). Nothing to reconstruct.
+2. **`STATE_PAUSED` (2) behaviour is known, not guessed.** Stock's bytecode
+   string table carries `STATE_PAUSED` **and** `PausedAlpha`, so a paused perk is
+   **dimmed in its slot**; Reimagined's `UpdatePerksPaused` implements exactly
+   that visual per widget (pulse + `setAlpha(PausedAlpha)`, glow alpha 0) — it is
+   only driven from a different signal.
+
+**Remaining work:** base on Reimagined's readable file; restore stock's
+`TopStart` (**-180 on DLC3 maps, -140 otherwise** — read from the bytecode);
+add a `STATE_PAUSED` branch to `Update`; apply the one-line fix; confirm nothing
+references a Reimagined-only clientfield this mod never registers.
+
+🛑 **Ships ALONE.** `ui_mp/` overrides are whole-file replacements and a bad LUI
+file hard-crashes the game.
+
+### ⭐ A2. Who's Who has no visuals — fully mapped, and one map is blocked
+
+`zmqol_enable_whoswho()` sets `level.zombiemode_using_chugabud_perk = 1` and the
+client registers `perk_chugabud`. **That is the perk flag and the HUD icon —
+nothing else.** Stock's `activate_chugabud_effects_and_audio()`
+(`_zm_chugabud.gsc:745`) needs four more things, **every one gated on
+`isdefined(...)`, so all of them fail silently**:
+
+| what | stock source |
+|---|---|
+| `self shellshock( "whoswho", 60 )` | gated on `level.chugabud_shellshock` |
+| `vsmgr_activate( "visionset", "zm_whos_who", self )` | gated on `level.vsmgr_prio_visionset_zm_whos_who`; server registers it in **core** `_zm_perks.gsc:1449` |
+| `setclientfieldtoplayer( "clientfield_whos_who_audio", 1 )` | `zm_highrise.gsc:79` / `.csc:84` |
+| `setclientfieldtoplayer( "clientfield_whos_who_filter", 1 )` | `zm_highrise.gsc:80` / `.csc:85` |
+| `corpse setclientfield( "clientfield_whos_who_clone_glow_shader", 1 )` | `zm_highrise.gsc:78` / `.csc:83` (**actor**, 1 bit) |
+
+Client also needs
+`vsmgr_register_visionset_info( "zm_whos_who", 5000, 1, "zm_whos_who", "zm_whos_who" )`
+(`zm_highrise.csc:86`).
+
+🛑 **Two of stock's client callbacks are MAP-SPECIFIC** —
+`clientscripts\mp\zm_highrise_amb::whoswhoaudio` and `::whoswhofilter`. Those
+resolve at **load time**, so referencing them from the root client script would
+crash every other map (AI_CONTEXT rule 2). We must write our own callbacks.
+`_zm_perks::chugabud_whos_who_shader` is core and safe to reference.
+
+#### 🛑 BURIED IS BLOCKED — measured, not assumed
+
+Stock `actor`-set usage, summed from the per-map dumps in
+`Black Ops 2 Grand Resources\…\Clientfields\`:
+
+| map | actor bits | room for the 1-bit clone-glow field? |
+|---|---|---|
+| `zm_transit` | 5 / 32 | yes |
+| `zm_prison` | 13 / 32 | n/a (Who's Who is native there? no — excluded, no asset) |
+| `zm_tomb` | **31 / 32** | yes, exactly fills it — zero margin |
+| `zm_buried` | **32 / 32** | ❌ **no — would overflow** |
+
+Who's Who is enabled on `zm_transit`, `zm_nuked`, `zm_buried`, `zm_tomb`. The
+clone-glow shader **cannot** be added on Buried. The screen filter and audio are
+`toplayer` and are unaffected, so Buried could still get the screen fx the user
+actually reported missing — but the downed-body glow would be absent there,
+which is a per-map compromise and needs the user's call before shipping.
+
+📝 The same dump independently reproduces the two numbers this project had
+already verified the hard way — Origins `scriptmover` **32/32** and `actor`
+**31/32** — so the parse is trustworthy for the `actor` set.
+
+---
+
+## 0a0. DONE (deployed) — v1.62.4, Vulture Aid's perk-machine markers
 
 **User, 2026-08-08:** *"the wunderfizz machine, the perk machines, and the pack
 a punch machine all have their fx missing"* — "half-assed", wants Vulture Aid
