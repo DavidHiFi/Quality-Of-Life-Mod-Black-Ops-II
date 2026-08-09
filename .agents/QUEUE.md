@@ -29,7 +29,63 @@ Who's Who, Zombie Blood, Blood Money, the wall-buys and everything after them.
 
 ---
 
-## ⏳ IN FLIGHT — v1.63.1: barrier bug fixed, Who's Who visuals ported, EC answered from the clip
+## 🛑 CLOSED FOREVER — ELECTRIC CHERRY IS VANILLA AND STAYS VANILLA (user, 2026-08-09)
+
+**Do not re-open this. Do not "fix" it. Do not instrument it again.** Four rounds went into it; the
+answer never changed and the user has now made the call with the numbers in front of them.
+
+**The perk is byte-for-byte stock on every map.** Verified by decompiling
+`maps/mp/zombies/_zm_perk_electric_cherry.gsc` **out of the shipped `patch_zm.ff`** — not the
+gsc-dump. `BO2-Reimagined` keeps the identical curves too; it only deletes the throttle.
+
+```
+radius = linear_map( clip_fraction, 1.0, 0.0,  32, 128 )
+dmg    = linear_map( clip_fraction, 1.0, 0.0,   1, 1045 )
+round-10 zombie health = 1045   (150, +100 for rounds 2-9 = 950, then 950 + int(95))
+```
+
+| clip | radius | damage | round 10 |
+|---|---|---|---|
+| 8/8 | 32 | 1 | nothing at all |
+| **7/8** | **44** | **131** | **8 zaps — this is what the user was doing** |
+| 4/8 | 80 | 523 | 2 zaps |
+| 0/8 | **128** | **1045** | **one-shots the whole close ring** |
+
+🌟 **The decisive measurement came from the user's own recording**, decoded to 68 frames: the ammo
+counter reads `8/49 -> 7/49 -> 8/48 -> 7/48 -> 8/47 -> 7/47 -> 8/46`. **One bullet fired, then
+reload, every single time.** A 44-unit radius does not even reach a zombie mid-swing (~50-70 units
+origin to origin), so those zaps touched nothing — they were not weak, they were out of range.
+
+**Everything else in the chain was checked and is correct:** `get_round_enemy_array()` (only filters
+`ignore_enemy_count`), `get_array_of_closest()` (squares maxdist properly), the mod's damage hooks
+(`register_zombie_damage_callback` only — additive, cannot reduce damage), and the whole fx/material
+chain (byte-identical to `zm_prison`'s).
+
+**Offered explicitly, with the tables above: raised floor, flat maximum, or vanilla. The user chose
+VANILLA.** The stock consecutive-reload throttle (#6+ does literally nothing) stays too.
+
+📝 **How to actually use it:** fire the WHOLE magazine dry, then reload into the horde. Fire-one-and-
+reload buys about 12% of the perk. This is Treyarch's design — max damage is tuned to exactly
+round-10 health.
+
+---
+
+## ✅ WHO'S WHO — CONFIRMED IN GAME 2026-08-09
+
+**User: "Who's Who seems to be working fine, all effects working good."** The overlay, the visionset,
+the audio and the corpse glow all land. Shipped in v1.63.0-v1.63.2; the visionset registration fix
+in v1.63.2 is what made it boot. Full write-up below and in checkpoint 28.
+
+---
+
+## ⏳ STILL UNCONFIRMED — the boarded-window fix
+
+Shipped in v1.63.1, booted since, but **the user has not reported on it either way.** Hold a Diner
+Survival window and watch: nothing should cross intact boards. Details below.
+
+---
+
+## v1.63.1 — barrier bug fixed, Who's Who visuals ported, EC answered from the clip
 
 **DEPLOYED, NOT YET BOOTED.** `.gsc` + `.csc` + `mod.ff` + both sound banks. Three reports, one build.
 
