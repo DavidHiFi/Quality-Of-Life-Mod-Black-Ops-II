@@ -29,6 +29,102 @@ Who's Who, Zombie Blood, Blood Money, the wall-buys and everything after them.
 
 ---
 
+## 🔨 IN PROGRESS — TASK 2, ZOMBIE BLOOD. Scoped and measured 2026-08-09. NOTHING BUILT YET.
+
+**Verdict: it CAN be ported completely.** Every asset exists, every sound has a home, and the
+clientfield budget fits on Diner with room. No compromise identified. Nothing is deployed — this
+section is the verified plan so the implementation is mechanical.
+
+### What the real thing does (`ZM/Maps/Origins/maps/mp/zombies/_zm_powerup_zombie_blood.gsc`, 196 lines)
+
+30 seconds of `self.ignoreme = 1` — zombies ignore you completely — plus: a red screen overlay that
+fades in over 1.2s, the `zm_powerup_zombie_blood` visionset, a first-person particle fx on the
+camera, a third-person fx linked to your eyeball tag, **your player model swapped to a zombie**, a
+looping sound, announcer VO, and `_show_solo_hud` for the countdown. Ends early if you go down
+(`watch_zombie_blood_early_exit`). Cannot be picked up in last stand.
+
+📝 `level.a_zombie_blood_entities` / `make_zombie_blood_entity()` is the Origins-only half — it
+reveals hidden dig sites while active. Off Origins that array is simply empty, so the code is inert
+and needs no changes. Not a missing feature; there is nothing on other maps for it to reveal.
+
+### Assets — ALL of them exist, all in ONE place
+
+| asset | source |
+|---|---|
+| `xmodel p6_zm_tm_blood_power_up` + `material mc/mtl_p6_zm_tm_blood_power_up` | `zm_tomb.ff` |
+| `fx maps/zombie_tomb/fx_tomb_pwr_up_zmb_blood` (3rd person) | `zm_tomb.ff` |
+| `fx maps/zombie_tomb/fx_zm_blood_overlay_pclouds` (1st person) | `zm_tomb.ff` |
+| `material generic_filter_zombie_blood_b` (the overlay) | `zm_tomb.ff` |
+| `rawfile vision/zm_powerup_zombie_blood.vision` | `zm_tomb.ff` |
+| `xmodel c_zom_tomb_german_player_fb` (the player model swap) | `zm_tomb.ff` |
+| `script clientscripts/mp/zombies/_zm_powerup_zombie_blood.csc` | 🛑 **`zm_tomb_patch.ff`** |
+
+🛑 **`zm_tomb_patch.ff` is NOT in `build_ff.bat`'s `--load` list.** It has to be added, and
+**at the END** — first-load-wins decides the donor for every shared asset, and that is exactly what
+shipped the wrong shader in v1.62.6 (see §0aab). Appending it means it can only supply assets no
+earlier fastfile has. **Re-audit the full asset list after linking; expect additions only.**
+
+📝 `c_zom_tomb_german_player_fb` is ONE model for all four characters — Origins passes the same
+string regardless of who you are. So the literal port turns you into an Origins German soldier
+zombie on every map. That is what the original does, so per [[zm-qol-port-never-tune]] that is what
+ships; no per-map substitute, no dropping it.
+
+### Sound — 4 aliases, all Origins-only, all portable
+
+`zmb_zombieblood_start`, `zmb_zombieblood_loop`, `zmb_zombieblood_stop`, `zmb_zombieblood_3rd_loop`
+— dumped every bank from `zm_tomb`, `zm_transit`, `zm_nuked` and `common_zm`: present **only** in
+`zmb_tomb.all`. Re-ship under `zmqol_` names through `soundbank/mod.all.aliases.additions.csv`, the
+route already proven by `zmqol_cherry_zap` and `zmqol_ww_activate`.
+Also check `powerup_vo( "zombie_blood" )` resolves — `_zm_audio_announcer.gsc` references it.
+
+### Clientfield cost — measured against the mod's REAL runtime totals, not the stock dumps
+
+🌟 Read from the v1.63.1 boot log's own dump (`console_zm.log.009`, the only log with one, because
+the field list only prints on a mismatch). **Diner survival, this mod, actual:**
+
+```
+world 22   actor 7   allplayers 20   toplayer 53 client / 54 server   scriptmover 11   zbarrier 4
+```
+
+Zombie Blood adds:
+
+| field | set | bits |
+|---|---|---|
+| `player_zombie_blood_fx` | allplayers | +1 |
+| `powerup_zombie_blood` (from `add_zombie_powerup`, 2 bits, **auto**) | toplayer | +2 |
+| widening from +1 visionset and +1 overlay entry | toplayer | +1 to +3 |
+
+Current widths on Diner: `visionset_slot` 2, `visionset_lerp` 3, `overlay_slot` 2, `overlay_lerp` 5.
+Zombie Blood's lerp count is 15 → `visionset_lerp` goes to 4 (+1); `overlay_lerp` is already 5 from
+Vulture's 31 steps, so **no change there**. Slots may each gain a bit.
+
+**Diner: toplayer 54 → ~57-59, allplayers 20 → 21. Comfortable.**
+
+### 🛑 THE ONE THING STILL TO SETTLE BEFORE SHIPPING
+
+**Per-map headroom on the tight maps.** Only Diner's runtime totals are known, because a healthy
+boot prints no field dump. Stock `toplayer` reaches **63 on Buried classic** and **61 on Origins
+classic** before this mod adds anything, and the mod adds perk fields on top. Origins already has
+Zombie Blood natively so it costs nothing there, but **Buried, Mob and Die Rise are unmeasured.**
+
+Settle it the cheap way first: sum the per-map stock dumps, add this mod's known perk-field delta,
+and compare against the highest total ever observed to work (Buried classic stock 63). If a map
+cannot take it, that map is dropped and the user is told which and why — not shipped short.
+
+### Implementation order when it starts
+
+1. `zone_source/mod_locations.zone` + `zm_tomb_patch.ff` appended to `--load`; link; audit asset list
+2. the 4 sound aliases + payloads
+3. server: adapt `_zm_powerup_zombie_blood.gsc` into `quality_of_life.gsc` (it is core-safe — no
+   map-specific references), `include_powerup( "zombie_blood" )`, and a `powerup_grab` hook
+   mirroring `tomb_powerup_grab`
+4. client: `init()` from a point inside the visionset window — **the same
+   `perks_register_clientfield()` slot Who's Who uses**, NOT client `main()`
+   ([[t6-visionset-registration-timing]])
+5. per-map gate function, one copy each side, exact twins
+
+---
+
 ## 🛑 CLOSED FOREVER — ELECTRIC CHERRY IS VANILLA AND STAYS VANILLA (user, 2026-08-09)
 
 **Do not re-open this. Do not "fix" it. Do not instrument it again.** Four rounds went into it; the
