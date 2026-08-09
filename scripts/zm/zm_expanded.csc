@@ -448,32 +448,9 @@ zmqol_enable_whoswho()
 	registerclientfield( "toplayer", "clientfield_whos_who_audio", 5000, 1, "int", ::zmqol_whoswho_audio, 0 );
 	registerclientfield( "toplayer", "clientfield_whos_who_filter", 5000, 1, "int", ::zmqol_whoswho_filter, 0 );
 
-	// 🛑 THE VISIONSET CANNOT BE REGISTERED FROM HERE - caught offline, and it
-	// would have hard-dropped every player on all three maps.
-	//
-	// vsmgr_register_visionset_info() reads level.vsmgr["visionset"], and on the
-	// CLIENT that array is created by clientscripts\mp\_visionset_mgr::init(),
-	// which is called from clientscripts\mp\zombies\_zm.csc:39 - i.e. inside the
-	// client's _zm::init(). This function runs from perks(), which runs from this
-	// script's main(), and main() is provably EARLIER than _zm::init(): the perk
-	// flags set in perks() are what _zm_perks.csc reads during that same init, and
-	// Who's Who's HUD icon works today, so the ordering is not in doubt.
-	//
-	// Called here it would land on an undefined level.vsmgr and do nothing -
-	// silently. The server still registers zm_whos_who inside
-	// _zm_perks::turn_chugabud_on() (:1448), so the two sides would end up with a
-	// different visionset COUNT, and the count is what sets the visionset_slot
-	// field width (finalize_type_clientfields -> getminbitcountfornum(size-1)).
-	// One extra server visionset = 2 bits vs the client's 1 = EXE_CLIENT_FIELD_
-	// MISMATCH for everyone at load. Die Rise gets away with the direct call only
-	// because it registers AFTER start_zombie_stuff() has run _zm::init().
-	//
-	// So: poll, and register the instant the manager exists. The window is wide -
-	// it opens at _zm.csc:39 and closes at finalize_clientfields(), which the
-	// engine only invokes via on_finalize_initialization_callback long after all
-	// map init - so a 0.05s poll started here catches it with a large margin.
-	// Same idiom the server side already uses in zmqol_whoswho_verify().
-	level thread zmqol_whoswho_register_visionset();
+	// 🛑 THE zm_whos_who VISIONSET IS NOT REGISTERED HERE. It cannot be - see the
+	// long block at the end of perks_register_clientfield() below, which is the
+	// one place in this script that runs inside the visionset manager's window.
 
 	// Maps generic_filter_afterlife into level.filter_matid so that
 	// enable_filter_afterlife() has a material id to hand the filter pass. Die
@@ -481,37 +458,6 @@ zmqol_enable_whoswho()
 	// (zm_highrise.csc:62-63); it waits for all clients itself before touching
 	// any player, so threading it from here is the same shape.
 	level thread clientscripts\mp\zombies\_zm_perks::chugabud_setup_afterlife_filters();
-}
-
-// ============================================================================
-//  zmqol_whoswho_register_visionset
-//
-//  See the block in zmqol_enable_whoswho() for why this is polled rather than
-//  called inline. Registers zm_whos_who the first frame the client visionset
-//  manager exists, which must happen or the server's copy widens visionset_slot
-//  by a bit and every player is dropped at load.
-//
-//  Both guards matter: level.vsmgr["visionset"] must exist (or the call reads an
-//  undefined array), and vsmgr_initializing must still be 1 - _visionset_mgr.csc
-//  :231 asserts on exactly that, "All info registration in the visionset_mgr
-//  system must occur during the first frame while the system is initializing".
-// ============================================================================
-zmqol_whoswho_register_visionset()
-{
-	for ( i = 0; i < 400; i++ )
-	{
-		if ( isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "visionset" ] ) &&
-		     isdefined( level.vsmgr_initializing ) && level.vsmgr_initializing )
-		{
-			clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "zm_whos_who", 5000, 1, "zm_whos_who", "zm_whos_who" );
-			println( "[zm_qol] whoswho CLIENT: zm_whos_who visionset registered after " + ( i * 0.05 ) + "s" );
-			return;
-		}
-
-		wait 0.05;
-	}
-
-	println( "[zm_qol] whoswho CLIENT: 🛑 visionset manager never became available - zm_whos_who NOT registered, expect a visionset_slot mismatch" );
 }
 
 // ============================================================================
@@ -1223,6 +1169,52 @@ perks_register_clientfield()
 			}
 		}
 	}
+	// ========================================================================
+	//  🛑 THE zm_whos_who VISIONSET IS REGISTERED HERE, AND ONLY HERE.
+	//
+	//  v1.63.1 booted to:
+	//      Clientfield 'visionset_slot' in set[toplayer] is not registered with
+	//      the same bit count as the server : [CLIENT: 1  SERVER : 2]
+	//  The server registered one visionset more than the client, so the slot
+	//  field came out 2 bits server-side and 1 bit client-side and every player
+	//  was dropped at load.
+	//
+	//  TWO earlier placements were wrong, and the second one is the lesson:
+	//    1. inline in perks() (main()) - level.vsmgr does not exist yet, because
+	//       clientscripts\mp\_visionset_mgr::init() is only reached at
+	//       clientscripts\mp\zombies\_zm.csc:39, and this script's main() runs
+	//       before that.
+	//    2. a `wait 0.05` poller waiting for the manager to appear - ALSO WRONG.
+	//       🌟 THE ENTIRE CLIENT INIT IS SYNCHRONOUS. _zm.csc::init() runs
+	//       _visionset_mgr::init() and everything after it without ever yielding,
+	//       and the engine fires finalize_clientfields() through
+	//       on_finalize_initialization_callback in that same unbroken sequence.
+	//       A thread that waits even one frame wakes with vsmgr_initializing
+	//       already 0 - the window has closed. It registered nothing and, being a
+	//       client script, printed nothing either. Do not "just poll for it".
+	//
+	//  This function is the correct home purely because of WHERE stock calls it:
+	//      _zm.csc:39   clientscripts\mp\_visionset_mgr::init()      <- opens
+	//      _zm.csc:~63  clientscripts\mp\zombies\_zm_perks::init()
+	//                     -> perks_register_clientfield()            <- HERE
+	//                   ... on_finalize_initialization                <- closes
+	//  Same synchronous run, strictly after the manager exists and strictly
+	//  before finalize. It is also a function this mod already owns by
+	//  replaceFunc (line 47), so it costs no new hook.
+	//
+	//  The server's half is stock's own, in _zm_perks::turn_chugabud_on() (:1448),
+	//  gated on level.vsmgr_prio_visionset_zm_whos_who - which
+	//  quality_of_life.gsc::zmqol_enable_whoswho() sets on exactly the same map
+	//  list zmqol_whoswho_enabled() returns here. Both sides must agree or the
+	//  bit count diverges again.
+	//
+	//  Guarded on the manager being present so that if this ordering ever changes
+	//  it degrades to "visionset not registered" instead of erroring out of the
+	//  whole clientfield pass, which would break far more than Who's Who.
+	// ========================================================================
+	if ( zmqol_whoswho_enabled() && isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "visionset" ] ) )
+		clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "zm_whos_who", 5000, 1, "zm_whos_who", "zm_whos_who" );
+
 	level thread perk_init_code_callbacks();
 }
 
