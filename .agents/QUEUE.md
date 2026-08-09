@@ -8,7 +8,64 @@ acknowledged, not begun.
 
 ---
 
-## ⏳ IN FLIGHT — v1.62.7, Electric Cherry's zap: mod.ff was shipping the WRONG SHADER
+## ⏳ IN FLIGHT — v1.62.8, Electric Cherry's BEHAVIOUR: owned and instrumented
+
+**DEPLOYED, NOT YET BOOTED.** `.gsc` only — `mod.ff` untouched, so v1.62.7's fx fix rides along.
+
+**User, 2026-08-09, rejecting the "it's just stock" answer:** *"i had a crowd of zombies attacking me
+and i was in god mode and i had electric cherry, kept activating electric cherry's zap by shooting
+and reloading and it did nothing, maybe sometimes it'd hit like one zombie and it wouldn't even kill
+it… it's bugged. You need to fix whatever's causing it. Don't halucinate."*
+
+### What is now RULED OUT — do not re-tread
+
+| ruled out | how |
+|---|---|
+| the fx | all six EC effects in `mod.ff` are **byte-identical to `zm_prison.ff`'s** — each extracted back out of the built `mod.ff` and hashed |
+| the mod modifying the perk | no `replaceFunc` touches any `_zm_perk_electric_cherry` function; `give_perk`'s override keeps the `[[ player_thread_give ]]()` line |
+| a map-specific script gap | `patch_zm.ff` **owns** `maps/mp/zombies/_zm_perk_electric_cherry.gsc` and loads on every map (`zm_prison_patch.ff` holds only a `script,,` reference) |
+| a silent target cap | `get_array_of_closest( org, array, excluders, max, maxdist )` (`maps\mp\_utility.gsc:1773`) — `undefined, undefined, perk_radius` really is max=all, maxdist=radius |
+
+So the code being run **is** stock. What could not be settled from the files is what stock's
+arithmetic evaluates to live.
+
+### What shipped — measure, do not guess
+
+`level._custom_perks["specialty_grenadepulldeath"].player_thread_give` is re-pointed at our own copy
+of `electric_cherry_reload_attack`. **A pointer re-point, not a `replaceFunc`** — CLAUDE.md §4
+failure mode 2's own prescribed fix, and the only route `give_perk` uses. Applies on **every** map
+including Mob and Origins.
+
+The copy is line-for-line stock **except one fix**: stock parks the weapon in `self.wait_on_reload`
+on `reload_start` and releases it only when the engine fires `"reload"` on completion
+(`:332-350`). **A cancelled reload never releases it, so the NEXT reload is skipped entirely** — no
+fx, no damage. `zmqol_ec_reload_watchdog()` releases the latch after the weapon's own reload time
++ 2s. That is a defect in any reading and matches *"half of the time it does nothing"*.
+
+🛑 **Radius (32→128), damage (1→1045) and the consecutive-reload throttle (∞, ∞, 8, 4, 2, then
+ZERO) are left at stock's numbers** — changing them is a balance call that is the user's, not a bug
+fix. Every one of them is now printed.
+
+**New log lines — one boot names the cause:**
+```
+[zm_qol] EC: took over reload attack on <map> after Ns
+[zm_qol] EC: attack #N wpn=… clip=7/30 radius=99 dmg=782 limit=8 zombies_alive=24 in_radius=3 nearest=41
+[zm_qol] EC: THROTTLED to zero - stock's consecutive-reload limit …
+[zm_qol] EC: SKIPPED - <wpn> still latched from an unfinished reload
+[zm_qol] EC: watchdog released <wpn> - that reload was cancelled …
+[zm_qol] EC: resolved - touched N zombie(s), M were under the damage threshold
+```
+
+**TEST: repeat exactly what you did — crowd of zombies, god mode, shoot and reload — then send the
+log.** `in_radius=0` with `zombies_alive` high means the radius curve; `THROTTLED to zero` means the
+throttle; anything else is a real bug and the numbers will name it.
+
+Verified: parses (`gsc-tool`); deployed `mod.iwd` carries all four new symbols; `mod.ff` md5
+unchanged from v1.62.7.
+
+---
+
+## 0aab. DONE (deployed, fx CONFIRMED IMPROVED) — v1.62.7, mod.ff was shipping the WRONG SHADER
 
 **DEPLOYED, NOT YET BOOTED.** No script changed — this is a `build_ff.bat` `--load` order fix only.
 
