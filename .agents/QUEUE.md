@@ -8,9 +8,92 @@ acknowledged, not begun.
 
 ---
 
-## ⏳ IN FLIGHT — v1.62.8, Electric Cherry's BEHAVIOUR: owned and instrumented
+## ⏳ IN FLIGHT — v1.62.9, Electric Cherry: the probe answered, two real defects removed
 
-**DEPLOYED, NOT YET BOOTED.** `.gsc` only — `mod.ff` untouched, so v1.62.7's fx fix rides along.
+**DEPLOYED, NOT YET BOOTED.** `.gsc` only — `mod.ff` md5 unchanged from v1.62.7 (`587f2f7c`), so
+the shader fix rides along.
+
+### 🌟 THE PROBE ANSWERED THE QUESTION — the perk was stock, and running correctly
+
+v1.62.8's log, 14 reloads, one boot on Diner. **Every reload was at 65–97% clip.** Electric Cherry's
+power is bought with the magazine:
+
+```
+radius = linear_map( clip_fraction, 1.0, 0.0,  32, 128 )   full clip -> 32 units,  empty -> 128
+dmg    = linear_map( clip_fraction, 1.0, 0.0,   1, 1045 )  full clip -> 1 damage,  empty -> 1045
+```
+
+| what the user did | radius | dmg | result |
+|---|---|---|---|
+| clip 39/40 (typical) | 34 | 27 | 1–3 zombies in range, none killed |
+| clip 5/8 (their best) | 68 | 392 | still no kills at that round |
+| clip 0/40 (never done) | **128** | **1045** | the horde zap they expected |
+
+Every radius/damage pair in the log reproduces stock's formula exactly, so **the mod was running the
+genuine perk, unmodified.** Not a defect — the designed mechanic. **To get the horde-wide zap, empty
+the mag.** Reimagined, the project's reference, also leaves both curves untouched.
+
+🛑 **User's call, asked directly 2026-08-09: keep stock's curve, fix only the real defects.** Radius
+and damage are therefore UNCHANGED. They were offered a raised floor and a flat-max option and
+declined both.
+
+### What shipped — three defects out, curves untouched
+
+1. **The consecutive-reload throttle is deleted.** Stock capped attack #3 at 4 zombies, #4 at 2, and
+   **#5+ at ZERO** — a reload that costs a magazine and silently does nothing, with no feedback of
+   any kind. Reimagined deletes it outright (`_zm_perk_electric_cherry.gsc:66`).
+2. **The 0.1s per-zombie damage stagger is deleted.** Stock waited 0.1s before EACH `dodamage`, so a
+   crowd of 20 resolved over two full seconds — the zap trickled instead of landing. Reimagined
+   damages the whole array in one frame. The loop stays bounded by `a_zombies.size`, so removing its
+   only wait carries no unterminated-loop risk, and both fx helpers use Treyarch's own
+   `network_safe_play_fx_on_tag` throttle.
+3. **The reload latch watchdog** from v1.62.8, kept. (No `SKIPPED` lines appeared in the log, so it
+   was not what the user was hitting — but it is still a real defect and stays fixed.)
+
+📝 Also fixed the v1.62.8 log line itself: `n_zombies_hit` was only incremented inside the throttle
+branch, so `touched N` always printed **0** once the throttle was inactive. It counts properly now.
+
+### 🛑 A REGRESSION CAUGHT OFFLINE — Origins ships its OWN copy of this function
+
+`zm_tomb.gsc:2003` defines `tomb_custom_electric_cherry_reload_attack` and `:178` registers it in
+place of core's. **Owning the perk globally replaces it**, so its two deliberate differences had to
+be carried or Origins would have silently regressed:
+
+| difference | why it matters |
+|---|---|
+| raw `getaispeciesarray( "axis", "all" )`, not `get_round_enemy_array()` | the latter filters `.ignore_enemy_count` actors, and `_zm_ai_mechz.gsc:532` sets that flag on **the Panzer Soldat** — core's array would have dropped the Panzer out of the zap entirely on Origins |
+| stun guarded on `.is_mechz`, not `.is_brutus` | without it, owning the perk globally would `animscripted()` a Panzer, which stock deliberately never does |
+
+Both are carried inline, the stun guard as the **union** of the two flags — `is_brutus` exists only
+in Mob's `_zm_ai_brutus.gsc` and `is_mechz` only in Origins' scripts, so only one can ever be defined
+on a given map and the union is exactly each map's own guard.
+
+Origins is the **only** map that overrides this: three hits for
+`register_perk_threads( "specialty_grenadepulldeath" )` across all 2,093 stock scripts — core,
+Origins, and TranZit's identical copy of core.
+
+### TEST
+
+**Empty a full magazine, then reload with a crowd on you.** That is the case that was never tried.
+Expect radius 128 / damage 1045 — the whole close ring shocked and killed at once, not trickling.
+
+Then **reload-spam five times in a row**; #5 used to do literally nothing and now works.
+
+Log line (throttle field removed, counter now honest):
+```
+[zm_qol] EC: attack #N wpn=… clip=0/40 radius=128 dmg=1045 zombies_alive=24 in_radius=11 nearest=31
+[zm_qol] EC: resolved - touched 11 zombie(s), 11 were under the damage threshold
+```
+
+Verified: parses (`gsc-tool`); deployed `mod.iwd` **byte-identical to source** and carries all four
+changes (mechz guard, Origins array branch, throttle gone, stagger gone); `mod.ff` md5 unchanged.
+
+---
+
+## 0aac. SUPERSEDED by v1.62.9 — v1.62.8, Electric Cherry's BEHAVIOUR: owned and instrumented
+
+**BOOTED 2026-08-09 — the probe worked and named the cause. See v1.62.9 above; this section is kept
+for the ruled-out table only.**
 
 **User, 2026-08-09, rejecting the "it's just stock" answer:** *"i had a crowd of zombies attacking me
 and i was in god mode and i had electric cherry, kept activating electric cherry's zap by shooting
