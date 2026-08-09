@@ -519,6 +519,44 @@ disable_zombie_spawn_locations()
 			{
 				zone.spawn_locations[i].is_enabled = false;
 			}
+			// zm_qol 2026-08-09: 🛑 THE "ZOMBIE HOPS THROUGH A FULLY BOARDED WINDOW" BUG.
+			//
+			// These two are zone_diner_roof's ONLY regular-zombie spawners, and both sit
+			// on the GROUND ~220 units SOUTH of the diner's window line (the barriers are
+			// at y = -8035; the diner interior is north of them). Reimagined never hit
+			// this because it disables zone_diner_roof outright; this project deliberately
+			// keeps that zone enabled so the roof is tracked for the Pack-a-Punch climb
+			// (see main() above), which switched these two back on.
+			//
+			// Why they let a zombie walk through six intact planks - every link measured,
+			// not inferred:
+			//   1. both carry script_string "find_flesh"  (zm_transit mapents)
+			//   2. _zm_spawner::should_skip_teardown() returns TRUE for exactly that
+			//      string, so zombie_think() takes the early-return branch and NEVER
+			//      calls tear_into_building() - no boards, no attack spot, no teardown
+			//   3. they free-path with find_flesh() instead, and the diner barrier carries
+			//      a node_negotiation_begin with animscript "zm_mantle_over_40"
+			//   4. _zm_blockers::blocker_disconnect_paths() - the one thing that would
+			//      close that path while boards are up - is an EMPTY STUB. Confirmed by
+			//      decompiling the shipped patch_zm.ff copy, not just the gsc-dump.
+			// So the mantle node is always live and the shortest route from spawn to a
+			// player inside is straight over the window. Exactly "hopped over straight
+			// through this barrier while all 6 planks were built".
+			//
+			// 🌟 Disabling these two is complete and side-effect free: the zone's other
+			// three spawners are tagged dog_location / avogadro_location, which
+			// _zm_zonemgr.gsc:227-248 files into zone.dog_locations / .avogadro_locations
+			// and NEVER into zone.spawn_locations. This loop only walks spawn_locations,
+			// so hellhounds and the Avogadro are untouched and the roof loses nothing -
+			// it never had a regular-zombie spawner up there to begin with.
+			else if (zone.spawn_locations[i].origin == (-5756.5, -8254, -0.86))
+			{
+				zone.spawn_locations[i].is_enabled = false;
+			}
+			else if (zone.spawn_locations[i].origin == (-6171.5, -8270, -4.39))
+			{
+				zone.spawn_locations[i].is_enabled = false;
+			}
 
 			i++;
 		}

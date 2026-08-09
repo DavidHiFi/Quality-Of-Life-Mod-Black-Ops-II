@@ -5237,6 +5237,24 @@ zmqol_whoswho_enabled()
     if ( map == "zm_prison" )     // no specialty_quickrevive_zombies - stage 2
         return 0;
 
+    // 🛑 BURIED IS DROPPED - the user's call, 2026-08-09, and it is a budget wall,
+    // not a preference. The perk's corpse-glow field needs 1 bit in the `actor`
+    // clientfield set and Buried's classic mode uses all 32 already. Counted from
+    // the per-map runtime dump, field by field, not estimated:
+    //   Black Ops 2 Grand Resources\...\Clientfields\clientfields_zm_buried_zclassic_processing.txt
+    //   21 actor fields -> 32/32  (anim_rate 5, ghost_fx 3, sndGhostAudio 3,
+    //   slowgun_fx 3, vulture_perk_actor 2, plus 16 one-bit fields)
+    // A 33rd bit is fatal at load, and this project has already hit that exact
+    // error on Origins: "Trying to assign 1 bits for netfield zone_capture_zombie
+    // but Client Field Set ACTOR is out of space".
+    //
+    // Buried SURVIVAL only uses 13/32, so the perk could ship there and not in
+    // classic - but a perk that exists in one mode of a map and not the other is
+    // the kind of half-implementation this project does not ship. Asked and
+    // answered: drop it on Buried entirely.
+    if ( map == "zm_buried" )
+        return 0;
+
     return 1;
 }
 
@@ -5268,6 +5286,58 @@ zmqol_enable_whoswho()
         return;
 
     level.zombiemode_using_chugabud_perk = 1;
+
+    // ========================================================================
+    //  THE VISUAL / AUDIO HALF - user 2026-08-09: "Who's Who is still missing
+    //  its visual overlay fx when downed and in the self-revive state."
+    //
+    //  Correct, and the cause is one level var. EVERY effect Who's Who has lives
+    //  inside _zm_chugabud::activate_chugabud_effects_and_audio() (:745), and
+    //  that whole function body is wrapped in
+    //        if ( isdefined( level.whos_who_client_setup ) )
+    //  The corpse glow at :71-72 is behind the same flag. Only zm_highrise.gsc:81
+    //  ever sets it, so off Die Rise the perk ran with its functionality intact
+    //  and every single effect skipped - silently, because the gate is an
+    //  isdefined and not an error.
+    //
+    //  Setting the flag is not enough on its own: it makes stock write three
+    //  clientfields that nothing registered, so they must be registered here
+    //  FIRST, with zm_highrise's exact names, versions, bit counts and types
+    //  (zm_highrise.gsc:78-80). The client twin in zm_expanded.csc registers the
+    //  same three with their callbacks - if the two sides ever disagree, that is
+    //  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+    //
+    //  🛑 BIT BUDGET, measured per map, not assumed. Only the `actor` field costs
+    //  scarce space; the ceiling is 32 and Buried's classic mode already sits
+    //  exactly on it, which is why zmqol_whoswho_enabled() drops Buried:
+    //        zm_transit   5/32 classic, 4/32 survival  -> fits easily
+    //        zm_nuked     4/32                         -> fits easily
+    //        zm_tomb     31/32                         -> lands on exactly 32/32
+    //        zm_buried   32/32 classic                 -> DROPPED
+    //  Origins therefore has ZERO margin after this. 32 is provably attainable -
+    //  stock Buried classic ships at exactly 32 - but nothing else may ever take
+    //  an actor bit on Origins again.
+    //
+    //  📝 level.chugabud_shellshock is deliberately NOT set. It gates
+    //  self shellshock( "whoswho", 60 ) at :752, and grepping all 2,093 stock
+    //  scripts finds it assigned NOWHERE - so the shellshock never fires in stock
+    //  either. Adding it would make this port louder than the original, which is
+    //  the mistake v1.62.9 made with Electric Cherry.
+    // ========================================================================
+    registerclientfield( "actor",    "clientfield_whos_who_clone_glow_shader", 5000, 1, "int" );
+    registerclientfield( "toplayer", "clientfield_whos_who_audio",             5000, 1, "int" );
+    registerclientfield( "toplayer", "clientfield_whos_who_filter",            5000, 1, "int" );
+
+    level.whos_who_client_setup = 1;
+
+    // Gates the zm_whos_who visionset. Stock registers it inside
+    // _zm_perks::turn_chugabud_on() (:1448-1449), which _zm_perks::init() threads
+    // off level.zombiemode_using_chugabud_perk - so this var only has to exist by
+    // the time init() runs, and perks() runs in main(). 123 is zm_highrise's own
+    // priority (zm_highrise.gsc:133-134), kept identical.
+    if ( !isdefined( level.vsmgr_prio_visionset_zm_whos_who ) )
+        level.vsmgr_prio_visionset_zm_whos_who = 123;
+
     level thread zmqol_whoswho_verify();
 }
 

@@ -404,6 +404,36 @@ xmodel,t6_wpn_zmb_perk_bottle_whoswho_world
 weapon,zombie_perk_bottle_whoswho
 material,specialty_chugabud_zombies
 
+// ----------------------------------------------------------------------------
+//  v1.63.0 - THE PERK'S VISUALS. User 2026-08-09: "Who's Who is still missing
+//  its visual overlay fx when downed and in the self-revive state."
+//
+//  Two assets, and BOTH exist in exactly ONE fastfile - zm_highrise.ff.
+//  Verified with Unlinker --list over zm_highrise, zm_prison, zm_transit,
+//  zm_buried, zm_tomb, zm_nuked, common_zm, patch_zm and code_post_gfx_zm: no
+//  other zone carries either name, and neither was already in mod.ff.
+//
+//      generic_filter_afterlife   the full-screen filter material that IS the
+//                                 overlay. _zm_perks.csc::init_filter_afterlife
+//                                 maps it into level.filter_matid and
+//                                 enable_filter_afterlife() hands that id to
+//                                 filter pass 5.
+//      vision/zm_whos_who.vision  the visionset _zm_perks::turn_chugabud_on
+//                                 registers and activate_chugabud_effects_and_
+//                                 audio() activates.
+//
+//  Same shape as two assets this project already ships successfully:
+//  generic_filter_zombie_perk_vulture (a filter material) and
+//  vision/zm_electric_cherry.vision (a visionset rawfile, three lines above).
+//
+//  🛑 zm_highrise.ff is already in build_ff.bat's --load list, so these are
+//  byte-copies of Die Rise's own. mod.ff will now OWN them, which means Die
+//  Rise reads our copy instead of its own - identical bytes, but AUDIT THE
+//  ASSET LIST AFTER LINKING and boot Die Rise.
+// ----------------------------------------------------------------------------
+material,generic_filter_afterlife
+rawfile,vision/zm_whos_who.vision
+
 // ============================================================================
 //  FIRE SALE  -  on the two maps that never had it
 //

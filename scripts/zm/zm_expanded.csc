@@ -409,6 +409,12 @@ zmqol_whoswho_enabled()
 	if ( map == "zm_prison" )     // no specialty_quickrevive_zombies - stage 2
 		return 0;
 
+	// 🛑 EXACT TWIN of quality_of_life.gsc::zmqol_whoswho_enabled(). Buried is
+	// dropped because its classic-mode `actor` clientfield set is 32/32 and the
+	// corpse-glow field needs one more bit. Full counts in the server copy.
+	if ( map == "zm_buried" )
+		return 0;
+
 	return 1;
 }
 
@@ -418,6 +424,152 @@ zmqol_enable_whoswho()
 		return;
 
 	level.zombiemode_using_chugabud_perk = 1;
+
+	// ========================================================================
+	//  THE CLIENT HALF OF WHO'S WHO'S VISUALS - the mandatory twin of
+	//  quality_of_life.gsc::zmqol_enable_whoswho(). Read the long block there
+	//  first; this comment only covers what is client-specific.
+	//
+	//  Names, versions, bit counts and types are copied verbatim from Die Rise's
+	//  own registrations (zm_highrise.csc:83-86) and MUST stay byte-identical to
+	//  the server's three or the engine drops every player at load.
+	//
+	//  🛑 TWO OF STOCK'S THREE CALLBACKS CANNOT BE NAMED FROM HERE.
+	//  clientscripts\mp\zm_highrise_amb::whoswhoaudio and ::whoswhofilter are
+	//  MAP-SPECIFIC. A `::` reference resolves at script LOAD time, not when the
+	//  line runs, so naming them from this root client script would throw
+	//  "Unresolved external" on every map that is not Die Rise - AI_CONTEXT rule
+	//  2, and a runtime `if ( level.script == ... )` guard does not help. So the
+	//  two callbacks below are ours, and they are line-for-line what Die Rise's
+	//  do. The third, _zm_perks::chugabud_whos_who_shader, is CORE and safe to
+	//  name directly.
+	// ========================================================================
+	registerclientfield( "actor", "clientfield_whos_who_clone_glow_shader", 5000, 1, "int", clientscripts\mp\zombies\_zm_perks::chugabud_whos_who_shader, 0 );
+	registerclientfield( "toplayer", "clientfield_whos_who_audio", 5000, 1, "int", ::zmqol_whoswho_audio, 0 );
+	registerclientfield( "toplayer", "clientfield_whos_who_filter", 5000, 1, "int", ::zmqol_whoswho_filter, 0 );
+
+	// 🛑 THE VISIONSET CANNOT BE REGISTERED FROM HERE - caught offline, and it
+	// would have hard-dropped every player on all three maps.
+	//
+	// vsmgr_register_visionset_info() reads level.vsmgr["visionset"], and on the
+	// CLIENT that array is created by clientscripts\mp\_visionset_mgr::init(),
+	// which is called from clientscripts\mp\zombies\_zm.csc:39 - i.e. inside the
+	// client's _zm::init(). This function runs from perks(), which runs from this
+	// script's main(), and main() is provably EARLIER than _zm::init(): the perk
+	// flags set in perks() are what _zm_perks.csc reads during that same init, and
+	// Who's Who's HUD icon works today, so the ordering is not in doubt.
+	//
+	// Called here it would land on an undefined level.vsmgr and do nothing -
+	// silently. The server still registers zm_whos_who inside
+	// _zm_perks::turn_chugabud_on() (:1448), so the two sides would end up with a
+	// different visionset COUNT, and the count is what sets the visionset_slot
+	// field width (finalize_type_clientfields -> getminbitcountfornum(size-1)).
+	// One extra server visionset = 2 bits vs the client's 1 = EXE_CLIENT_FIELD_
+	// MISMATCH for everyone at load. Die Rise gets away with the direct call only
+	// because it registers AFTER start_zombie_stuff() has run _zm::init().
+	//
+	// So: poll, and register the instant the manager exists. The window is wide -
+	// it opens at _zm.csc:39 and closes at finalize_clientfields(), which the
+	// engine only invokes via on_finalize_initialization_callback long after all
+	// map init - so a 0.05s poll started here catches it with a large margin.
+	// Same idiom the server side already uses in zmqol_whoswho_verify().
+	level thread zmqol_whoswho_register_visionset();
+
+	// Maps generic_filter_afterlife into level.filter_matid so that
+	// enable_filter_afterlife() has a material id to hand the filter pass. Die
+	// Rise threads this from its client main() behind the same perk flag
+	// (zm_highrise.csc:62-63); it waits for all clients itself before touching
+	// any player, so threading it from here is the same shape.
+	level thread clientscripts\mp\zombies\_zm_perks::chugabud_setup_afterlife_filters();
+}
+
+// ============================================================================
+//  zmqol_whoswho_register_visionset
+//
+//  See the block in zmqol_enable_whoswho() for why this is polled rather than
+//  called inline. Registers zm_whos_who the first frame the client visionset
+//  manager exists, which must happen or the server's copy widens visionset_slot
+//  by a bit and every player is dropped at load.
+//
+//  Both guards matter: level.vsmgr["visionset"] must exist (or the call reads an
+//  undefined array), and vsmgr_initializing must still be 1 - _visionset_mgr.csc
+//  :231 asserts on exactly that, "All info registration in the visionset_mgr
+//  system must occur during the first frame while the system is initializing".
+// ============================================================================
+zmqol_whoswho_register_visionset()
+{
+	for ( i = 0; i < 400; i++ )
+	{
+		if ( isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "visionset" ] ) &&
+		     isdefined( level.vsmgr_initializing ) && level.vsmgr_initializing )
+		{
+			clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "zm_whos_who", 5000, 1, "zm_whos_who", "zm_whos_who" );
+			println( "[zm_qol] whoswho CLIENT: zm_whos_who visionset registered after " + ( i * 0.05 ) + "s" );
+			return;
+		}
+
+		wait 0.05;
+	}
+
+	println( "[zm_qol] whoswho CLIENT: 🛑 visionset manager never became available - zm_whos_who NOT registered, expect a visionset_slot mismatch" );
+}
+
+// ============================================================================
+//  zmqol_whoswho_filter  -  THE OVERLAY THE USER REPORTED MISSING
+//
+//  Line-for-line clientscripts\mp\zm_highrise_amb::whoswhofilter (:152-164),
+//  rewritten here only because that file is map-specific (see above). Filter
+//  slot 5 is Die Rise's own choice and is kept.
+// ============================================================================
+zmqol_whoswho_filter( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	player = getlocalplayers()[localclientnum];
+
+	if ( !isdefined( player ) )
+		return;
+
+	if ( newval == 1 )
+		clientscripts\mp\zombies\_zm_perks::enable_filter_afterlife( player, 5 );
+	else
+		clientscripts\mp\zombies\_zm_perks::disable_filter_afterlife( player, 5 );
+}
+
+// ============================================================================
+//  zmqol_whoswho_audio
+//
+//  Die Rise's ::whoswhoaudio calls activatewwaudio()/deactivatewwaudio()
+//  (zm_highrise_amb.csc:166-183), which do three things: a one-shot sting
+//  (evt_ww_activate), a looper on a spawned script_origin (evt_ww_looper), and
+//  the zmb_duck_ww mixer snapshot.
+//
+//  🛑 THE TWO ALIASES ARE DIE RISE-ONLY - measured, not assumed. Dumped every
+//  soundbank from zm_highrise, zm_transit, zm_tomb, zm_nuked and common_zm with
+//  Unlinker --include-assets soundbank and grepped the alias CSVs: both names
+//  appear ONLY in zmb_highrise.all. A missing alias is SILENT, never an error,
+//  so this would have shipped as a dead call with nothing in any log.
+//  They are therefore re-shipped under mod-private names in this mod's own
+//  soundbank (soundbank\mod.all.aliases.additions.csv), the same route already
+//  proven by zmqol_cherry_zap.
+// ============================================================================
+zmqol_whoswho_audio( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	if ( newval == 1 )
+	{
+		if ( !isdefined( level.zmqol_ww_sndent ) )
+			level.zmqol_ww_sndent = spawn( localclientnum, ( 0, 0, 0 ), "script_origin" );
+
+		playsound( localclientnum, "zmqol_ww_activate", ( 0, 0, 0 ) );
+		level.zmqol_ww_sndent playloopsound( "zmqol_ww_looper", 3 );
+	}
+	else
+	{
+		if ( isdefined( level.zmqol_ww_sndent ) )
+		{
+			level.zmqol_ww_sndent stoploopsound( 1 );
+			level.zmqol_ww_sndent delete();
+			level.zmqol_ww_sndent = undefined;
+		}
+	}
 }
 
 // ============================================================================

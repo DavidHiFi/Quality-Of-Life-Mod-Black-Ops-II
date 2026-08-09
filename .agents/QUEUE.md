@@ -29,7 +29,155 @@ Who's Who, Zombie Blood, Blood Money, the wall-buys and everything after them.
 
 ---
 
-## ⏳ IN FLIGHT — v1.62.10, Electric Cherry REVERTED to stock on every map
+## ⏳ IN FLIGHT — v1.63.1: barrier bug fixed, Who's Who visuals ported, EC answered from the clip
+
+**DEPLOYED, NOT YET BOOTED.** `.gsc` + `.csc` + `mod.ff` + both sound banks. Three reports, one build.
+
+---
+
+### 1. ✅ THE BOARDED-WINDOW BUG — root-caused to two spawners, fixed
+
+**User:** *"I just watched a zombie hop over straight through this barrier while all 6 planks were
+built"* (Diner Survival, screenshot at `.where` = x -5566 y -7920).
+
+**Every link measured, nothing inferred:**
+
+| # | finding | how it was measured |
+|---|---|---|
+| 1 | `zone_diner_roof`'s only two REGULAR-zombie spawners sit on the ground at **(-5756.5,-8254)** and **(-6171.5,-8270)** — ~220u SOUTH of the diner window line (barriers at y=-8035) | `Unlinker --include-assets mapents zm_transit.ff` |
+| 2 | both carry `script_string "find_flesh"` | same dump |
+| 3 | `_zm_spawner::should_skip_teardown()` returns **true** for exactly that string, so `zombie_think()` early-returns and **never calls `tear_into_building()`** — no boards, no attack spot, no teardown | stock source |
+| 4 | they free-path with `find_flesh()`, and the diner barrier has a `node_negotiation_begin` with `animscript "zm_mantle_over_40"` — the "hop over" | mapents |
+| 5 | 🌟 `_zm_blockers::blocker_disconnect_paths()`, the one thing that would close that path while boards are up, is an **EMPTY STUB** | **decompiled the shipped `patch_zm.ff` copy**, not just the gsc-dump |
+
+So the mantle node is permanently live and the shortest route from spawn to a player inside is
+straight over the intact window.
+
+**Why this is ours and not stock's:** Reimagined disables `zone_diner_roof` outright
+(`zm_transit_loc_diner.gsc:154`). This project deliberately re-enabled it so the roof is a tracked
+zone for the Pack-a-Punch climb — which switched those two spawners back on.
+
+**The fix** — two more origin matches in `disable_zombie_spawn_locations()`, the same mechanism
+Reimagined already uses there for four other problem spawners.
+
+🌟 **Complete and side-effect free, and that is measured too:** the zone's other three spawners are
+tagged `dog_location` / `avogadro_location`, which `_zm_zonemgr.gsc:227-248` files into
+`zone.dog_locations` / `.avogadro_locations` and **never** into `zone.spawn_locations`. This loop
+only walks `spawn_locations`, so hellhounds and the Avogadro are untouched and the roof loses
+nothing — it never had a regular-zombie spawner on it.
+
+---
+
+### 2. ✅ WHO'S WHO — the visuals ported, and one fatal bug caught before shipping
+
+**User:** *"Who's Who is still missing its visual overlay fx when downed and in the self-revive state."*
+
+**Cause: one level var.** Every effect the perk has lives inside
+`_zm_chugabud::activate_chugabud_effects_and_audio()` (:745) and the whole body is wrapped in
+`if ( isdefined( level.whos_who_client_setup ) )`. The corpse glow at :71-72 is behind the same flag.
+**Only `zm_highrise.gsc:81` ever sets it**, so off Die Rise the perk ran with its functionality
+intact and every single effect skipped — silently, because the gate is an `isdefined`, not an error.
+
+**Shipped, both sides symmetric:**
+- server: the three stock clientfields (`clientfield_whos_who_clone_glow_shader` actor 1 bit,
+  `_audio` and `_filter` toplayer 1 bit each), `level.whos_who_client_setup = 1`,
+  `level.vsmgr_prio_visionset_zm_whos_who = 123`
+- client: the same three with callbacks — **our own** `zmqol_whoswho_filter` / `zmqol_whoswho_audio`,
+  because stock's live in map-specific `zm_highrise_amb.csc` and a `::` reference there resolves at
+  load time and would crash every other map (AI_CONTEXT rule 2). `chugabud_whos_who_shader` is core
+  and is referenced directly.
+- `mod.ff`: `material generic_filter_afterlife` + `rawfile vision/zm_whos_who.vision`, both
+  `zm_highrise.ff`-only, both byte-copies
+- sound: `evt_ww_activate` / `evt_ww_looper` are **Die Rise-only** (dumped every soundbank from
+  zm_highrise/zm_transit/zm_tomb/zm_nuked/common_zm and grepped the alias CSVs), so they are
+  re-shipped as `zmqol_ww_activate` / `zmqol_ww_looper` through the mod's own bank — the route
+  already proven by `zmqol_cherry_zap`
+
+#### 🛑 THE BUG THE PRE-MORTEM CAUGHT — it would have hard-dropped three maps
+
+The first draft called `vsmgr_register_visionset_info()` inline from `perks()`. **That silently
+no-ops.** On the client `level.vsmgr` is created by `_visionset_mgr::init()`, called from
+`clientscripts\mp\zombies\_zm.csc:39` — inside the client `_zm::init()`. This mod's `.csc` `main()`
+runs **before** that, proven by the fact that the perk flags it sets are read during that same init
+and Who's Who's HUD icon works today. The server still registers `zm_whos_who` in
+`turn_chugabud_on()`, so the two sides would hold a different visionset **count**, and the count sets
+`visionset_slot`'s width (`finalize_type_clientfields` → `getminbitcountfornum(size-1)`) —
+`EXE_CLIENT_FIELD_MISMATCH` for everyone at load. Die Rise gets away with the direct call only
+because it registers *after* `start_zombie_stuff()` has run `_zm::init()`.
+
+Now polled by `zmqol_whoswho_register_visionset()`, which registers the first frame the manager
+exists and while `vsmgr_initializing` is still 1. The window opens at `_zm.csc:39` and closes only at
+`finalize_clientfields()` (an `on_finalize_initialization` callback, long after map init), so the
+margin is large.
+
+#### 🛑 BURIED IS DROPPED — budget wall, the user's call
+
+`actor` set, counted field by field from the per-map dumps:
+
+| map | stock actor | +1 glow bit |
+|---|---|---|
+| `zm_transit` | 5/32 classic, 4/32 survival | fits easily |
+| `zm_nuked` | 4/32 | fits easily |
+| `zm_tomb` | **31/32** | lands on exactly 32/32 — legal, but **zero margin forever** |
+| `zm_buried` | **32/32 classic** | would be 33 → fatal at load |
+
+Buried survival is only 13/32, but a perk present in one mode of a map and absent in the other is
+the half-implementation this project does not ship. Dropped entirely, as decided.
+
+📝 `level.chugabud_shellshock` is deliberately **not** set — it is assigned nowhere in the 2,093-file
+stock dump, so the shellshock never fires in stock either. Adding it would make the port louder than
+the original, which is the v1.62.9 mistake.
+
+---
+
+### 3. 📊 ELECTRIC CHERRY — the clip answered it completely. NO CODE CHANGE.
+
+`G:\Clips\NVIDIA\Plutonium\Plutonium 2026.08.09 - 16.40.39.03.DVR.mp4`, decoded to 68 frames.
+
+**The ammo counter across the whole 8.5s: `8/49 → 7/49 → 8/48 → 7/48 → 8/47 → 7/47 → 8/46`.
+One bullet fired, then reload. Every single time.** m1911, clip size 8, round 10.
+
+```
+fraction = 7/8 = 0.875
+radius   = linear_map(0.875, 1.0, 0.0,  32, 128) =  44 units
+damage   = linear_map(0.875, 1.0, 0.0,   1, 1045) = 131
+round-10 zombie health = 1045   (150, +100 for rounds 2-9 = 950, then 950 + int(95))
+1045 / 131 = 8 zaps to kill one zombie
+```
+
+**With an EMPTY mag: radius 128, damage 1045 — exactly round-10 health, so it one-shots the whole
+close ring.** The user's expectation is precisely right; Treyarch tuned max damage to round 10. It
+just needs an empty magazine, and a 7/8 clip buys ~12% of the perk.
+
+*"kept shooting and reloading and it did nothing at all"* is stock's consecutive-reload throttle:
+attack #3 caps at 8 zombies, #4 at 4, #5 at 2, **#6+ at ZERO**, reset only after
+`reload_time + 3` seconds without reloading.
+
+🛑 Verified against the **shipped bytecode**, not the gsc-dump: decompiled
+`maps/mp/zombies/_zm_perk_electric_cherry.gsc` straight out of `patch_zm.ff` — same curves, same
+throttle. The perk is running exactly as vanilla, so **nothing was changed** (the user has twice
+instructed not to modify it). Any change here is now a balance decision that is theirs to make.
+
+---
+
+### TEST
+
+1. **Diner Survival** — hold a window and watch. Nothing should cross intact boards.
+2. **Who's Who** on Diner / Nuketown / Origins — buy it, go down. Expect the blue afterlife screen
+   filter + the `zm_whos_who` vision, the sting and looper audio, and a glow on your downed body.
+   Log: `[zm_qol] whoswho CLIENT: zm_whos_who visionset registered after Ns`.
+   🛑 Boot **Die Rise** too — `mod.ff` now owns two of its assets.
+3. **Electric Cherry** — empty the mag completely, then reload into a crowd at round ≤10.
+
+Verified: all four scripts parse (incl. `-i client`); `mod.ff` links with 0 errors and the same 34
+pre-existing warnings; asset list 3811 → 3816, **the 5 additions and nothing else, nothing removed,
+nothing re-owned**; both new sound aliases and both payloads confirmed inside the built banks with
+byte-exact sizes; all 6 deployed files byte-identical to source; the three new client symbols
+confirmed inside the **deployed** `mod.ff`.
+
+---
+
+## ✅ v1.62.10 — Electric Cherry REVERTED to stock on every map
 
 **DEPLOYED, NOT YET BOOTED.** `.gsc` only — `mod.ff` md5 `587f2f7c…` unchanged.
 
