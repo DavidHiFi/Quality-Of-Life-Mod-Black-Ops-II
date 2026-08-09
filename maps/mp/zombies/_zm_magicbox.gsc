@@ -1499,9 +1499,39 @@ treasure_chest_give_weapon( weapon_string )
     {
         str_upgraded = level.zombie_weapons[weapon_string].upgrade_name;
 
-        if ( self hasweapon( str_upgraded ) )
+        // 🛑 v1.63.3 - hasweapon( str_upgraded ) WAS WRONG, and it only ever
+        // worked by accident.
+        //
+        // User 2026-08-09: KSG packed, re-pulled the KSG from the box, and it
+        // handed back the UNPACKED gun. Same with the LSAT after .pack.
+        //
+        // In T6 a weapon name carries its attachments as "weapon+attachment",
+        // and quality_of_life.gsc:373 sets level.zombiemode_reusing_pack_a_punch
+        // = 1 for this mod. With that flag on, _zm_weapons::get_upgrade_weapon()
+        // appends "+" + random_attachment() to the upgraded name (:1770-1775),
+        // and BOTH of this mod's upgrade paths ask for it - instant Pack-a-Punch
+        // (quality_of_life.gsc:1891) and the .pack command (:3744). So a packed
+        // KSG is actually held as "ksg_upgraded_zm+<att>" and the exact-name
+        // test hasweapon( "ksg_upgraded_zm" ) is FALSE. The check fell straight
+        // through to weapon_give(), which is the downgrade.
+        //
+        // 🌟 Why it looked like it worked: the bug this function was written for
+        // was the RAY GUN (v1.55.x, Origins). The Ray Gun takes no attachments,
+        // so its upgraded name has no suffix and the exact match succeeded. Every
+        // weapon that DOES take an attachment has been downgrading ever since -
+        // the feature was only ever correct for the one gun it was tested on.
+        //
+        // get_weapon_with_attachments() is stock's own answer (_zm_weapons.gsc
+        // :1836): it returns the exact held name whose BASE matches, walking
+        // getweaponslist(1) when reusing_pack_a_punch is set, and falls back to
+        // the plain hasweapon() test otherwise. So this stays correct on maps and
+        // modes where the flag is off, and the ammo now goes to the weapon the
+        // player is really holding rather than to a name they do not have.
+        str_held = self maps\mp\zombies\_zm_weapons::get_weapon_with_attachments( str_upgraded );
+
+        if ( isdefined( str_held ) )
         {
-            self givemaxammo( str_upgraded );
+            self givemaxammo( str_held );
             return;
         }
     }
