@@ -5120,12 +5120,35 @@ perks()
     zmqol_enable_vulture();
     zmqol_enable_whoswho();
 
-    // Owns Electric Cherry's reload attack on EVERY map that has the perk -
-    // including Mob and Origins, where stock registers it and zmqol_enable_
-    // electric_cherry() above deliberately returns early. See the block at
-    // zmqol_ec_take_over() for why this is a pointer re-point and not a
-    // replaceFunc.
-    level thread zmqol_ec_take_over();
+    // 🛑 STANDING RULE, user 2026-08-09: A PORTED PERK IS NEVER MODIFIED.
+    //
+    //  v1.62.8/v1.62.9 owned Electric Cherry's reload attack by re-pointing
+    //  level._custom_perks[...].player_thread_give at our own copy of
+    //  electric_cherry_reload_attack(), to instrument it and then to delete
+    //  stock's consecutive-reload throttle and its 0.1s per-zombie damage
+    //  stagger. Both deletions were real defects in stock's own terms and both
+    //  are now REVERTED, because they made the perk behave and LOOK different
+    //  from the one Mob of the Dead and Origins ship:
+    //
+    //    - no stagger  -> every zombie's tesla_shock fx started in the same
+    //                     frame instead of 0.1s apart, so the zap read as one
+    //                     bright mass rather than an arc travelling the crowd.
+    //    - no throttle -> reload #3+ played full-strength fx where stock plays
+    //                     a reduced set or none.
+    //
+    //  The user's instruction is that the job here is PORTING, not tuning:
+    //  *"don't change how electric cherry behaves because you're not meant to
+    //  change the perk just leave it alone and then port it over to the maps
+    //  that don't have it already. simple, same logic for literally any other
+    //  perk (eg. who's who)."*
+    //
+    //  So the perk now runs stock's own electric_cherry_reload_attack() on
+    //  every map, byte-for-byte the function Mob and Origins run. Everything
+    //  this mod still does for Electric Cherry is ADDITIVE and only fills a gap
+    //  the port leaves - the perk machine/Wunderfizz entry above, and
+    //  qol_options.gsc's zmqol_cherry_zap, which supplies the zmb_cherry_explode
+    //  audio on maps whose soundbanks lack Alcatraz's alias and is explicitly
+    //  skipped on zm_prison and zm_tomb.
 }
 
 // ============================================================================
@@ -5629,357 +5652,6 @@ zmqol_enable_electric_cherry()
     // whose first line calls init_electric_cherry() a second time. See above.
     if ( isdefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) )
         level._custom_perks[ "specialty_grenadepulldeath" ].perk_machine_thread = undefined;
-}
-
-// ============================================================================
-//  zmqol_ec_take_over  -  own Electric Cherry's reload attack, on every map
-//
-//  USER REPORT 2026-08-09, and they are right that the report has not been
-//  explained yet: *"i had a crowd of zombies attacking me and i was in god mode
-//  and i had electric cherry, kept activating electric cherry's zap by shooting
-//  and reloading and it did nothing, maybe sometimes it'd hit like one zombie
-//  and it wouldn't even kill it."*
-//
-//  🛑 WHAT WAS ALREADY RULED OUT, so nobody re-treads it:
-//    - the fx are correct. All six Electric Cherry effects in mod.ff are now
-//      BYTE-IDENTICAL to zm_prison.ff's (v1.62.7 load-order fix). Verified by
-//      extracting each back out of the built mod.ff and hashing.
-//    - the mod does not modify the perk. No replaceFunc touches any function in
-//      _zm_perk_electric_cherry, and this file's give_perk() override keeps the
-//      `[[ level._custom_perks[perk].player_thread_give ]]()` line that starts
-//      the attack thread.
-//    - the server script is not map-specific. patch_zm.ff owns
-//      maps/mp/zombies/_zm_perk_electric_cherry.gsc and loads on EVERY map
-//      (zm_prison_patch.ff carries only a `script,,` reference to it).
-//    - get_array_of_closest( org, array, excluders, max, maxdist ) really does
-//      take perk_radius as maxdist (maps\mp\_utility.gsc:1773), so the target
-//      filter is a plain radius test and nothing is being silently capped.
-//
-//  So the code being run IS stock, and the remaining question is what the stock
-//  arithmetic actually evaluates to in a live game. That cannot be settled from
-//  the files - so this owns the function and MEASURES it, rather than shipping a
-//  fix built on the likeliest story.
-//
-//  🌟 WHY A POINTER RE-POINT AND NOT A replaceFunc.
-//  register_perk_threads() stores ::electric_cherry_reload_attack in
-//  level._custom_perks[perk].player_thread_give, and give_perk() reaches the
-//  behaviour ONLY through that pointer. That is CLAUDE.md §4 failure mode 2
-//  ("behaviour reached via a level.* pointer"), whose prescribed fix is exactly
-//  this: re-point the pointer. It needs no replaceFunc, cannot collide with the
-//  give_perk override this file already installs, and leaves every other
-//  Electric Cherry function stock.
-//
-//  Polls rather than assuming an ordering: on Mob and Origins the perk is
-//  registered by the MAP's own main(), not by this script, so the struct may not
-//  exist yet when init() runs.
-// ============================================================================
-zmqol_ec_take_over()
-{
-    for ( i = 0; i < 60; i++ )
-    {
-        if ( isdefined( level._custom_perks ) &&
-             isdefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) &&
-             isdefined( level._custom_perks[ "specialty_grenadepulldeath" ].player_thread_give ) )
-        {
-            level._custom_perks[ "specialty_grenadepulldeath" ].player_thread_give = ::zmqol_electric_cherry_reload_attack;
-            println( "[zm_qol] EC: took over reload attack on " + level.script + " after " + i + "s" );
-            return;
-        }
-
-        wait 1;
-    }
-
-    // Not an error on maps without the perk - Nuketown/TranZit register it via
-    // zmqol_enable_electric_cherry(), the rest of the maps genuinely have none.
-    if ( isdefined( level._custom_perks ) && isdefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) )
-        println( "[zm_qol] EC: perk struct exists but player_thread_give never appeared - NOT taken over" );
-}
-
-// ============================================================================
-//  zmqol_electric_cherry_reload_attack  -  stock's function, three defects out
-//
-//  Stock is _zm_perk_electric_cherry.gsc:217-315. Every helper called here is
-//  stock's own, fully qualified - the module is core (patch_zm.ff), so naming it
-//  from this root script is legal under AI_CONTEXT rule 2.
-//
-//  🛑 THE CURVES ARE STOCK AND STAY STOCK. Radius 32 units at a full clip -> 128
-//  at an empty one; damage 1 -> 1045. The user chose this explicitly (2026-08-09)
-//  after the v1.62.8 probe measured their session: all 14 of their reloads were at
-//  65-97% clip, giving radius 34-68 and damage 27-392, so 1-3 zombies were in
-//  range and none died. That is the perk's designed mechanic - power is paid for
-//  with the magazine - not a defect. BO2-Reimagined, the project's reference,
-//  also leaves both curves untouched. TO GET THE HORDE-WIDE ZAP, EMPTY THE MAG.
-//
-//  📝 linear_map( num, min_a, max_a, min_b, max_b ) is
-//  clamp( (num-min_a)/(max_a-min_a)*(max_b-min_b)+min_b, min_b, max_b )
-//  (common_scripts\utility.gsc:1503), so with min_a=1.0 and max_a=0.0 a FULL
-//  clip gives the low end and an EMPTY clip the high end.
-//
-//  THE THREE DEFECTS REMOVED - each one a real bug, none a balance change:
-//
-//  1. 🌟 THE RELOAD LATCH COULD STICK (shipped v1.62.8, kept here).
-//     Stock parks the weapon in self.wait_on_reload on "reload_start" and only
-//     releases it when the engine fires "reload" on COMPLETION
-//     (check_for_reload_complete, :332-350). Cancel a reload - sprint, swap, get
-//     hit, which is constant when a crowd is on you - and no "reload" ever comes,
-//     so the NEXT reload hits `isinarray(...) -> continue` and is skipped with no
-//     fx and no damage. zmqol_ec_reload_watchdog() below releases the latch after
-//     the weapon's own reload time plus 2s.
-//
-//  2. THE CONSECUTIVE-RELOAD THROTTLE IS DELETED.
-//     Stock caps attack #3 at 4 zombies, #4 at 2, and #5+ at ZERO - a reload that
-//     costs a magazine and silently does nothing at all, with no feedback of any
-//     kind. Reimagined deletes it outright (their :66, n_zombie_limit is
-//     unconditionally undefined). self.consecutive_electric_cherry_attacks is
-//     still counted and still reset by stock's cooldown timer, but nothing gates
-//     on it now; it survives only to number the log line.
-//
-//  3. THE 0.1s PER-ZOMBIE DAMAGE STAGGER IS DELETED.
-//     Stock waits 0.1s between EACH zombie before calling dodamage, so a crowd of
-//     20 resolves over two full seconds - the zap visibly trickles instead of
-//     landing, and anything that dies to another source in the meantime is
-//     skipped. Reimagined damages the whole array in one frame (their :142-145).
-//     The loop stays bounded by a_zombies.size, so there is no unterminated-loop
-//     risk from removing the only wait in it.
-//
-//  🛑 ORIGINS' OWN VARIANT IS PRESERVED, NOT OVERWRITTEN.
-//  zm_tomb.gsc:2003 defines tomb_custom_electric_cherry_reload_attack and :178
-//  registers it in place of core's, so taking the perk over globally replaces it.
-//  Its two deliberate differences from core are therefore carried inline below,
-//  both guarded on level.script: the raw species array (core's filtered one drops
-//  the Panzer, which _zm_ai_mechz.gsc:532 flags .ignore_enemy_count) and the
-//  .is_mechz stun guard. Origins is the ONLY map that overrides this function -
-//  grepped register_perk_threads( "specialty_grenadepulldeath" ) across all 2,093
-//  stock scripts, three hits: core, Origins, and TranZit's identical copy of core.
-//
-//  📝 The enemy array is otherwise stock's get_round_enemy_array() rather than
-//  Reimagined's raw getaispeciesarray() - theirs additionally includes
-//  .ignore_enemy_count actors and grief players on every map, which is a
-//  behaviour change beyond these three fixes and is not what was asked for.
-// ============================================================================
-zmqol_electric_cherry_reload_attack()
-{
-    self endon( "death" );
-    self endon( "disconnect" );
-    self endon( "stop_electric_cherry_reload_attack" );
-    self.wait_on_reload = [];
-    self.consecutive_electric_cherry_attacks = 0;
-
-    println( "[zm_qol] EC: reload attack thread STARTED for a player" );
-
-    while ( true )
-    {
-        self waittill( "reload_start" );
-        str_current_weapon = self getcurrentweapon();
-
-        if ( isinarray( self.wait_on_reload, str_current_weapon ) )
-        {
-            println( "[zm_qol] EC: SKIPPED - " + str_current_weapon + " still latched from an unfinished reload" );
-            continue;
-        }
-
-        self.wait_on_reload[ self.wait_on_reload.size ] = str_current_weapon;
-        self.consecutive_electric_cherry_attacks++;
-        n_clip_current = self getweaponammoclip( str_current_weapon );
-        n_clip_max = weaponclipsize( str_current_weapon );
-        n_fraction = n_clip_current / n_clip_max;
-        perk_radius = linear_map( n_fraction, 1.0, 0.0, 32, 128 );
-        perk_dmg = linear_map( n_fraction, 1.0, 0.0, 1, 1045 );
-        self thread zmqol_ec_check_reload_complete( str_current_weapon );
-
-        if ( isdefined( self ) )
-        {
-            // Defect 2: stock's switch on consecutive_electric_cherry_attacks
-            // built n_zombie_limit here (unlimited, unlimited, 8, 4, 2, then 0).
-            // Deleted - see the header. The counter and stock's cooldown timer
-            // that resets it are kept so the log line can still number attacks.
-            self thread maps\mp\zombies\_zm_perk_electric_cherry::electric_cherry_cooldown_timer( str_current_weapon );
-
-            // 🛑 ORIGINS SHIPS ITS OWN VARIANT OF THIS WHOLE FUNCTION
-            // (zm_tomb.gsc:2003, registered at :178) and owning the perk
-            // globally replaces it, so its two deliberate differences have to be
-            // carried or Origins regresses. This is the first: stock Origins uses
-            // the RAW species array, not get_round_enemy_array(), which filters
-            // out .ignore_enemy_count actors - and _zm_ai_mechz.gsc:532 sets that
-            // flag on the Panzer Soldat. Core's array would drop the Panzer out
-            // of the zap entirely on Origins. The second difference is the stun
-            // guard in the loop below.
-            if ( level.script == "zm_tomb" )
-                a_all = getaispeciesarray( "axis", "all" );
-            else
-                a_all = get_round_enemy_array();
-
-            a_zombies = get_array_of_closest( self.origin, a_all, undefined, undefined, perk_radius );
-
-            n_nearest = -1;
-            if ( a_all.size > 0 )
-            {
-                a_one = get_array_of_closest( self.origin, a_all, undefined, 1 );
-                if ( a_one.size > 0 && isdefined( a_one[0] ) )
-                    n_nearest = int( distance( self.origin, a_one[0].origin ) );
-            }
-
-            println( "[zm_qol] EC: attack #" + self.consecutive_electric_cherry_attacks +
-                     " wpn=" + str_current_weapon +
-                     " clip=" + n_clip_current + "/" + n_clip_max +
-                     " radius=" + int( perk_radius ) +
-                     " dmg=" + int( perk_dmg ) +
-                     " zombies_alive=" + a_all.size +
-                     " in_radius=" + a_zombies.size +
-                     " nearest=" + n_nearest );
-
-            self thread maps\mp\zombies\_zm_perk_electric_cherry::electric_cherry_reload_fx( n_fraction );
-            self notify( "electric_cherry_start" );
-            self playsound( "zmb_cherry_explode" );
-            n_zombies_hit = 0;
-            n_killed = 0;
-
-            for ( i = 0; i < a_zombies.size; i++ )
-            {
-                if ( isalive( self ) )
-                {
-                    if ( !isdefined( a_zombies[i] ) || !isalive( a_zombies[i] ) )
-                        continue;
-
-                    // counted unconditionally now - stock only ever incremented
-                    // this inside the throttle branch, so with the throttle
-                    // inactive the old log line always reported 0 touched.
-                    n_zombies_hit++;
-
-                    if ( a_zombies[i].health <= perk_dmg )
-                    {
-                        a_zombies[i] thread maps\mp\zombies\_zm_perk_electric_cherry::electric_cherry_death_fx();
-                        n_killed++;
-
-                        if ( isdefined( self.cherry_kills ) )
-                            self.cherry_kills++;
-
-                        self maps\mp\zombies\_zm_score::add_to_player_score( 40 );
-                    }
-                    else
-                    {
-                        // Origins' second difference, carried: stock core guards
-                        // the stun on .is_brutus (Mob's boss), stock Origins on
-                        // .is_mechz (the Panzer). Only one of the two can ever be
-                        // defined on a given map - is_brutus exists solely in
-                        // _zm_ai_brutus.gsc (Mob), is_mechz solely in Origins'
-                        // scripts - so the union is exactly each map's own guard
-                        // and cannot over-exclude anywhere. Without it, owning the
-                        // perk globally would animscripted() a Panzer on Origins,
-                        // which stock deliberately never does.
-                        if ( !isdefined( a_zombies[i].is_brutus ) && !isdefined( a_zombies[i].is_mechz ) )
-                            a_zombies[i] thread maps\mp\zombies\_zm_perk_electric_cherry::electric_cherry_stun();
-
-                        a_zombies[i] thread maps\mp\zombies\_zm_perk_electric_cherry::electric_cherry_shock_fx();
-                    }
-
-                    // Defect 3: stock waited 0.1s HERE, per zombie, so a crowd
-                    // resolved over seconds. Damage lands with the fx now.
-                    if ( isalive( a_zombies[i] ) )
-                        a_zombies[i] dodamage( perk_dmg, self.origin, self, self, "none" );
-                }
-            }
-
-            println( "[zm_qol] EC: resolved - touched " + n_zombies_hit + " zombie(s), " + n_killed + " were under the damage threshold" );
-            self notify( "electric_cherry_end" );
-        }
-    }
-}
-
-// ============================================================================
-//  zmqol_ec_check_reload_complete  -  stock's, plus a watchdog
-//
-//  Stock's own check_for_reload_complete/weapon_replaced_monitor cannot be
-//  reused here: they are unqualified same-file calls inside stock's module, so
-//  the only way to add the watchdog is to carry our own copies. They are
-//  otherwise identical.
-// ============================================================================
-zmqol_ec_check_reload_complete( weapon )
-{
-    self endon( "death" );
-    self endon( "disconnect" );
-    self endon( "player_lost_weapon_" + weapon );
-    self endon( "weapon_reload_complete_" + weapon );
-    self thread zmqol_ec_weapon_replaced_monitor( weapon );
-    self thread zmqol_ec_reload_watchdog( weapon );
-
-    while ( true )
-    {
-        self waittill( "reload" );
-        str_current_weapon = self getcurrentweapon();
-
-        if ( str_current_weapon == weapon )
-        {
-            arrayremovevalue( self.wait_on_reload, weapon );
-            self notify( "weapon_reload_complete_" + weapon );
-            return;
-        }
-    }
-}
-
-zmqol_ec_weapon_replaced_monitor( weapon )
-{
-    self endon( "death" );
-    self endon( "disconnect" );
-    self endon( "weapon_reload_complete_" + weapon );
-
-    while ( true )
-    {
-        self waittill( "weapon_change" );
-        primaryweapons = self getweaponslistprimaries();
-
-        if ( !isinarray( primaryweapons, weapon ) )
-        {
-            self notify( "player_lost_weapon_" + weapon );
-            arrayremovevalue( self.wait_on_reload, weapon );
-            return;
-        }
-    }
-}
-
-// ============================================================================
-//  zmqol_ec_reload_watchdog  -  the latch cannot stick
-//
-//  Releases the weapon if the engine's "reload" completion notify never arrives,
-//  which is what happens on every cancelled reload. The margin is the weapon's
-//  own reload time (Speed Cola applied, exactly as stock's cooldown timer does
-//  it) plus 2 seconds, so it can only ever fire AFTER a genuine reload would
-//  have completed and released the latch itself.
-// ============================================================================
-zmqol_ec_reload_watchdog( weapon )
-{
-    self endon( "death" );
-    self endon( "disconnect" );
-    self endon( "weapon_reload_complete_" + weapon );
-    self endon( "player_lost_weapon_" + weapon );
-
-    n_reload_time = weaponreloadtime( weapon );
-
-    if ( self hasperk( "specialty_fastreload" ) )
-    {
-        n_mult = getdvarfloat( "perk_weapReloadMultiplier" );
-
-        if ( n_mult > 0 )
-            n_reload_time = n_reload_time * n_mult;
-    }
-
-    wait( n_reload_time + 2.0 );
-
-    // The attack thread re-creates self.wait_on_reload from scratch when it
-    // restarts (perk re-given, host migration), so this can legitimately be
-    // undefined by the time the watchdog wakes. isinarray() on undefined is a
-    // runtime error, and a runtime error here would kill the thread silently -
-    // see [[t6-plutonium-hides-script-errors]].
-    if ( !isdefined( self.wait_on_reload ) )
-        return;
-
-    if ( isinarray( self.wait_on_reload, weapon ) )
-    {
-        arrayremovevalue( self.wait_on_reload, weapon );
-        println( "[zm_qol] EC: watchdog released " + weapon + " - that reload was cancelled, stock would have eaten the next zap" );
-    }
-
-    self notify( "weapon_reload_complete_" + weapon );
 }
 
 perks_register_clientfield()

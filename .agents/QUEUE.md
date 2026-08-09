@@ -8,7 +8,104 @@ acknowledged, not begun.
 
 ---
 
-## ⏳ IN FLIGHT — v1.62.9, Electric Cherry: the probe answered, two real defects removed
+## 🛑 STANDING RULE, user 2026-08-09 — A PORTED PERK IS NEVER MODIFIED
+
+> *"don't change how electric cherry behaves because you're not meant to change the perk just leave
+> it alone and then port it over to the maps that don't have it already. simple, same logic for
+> literally any other perk (eg. who's who). No missing/wrong fx period."*
+
+The job is **porting, not tuning.** The perk already exists and works on the maps that ship it; the
+only correct outcome is that the ported copy is indistinguishable from that one. This applies to
+Who's Who, Zombie Blood, Blood Money, the wall-buys and everything after them.
+
+- **Fixing a defect in stock's own logic is still a modification.** v1.62.9 deleted stock's
+  consecutive-reload throttle and its 0.1s per-zombie stagger. Both were genuine defects by any
+  reading. Both were wrong to ship, because they changed the thing being ported.
+- **Additive gap-filling is allowed and is the actual work**: registering the perk on a map that
+  never had it, shipping the assets its fx/audio need, adding it to the Wunderfizz table. Anything
+  that makes the port *reach parity* is in scope. Anything that moves it *past* parity is not.
+- **The reference is the map that ships the perk**, not the mod's own idea of correct. Leave those
+  maps running zero mod code so they stay a clean A/B baseline.
+
+---
+
+## ⏳ IN FLIGHT — v1.62.10, Electric Cherry REVERTED to stock on every map
+
+**DEPLOYED, NOT YET BOOTED.** `.gsc` only — `mod.ff` md5 `587f2f7c…` unchanged.
+
+**User, 2026-08-09:** *"now the visual effects are overbearing visually to look at in-game, they're
+not the original… 90% of the time when reloading and the zapping occurring, zombies remained
+untouched by it even when they're up in my face."*
+
+### What shipped: every behaviour change to Electric Cherry is GONE
+
+Deleted outright — the pointer re-point and all five functions behind it
+(`zmqol_ec_take_over`, `zmqol_electric_cherry_reload_attack`, `zmqol_ec_check_reload_complete`,
+`zmqol_ec_weapon_replaced_monitor`, `zmqol_ec_reload_watchdog`), plus every `[zm_qol] EC:` probe
+line. `level._custom_perks[…].player_thread_give` is left where stock's
+`register_perk_threads()` put it, so **stock's own `electric_cherry_reload_attack()` runs on every
+map.**
+
+🌟 **Mob of the Dead and Origins now run ZERO mod code for this perk** —
+`zmqol_enable_electric_cherry()` returns at its first line on any map that is not `zm_transit`,
+`zm_nuked`, `zm_highrise` or `zm_buried`, and nothing else touches it. That makes them a clean
+reference for the A/B test below.
+
+### 🌟 THE OVERBEARING FX WERE OURS — measured, not inferred
+
+The asset chain was audited end to end first, and it is **already correct**:
+
+| checked | result |
+|---|---|
+| the 6 lightning/arc materials mod.ff owns | **byte-identical** to `zm_prison`, `zm_tomb`, `zm_transit`, `zm_buried`, `zm_highrise`, `zm_nuked` — every map that has them |
+| `rawfile vision/zm_electric_cherry.vision` | `ba7a920e…` in mod.ff, `zm_prison` **and** `zm_tomb` — one file, no per-map variant |
+| `script clientscripts/mp/zombies/_zm_perk_electric_cherry.csc` | `198fc38c…`, identical to `zm_prison_patch.ff`, which is the **only** fastfile that carries it |
+| the tesla + alcatraz-cherry fx | live in `zm_prison` and `zm_tomb` only; `--load` order takes Mob's, and Mob is the perk's home map |
+| tesla textures shipped by this mod | **none** — `images/` and `zone_assets/images/` carry no tesla/lightning file, so the pixels are the game's own |
+
+So the assets are canonical and the intensity had to come from script. It did, and it was v1.62.9's
+two deletions:
+
+- **no 0.1s stagger** → every zombie's `tesla_shock` fx started in the **same frame** instead of
+  0.1s apart, so the zap read as one bright mass rather than an arc travelling the crowd.
+- **no throttle** → reload #3+ played full-strength fx where stock plays a reduced set or none.
+
+That also fits the timeline exactly: v1.62.7 was **confirmed improved** by the user, and the only
+thing between it and this report is v1.62.9.
+
+### ⚠️ WHAT THIS DOES *NOT* CHANGE, stated plainly
+
+**"Zombies remained untouched even up in my face" is stock's arithmetic, and it stays.** Measured
+from the user's own v1.62.8 log, not asserted: `radius = linear_map( clip_fraction, 1.0, 0.0, 32,
+128 )`, so a 39/40 clip gives **radius 34 units** and **27 damage**, and their log line read
+`in_radius=1 nearest=31` — the maths reproduced exactly. Power is paid for with the magazine.
+
+Changing that curve is the modification the user has now twice forbidden, so it is not touched.
+**Mob and Origins will behave identically** — same core function, `patch_zm.ff` owns
+`_zm_perk_electric_cherry.gsc` and loads on every map.
+
+Two stock quirks are therefore **back**, deliberately: a cancelled reload eats the next zap (stock
+never releases `self.wait_on_reload`), and reload #5 in quick succession does nothing. Both are
+present on Mob and Origins too.
+
+### TEST — an A/B, because it settles the port question by construction
+
+1. **Mob of the Dead**, Electric Cherry, empty a full mag next to a crowd. This is untouched stock.
+2. **Diner** (or Nuketown / Die Rise / Buried), same perk, same empty mag, same crowd.
+
+**They must look and behave the same.** If they do, the port is correct and what is left is stock's
+design. If they differ, that difference is a real port defect with a concrete target — say which of
+the two looks wrong and how.
+
+Verified: parses (`gsc-tool`, all four scripts incl. `-i client`); zero dangling references to the
+five removed symbols; deployed `mod.iwd` **byte-identical to source** (`0013564d…`) and carries
+**0** occurrences of the removed symbols; `mod.ff` md5 unchanged.
+
+---
+
+## 0aad. SUPERSEDED by v1.62.10 — v1.62.9, Electric Cherry: the probe answered, two defects removed
+
+**Kept for the measurement only. Its two "fixes" were reverted — they modified the perk.**
 
 **DEPLOYED, NOT YET BOOTED.** `.gsc` only — `mod.ff` md5 unchanged from v1.62.7 (`587f2f7c`), so
 the shader fix rides along.
