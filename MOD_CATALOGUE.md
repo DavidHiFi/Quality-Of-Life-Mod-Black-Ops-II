@@ -271,7 +271,7 @@ the placement filter (drift puts a marker where no machine is).
 | area | change |
 |---|---|
 | **Death Machine** | power-up + weapon, own sound bank, `sv_deathmachine_duration` / `_powerup`. ✅ announcer callout added v1.65.0 — see §7a |
-| **Zombie Blood** 🚧 | Origins' power-up on the other five maps, full port. v1.65.0, deployed — NOT yet booted. See §7a |
+| **Zombie Blood** 🚧 | Origins' power-up on four more maps, full port. v1.65.0. 🛑 **Not on Mob** — its `toplayer` set is out of space, measured from a boot failure. See §7a |
 | **BO4 Max Ammo** | replaces `_zm_powerups::full_ammo_powerup` |
 | **Wall buys refill the magazine** | replaces `_zm_weapons::ammo_give` |
 | **Instant Pack-a-Punch** | no wait |
@@ -289,7 +289,31 @@ the placement filter (drift puts a marker where no machine is).
 ## 7a. Zombie Blood + the three announcer lines 🚧 *(v1.65.0, deployed — NOT yet booted)*
 
 **Zombie Blood**, ported from `_zm_powerup_zombie_blood.gsc`/`.csc` into `quality_of_life.gsc`
-and `zm_expanded.csc`, gated off `zm_tomb` so Origins keeps running Treyarch's copy.
+and `zm_expanded.csc`, gated off `zm_tomb` (Origins keeps running Treyarch's copy) and off
+`zm_prison` (no room — see the budget note below).
+
+### 🌟 The `*_lerp` trap — 8 bits that appear out of nowhere *(v1.65.2)*
+
+Mob failed to boot on v1.65.1 with `Trying to assign 3 bits for netfield visionset_slot but
+Client Field Set toplayer is out of space`. **`visionset_slot` is not the culprit** — it is
+registered last, by `finalize_type_clientfields()`, so it is merely whoever asked when the space
+had gone (§9b, ERROR_CATALOGUE §2).
+
+The real cost is invisible in any per-map clientfield dump: **stock Mob has no `visionset_lerp`
+and no `overlay_lerp` field at all**, because every one of its own visionsets and overlays has
+`lerp_step_count 1` and `finalize_type_clientfields()` only registers the lerp field when the
+max needs more than 1 bit. PhD's 5-step visionset creates `visionset_lerp` at 3 bits and
+Vulture's 31-step stink overlay creates `overlay_lerp` at 5 — **8 bits from two features that
+each looked like they cost 1**.
+
+🛑 **Before adding a visionset or overlay to a map, check the map's existing max
+`lerp_step_count`, not just the bit count of the field you meant to add.**
+
+Zombie Blood's own share on Mob was only 3 (`powerup_zombie_blood` 2, plus widening
+`visionset_lerp` 3→4 for its 15 steps). ⚠️ Removing it returns Mob to its **v1.64.0 state, which
+has never been booted** — Mob appears in exactly one of the eleven kept console logs, the failed
+boot itself. If it still fails, the next lever is Vulture, which already ships incomplete there
+(`zmqol_vulture_has_disease_meter()` returns 0 for `zm_prison`) and would free 7 more bits.
 
 | part | where |
 |---|---|

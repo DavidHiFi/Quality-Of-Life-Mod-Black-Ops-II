@@ -5442,8 +5442,74 @@ zmqol_blood_money_natural_drop()
 // ============================================================================
 zmqol_zombie_blood_enabled()
 {
-    // Origins ships the power-up itself. Every other map gets it.
+    // Origins ships the power-up itself.
     if ( getDvar( "mapname" ) == "zm_tomb" )
+        return 0;
+
+    // ========================================================================
+    //  🛑 v1.65.2 - MOB OF THE DEAD CANNOT AFFORD IT. Measured from the user's
+    //  own failed boot, not inferred:
+    //
+    //      Trying to assign 3 bits for netfield visionset_slot
+    //      but Client Field Set toplayer is out of space.      (zm_prison, zclassic)
+    //
+    //  🌟 READ THE FIELD NAME CORRECTLY. visionset_slot is registered LAST, by
+    //  _visionset_mgr::finalize_type_clientfields(). It is not the culprit - it
+    //  is simply whoever asked when the space had already gone (ERROR_CATALOGUE
+    //  §2). Mob is the tightest toplayer map this mod touches once its additions
+    //  are counted, even though its STOCK total (50) is far from the worst.
+    //
+    //  WHAT THE MOD PUTS ON MOB'S toplayer SET, and why it adds up so fast:
+    //      perk_additional_primary_weapon  +2   Mule Kick
+    //      perk_marathon                   +2   Stamin-Up
+    //      perk_tombstone                  +2
+    //      perk_dive_to_nuke               +1   PhD
+    //      vulture_perk_toplayer           +1
+    //      sndVultureStink                 +1
+    //      visionset_lerp                  +3   NEW FIELD - stock Mob has none,
+    //                                           because every stock Mob visionset
+    //                                           has lerp_step_count 1. PhD's 5
+    //                                           steps create it.
+    //      overlay_lerp                    +5   NEW FIELD, same reason - created
+    //                                           solely by Vulture's 31-step stink
+    //                                           overlay.
+    //      visionset_slot / overlay_slot   +2   both widen by one
+    //  ...against only -1 freed (deadshot_perk, dropped by init_client_flags).
+    //
+    //  🌟 THE TWO *_lerp FIELDS ARE THE EXPENSIVE PART AND THEY ARE INVISIBLE IN
+    //  ANY PER-MAP DUMP, because they do not exist in stock Mob at all. Eight
+    //  bits appear out of nowhere the moment one high-step visionset or overlay
+    //  is added to a map whose own effects all use a single step. Check for that
+    //  before adding a visionset to any map, not just the bit count of the field
+    //  you meant to add.
+    //
+    //  Zombie Blood's own share is only 3 of that: powerup_zombie_blood (2) plus
+    //  widening visionset_lerp from 3 to 4 (its 15 lerp steps). Removing it frees
+    //  exactly those 3.
+    //
+    //  ⚠️ 3 BITS MAY NOT BE THE WHOLE SHORTFALL, and that is stated rather than
+    //  hidden. Mob appears in exactly ONE of the eleven kept console logs - the
+    //  failed boot above - so it has not booted with this mod in the whole
+    //  retained history. It has been at or over the line since v1.55.0 put
+    //  Vulture on it; checkpoint 17's crash there was answered by dropping the
+    //  5-bit vulture_perk_disease_meter and Mob was never re-booted to confirm.
+    //  This change returns Mob to exactly its v1.64.0 state, which is unverified.
+    //
+    //  📝 IF MOB STILL FAILS, the next lever is Vulture, and it is justified on
+    //  its own terms rather than as a budget raid: the perk ALREADY ships
+    //  incomplete there (zmqol_vulture_has_disease_meter() returns 0 for
+    //  zm_prison), which is the exact condition that took it off Origins in
+    //  v1.59.0 - *"either the thing is added exactly how it'd work with its
+    //  original implementation fully intact, no compromises, or you don't even
+    //  bother"*. Turning it off on Mob frees 7 more bits (1 + 1 + the whole
+    //  5-bit overlay_lerp, which no other Mob overlay needs). That is the user's
+    //  call, not a change to make silently.
+    //
+    //  🛑 The client twin is zm_expanded.csc::zmqol_zombie_blood_enabled(). Both
+    //  must agree or the toplayer set differs in width between the two sides and
+    //  everyone is dropped with EXE_CLIENT_FIELD_MISMATCH.
+    // ========================================================================
+    if ( getDvar( "mapname" ) == "zm_prison" )
         return 0;
 
     return 1;

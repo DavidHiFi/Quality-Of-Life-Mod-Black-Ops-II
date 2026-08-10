@@ -61,11 +61,13 @@ source folders is built or don't-touch.
   map and moved into the ordinary drop rotation — including on Origins, whose dig sites keep
   working unchanged. Costs no clientfield bits; the icon model ships in `mod.ff` for the four
   maps that lack it.
-- **Zombie Blood on every map.** Origins' power-up: 30 seconds during which every zombie
-  ignores you completely, with the red screen filter, the visionset, the first- and
-  third-person effects, the player-model swap and the looping audio — the full thing, ported
-  asset for asset from `zm_tomb.ff`. Origins is deliberately left running its own copy.
-  Its dig-site reveal is inert elsewhere because no other map has dig sites to reveal.
+- **Zombie Blood on four more maps** — TranZit, Nuketown, Die Rise and Buried. Origins'
+  power-up: 30 seconds during which every zombie ignores you completely, with the red screen
+  filter, the visionset, the first- and third-person effects, the player-model swap and the
+  looping audio — the full thing, ported asset for asset from `zm_tomb.ff`. Origins is
+  deliberately left running its own copy. Its dig-site reveal is inert elsewhere because no
+  other map has dig sites to reveal. **Not on Mob of the Dead**: that map's `toplayer`
+  clientfield set is out of space, measured from a real boot failure rather than guessed.
 - **Three announcer lines that were missing.** Zombie Blood's and Blood Money's exist only in
   Origins' sound bank, so both drops were silent on every other map; the Death Machine's
   (`zmb_vox_ann_death_machine`, Die Rise's bank) was recorded by Treyarch and **never wired up

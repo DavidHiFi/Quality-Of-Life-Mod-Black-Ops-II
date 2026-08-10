@@ -472,9 +472,17 @@ perks()
 // ============================================================================
 zmqol_zombie_blood_enabled()
 {
-	// 🛑 EXACT TWIN of quality_of_life.gsc::zmqol_zombie_blood_enabled().
-	// Origins ships the power-up itself; every other map gets it.
+	// 🛑 EXACT TWIN of quality_of_life.gsc::zmqol_zombie_blood_enabled() —
+	// read the long block there. Origins ships the power-up itself.
 	if ( getDvar( "mapname" ) == "zm_tomb" )
+		return 0;
+
+	// 🛑 v1.65.2 — Mob of the Dead's toplayer set is out of space. Measured from
+	// the user's failed boot: "Trying to assign 3 bits for netfield
+	// visionset_slot but Client Field Set toplayer is out of space." The two
+	// *_lerp fields are the expensive part and neither exists in stock Mob —
+	// full accounting in the server twin.
+	if ( getDvar( "mapname" ) == "zm_prison" )
 		return 0;
 
 	return 1;
