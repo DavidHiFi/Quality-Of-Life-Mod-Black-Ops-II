@@ -458,6 +458,22 @@ rawfile,vision/zm_whos_who.vision
 // ============================================================================
 xmodel,zombie_firesale
 
+//  v1.65.1 - AND ITS HUD ICON, which the original Fire Sale fix missed.
+//  Found while fixing Zombie Blood's checkerboard icon, by auditing every
+//  material ui_mp\t6\zombie\hudpowerupszombie.lua registers against every
+//  fastfile. specialty_firesale_zombies scores:
+//      tra 0   nuk 1   hig 0   pri 1   bur 1   tom 1   common 0   ui_zm 0
+//  - absent from exactly the two maps this mod enables Fire Sale on, the same
+//  perfect correlation the model line above documents. So the HUD countdown icon
+//  has been drawing as the missing-material checkerboard on TranZit and Die Rise
+//  ever since v1.55.x; nobody had grabbed one there to notice.
+//
+//  The model was shipped and the icon was not because the model is named in GSC
+//  (add_zombie_powerup precaches it) while the icon is named only in LUI - so a
+//  script-side audit could never have caught it. 📝 Audit the LUI's
+//  RegisterMaterial list too whenever a power-up is enabled on a new map.
+material,specialty_firesale_zombies
+
 // ============================================================================
 //  BLOOD MONEY  -  on the four maps that never had the model
 //
@@ -545,6 +561,37 @@ material,mc/mtl_p6_zm_tm_blood_power_up
 xmodel,c_zom_tomb_german_player_fb
 material,generic_filter_zombie_blood_b
 rawfile,vision/zm_powerup_zombie_blood.vision
+
+//  v1.65.1 - THE HUD TIMER ICON. User booted v1.65.0 on TranZit with a screenshot:
+//  the power-up was grabbed, the red overlay and everything else worked, and the
+//  countdown icon at the bottom of the screen drew as the missing-material
+//  CHECKERBOARD.
+//
+//  🛑 IT WAS THE ONE ASSET NOTHING IN THE GSC/CSC NAMES, which is why the port
+//  audit missed it. The icon is asked for by LUI, not by script:
+//      ui_mp\t6\zombie\hudpowerupszombie.lua:38-41
+//      CoD.PowerUps.ClientFieldNames[6] = {
+//          clientFieldName = "powerup_zombie_blood",
+//          material = RegisterMaterial( "specialty_zomblood_zombies" ) }
+//  That table is stock's own and the mod already shipped it, so the LUI was
+//  correctly asking for a material that existed in NO fastfile this mod loads.
+//  Unlinker --list: specialty_zomblood_zombies is in zm_tomb.ff ONLY (as an image
+//  and a material), and was absent from mod.ff.
+//
+//  📝 A CHECKERBOARD IS A MISSING *MATERIAL*, NOT MISSING PIXELS - pixels draw
+//  BLACK (ERROR_CATALOGUE §5). So this is the material line alone, with no .iwi,
+//  exactly like specialty_chugabud_zombies and specialty_electric_cherry_zombie
+//  above - both declared the same way, both confirmed rendering in game off their
+//  home map. (specialty_tombstone_zombies and specialty_vulture_zombies DO ship
+//  an .iwi, but for unrelated reasons: one is Reimagined's corrected icon, the
+//  other was rebuilt for its alpha channel.) The image arrives as a dependency of
+//  this line and T6 reads its pixels from the game's IPAKs.
+//
+//  🌟 And that those Origins pixels resolve off Origins is now proven by this very
+//  build, not just by precedent: the user's screenshot shows the power-up drop
+//  itself rendering correctly on TranZit, and p6_zm_tm_blood_power_up's images
+//  (p6_zm_bu_blood_power_up_c/_n/_s) are Origins-only too.
+material,specialty_zomblood_zombies
 fx,maps/zombie_tomb/fx_tomb_pwr_up_zmb_blood
 fx,maps/zombie_tomb/fx_zm_blood_overlay_pclouds
 
