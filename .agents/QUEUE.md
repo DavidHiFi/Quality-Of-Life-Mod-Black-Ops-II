@@ -112,7 +112,92 @@ dig sites must still work exactly as before**.
 
 ---
 
-## 🔨 STILL IN PROGRESS — TASK 2, ZOMBIE BLOOD. BLOCKED ON THE CEILING, see the section below.
+## 🟢 UNBLOCKED 2026-08-11 — THE CLIENTFIELD CEILING WAS NEVER THE PROBLEM
+
+**The user booted Buried CLASSIC on v1.64.0 and it played fine.** `console_zm.log.004`, 8,567 lines,
+`ui_mapname zm_buried` / `g_gametype zclassic` / location `processing` — **zero** matches for
+`EXE_CLIENT_FIELD`, `is out of space` or `MISMATCHED CLIENTFIELDS`, and the mod's own Wunderfizz
+placement lines and 10-perk list print, so it reached real gameplay. Origins classic
+(`console_zm.log`, 2:27 AM) likewise booted clean.
+
+🛑 **So the pessimistic table written on 2026-08-11 is WRONG and is withdrawn.** It put Buried
+classic at ~70 `toplayer` against an inferred ceiling of 64 and concluded the map was already broken.
+It boots. The ceiling is **≥ the mod's real Buried-classic total**, whatever that is — comfortably
+more than the 64 the old ERROR_CATALOGUE note inferred. **Zombie Blood's +4/+5 `toplayer` and +1
+`allplayers` are affordable on every map, and it should now be built for all six.**
+
+📝 The lesson worth keeping: the Diner-calibrated model reproduced *Diner* exactly and still
+mispredicted Buried, because Buried's inputs (visionset entry counts, whether its native
+`perk_dive_to_nuke` re-registers at 1 or 2 bits) were assumptions, not measurements. **One boot beat
+a day of arithmetic.**
+
+---
+
+## 🔊 THE ANNOUNCER LINES — ALL THREE MEASURED 2026-08-11, and the answers are surprising
+
+User: *"make sure the announcer lines for them work as well, the ones from origins so even on the
+other maps. Also, add a death machine announcer line for the death machine power-up."*
+
+**Method:** the alias tables were dumped straight out of the shipped banks —
+`Unlinker --include-assets soundbank --search-path "<BO2>\sound" -o <dir> <en_*.ff>` — for
+`zmb_tomb.english` (2,566 aliases), `zmb_alcatraz.english` (2,639), `zmb_buried.english` (2,647),
+`zmb_highrise.english` (2,036), `zmb_nuked_real.english` (242), `zmb_classic_transit.english` (2,646)
+and `zmb_survival_transit.english` (2,516), plus the 96 base-game identifier files in
+`H:\Claude\Black Ops II Audio Dumper v6 by master131\Identifiers\`.
+
+| line | alias that really exists | which bank | who plays it in stock |
+|---|---|---|---|
+| **Zombie Blood** | `vox_zmba_powerup_zombie_blood_0` | `zmb_tomb.english` — **Origins only** | core `_zm_powerup_zombie_blood.gsc:43`, `powerup_vo( "zombie_blood" )`, and core `_zm_audio_announcer.gsc:20` registers the vox on every map |
+| **Blood Money** | `vox_zmba_powerup_blood_money_0` | `zmb_tomb.english` — **Origins only** | **map-specific**: `zm_tomb_dig.gsc:24` `createvox( "blood_money", "powerup_blood_money" )`, played at `:773` by `leaderdialog( "blood_money" )` |
+| **Death Machine** | **`zmb_vox_ann_death_machine`** | `zmb_highrise.english` — **Die Rise only** | 🌟 **NOTHING. Zero references across all 2,093 stock scripts.** Treyarch recorded it and never wired it up. |
+
+### 🛑 CORRECTION to v1.64.0's write-up
+
+That build's comment block and commit say Blood Money's announcer is *"deliberately silent, and that
+is parity"*. **That was measured on the wrong path and is wrong.** It is true that
+`createvox( "bonus_points_solo", … )` appears nowhere, so core's `powerup_vo( "bonus_points_solo" )`
+inside `powerup_grab()` really does return without playing — but **Origins reaches the line by a
+different route entirely**, its dig script's own `leaderdialog( "blood_money" )`. There IS an Origins
+Blood Money announcer line, and porting it is correct, not a tuning change.
+
+### 🛑 `powerup_death_machine` IS A DEAD END — do not use it
+
+Core registers `createvox( "minigun", "powerup_death_machine" )` (`_zm_audio_announcer.gsc:19`), so
+the obvious move is `powerup_vo( "minigun" )`. **That resolves to `vox_zmba_powerup_death_machine`,
+which exists in NO bank in the game** — checked every table above and all 96 identifier files; the
+only `vox_zmba_powerup_*` audio that ships anywhere is carpenter, doublepoints, firesale, instakill,
+maxammo, nuke (plus the `sam_` variants, and Origins' two extras). The real Death Machine line is
+Die Rise's differently-named `zmb_vox_ann_death_machine`, which is not part of the `zmbdialog`
+system at all and has to be played directly.
+
+### The route for all three — the mod's OWN bank, already proven
+
+🛑 **NOT `soundbank,zmb_tomb.all` in the zone.** That was v1.19.0 and it **bricked Origins**:
+`COM_ERROR Attempting to override asset 'zmb_tomb.all' from zone 'mod' with zone 'zm_tomb'`. Reverted
+in v1.21.2, documented at `zone_source\mod_locations.zone:222-249`. Do not re-attempt.
+
+The working route is `soundbank\mod.all.aliases.additions.csv` + payloads under `sound\`, rebuilt by
+`build_ff.bat` — the route already carrying `zmqol_cherry_zap`, `zmqol_ww_activate` and 17 others.
+**Rename mod-privately** (`zmqol_*`); defining a stock alias name puts a second definition in front
+of the map that owns it.
+
+| new alias | payload source |
+|---|---|
+| `zmqol_ann_zombie_blood` | `zmb_tomb.english` → `vox_zmba_powerup_zombie_blood_0` |
+| `zmqol_ann_blood_money` | `zmb_tomb.english` → `vox_zmba_powerup_blood_money_0` |
+| `zmqol_ann_death_machine` | `zmb_highrise.english` → `zmb_vox_ann_death_machine` |
+
+📝 Origins and Die Rise keep their own copies — gate each port so the map that owns the audio plays
+Treyarch's alias through Treyarch's path, exactly as it does today. That keeps a clean A/B baseline,
+the same discipline used for Electric Cherry.
+
+📝 Zombie Blood also has **character** reaction lines in the same bank —
+`vox_plr_0..3_powerup_zombie_blood_0..2`, 12 aliases — which stock plays through
+`create_and_play_dialog`. Part of the full port; not the announcer.
+
+---
+
+## 🔨 STILL IN PROGRESS — TASK 2, ZOMBIE BLOOD. NOW UNBLOCKED, NOT YET BUILT.
 
 🛑 **Zombie Blood did NOT ship in v1.64.0, and the reason is a number, not an oversight.** Unlike
 Blood Money it costs **+1 `allplayers` and +3 to +5 `toplayer`**, and the measurements below put four
