@@ -29,7 +29,98 @@ Who's Who, Zombie Blood, Blood Money, the wall-buys and everything after them.
 
 ---
 
-## 🔨 IN PROGRESS — TASK 2, ZOMBIE BLOOD. Scoped and measured 2026-08-09. NOTHING BUILT YET.
+## ✅ v1.64.0 — BLOOD MONEY ON EVERY MAP, DROPPING NATURALLY. DEPLOYED, NOT YET BOOTED.
+
+**User, 2026-08-11:** *"didnt get zombie blood or blood money at all, you need to add these 2 power
+ups to all the maps that you can that aren't limited by the game… and also for origins make it so
+that blood money can spawn naturally and it doesn't need to be dug up in a dig site."*
+
+### 🌟 BLOOD MONEY IS NOT AN ORIGINS POWERUP — it is core, on every map already
+
+`bonus_points_player`, registered at **`_zm_powerups.gsc:106`** in CORE, which loads on all six maps.
+Origins is simply the only map that ever called `include_powerup` for it, and even there stock
+produces it from a dig site alone (`zm_tomb_dig.gsc:442`).
+
+🌟 **It costs ZERO clientfield bits, which is why it ships everywhere while Zombie Blood cannot.**
+The 7-argument call stops short of `add_zombie_powerup`'s `client_field_name` parameter, so the
+`registerclientfield()` at `:449` never runs — on either side (`_zm_powerups.csc:20` likewise passes
+no field name). Nothing enters the `toplayer` set, so the budget wall below does not apply.
+
+### What shipped
+
+| | |
+|---|---|
+| server | `zmqol_enable_blood_money()` — `include_powerup( "bonus_points_player" )`, from `main()`, no map gate |
+| server | `zmqol_blood_money_natural_drop()` — re-points `level.zombie_powerups["bonus_points_player"].func_should_drop_with_regular_powerups` from stock's `::func_should_never_drop` to core's own `::func_should_always_drop`, the same function nuke/insta_kill/double_points/full_ammo use |
+| client | `zmqol_enable_blood_money()` twin in `zm_expanded.csc` |
+| `mod.ff` | `xmodel,zombie_z_money_icon` |
+
+**A pointer re-point, not a `replaceFunc`** — the behaviour is reached through
+`level.zombie_powerups[...]`, CLAUDE.md §4 failure mode 2 and its prescribed fix. It polls for the
+struct because `_zm_powerups::init()` is reached from the MAP's `main()` and is not ordered against
+this mod's `init()`; the poll is capped at 30s.
+
+**Origins keeps its dig sites.** This is purely additive there — the natural drop is the only change.
+
+### Everything checked before shipping, each claim traceable
+
+- **The model had to ship.** `Unlinker --list` over all six map fastfiles + `common_zm` + `patch_zm`:
+  `zombie_z_money_icon` → `tra 0  nuk 0  hig 0  pri 0  bur 1  tom 1  com 0`. `add_zombie_powerup`
+  precaches the model for every INCLUDED powerup (`:419-422`), so including it on the four maps
+  without the model would precache an absent asset — fatal at load, the Fire Sale trap.
+- **The ownership trap does not apply.** `zm_tomb.ff`'s and `zm_buried.ff`'s copies were dumped and
+  hashed — **byte-identical** (json `a9e3dae5…`, glb `c5c760f5…`, 4364 B), so `mod.ff` owning it
+  globally cannot regress the two maps that already had it.
+- **Its material was already covered.** The GLB references `mc/mtl_x2icon_gold` (shared with Double
+  Points' icon); it is already inside `mod.ff` and also in `common_zm.ff`, which loads everywhere.
+- **The "creating the include array flips the filter" trap cannot fire** — all six maps call
+  `include_powerups()` from their own `.gsc` AND `.csc` (`zm_transit.csc:239`, `zm_nuked.csc:56`,
+  `zm_highrise.csc:94`, `zm_prison.csc:169`, `zm_buried.csc:496`, `zm_tomb.csc:142`), and
+  `include_zombie_powerup()` is idempotent, so Origins is a no-op.
+- **The grab is entirely core** — `powerup_grab()`'s own `case "bonus_points_player"` (`:1060`) →
+  `bonus_points_player_powerup()`, `randomintrange( 1, 25 ) * 100` to the grabber only, skipped in
+  last stand/spectator. The glow is `level._effect["powerup_on_solo"]`, loaded by core's client init.
+- 🛑 **The announcer VO is deliberately silent, and that is parity.** `powerup_vo("bonus_points_solo")`
+  reaches `_zm_audio::create_and_play_dialog()`, which returns immediately when
+  `level.vox.speaker[...].alias[category][type]` is undefined. **`createvox( "bonus_points_solo", … )`
+  appears NOWHERE in the 2,093-file stock dump** — core's `_zm_audio_announcer.gsc:13-20` registers
+  carpenter, insta_kill, double_points, nuke, full_ammo, fire_sale, minigun and zombie_blood, and
+  not this. So Blood Money is silent on Origins too; adding audio would make the port LOUDER than
+  the original — the v1.62.9 mistake.
+
+Verified: both scripts parse (`gsc-tool`, `-i client` for the `.csc`); `mod.ff` links with **0
+errors and the same 34 pre-existing warnings**; asset list **3809 → 3810, the one addition and
+nothing else — nothing removed, nothing re-owned**; all deployed files byte-identical to source
+(`mod.ff 4a5d016c…`, `mod.iwd eb59d55f…`); both new symbols confirmed inside the **deployed**
+`mod.iwd` on both sides, and `zombie_z_money_icon` inside the **deployed** `mod.ff`.
+
+### ⚠️ RESIDUAL RISK, stated not hidden
+
+`add_zombie_powerup` also calls `precachestring( &"ZOMBIE_POWERUP_BONUS_POINTS" )`. That string is
+precached in stock **only on Origins**, because no other map includes the powerup, and OAT cannot
+list `localize` assets for T6 so its presence off Origins could not be confirmed offline. The failure
+mode is **cosmetic** — a missing localized key renders as the raw key, it is not fatal — and the
+same shape already shipped safely when Fire Sale's `&"ZOMBIE_POWERUP_MAX_AMMO"` was precached onto
+TranZit and Die Rise. **If anything looks wrong, it will be the powerup's hint text, nothing else.**
+
+### TEST
+
+**Play any map and kill zombies until powerups drop.** A gold **"$"** icon should now appear in the
+normal rotation alongside Max Ammo / Insta-Kill / Double Points; grabbing it gives 100-2500 points to
+you only, with no announcer line. Check **Origins** too: the drop should appear from kills, **and the
+dig sites must still work exactly as before**.
+
+---
+
+## 🔨 STILL IN PROGRESS — TASK 2, ZOMBIE BLOOD. BLOCKED ON THE CEILING, see the section below.
+
+🛑 **Zombie Blood did NOT ship in v1.64.0, and the reason is a number, not an oversight.** Unlike
+Blood Money it costs **+1 `allplayers` and +3 to +5 `toplayer`**, and the measurements below put four
+of the six maps' classic modes at or over the ceiling *before* it is added. Shipping it on survival
+modes only would be the half-implementation this project does not ship. **One boot of Buried classic
+settles it** — see "THE ONE BOOT THAT SETTLES BOTH QUESTIONS" below.
+
+## TASK 2 SCOPING (unchanged, still valid)
 
 **Verdict: it CAN be ported completely.** Every asset exists, every sound has a home, and the
 clientfield budget fits on Diner with room. No compromise identified. Nothing is deployed — this
@@ -100,16 +191,73 @@ Vulture's 31 steps, so **no change there**. Slots may each gain a bit.
 
 **Diner: toplayer 54 → ~57-59, allplayers 20 → 21. Comfortable.**
 
-### 🛑 THE ONE THING STILL TO SETTLE BEFORE SHIPPING
+### 🛑 SETTLED 2026-08-11, AND THE ANSWER BLOCKS THE FEATURE ON EVERY CLASSIC MAP
 
-**Per-map headroom on the tight maps.** Only Diner's runtime totals are known, because a healthy
-boot prints no field dump. Stock `toplayer` reaches **63 on Buried classic** and **61 on Origins
-classic** before this mod adds anything, and the mod adds perk fields on top. Origins already has
-Zombie Blood natively so it costs nothing there, but **Buried, Mob and Die Rise are unmeasured.**
+**Zombie Blood's exact cost, read from stock source, not inferred:**
 
-Settle it the cheap way first: sum the per-map stock dumps, add this mod's known perk-field delta,
-and compare against the highest total ever observed to work (Buried classic stock 63). If a map
-cannot take it, that map is dropped and the user is told which and why — not shipped short.
+| field | set | bits | source |
+|---|---|---|---|
+| `player_zombie_blood_fx` | allplayers | +1 | `_zm_powerup_zombie_blood.gsc:13` |
+| `powerup_zombie_blood` | toplayer | +2 | `_zm_powerups.gsc:449` — `add_zombie_powerup` always registers 2 |
+| `visionset_lerp` widening | toplayer | +1 | ZB's lerp_step_count is 15 → `getminbitcountfornum(15)` = 4; current max is 3 |
+| `visionset_slot` / `overlay_slot` | toplayer | +0 to +2 | `_visionset_mgr.gsc:210` — `getminbitcountfornum(info.size - 1)` |
+
+**So +1 allplayers and +3 to +5 toplayer, per map.**
+
+### 🌟 THE MODEL IS VALIDATED — it reproduces the one map that has a real measurement
+
+`console_zm.log.009` is the only boot log carrying a field dump (the list prints on a mismatch).
+Diner survival, this mod: **toplayer 54 server / 53 client, allplayers 20, actor 7**. Starting from
+stock Diner survival (`clientfields_zm_transit_zstandard_diner.txt`, toplayer 27) and applying the
+mod's own transformations — `deadshot_perk` dropped by `init_client_flags`, the eight `perk_*` fields
+from the replaced `perks_register_clientfield`, Vulture's four, Who's Who's two, Fire Sale, and the
+visionset/overlay widenings — lands on **exactly 54**. The method is trustworthy.
+
+### 🛑 THE CEILING, BRACKETED FROM TWO REAL EVENTS
+
+- **≥ 63** — Buried classic stock totals 63 and the retail game runs it.
+- **≤ ~67** — checkpoint 17's Mob crash: `Trying to assign 5 bits for netfield
+  vulture_perk_disease_meter but Client Field Set TOPLAYER is out of space`. Mob's total under the
+  mod at that moment computes to the mid-60s before that 5-bit field was asked for.
+
+So **toplayer ≈ 64**, matching the long-standing inference. Anything computed ≤ 63 is safe; anything
+above ~67 is fatal at load.
+
+### 🔴 APPLIED TO EVERY MAP — and Buried classic is ALREADY over, before Zombie Blood
+
+| map / mode | stock | under this mod | + Zombie Blood | verdict |
+|---|---|---|---|---|
+| Origins (`zm_tomb`) | 61 | — | **ships it natively** | ✅ nothing to do |
+| Nuketown | 18 | ~45 | ~50 | ✅ fits easily |
+| TranZit **survival** locations (Diner etc.) | 27 | **54 measured** | 57-59 | ✅ fits |
+| Mob classic | 50 | ~58-61 | ~63-66 | ⚠️ borderline, not provable |
+| TranZit classic | 38 | ~61-62 | ~65-67 | 🛑 over |
+| Die Rise classic | 33 | ~62 | ~66-67 | 🛑 over |
+| **Buried classic** | **63** | **~68-69** | — | 🛑 **over ALREADY** |
+
+**Buried classic's ~68 is not caused by Zombie Blood.** It is `perk_dead_shot` (+2),
+`perk_tombstone` (+2) and `perk_electric_cherry` (+1) landing on a map that stock already fills to
+63. `perks()` runs from `main()` on every map with no gametype guard, so classic gets them too.
+
+📝 **The recent logs only ever show `zm_transit` and `zm_tomb` booted with this mod** (10 rotations
+checked, `loadmod: loaded mods/zm_qol` + `Loading fastfile zm_*`). Buried classic with this mod
+appears never to have been booted. Checkpoint 10's "Buried maze loads and plays" is **survival**
+(13 actor / ~24 toplayer stock), not classic.
+
+### ✅ THE ONE BOOT THAT SETTLES BOTH QUESTIONS — ask before building anything
+
+**Boot Buried CLASSIC on the current build.** No code change needed.
+
+- **It fails at load** → the ceiling bracket is right, Buried classic has a real pre-existing bug,
+  and Zombie Blood cannot go on any classic mode without dropping something else first.
+- **It loads and plays** → the ceiling is above 68, the whole table above is too pessimistic, and
+  Zombie Blood ships everywhere with room.
+
+Either outcome is decisive, and no build can be trusted until it is known.
+
+🛑 **Do not ship Zombie Blood on survival modes only.** A power-up present in one mode of a map and
+absent in the other is the half-implementation this project does not ship — the same call already
+made for Who's Who on Buried.
 
 ### Implementation order when it starts
 

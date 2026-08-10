@@ -55,6 +55,12 @@ source folders is built or don't-touch.
 
 - **Weapons & perks** on every map, plus Pack-a-Punch where it's missing.
 - **Death Machine** power-up drop. Dvars: `sv_deathmachine_duration` (30), `sv_deathmachine_powerup`.
+- **Blood Money on every map, dropping from kills.** The powerup (`bonus_points_player`,
+  1-2500 points to whoever grabs it) is registered in core BO2 on all six maps but switched
+  on only by Origins, which hands it out from a dig site alone. It is now included on every
+  map and moved into the ordinary drop rotation — including on Origins, whose dig sites keep
+  working unchanged. Costs no clientfield bits; the icon model ships in `mod.ff` for the four
+  maps that lack it.
 - **Instant Pack-a-Punch**, **BO4 Max Ammo**, **wall buys refill the mag**.
 - **Prone at a perk machine = +100 points** (once per machine, every map).
 - **Diner as a Survival location** on TranZit, ported from BO2-Reimagined. Treyarch left

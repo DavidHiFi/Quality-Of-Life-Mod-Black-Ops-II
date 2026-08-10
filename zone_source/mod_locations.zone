@@ -459,6 +459,36 @@ rawfile,vision/zm_whos_who.vision
 xmodel,zombie_firesale
 
 // ============================================================================
+//  BLOOD MONEY  -  on the four maps that never had the model
+//
+//  Measured the same way as Fire Sale above. Unlinker --list over all six map
+//  fastfiles plus common_zm.ff and patch_zm.ff, for the powerup's model:
+//
+//      zombie_z_money_icon   tra 0   nuk 0   hig 0   pri 0   bur 1   tom 1   com 0
+//
+//  and include_powerup( "bonus_points_player" ) is called by zm_tomb alone. So
+//  four maps - TRANZIT, NUKETOWN, DIE RISE and MOB - are missing the model, and
+//  _zm_powerups::add_zombie_powerup() precaches the model for every INCLUDED
+//  powerup (_zm_powerups.gsc:419-422). Including it there without shipping this
+//  would precache an absent asset: fatal at load. See
+//  quality_of_life.gsc::zmqol_enable_blood_money() for the full write-up.
+//
+//  🛑 THE OWNERSHIP TRAP WAS CHECKED, not waved through. mod.ff loads before
+//  every map, so declaring this makes mod.ff OWN the model on Buried and Origins
+//  too, overriding their own copies. Both were dumped with
+//  `Unlinker --include-assets xmodel` and hashed:
+//      zm_tomb.ff    zombie_z_money_icon.json a9e3dae5...  _lod0.glb c5c760f5...  4364 B
+//      zm_buried.ff  zombie_z_money_icon.json a9e3dae5...  _lod0.glb c5c760f5...  4364 B
+//  BYTE-IDENTICAL, so whichever donor --load order picks is the same asset and
+//  neither map can regress. (zm_tomb.ff is 9th in build_ff.bat's list and
+//  zm_buried.ff 10th, so tomb's copy is the one taken - first-load-wins.)
+//
+//  No new --load is needed: zm_tomb and zm_buried are already loaded as donors
+//  for the Wunderfizz machine and Vulture Aid, and both carry it.
+// ============================================================================
+xmodel,zombie_z_money_icon
+
+// ============================================================================
 //  TOMBSTONE EVERYWHERE  -  the 12th perk
 //
 //  User, on Nuketown: ".giveperks and i have 11 perks but im missing tombstone

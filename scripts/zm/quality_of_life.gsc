@@ -241,6 +241,7 @@ init()
     zmqol_dev_commands();
     level thread zmqol_credits_banner();
     level thread zmqol_perk_slot_connect();
+    level thread zmqol_blood_money_natural_drop();
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
@@ -5119,6 +5120,7 @@ perks()
     zmqol_enable_electric_cherry();
     zmqol_enable_vulture();
     zmqol_enable_whoswho();
+    zmqol_enable_blood_money();
 
     // 🛑 STANDING RULE, user 2026-08-09: A PORTED PERK IS NEVER MODIFIED.
     //
@@ -5192,6 +5194,136 @@ zmqol_enable_fire_sale()
         return;     // the other four include it themselves
 
     maps\mp\zombies\_zm_utility::include_powerup( "fire_sale" );
+}
+
+// ============================================================================
+//  zmqol_enable_blood_money  -  BLOOD MONEY on every map, dropping naturally
+//
+//  User, 2026-08-11: *"add these 2 power ups to all the maps that you can that
+//  aren't limited by the game... and also for origins make it so that blood
+//  money can spawn naturally and it doesn't need to be dug up in a dig site."*
+//
+//  🌟 BLOOD MONEY IS NOT AN ORIGINS POWERUP. It is `bonus_points_player`, and it
+//  is registered in CORE, on every map in the game:
+//      _zm_powerups.gsc:106
+//      add_zombie_powerup( "bonus_points_player", "zombie_z_money_icon",
+//                          &"ZOMBIE_POWERUP_BONUS_POINTS",
+//                          ::func_should_never_drop, 1, 0, 0 );
+//  Only Origins ever switched it on (zm_tomb.gsc:1176 server, zm_tomb.csc:416
+//  client), and even there stock hands it out solely from a dig site
+//  (zm_tomb_dig.gsc:442, the "bonus_points_player" branch of dig_up_powerup).
+//
+//  🌟 IT COSTS ZERO CLIENTFIELD BITS, and that is the reason it can ship on
+//  EVERY map while Zombie Blood cannot. The 7-argument call above stops short of
+//  add_zombie_powerup's `client_field_name` parameter, so the
+//  registerclientfield() at _zm_powerups.gsc:449 never runs - server or client
+//  (the client's own add_zombie_powerup, _zm_powerups.csc:20, likewise passes no
+//  field name). Nothing is added to the `toplayer` set, so the per-map budget
+//  wall documented in .agents\QUEUE.md does not apply here at all.
+//
+//  📝 EVERYTHING IT DOES IS ALREADY CORE, so this port adds no behaviour of its
+//  own - which is exactly what [[zm-qol-port-never-tune]] asks for:
+//    - the grab is handled by core powerup_grab()'s own
+//      `case "bonus_points_player"` (_zm_powerups.gsc:1060), which threads
+//      bonus_points_player_powerup() - randomintrange( 1, 25 ) * 100 points to
+//      the grabbing player only, skipped in last stand or spectator.
+//    - the pickup glow is level._effect["powerup_on_solo"], loaded by core's
+//      client init on every map (solo = 1 in the call above).
+//    - the hint string &"ZOMBIE_POWERUP_BONUS_POINTS" is core-localized.
+//
+//  🛑 THE ANNOUNCER VO IS DELIBERATELY LEFT SILENT, and that is parity, not a
+//  gap. powerup_grab() calls powerup_vo( "bonus_points_solo" ), which reaches
+//  _zm_audio::create_and_play_dialog() - and that function's second statement is
+//      if ( !isdefined( level.vox.speaker[self.zmbvoxid].alias[category][type] ) )
+//          return;
+//  `createvox( "bonus_points_solo", ... )` appears NOWHERE in the 2,093-file
+//  stock dump - not in core's _zm_audio_announcer.gsc (which does register
+//  carpenter, insta_kill, double_points, nuke, full_ammo, fire_sale, minigun and
+//  zombie_blood), and not on Origins either. So Blood Money is silent on the map
+//  that ships it, and adding a line here would make this port LOUDER than the
+//  original - the v1.62.9 mistake.
+//
+//  🛑 TIMING. include_powerup() only writes level.zombie_include_powerups[name];
+//  _zm_powerups::init() reads it later, when it calls add_zombie_powerup for each
+//  entry. main() is inside Plutonium's precache window and runs ahead of every
+//  ::init(), and of the map's own main() - so writing here is early enough. It is
+//  purely additive (include_zombie_powerup creates the array only if undefined
+//  and never clears it), so the map's own include_powerups() cannot clobber it,
+//  and our entry cannot be lost.
+//
+//  📝 NO MAP GATE, unlike zmqol_enable_fire_sale above, and that is safe for two
+//  independent reasons. First, include_zombie_powerup() is idempotent - it sets
+//  the key to 1 - so calling it on Origins, which already includes it, is a
+//  no-op. Second, the "creating the array flips the filter" trap called out in
+//  zm_expanded.csc's fire-sale block cannot bite: all six maps populate
+//  level.zombie_include_powerups themselves on BOTH sides (verified - zm_transit,
+//  zm_nuked, zm_highrise, zm_prison, zm_buried and zm_tomb each have an
+//  include_powerups() in their .gsc and their .csc), so the array is never left
+//  holding only our entry.
+//
+//  🛑 THE MODEL HAD TO SHIP. Unlinker --list over all six map fastfiles plus
+//  common_zm.ff and patch_zm.ff:
+//      zombie_z_money_icon   tra 0  nuk 0  hig 0  pri 0  bur 1  tom 1  com 0
+//  add_zombie_powerup() precaches the model for every INCLUDED powerup
+//  (_zm_powerups.gsc:419-422), so including it on the four maps that lack the
+//  model would precache an absent asset - fatal at load, the same trap Fire Sale
+//  hit. zone_source\mod_locations.zone now carries xmodel,zombie_z_money_icon.
+//  zm_buried.ff's and zm_tomb.ff's copies were dumped and hashed and are
+//  BYTE-IDENTICAL (json a9e3dae5..., glb c5c760f5..., 4364 bytes), so mod.ff
+//  owning it globally cannot regress the two maps that already had it - the
+//  mod.ff asset-ownership trap does not apply.
+// ============================================================================
+zmqol_enable_blood_money()
+{
+    maps\mp\zombies\_zm_utility::include_powerup( "bonus_points_player" );
+}
+
+// ============================================================================
+//  zmqol_blood_money_natural_drop  -  the "spawn naturally" half
+//
+//  Stock hands Blood Money ::func_should_never_drop, so it is excluded from the
+//  ordinary rotation on every map - which is why Origins can only produce it
+//  from a dig site. get_valid_powerup() picks the next powerup and skips any
+//  whose function returns false:
+//      _zm_powerups.gsc:337
+//      if ( ![[ level.zombie_powerups[powerup].func_should_drop_with_regular_powerups ]]() )
+//          { powerup = get_next_powerup(); continue; }
+//  Re-pointing that ONE struct field to core's own ::func_should_always_drop -
+//  the same function nuke, insta_kill, double_points and full_ammo use - puts it
+//  in the normal zombie-kill rotation everywhere, Origins included. Origins' dig
+//  sites are untouched and keep working; this only adds the natural drop the
+//  user asked for.
+//
+//  🛑 A POINTER RE-POINT, NOT A replaceFunc - the behaviour is reached through
+//  level.zombie_powerups[...], which is CLAUDE.md §4 failure mode 2, and its
+//  prescribed fix. The same route v1.62.8 used for Electric Cherry.
+//
+//  🛑 IT MUST RUN AFTER _zm_powerups::init(), because that is what creates the
+//  struct (add_zombie_powerup, :424-441). Our init() is not ordered against it -
+//  _zm_powerups::init() is reached from _zm::init(), threaded by the MAP's
+//  main() - so this polls for the struct instead of assuming. The wait is capped
+//  so a map that somehow never registers the powerup cannot leave a thread
+//  spinning for the whole game.
+//
+//  📝 Only bonus_points_player is touched. bonus_points_team keeps
+//  ::func_should_never_drop, exactly as stock leaves it - Origins' dig awards the
+//  player variant (zm_tomb_dig.gsc:442) and the team variant belongs to Grief's
+//  own scripted awards.
+// ============================================================================
+zmqol_blood_money_natural_drop()
+{
+    for ( i = 0; i < 600; i++ )
+    {
+        if ( isdefined( level.zombie_powerups ) &&
+             isdefined( level.zombie_powerups[ "bonus_points_player" ] ) )
+        {
+            level.zombie_powerups[ "bonus_points_player" ].func_should_drop_with_regular_powerups =
+                maps\mp\zombies\_zm_powerups::func_should_always_drop;
+            return;
+        }
+
+        wait 0.05;
+    }
 }
 
 // ============================================================================

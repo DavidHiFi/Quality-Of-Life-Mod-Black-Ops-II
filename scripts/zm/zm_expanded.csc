@@ -56,7 +56,48 @@ main()
 	// CLIENT HALF OF FIRE SALE. Missing since v1.54.0 - see the block below.
 	zmqol_enable_fire_sale();
 
+	// CLIENT HALF OF BLOOD MONEY - see the block below.
+	zmqol_enable_blood_money();
+
 	perks();
+}
+
+// ============================================================================
+//  zmqol_enable_blood_money  (CLIENT)  -  EXACT TWIN of the same function in
+//                                         scripts\zm\quality_of_life.gsc
+//
+//  📝 THIS ONE CANNOT CAUSE A MISMATCH, unlike the fire-sale twin below, and it
+//  is worth knowing why rather than assuming the two are the same shape.
+//  Blood Money is `bonus_points_player`, and NEITHER side passes a
+//  client_field_name to add_zombie_powerup:
+//      server  _zm_powerups.gsc:106   add_zombie_powerup( "bonus_points_player",
+//                                       "zombie_z_money_icon", &"...", ::func_should_never_drop, 1, 0, 0 );
+//      client  _zm_powerups.csc:20    add_zombie_powerup( "bonus_points_player" );
+//  Both sides' add_zombie_powerup only reach their registerclientfield() inside
+//  `if ( isdefined( client_field_name ) )`, so this powerup registers NOTHING in
+//  the toplayer set on either side. The include list can therefore never fall out
+//  of symmetry the way fire_sale's did in v1.54.0.
+//
+//  🌟 IT IS STILL ADDED, for two reasons. It keeps the two include lists identical
+//  - the discipline the fire-sale bug taught - and it creates
+//  level.zombie_powerups["bonus_points_player"] on the client, which is what
+//  set_clientfield_code_callbacks() (_zm_powerups.csc:72-77) walks. That loop
+//  reads .client_field_name and skips entries without one, so today it is inert;
+//  keeping the struct present means it stays correct if that ever changes.
+//
+//  🛑 THE MAP GATE IS OMITTED DELIBERATELY, and the trap called out in the
+//  fire-sale block below was checked before doing so. That trap - creating
+//  level.zombie_include_powerups on a map whose client never populates it would
+//  flip the gate and filter EVERY powerup down to ours - cannot fire here,
+//  because all six maps call include_powerups() from their own .csc:
+//      zm_transit.csc:239  zm_nuked.csc:56    zm_highrise.csc:94
+//      zm_prison.csc:169   zm_buried.csc:496  zm_tomb.csc:142
+//  and include_zombie_powerup() is idempotent, so Origins - which already
+//  includes it at zm_tomb.csc:416 - is a no-op.
+// ============================================================================
+zmqol_enable_blood_money()
+{
+	clientscripts\mp\zombies\_zm_utility::include_powerup( "bonus_points_player" );
 }
 
 // ============================================================================
