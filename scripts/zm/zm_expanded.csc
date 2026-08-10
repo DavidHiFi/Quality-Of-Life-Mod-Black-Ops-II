@@ -420,6 +420,201 @@ perks()
 	zmqol_enable_electric_cherry();
 	zmqol_enable_vulture();
 	zmqol_enable_whoswho();
+
+	//  🛑 EXACT TWIN of the call at the end of quality_of_life.gsc::perks().
+	//  Only the include list is done here; every registration Zombie Blood needs
+	//  on the client happens later, in perks_register_clientfield() - see the
+	//  long block on zmqol_enable_zombie_blood() below for why it has to.
+	zmqol_enable_zombie_blood();
+}
+
+// ============================================================================
+//  ZOMBIE BLOOD  (CLIENT)  -  the mandatory other half of
+//  quality_of_life.gsc::zmqol_enable_zombie_blood()          (v1.65.0)
+//
+//  Ported from Origins' clientscripts\mp\zombies\_zm_powerup_zombie_blood.csc
+//  rather than shipping that file, because it lives in zm_tomb_patch.ff and
+//  adding a fastfile to build_ff.bat's --load list risks re-donating a shared
+//  asset (the v1.62.6 blown-out-shader bug). Every function it uses is core
+//  client code, so the port costs nothing - the same call already made for
+//  Who's Who.
+//
+//  🛑 THIS MAP LIST MUST MATCH quality_of_life.gsc::zmqol_zombie_blood_enabled()
+//  EXACTLY. Two clientfields are at stake - player_zombie_blood_fx (allplayers,
+//  1 bit) and powerup_zombie_blood (toplayer, 2 bits, registered as a side effect
+//  of add_zombie_powerup) - plus the two visionset-manager entries, whose count
+//  sets visionset_slot's and overlay_slot's bit widths. Disagree on any of it and
+//  every player is dropped with EXE_CLIENT_FIELD_MISMATCH before the map starts.
+//
+//  🛑 EVERYTHING EXCEPT THE INCLUDE RUNS IN perks_register_clientfield(), NOT
+//  HERE, and each of the four reasons is a separate silent failure:
+//
+//    1. level.vsmgr_filter_custom_enable IS WIPED AFTER main(). _visionset_mgr.csc
+//       :15 does `level.vsmgr_filter_custom_enable = []` and it is reached from
+//       _zm.csc:39 - later than this script's main(). Setting our entry here
+//       would be erased, the overlay would fall through to the generic branch
+//       (_visionset_mgr.csc:527) and the red screen filter would never fade in.
+//       No error, anywhere.
+//    2. The two vsmgr_register_* calls need level.vsmgr, which does not exist
+//       during main() at all - [[t6-visionset-registration-timing]], and the same
+//       reason the Who's Who visionset sits in that function.
+//    3. onplayerconnect_callback needs to be registered before
+//       level._customplayerconnectfuncs is armed at _zm.csc:96 - which is after
+//       _zm_perks::init() at :62, so that slot is comfortably early enough.
+//    4. add_zombie_powerup() must land before _zm_powerups.csc::init() threads
+//       set_clientfield_code_callbacks() at :63 (it walks level.zombie_powerups
+//       after a 0.1s wait). :62 is before :63.
+//
+//  📝 include_powerup() DOES belong here in main(), like Fire Sale's and Blood
+//  Money's twins above: it only writes level.zombie_include_powerups, which
+//  add_zombie_powerup reads as its own gate, and writing it early cannot lose the
+//  map's own entries (include_zombie_powerup is purely additive).
+// ============================================================================
+zmqol_zombie_blood_enabled()
+{
+	// 🛑 EXACT TWIN of quality_of_life.gsc::zmqol_zombie_blood_enabled().
+	// Origins ships the power-up itself; every other map gets it.
+	if ( getDvar( "mapname" ) == "zm_tomb" )
+		return 0;
+
+	return 1;
+}
+
+zmqol_enable_zombie_blood()
+{
+	if ( !zmqol_zombie_blood_enabled() )
+		return;
+
+	clientscripts\mp\zombies\_zm_utility::include_powerup( "zombie_blood" );
+}
+
+// ============================================================================
+//  zmqol_zb_register  -  called from perks_register_clientfield(), see above
+//
+//  Line for line clientscripts\mp\zombies\_zm_powerup_zombie_blood::init(),
+//  minus the priority level-vars (server-side only) and with the sound aliases
+//  repointed at this mod's own copies.
+// ============================================================================
+zmqol_zb_register()
+{
+	if ( !zmqol_zombie_blood_enabled() )
+		return;
+
+	onplayerconnect_callback( ::zmqol_zb_init_filter );
+	level.vsmgr_filter_custom_enable[ "generic_filter_zombie_blood_b" ] = ::zmqol_zb_vsmgr_enable_filter;
+	registerclientfield( "allplayers", "player_zombie_blood_fx", 14000, 1, "int", ::zmqol_zb_toggle_fx, 0, 1 );
+	level._effect[ "zombie_blood" ]     = loadfx( "maps/zombie_tomb/fx_tomb_pwr_up_zmb_blood" );
+	level._effect[ "zombie_blood_1st" ] = loadfx( "maps/zombie_tomb/fx_zm_blood_overlay_pclouds" );
+	clientscripts\mp\zombies\_zm_powerups::add_zombie_powerup( "zombie_blood", "powerup_zombie_blood" );
+
+	//  Guarded on the manager being present so that if this ordering ever changes
+	//  it degrades to "visionset not registered" instead of erroring out of the
+	//  whole clientfield pass - the same guard the Who's Who registration uses.
+	if ( isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "visionset" ] ) )
+	{
+		clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "zm_powerup_zombie_blood_visionset",
+			14000, 15, "zm_powerup_zombie_blood", "zm_powerup_zombie_blood" );
+	}
+
+	//  filter_index 1, pass_index 0 are Origins' own and collide with nothing
+	//  this mod uses - Vulture's overlay is filter 0, Who's Who's afterlife
+	//  filter is 5.
+	if ( isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "overlay" ] ) )
+	{
+		clientscripts\mp\_visionset_mgr::vsmgr_register_overlay_info_style_filter( "zm_powerup_zombie_blood_overlay",
+			14000, 15, 1, 0, "generic_filter_zombie_blood_b" );
+	}
+}
+
+zmqol_zb_vsmgr_enable_filter( curr_info )
+{
+	zmqol_zb_enable_filter( self, curr_info.filter_index, 0.0 );
+}
+
+zmqol_zb_init_filter( localclientnum )
+{
+	player = getlocalplayer( localclientnum );
+	clientscripts\mp\_filter::init_filter_indices();
+	clientscripts\mp\_filter::map_material_helper( player, "generic_filter_zombie_blood_b" );
+}
+
+zmqol_zb_set_overlay_amount( player, filterid, amount )
+{
+	player set_filter_pass_constant( filterid, 0, 0, amount );
+}
+
+zmqol_zb_enable_filter( player, filterid, zombie_blood_warp_shift_enabled )
+{
+	player set_filter_pass_material( filterid, 0, level.filter_matid[ "generic_filter_zombie_blood_b" ] );
+	player set_filter_pass_enabled( filterid, 0, 1 );
+	self thread zmqol_zb_overlay_fade_in();
+}
+
+zmqol_zb_overlay_fade_in()
+{
+	self endon( "entity_shutdown" );
+	zmqol_zb_overlay_lerp( 1.0, 0.2, 0.3 );
+	wait 0.2;
+	zmqol_zb_overlay_lerp( 0.2, 0.8, 1.0 );
+}
+
+zmqol_zb_overlay_lerp( n_fraction_start, n_fraction_end, n_trans_time )
+{
+	n_fraction_delta = n_fraction_end - n_fraction_start;
+	zmqol_zb_set_overlay_amount( self, 1, n_fraction_start );
+
+	for ( n_time = 0.0; n_time < n_trans_time; n_time = n_time + 0.0166667 )
+	{
+		n_fraction = n_fraction_start + n_fraction_delta * n_time / n_trans_time;
+		zmqol_zb_set_overlay_amount( self, 1, n_fraction );
+		wait 0.0166667;
+	}
+
+	zmqol_zb_set_overlay_amount( self, 1, n_fraction_end );
+}
+
+// ============================================================================
+//  zmqol_zb_toggle_fx  -  the player_zombie_blood_fx clientfield callback
+//
+//  🛑 THE THREE SOUND ALIASES ARE ORIGINS-ONLY - measured, not assumed. The
+//  alias tables of zmb_tomb, zmb_highrise, zmb_alcatraz, zmb_buried,
+//  zmb_nuked_real, zmb_classic_transit and zmb_survival_transit were dumped with
+//  Unlinker --include-assets soundbank: zmb_zombieblood_start / _loop / _stop
+//  appear ONLY in zmb_tomb.all. A missing alias is SILENT, never an error, so
+//  calling Origins' names here would have shipped a mute power-up with nothing in
+//  any log. They are re-shipped under zmqol_ names through this mod's own bank
+//  (soundbank\mod.all.aliases.additions.csv), the route already proven by
+//  zmqol_cherry_zap and zmqol_ww_activate.
+//
+//  📝 zmqol_zombieblood_loop keeps Origins' duck, zmb_tomb_zombieblood, re-shipped
+//  as zmqol_zombieblood - it drops ambience to 25% and weapons/impacts to 50% for
+//  the whole 30 seconds, and that muffling IS the zombie-blood soundscape. See
+//  build_ff.bat's duck-staging block.
+// ============================================================================
+zmqol_zb_toggle_fx( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	if ( isspectating( localclientnum, 0 ) || isdemoplaying() )
+		return;
+
+	if ( newval == 1 )
+	{
+		if ( self islocalplayer() && self getlocalclientnumber() == localclientnum )
+		{
+			if ( !isdefined( self.zombie_blood_fx ) )
+			{
+				self.zombie_blood_fx = playviewmodelfx( localclientnum, level._effect[ "zombie_blood_1st" ], "tag_camera" );
+				playsound( localclientnum, "zmqol_zombieblood_start", ( 0, 0, 0 ) );
+				playloopat( "zmqol_zombieblood_loop", ( 0, 0, 0 ) );
+			}
+		}
+	}
+	else if ( isdefined( self.zombie_blood_fx ) )
+	{
+		stopfx( localclientnum, self.zombie_blood_fx );
+		playsound( localclientnum, "zmqol_zombieblood_stop", ( 0, 0, 0 ) );
+		stoploopat( "zmqol_zombieblood_loop", ( 0, 0, 0 ) );
+		self.zombie_blood_fx = undefined;
+	}
 }
 
 // ============================================================================
@@ -1255,6 +1450,16 @@ perks_register_clientfield()
 	// ========================================================================
 	if ( zmqol_whoswho_enabled() && isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "visionset" ] ) )
 		clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "zm_whos_who", 5000, 1, "zm_whos_who", "zm_whos_who" );
+
+	//  ZOMBIE BLOOD'S ENTIRE CLIENT REGISTRATION, v1.65.0, and it is here for the
+	//  same reason the Who's Who visionset above is: this function is the one
+	//  place in this script that runs inside _visionset_mgr's window, strictly
+	//  after _visionset_mgr::init() (_zm.csc:39) and strictly before finalize.
+	//  It ALSO has to be after :39 for a second, unrelated reason - that init
+	//  wipes level.vsmgr_filter_custom_enable, which the red overlay depends on.
+	//  Four separate timing constraints, all satisfied by this one slot; the full
+	//  list is on zmqol_enable_zombie_blood() above.
+	zmqol_zb_register();
 
 	level thread perk_init_code_callbacks();
 }

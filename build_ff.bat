@@ -158,6 +158,33 @@ echo   Staging this mod's own sounds ...
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$p='%PROJ%'; $base=Join-Path $p 'zone_assets\soundbank\mod.all.aliases.csv'; $add=Join-Path $p 'soundbank\mod.all.aliases.additions.csv'; $rows=@(Get-Content $base); $out=@($rows[0]); $mine=@(); $own=@{}; if(Test-Path $add){ $ar=@(Get-Content $add); foreach($r in $ar[1..($ar.Count-1)]){ if($r.Trim() -eq ''){continue}; $mine += $r; $own[($r -split ',')[0]]=$true } }; $drop=0; for($i=1;$i -lt $rows.Count;$i++){ if($own.ContainsKey((($rows[$i]) -split ',')[0])){ $drop++ } else { $out += $rows[$i] } }; $out += $mine; Set-Content -LiteralPath $base -Value $out -Encoding ASCII; Write-Host ('    ' + $mine.Count + ' alias row(s) from this mod (' + $own.Count + ' distinct names, ' + $drop + ' cached row(s) replaced), ' + ($out.Count-1) + ' total'); $m=0; $src=Join-Path $p 'sound'; if(Test-Path $src){ Get-ChildItem -LiteralPath $src -Recurse -File | ForEach-Object { $rel=$_.FullName.Substring($p.Length+1); $dst=Join-Path (Join-Path $p 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; $m++ } }; Write-Host ('    ' + $m + ' sound payload(s) staged')"
 if errorlevel 1 ( echo   ERROR: could not stage this mod's sounds. & exit /b 1 )
 
+REM --- stage the sound bank's DUCKS -------------------------------------------
+REM  A "duck" is a mixer snapshot: while an alias that names one is playing, every
+REM  other DuckGroup is attenuated by the amounts in the .duk. It is a real,
+REM  audible part of some effects - Origins' zmb_zombieblood_loop names
+REM  zmb_tomb_zombieblood, which drops ambience to 25%% and weapons/impacts to 50%%
+REM  for the whole 30 seconds, and that muffling IS the zombie-blood soundscape.
+REM
+REM  🛑 THE DONOR mod.all HAS NO DUCKLIST AT ALL - zero of its 1,691 aliases carry
+REM  a Duck value - so nothing staged one before v1.65.0. An alias that names a
+REM  duck the bank cannot supply is a HARD LINK ERROR, not a silent no-op:
+REM      Unable to find .duk file for {} in ducklist for sound bank {}
+REM  (string lifted straight out of Linker.exe). So the ducklist and the .duk
+REM  files have to travel together with the alias rows that reference them.
+REM
+REM  Layout is the Linker's own, confirmed from its format strings:
+REM      soundbank\<bank>.ducklist.csv     one column, header "name"
+REM      soundbank\ducks\<name>.duk        the JSON snapshot
+REM  Both come from soundbank\ at the project root (source, git-tracked) and are
+REM  copied verbatim into zone_assets\soundbank\ every run, like the alias rows.
+REM
+REM  📝 Duck names are mod-private (zmqol_*) for the same reason alias names are:
+REM  mod.ff loads ahead of every map, so a stock name here would put a second
+REM  definition in front of the map that owns it.
+echo   Staging this mod's sound-bank ducks ...
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$p='%PROJ%'; $n=0; $srcList=Join-Path $p 'soundbank\mod.all.ducklist.csv'; $dstDir=Join-Path $p 'zone_assets\soundbank'; if(Test-Path $srcList){ if(-not (Test-Path -LiteralPath $dstDir)){ New-Item -ItemType Directory -Path $dstDir -Force | Out-Null }; Copy-Item -LiteralPath $srcList -Destination (Join-Path $dstDir 'mod.all.ducklist.csv') -Force; $n++ }; $srcDucks=Join-Path $p 'soundbank\ducks'; if(Test-Path $srcDucks){ $dd=Join-Path $dstDir 'ducks'; if(-not (Test-Path -LiteralPath $dd)){ New-Item -ItemType Directory -Path $dd -Force | Out-Null }; Get-ChildItem -LiteralPath $srcDucks -File -Filter *.duk | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $dd $_.Name) -Force; $n++ } }; Write-Host ('    ' + $n + ' duck file(s) staged')"
+if errorlevel 1 ( echo   ERROR: could not stage this mod's ducks. & exit /b 1 )
+
 REM --- link -------------------------------------------------------------------
 echo   Linking mod.ff ...
 if exist "%PROJ%\zone_out" rmdir /s /q "%PROJ%\zone_out"

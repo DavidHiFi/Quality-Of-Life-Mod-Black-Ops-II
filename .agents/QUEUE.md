@@ -29,6 +29,103 @@ Who's Who, Zombie Blood, Blood Money, the wall-buys and everything after them.
 
 ---
 
+## 🚧 v1.65.0 — ZOMBIE BLOOD + THE THREE ANNOUNCER LINES. DEPLOYED, NOT YET BOOTED.
+
+**User, 2026-08-11:** *"build zombie blood and the three announcer lines."*
+The build spec below (§"THE BUILD SPEC") was executed. **This is the item in flight — nothing new
+starts until the user boots it.**
+
+### What shipped
+
+| | |
+|---|---|
+| server | `zmqol_zombie_blood_enabled()` (gate, off `zm_tomb`), `zmqol_enable_zombie_blood()` from `perks()`/`main()`, `zmqol_register_zombie_blood_visionsets()` from `init()`, `zmqol_zb_powerup()` + 5 helpers, `zmqol_register_announcer_vox()` |
+| server hook | one `zombie_blood` branch in `custom_powerup_grab()`, **gated** — without the gate it would hijack Origins' own power-up |
+| client | `zmqol_enable_zombie_blood()` (include only) from `perks()`, `zmqol_zb_register()` + 7 helpers, all called from `perks_register_clientfield()` |
+| `mod.ff` | 6 asset lines → **48 assets added, 0 removed, 0 re-owned** |
+| sound | 10 alias rows + 7 payloads + **the first duck this project has ever shipped** |
+| build | `build_ff.bat` gained a duck-staging step (`soundbank\<bank>.ducklist.csv` + `soundbank\ducks\*.duk`) |
+
+### 🌟 Four findings that changed the design
+
+1. **Clientfield registration ORDER does not have to match between the sides.** Proven by this
+   mod's own Vulture: server registers its eight fields from `main()`, client from
+   `_zm_perks::init()`, and it ships on five maps. Only the set of names/versions/sets/widths must
+   agree. Visionsets are immune by construction — `_visionset_mgr` sorts names alphabetically
+   before assigning `slot_index`.
+2. **`level.vsmgr_filter_custom_enable` is WIPED after client `main()`** (`_visionset_mgr.csc:15`,
+   reached from `_zm.csc:39`). Setting the red-overlay hook in `main()` would have been erased and
+   the filter would silently never fade in. That is one of four independent reasons the whole
+   client half lives in `perks_register_clientfield()`.
+3. **The character reaction lines must NOT be ported.** `create_and_play_dialog` keys on the
+   player's character index, so Origins' twelve would put the Origins cast's voices in Misty's and
+   Russman's mouths everywhere. Unregistered is silent, and silent is stock's own path here.
+4. **`playsound( "death_machine" )` in `deathmachine_powerup()` matches no alias in any of the
+   nine banks dumped.** The Death Machine drop has always been silent; the new announcer line is
+   the first sound it makes.
+
+### 🛑 CORRECTION carried out — v1.64.0's Blood Money write-up was wrong
+
+It said the silent announcer was deliberate parity. That was measured on `powerup_vo(
+"bonus_points_solo" )`, which really does return without playing — but **Origins reaches its Blood
+Money line by a different route entirely**, the dig script's own `leaderdialog( "blood_money" )`
+(`zm_tomb_dig.gsc:773`). The line exists. Fixed in the code comment, `MOD_CATALOGUE.md` §7a and
+here.
+
+### Everything verified before hand-off, each claim traceable
+
+- both scripts parse (`gsc-tool`, `-i client` for the `.csc`); no duplicate function names on either side
+- `mod.ff` links **0 errors, the same 34 pre-existing warnings**; asset list **3818 → 3866,
+  additions only, nothing removed**
+- **ownership audit clean**: the only new assets that exist in more than one fastfile are
+  `mc_sw4_3d_model_unlit_cheap_zombie_eyes_jq3e7eqw`, `gfx_fxt_smk_trail_wisp` and
+  `mc/mtl_c_zom_zombie_head_n_therm` — all three **byte-identical** across every map that has them
+  (`c4095714…`, `fc4e4623…`, `3e8e1c12…`); the other two shared names are reference-only entries
+  (`type,,name`), which carry no data and cannot override anything
+- sound bank diffed against the **previously shipped** `mod.ff`, not the donor: **1791 → 1801
+  aliases, zero pre-existing rows changed, zero removed**; the duck round-tripped byte-identical
+- all six deployed files hash-match source; the new symbols confirmed inside the **deployed**
+  `mod.iwd` on both sides and the six Zombie Blood assets inside the **deployed** `mod.ff`
+
+### ⚠️ RESIDUAL RISK, stated not hidden — the `toplayer` budget on CLASSIC
+
+This is the one thing that could not be settled offline, and it is worth naming precisely.
+
+Buried classic stock is 63 `toplayer` bits. Under this mod it computes to **~68-69** (+2
+`perk_dead_shot`, +2 `perk_tombstone`, +1 `perk_electric_cherry`, +1 `visionset_slot`), and the
+user **booted exactly that and it played** — so the ceiling is ≥ 69. Zombie Blood adds +2
+(`powerup_zombie_blood`), +1 (`visionset_lerp` widens 3→4 for its 15 lerp steps) and up to +2 more
+if either slot field gains a bit: **~71-73**. The only hard upper bound is checkpoint 17's Mob
+crash, whose numbers were themselves an estimate. **So the ceiling is bracketed roughly [69, ?]
+and this build may sit above it.**
+
+`allplayers` was measured properly and is fine: Buried classic stock 28, +2
+`electric_cherry_reload_fx`, +1 `player_zombie_blood_fx` = **31/32**. One bit spare — worth knowing
+before anything else is added to that set.
+
+**If it fails it fails LOUDLY at load**, with `Trying to assign N bits for netfield <x> but Client
+Field Set TOPLAYER is out of space` naming whichever field asked last. That costs one boot and
+tells us the ceiling exactly, which nothing offline can. The obvious bit to free if it comes to
+that is Buried's native 5-bit `vulture_perk_disease_meter`, which this mod already knows how to
+drop (`zmqol_vulture_has_disease_meter()`).
+
+🛑 **Zombie Blood is NOT gated to survival modes to dodge this.** A power-up present in one mode of
+a map and absent in the other is the half-implementation this project does not ship.
+
+### TEST — boot **BURIED CLASSIC** first
+
+It is the fullest map in the game and the only one at real risk. If it loads, everything else will.
+
+1. **Buried classic** — does it load at all? That is the whole test for the budget.
+2. Kill zombies until power-ups drop. A **blood-drop icon** should appear in the rotation. Grab it:
+   screen goes red, you turn into an Origins German zombie, **zombies walk straight past you for 30
+   seconds**, with a looping sound and everything else ducked down under it.
+3. **The announcer should call it** — and should also now call **Blood Money** and the **Death
+   Machine**, which have both been silent until now.
+4. **Origins must be unchanged** — its own Zombie Blood, its own announcer line, its dig sites.
+
+---
+
 ## ✅ v1.64.0 — BLOOD MONEY ON EVERY MAP, DROPPING NATURALLY. DEPLOYED, NOT YET BOOTED.
 
 **User, 2026-08-11:** *"didnt get zombie blood or blood money at all, you need to add these 2 power

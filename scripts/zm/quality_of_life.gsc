@@ -238,10 +238,12 @@ init()
     zmqol_restore_perk_bottles_on_survival();
     zmqol_register_divetonuke_visionset();
     zmqol_register_vulture_visionset();
+    zmqol_register_zombie_blood_visionsets();
     zmqol_dev_commands();
     level thread zmqol_credits_banner();
     level thread zmqol_perk_slot_connect();
     level thread zmqol_blood_money_natural_drop();
+    level thread zmqol_register_announcer_vox();
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
@@ -1486,6 +1488,26 @@ custom_powerup_grab( s_powerup, e_player )
     if ( isDefined( s_powerup ) && isDefined( s_powerup.powerup_name ) && s_powerup.powerup_name == "deathmachine" )
     {
         level thread deathmachine_powerup( s_powerup, e_player );
+        return;
+    }
+    //  ZOMBIE BLOOD, v1.65.0. Core's powerup_grab() sends every power-up name it
+    //  does not handle itself down level._zombiemode_powerup_grab
+    //  (_zm_powerups.gsc:1072, the `default:` branch), and this function IS that
+    //  pointer on every map - the deathmachine module installs it and chains the
+    //  map's own previous handler below, so Origins' ::tomb_powerup_grab is still
+    //  reached there. That chaining is exactly why this branch is safe to add
+    //  here rather than needing a hook of its own.
+    //
+    //  🛑 THE MAP GATE IS NOT OPTIONAL AND IT IS THE WHOLE REASON ORIGINS STILL
+    //  WORKS. On zm_tomb the chained handler below IS ::tomb_powerup_grab, which
+    //  runs Treyarch's own zombie_blood_powerup(). Intercepting the name here
+    //  without the gate would run OUR copy on Origins instead - where
+    //  zmqol_enable_zombie_blood() deliberately registered nothing, so
+    //  level._effect["zombie_blood"] and level.a_zombie_blood_entities do not
+    //  exist and the power-up would break on the one map that ships it.
+    if ( zmqol_zombie_blood_enabled() && isDefined( s_powerup ) && isDefined( s_powerup.powerup_name ) && s_powerup.powerup_name == "zombie_blood" )
+    {
+        level thread zmqol_zb_powerup( s_powerup, e_player );
         return;
     }
     if ( isDefined( level.original_deathmachine_powerup_grab ) )
@@ -5122,6 +5144,13 @@ perks()
     zmqol_enable_whoswho();
     zmqol_enable_blood_money();
 
+    //  🛑 EXACT TWIN of the call at the end of zm_expanded.csc::perks(). Both
+    //  sides register player_zombie_blood_fx (allplayers, 1 bit) and, through
+    //  add_zombie_powerup, powerup_zombie_blood (toplayer, 2 bits). Enable it on
+    //  one side only and everyone is dropped with EXE_CLIENT_FIELD_MISMATCH
+    //  before the map starts - the Fire Sale bug, exactly.
+    zmqol_enable_zombie_blood();
+
     // 🛑 STANDING RULE, user 2026-08-09: A PORTED PERK IS NEVER MODIFIED.
     //
     //  v1.62.8/v1.62.9 owned Electric Cherry's reload attack by re-pointing
@@ -5319,6 +5348,494 @@ zmqol_blood_money_natural_drop()
         {
             level.zombie_powerups[ "bonus_points_player" ].func_should_drop_with_regular_powerups =
                 maps\mp\zombies\_zm_powerups::func_should_always_drop;
+            return;
+        }
+
+        wait 0.05;
+    }
+}
+
+// ============================================================================
+//  ZOMBIE BLOOD  -  Origins' power-up, on the five maps that never had it
+//  (v1.65.0)  -  SERVER HALF
+//
+//  User, 2026-08-11: *"build zombie blood and the three announcer lines."*
+//
+//  30 seconds of self.ignoreme = 1 - every zombie walks straight past you - plus
+//  a red screen filter, the zm_powerup_zombie_blood visionset, a first-person
+//  particle effect on the camera, a third-person effect linked to your eyeball
+//  tag, your player model swapped for an Origins zombie, a looping sound, the
+//  announcer, and the solo-HUD countdown. Ends early if you go down. Cannot be
+//  picked up in last stand.
+//
+//  🛑 THIS IS A PORT, NOT A REDESIGN. Every function below is
+//  maps\mp\zombies\_zm_powerup_zombie_blood.gsc (Origins, 196 lines) with the
+//  names prefixed and the four sound aliases repointed at this mod's own copies.
+//  Nothing else is changed - no re-balanced duration, no "fixed" edge case. See
+//  [[zm-qol-port-never-tune]] and QUEUE.md's standing rule.
+//
+//  🛑 GATED OFF zm_tomb. Origins registers this power-up itself
+//  (level.level_specific_init_powerups = ::tomb_powerup_init), and running ours
+//  there too would register player_zombie_blood_fx twice - "already registered"
+//  is fatal. It also keeps Origins a clean A/B baseline, the same discipline
+//  used for Electric Cherry and Who's Who.
+//
+//  ── WHY EVERY PIECE SITS WHERE IT SITS ──────────────────────────────────────
+//
+//  zmqol_enable_zombie_blood()          main(), from the tail of perks()
+//      registerclientfield + include + add_zombie_powerup + precaches. Clientfields
+//      must be registered before the first snapshot, so this cannot move to init()
+//      - the same constraint zmqol_enable_vulture() documents.
+//
+//      🛑 add_zombie_powerup() INDEXES level.zombie_powerup_array, which
+//      _zm_powerups::init() creates at :89-90 - later than main(). So the two
+//      arrays are created here first if absent. That is safe in both directions:
+//      stock's own lines are `if ( !isdefined( ... ) )` guarded, so it will not
+//      wipe ours, and ours will not wipe its.
+//
+//  zmqol_register_zombie_blood_visionsets()   init()
+//      vsmgr_register_info() asserts on level.vsmgr_initializing and level.vsmgr
+//      does not exist during main() - [[t6-visionset-registration-timing]]. Same
+//      split, for the same reason, as zmqol_register_divetonuke_visionset() and
+//      zmqol_register_vulture_visionset() above.
+//
+//  🌟 THE TWO SIDES DO NOT HAVE TO REGISTER IN THE SAME ORDER, and that is
+//  measured, not hoped: this mod already registers Vulture's eight clientfields
+//  from main() on the server and from _zm_perks::init() on the client, and
+//  Vulture ships and boots on five maps. Only the SET of names, versions, sets
+//  and bit widths has to agree. (Visionset slots are immune by construction -
+//  _visionset_mgr sorts its names alphabetically before assigning slot_index.)
+//
+//  ── COST, against the ceiling that was settled by a boot ─────────────────────
+//
+//      allplayers  +1   player_zombie_blood_fx
+//      toplayer    +2   powerup_zombie_blood (add_zombie_powerup always takes 2)
+//      toplayer    +1   visionset_lerp widens 3 -> 4 (lerp_step_count 15)
+//      toplayer  +0-2   visionset_slot / overlay_slot may each gain a bit
+//
+//  The old arithmetic that said this would not fit on the classic maps is
+//  WITHDRAWN. The user booted Buried CLASSIC on v1.64.0 - the fullest map in the
+//  game at 63 toplayer bits stock, ~68 under this mod - and it played, with zero
+//  EXE_CLIENT_FIELD / "out of space" lines in an 8,567-line log. The ceiling is
+//  above the mod's real Buried total, so this fits everywhere.
+//
+//  ── WHAT IS DELIBERATELY NOT PORTED, and why that is parity ─────────────────
+//
+//  🛑 THE CHARACTER REACTION LINES ARE NOT SHIPPED. Origins records twelve -
+//  vox_plr_0..3_powerup_zombie_blood_0..2 - and create_and_play_dialog() picks
+//  one by the PLAYER'S CHARACTER INDEX. Shipping them would make Misty, Marlton,
+//  Russman and Stuhlinger speak in the Origins cast's voices on every other map.
+//  That is not the original behaviour, it is a new and worse one. With no vox
+//  registered the call below returns silently, which is exactly what stock does
+//  for any unregistered dialog type. The announcer line, which is character-
+//  neutral, IS ported - see zmqol_register_announcer_vox().
+//
+//  📝 level.a_zombie_blood_entities stays empty off Origins. It holds the hidden
+//  dig sites Zombie Blood reveals, and no other map has any - so the reveal loops
+//  below iterate zero times. Nothing is missing; there is nothing to reveal.
+//
+//  📝 c_zom_tomb_german_player_fb is ONE model for all four characters - Origins
+//  passes the same string regardless of who you are - so the port turns everyone
+//  into an Origins German zombie. That is what the original does, so that is what
+//  ships. (Unlike the VO above, the model is not character-keyed, so there is no
+//  wrong-voice equivalent here.)
+// ============================================================================
+zmqol_zombie_blood_enabled()
+{
+    // Origins ships the power-up itself. Every other map gets it.
+    if ( getDvar( "mapname" ) == "zm_tomb" )
+        return 0;
+
+    return 1;
+}
+
+zmqol_enable_zombie_blood()
+{
+    if ( !zmqol_zombie_blood_enabled() )
+        return;
+
+    level.str_zombie_blood_model = "c_zom_tomb_german_player_fb";
+    precachemodel( level.str_zombie_blood_model );
+
+    registerclientfield( "allplayers", "player_zombie_blood_fx", 14000, 1, "int" );
+
+    maps\mp\zombies\_zm_utility::include_powerup( "zombie_blood" );
+
+    //  See the block comment: add_zombie_powerup() writes into both of these and
+    //  _zm_powerups::init() has not run yet. Its own creation lines are
+    //  isdefined-guarded, so seeding them here cannot lose stock's entries.
+    if ( !isdefined( level.zombie_powerup_array ) )
+        level.zombie_powerup_array = [];
+
+    if ( !isdefined( level.zombie_special_drop_array ) )
+        level.zombie_special_drop_array = [];
+
+    //  Arguments copied verbatim from _zm_powerup_zombie_blood.gsc:17. The hint
+    //  string is genuinely &"ZOMBIE_POWERUP_MAX_AMMO" in stock - Treyarch reused
+    //  Max Ammo's - and it is core-localized, so it resolves on every map.
+    maps\mp\zombies\_zm_powerups::add_zombie_powerup( "zombie_blood",
+        "p6_zm_tm_blood_power_up",
+        &"ZOMBIE_POWERUP_MAX_AMMO",
+        maps\mp\zombies\_zm_powerups::func_should_always_drop,
+        1, 0, 0, undefined,
+        "powerup_zombie_blood",
+        "zombie_powerup_zombie_blood_time",
+        "zombie_powerup_zombie_blood_on" );
+
+    maps\mp\zombies\_zm_powerups::powerup_set_can_pick_up_in_last_stand( "zombie_blood", 0 );
+
+    maps\mp\zombies\_zm_utility::onplayerconnect_callback( ::zmqol_zb_init_player_vars );
+
+    if ( !isdefined( level.vsmgr_prio_visionset_zm_powerup_zombie_blood ) )
+        level.vsmgr_prio_visionset_zm_powerup_zombie_blood = 15;
+
+    if ( !isdefined( level.vsmgr_prio_overlay_zm_powerup_zombie_blood ) )
+        level.vsmgr_prio_overlay_zm_powerup_zombie_blood = 16;
+}
+
+// ============================================================================
+//  zmqol_register_zombie_blood_visionsets  -  the half that CANNOT run in main()
+//
+//  Priorities 15 (visionset) and 16 (overlay) are Origins' own. They were checked
+//  against every priority any other map registers, because vsmgr_register_info()
+//  asserts on a duplicate within a type:
+//      visionset  15 zombie_blood | 17 cheat_bw | 20 transit_power_high_low
+//                 120 zm_afterlife | 121 zm_electric_cherry | 123 zm_whos_who
+//                 123 zombie_turned | 200 zm_audio_log | 400 zm_perk_divetonuke
+//      overlay    16 zombie_blood | 20/21 zm_transit_burn | 50 screecher_blur
+//                 60/61 trap_electrified/burn | 75 avogadro | 120 vulture_stink
+//                 120 zm_afterlife_filter | 200 zombie_time_bomb
+//  15 and 16 are used by nothing but Origins, and Origins is gated out.
+//
+//  lerp_step_count 15 on both, matching the client's two calls exactly - that
+//  number is what sets visionset_lerp's and overlay_lerp's bit widths, so the
+//  two sides disagreeing is the [CLIENT: 4 SERVER: 5] boot crash Vulture caused
+//  twice.
+// ============================================================================
+zmqol_register_zombie_blood_visionsets()
+{
+    if ( !zmqol_zombie_blood_enabled() )
+        return;
+
+    //  Degrade to "not registered" rather than erroring out of init() if the
+    //  ordering ever changes and _visionset_mgr::init() has not run yet.
+    if ( !isdefined( level.vsmgr ) )
+        return;
+
+    level._effect[ "zombie_blood" ]     = loadfx( "maps/zombie_tomb/fx_tomb_pwr_up_zmb_blood" );
+    level._effect[ "zombie_blood_1st" ] = loadfx( "maps/zombie_tomb/fx_zm_blood_overlay_pclouds" );
+
+    level.a_zombie_blood_entities = [];
+    array_thread( getentarray( "zombie_blood_visible", "targetname" ), ::zmqol_zb_make_entity );
+
+    if ( isdefined( level.vsmgr[ "visionset" ] ) &&
+         !( isdefined( level.vsmgr[ "visionset" ].info ) &&
+            isdefined( level.vsmgr[ "visionset" ].info[ "zm_powerup_zombie_blood_visionset" ] ) ) )
+    {
+        maps\mp\_visionset_mgr::vsmgr_register_info( "visionset", "zm_powerup_zombie_blood_visionset",
+            14000, level.vsmgr_prio_visionset_zm_powerup_zombie_blood, 15, 1 );
+    }
+
+    if ( isdefined( level.vsmgr[ "overlay" ] ) &&
+         !( isdefined( level.vsmgr[ "overlay" ].info ) &&
+            isdefined( level.vsmgr[ "overlay" ].info[ "zm_powerup_zombie_blood_overlay" ] ) ) )
+    {
+        maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "zm_powerup_zombie_blood_overlay",
+            14000, level.vsmgr_prio_overlay_zm_powerup_zombie_blood, 15, 1 );
+    }
+}
+
+zmqol_zb_init_player_vars()
+{
+    self.zombie_vars[ "zombie_powerup_zombie_blood_on" ] = 0;
+    self.zombie_vars[ "zombie_powerup_zombie_blood_time" ] = 30;
+}
+
+// ============================================================================
+//  zmqol_zb_powerup  -  _zm_powerup_zombie_blood::zombie_blood_powerup(), ported
+//
+//  Reached from custom_powerup_grab() (the deathmachine module's
+//  level._zombiemode_powerup_grab hook), which is where core's powerup_grab()
+//  sends every power-up name it does not handle itself - _zm_powerups.gsc:1072,
+//  the `default:` branch.
+//
+//  🛑 The only edits to stock's body are the three sound aliases, which are
+//  Origins-only and are re-shipped under zmqol_ names through this mod's own
+//  bank (soundbank\mod.all.aliases.additions.csv):
+//      zmb_zombieblood_3rd_loop -> zmqol_zombieblood_3rd_loop
+//  and, on the client, _start / _loop / _stop. A missing alias is SILENT, never
+//  an error, so calling Origins' names here would have shipped a mute power-up
+//  with nothing in any log.
+//
+//  📝 powerup_vo( "zombie_blood" ) is kept exactly as stock has it even though no
+//  character vox is registered off Origins - see the block comment above. It
+//  returns immediately, which is the stock code path for an unregistered type.
+// ============================================================================
+zmqol_zb_powerup( m_powerup, e_player )
+{
+    e_player notify( "zombie_blood" );
+    e_player endon( "zombie_blood" );
+    e_player endon( "disconnect" );
+    e_player thread maps\mp\zombies\_zm_powerups::powerup_vo( "zombie_blood" );
+    e_player.ignoreme = 1;
+    e_player._show_solo_hud = 1;
+    e_player.zombie_vars[ "zombie_powerup_zombie_blood_time" ] = 30;
+    e_player.zombie_vars[ "zombie_powerup_zombie_blood_on" ] = 1;
+    level notify( "player_zombie_blood", e_player );
+    maps\mp\_visionset_mgr::vsmgr_activate( "visionset", "zm_powerup_zombie_blood_visionset", e_player );
+    maps\mp\_visionset_mgr::vsmgr_activate( "overlay", "zm_powerup_zombie_blood_overlay", e_player );
+    e_player setclientfield( "player_zombie_blood_fx", 1 );
+
+    level.a_zombie_blood_entities = zmqol_zb_compact( level.a_zombie_blood_entities );
+
+    foreach ( e_zombie_blood in level.a_zombie_blood_entities )
+    {
+        if ( isdefined( e_zombie_blood.e_unique_player ) )
+        {
+            if ( e_zombie_blood.e_unique_player == e_player )
+                e_zombie_blood setvisibletoplayer( e_player );
+
+            continue;
+        }
+
+        e_zombie_blood setvisibletoplayer( e_player );
+    }
+
+    if ( !isdefined( e_player.m_fx ) )
+    {
+        v_origin = e_player gettagorigin( "J_Eyeball_LE" );
+        v_angles = e_player gettagangles( "J_Eyeball_LE" );
+        m_fx = spawn( "script_model", v_origin );
+        m_fx setmodel( "tag_origin" );
+        m_fx.angles = v_angles;
+        m_fx linkto( e_player, "J_Eyeball_LE", ( 0, 0, 0 ), ( 0, 0, 0 ) );
+        m_fx thread zmqol_zb_fx_disconnect_watch( e_player );
+        playfxontag( level._effect[ "zombie_blood" ], m_fx, "tag_origin" );
+        e_player.m_fx = m_fx;
+        e_player.m_fx playloopsound( "zmqol_zombieblood_3rd_loop", 1 );
+
+        if ( isdefined( level.str_zombie_blood_model ) )
+        {
+            e_player.hero_model = e_player.model;
+            e_player setmodel( level.str_zombie_blood_model );
+        }
+    }
+
+    e_player thread zmqol_zb_watch_early_exit();
+
+    while ( e_player.zombie_vars[ "zombie_powerup_zombie_blood_time" ] >= 0 )
+    {
+        wait 0.05;
+        e_player.zombie_vars[ "zombie_powerup_zombie_blood_time" ] =
+            e_player.zombie_vars[ "zombie_powerup_zombie_blood_time" ] - 0.05;
+    }
+
+    e_player notify( "zombie_blood_over" );
+
+    if ( isdefined( e_player.characterindex ) )
+        e_player playsound( "vox_plr_" + e_player.characterindex + "_exert_grunt_" + randomintrange( 0, 3 ) );
+
+    e_player.m_fx delete();
+    maps\mp\_visionset_mgr::vsmgr_deactivate( "visionset", "zm_powerup_zombie_blood_visionset", e_player );
+    maps\mp\_visionset_mgr::vsmgr_deactivate( "overlay", "zm_powerup_zombie_blood_overlay", e_player );
+    e_player.zombie_vars[ "zombie_powerup_zombie_blood_on" ] = 0;
+    e_player.zombie_vars[ "zombie_powerup_zombie_blood_time" ] = 30;
+    e_player._show_solo_hud = 0;
+    e_player setclientfield( "player_zombie_blood_fx", 0 );
+
+    if ( !isdefined( e_player.early_exit ) )
+        e_player.ignoreme = 0;
+    else
+        e_player.early_exit = undefined;
+
+    level.a_zombie_blood_entities = zmqol_zb_compact( level.a_zombie_blood_entities );
+
+    foreach ( e_zombie_blood in level.a_zombie_blood_entities )
+        e_zombie_blood setinvisibletoplayer( e_player );
+
+    if ( isdefined( e_player.hero_model ) )
+    {
+        e_player setmodel( e_player.hero_model );
+        e_player.hero_model = undefined;
+    }
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_zb_compact  -  drop deleted entities, preserving string keys
+//
+//  Stock's zombie_blood_powerup() carries this block INLINE, twice - it is what
+//  the compiler emits for the array-compact idiom, and the decompiler shows it
+//  expanded. There is no array_removeundefined() in T6's utilities (checked
+//  common_scripts\utility, maps\mp\_utility and _zm_utility), so it is lifted
+//  here verbatim as one function rather than invented or duplicated.
+// ----------------------------------------------------------------------------
+zmqol_zb_compact( a_ents )
+{
+    a_new = [];
+
+    foreach ( str_key, e_value in a_ents )
+    {
+        if ( isdefined( e_value ) )
+        {
+            if ( isstring( str_key ) )
+            {
+                a_new[ str_key ] = e_value;
+                continue;
+            }
+
+            a_new[ a_new.size ] = e_value;
+        }
+    }
+
+    return a_new;
+}
+
+zmqol_zb_fx_disconnect_watch( e_player )
+{
+    self endon( "death" );
+    e_player waittill( "disconnect" );
+    self delete();
+}
+
+zmqol_zb_watch_early_exit()
+{
+    self notify( "early_exit_watch" );
+    self endon( "early_exit_watch" );
+    self endon( "zombie_blood_over" );
+    self endon( "disconnect" );
+    waittill_any_ents_two( self, "player_downed", level, "end_game" );
+    self.zombie_vars[ "zombie_powerup_zombie_blood_time" ] = -0.05;
+    self.early_exit = 1;
+}
+
+zmqol_zb_make_entity()
+{
+    level.a_zombie_blood_entities[ level.a_zombie_blood_entities.size ] = self;
+    self setinvisibletoall();
+
+    foreach ( e_player in getplayers() )
+    {
+        if ( e_player.zombie_vars[ "zombie_powerup_zombie_blood_on" ] )
+        {
+            if ( isdefined( self.e_unique_player ) )
+            {
+                if ( self.e_unique_player == e_player )
+                    self setvisibletoplayer( e_player );
+
+                continue;
+            }
+
+            self setvisibletoplayer( e_player );
+        }
+    }
+}
+
+// ============================================================================
+//  zmqol_register_announcer_vox  -  THE THREE ANNOUNCER LINES        (v1.65.0)
+//
+//  User, 2026-08-11: *"make sure the announcer lines for them work as well, the
+//  ones from origins so even on the other maps. Also, add a death machine
+//  announcer line for the death machine power-up."*
+//
+//  🌟 THE MECHANISM DICTATES THE ALIAS NAMES, so they are not free-form.
+//  _zm_powerups.gsc:1147 announces EVERY power-up generically, keyed on the
+//  power-up's own name:
+//      level thread _zm_audio_announcer::leaderdialog( self.powerup_name, ... )
+//  and playleaderdialogonplayer() builds the alias as
+//      game["zmbdialog"]["prefix"] + "_" + game["zmbdialog"][dialog]
+//  with prefix "vox_zmba". So a ported line MUST be named vox_zmba_* - a zmqol_*
+//  name can never be reached down this path. Mod-privacy is kept with a `qol_`
+//  infix instead, which collides with nothing in any shipped bank.
+//
+//  🌟 AND IT MUST END IN _0. getleaderdialogvariant() calls
+//  _zm_spawner::get_number_variants(), a soundexists( base + "_" + i ) loop. One
+//  variant present -> full_alias = base + "_0", which is stock's own shape.
+//
+//  🛑 EACH LINE IS SHIPPED TWICE, UNDER BOTH NAMES - with the _0 and without -
+//  and that is deliberate, not sloppiness. It closes the one branch that could
+//  not be settled offline. get_number_variants() is a soundexists() loop, and
+//  whether soundexists() can see an alias that lives in a MOD's own bank rather
+//  than a stock one is not something any dump or log in this workspace answers.
+//  The two outcomes are:
+//      soundexists sees it  -> num_variants 1 -> plays <base>_0
+//      soundexists misses it -> returns undefined -> plays <base> verbatim
+//                               (playleaderdialogonplayer: `if ( !isdefined(
+//                                variant ) ) full_alias = alias;`)
+//  Shipping both names means either branch lands on a real alias. They are never
+//  both played - the engine takes exactly one path - so the cost is three spare
+//  rows in mod.all and the benefit is that a wrong guess about soundexists()
+//  cannot silently mute all three lines. A missing alias is SILENT, never an
+//  error, which is precisely why this is worth a belt and braces.
+//
+//  | createvox key        | alias the engine builds              | payload source |
+//  | zombie_blood         | vox_zmba_qol_powerup_zombie_blood_0  | zmb_tomb.english |
+//  | bonus_points_player  | vox_zmba_qol_powerup_blood_money_0   | zmb_tomb.english |
+//  | deathmachine         | vox_zmba_qol_powerup_death_machine_0 | zmb_highrise.english |
+//
+//  🛑 IT MUST RUN AFTER _zm_audio_announcer::init(), which opens with
+//  `game["zmbdialog"] = []` - it would wipe anything written earlier. That init
+//  is reached from _zm_audio::init() at _zm.gsc:149, and this mod's init() is not
+//  ordered against it, so this polls instead of assuming. Polling is SAFE here
+//  and is not the mistake the visionset registrations warn about: there is no
+//  closing window - nothing ever clears game["zmbdialog"] again, and the first
+//  power-up cannot be grabbed for many seconds.
+//
+//  ── PER-LINE NOTES ──────────────────────────────────────────────────────────
+//
+//  ZOMBIE BLOOD. Core already does createvox( "zombie_blood",
+//  "powerup_zombie_blood" ) on every map (_zm_audio_announcer.gsc:20), but the
+//  alias it resolves to, vox_zmba_powerup_zombie_blood_0, exists ONLY in
+//  zmb_tomb.english - measured by dumping the alias tables of zmb_tomb,
+//  zmb_highrise, zmb_alcatraz, zmb_buried, zmb_nuked_real, zmb_classic_transit
+//  and zmb_survival_transit. Off Origins get_number_variants() returns 0 and the
+//  engine plays a name no bank has: silent, no error. Re-pointing the key at our
+//  own copy is what makes it audible. Gated off zm_tomb so Origins keeps playing
+//  Treyarch's alias through Treyarch's path.
+//
+//  BLOOD MONEY. 🛑 CORRECTS v1.64.0's WRITE-UP, which said the silence was
+//  deliberate parity. That was measured on the wrong path. It is true that
+//  createvox( "bonus_points_solo", ... ) appears nowhere in the 2,093-file stock
+//  dump, so powerup_grab()'s powerup_vo( "bonus_points_solo" ) really does return
+//  without playing - but ORIGINS REACHES THE LINE BY A DIFFERENT ROUTE ENTIRELY,
+//  its dig script's own leaderdialog( "blood_money" ) (zm_tomb_dig.gsc:773). The
+//  line exists and porting it is correct, not a tuning change.
+//
+//  📝 NO MAP GATE ON BLOOD MONEY, unlike the other two, and the reason is
+//  specific. The key registered here is bonus_points_player - the POWER-UP's own
+//  name, which is what :1147 passes - while Origins' dig registers a different
+//  key, "blood_money". So this adds a line on the path stock leaves silent
+//  (a natural drop) and does not touch the dig's, which keeps using Treyarch's
+//  alias. Gating Origins out would instead leave the mod's own natural-drop
+//  feature silent on exactly one map, which is the per-map half-implementation
+//  this project does not ship.
+//
+//  DEATH MACHINE. 🛑 powerup_vo( "minigun" ) IS A DEAD END - do not use it. Core
+//  registers createvox( "minigun", "powerup_death_machine" ), which resolves to
+//  vox_zmba_powerup_death_machine, and that alias exists in NO bank in the game:
+//  checked all seven zombie banks above plus the 96 base-game identifier files.
+//  The only Death Machine announcer Treyarch actually recorded is Die Rise's
+//  zmb_vox_ann_death_machine, which is not part of the zmbdialog system at all
+//  and has ZERO references across all 2,093 stock scripts - recorded, shipped,
+//  never wired up. It is re-shipped here under the vox_zmba_ shape so the generic
+//  path can reach it.
+//
+//  📝 The key is "deathmachine", not "minigun", because that is what this mod
+//  names its own power-up (see the deathmachine_powerup section above, and
+//  add_zombie_powerup( "deathmachine", ... ) in init()). :1147 passes
+//  self.powerup_name, so the vox has to be registered under that exact string.
+//  No gate: no map plays this line in stock, so there is no baseline to preserve.
+// ============================================================================
+zmqol_register_announcer_vox()
+{
+    for ( i = 0; i < 1200; i++ )
+    {
+        if ( isdefined( game[ "zmbdialog" ] ) && isdefined( game[ "zmbdialog" ][ "prefix" ] ) )
+        {
+            if ( zmqol_zombie_blood_enabled() )
+                maps\mp\zombies\_zm_audio_announcer::createvox( "zombie_blood", "qol_powerup_zombie_blood" );
+
+            maps\mp\zombies\_zm_audio_announcer::createvox( "bonus_points_player", "qol_powerup_blood_money" );
+            maps\mp\zombies\_zm_audio_announcer::createvox( "deathmachine", "qol_powerup_death_machine" );
             return;
         }
 

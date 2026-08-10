@@ -489,6 +489,66 @@ xmodel,zombie_firesale
 xmodel,zombie_z_money_icon
 
 // ============================================================================
+//  ZOMBIE BLOOD  -  on the five maps that never had it            (v1.65.0)
+//
+//  User, 2026-08-11: "build zombie blood and the three announcer lines."
+//
+//  Origins' power-up: 30 seconds during which every zombie ignores you. Six
+//  assets, and ALL SIX live in exactly ONE fastfile - zm_tomb.ff - which is
+//  already in build_ff.bat's --load list (it donates the Wunderfizz fx), so no
+//  new --load is needed and every one of these is a byte-copy of Origins' own.
+//
+//  Measured with Unlinker --list over zm_tomb, zm_tomb_patch, zm_transit,
+//  zm_nuked, zm_highrise, zm_prison, zm_buried, common_zm and patch_zm - every
+//  name below scores 1 in zm_tomb and 0 in all eight others:
+//
+//      p6_zm_tm_blood_power_up            the pickup model
+//      mc/mtl_p6_zm_tm_blood_power_up     its material (pulled as a dependency,
+//                                         listed anyway so the intent is visible)
+//      fx_tomb_pwr_up_zmb_blood           the 3rd-person effect on your eyeball tag
+//      fx_zm_blood_overlay_pclouds        the 1st-person viewmodel effect
+//      generic_filter_zombie_blood_b      the full-screen red filter material
+//      vision/zm_powerup_zombie_blood     the visionset
+//      c_zom_tomb_german_player_fb        the zombie the player model swaps to
+//
+//  🛑 THE MODEL LINE IS MANDATORY, not decorative. add_zombie_powerup()
+//  precaches model_name for every INCLUDED power-up (_zm_powerups.gsc:421), so
+//  including "zombie_blood" on a map whose .ff lacks p6_zm_tm_blood_power_up
+//  precaches an absent asset - fatal at load. Same trap Fire Sale hit, same fix.
+//  c_zom_tomb_german_player_fb is precached directly by the port for the same
+//  reason.
+//
+//  🛑 THE OWNERSHIP TRAP DOES NOT APPLY HERE. It bites when two fastfiles hold
+//  DIFFERENT bytes under one name and mod.ff (which loads first, on every map)
+//  picks one and forces it everywhere. These names exist in no fastfile but
+//  zm_tomb.ff, so there is no second copy to disagree with - and on Origins
+//  itself mod.ff's copy IS zm_tomb.ff's copy. Re-audit the asset list after
+//  linking anyway; expect additions only.
+//
+//  📝 NO .iwi IS NEEDED, and that was checked rather than assumed. The Linker
+//  pulls each material/image in as a dependency of the lines below, and T6 reads
+//  the pixels at runtime out of the game's own IPAKs. The precedent is already
+//  shipping and confirmed in game: generic_filter_afterlife (Die Rise's, Who's
+//  Who's overlay), generic_filter_zombie_perk_vulture (Buried's) and the four
+//  fx_tomb_dieselmagic_* effects (Origins', the Wunderfizz) are all declared
+//  here with no image of their own and all render correctly off their home map.
+//
+//  📝 clientscripts/mp/zombies/_zm_powerup_zombie_blood.csc is DELIBERATELY NOT
+//  shipped. It lives in zm_tomb_patch.ff, which is not in the --load list, and
+//  adding a fastfile there risks re-donating a shared asset (the v1.62.6 shader
+//  bug). The client half is ported into scripts\zm\zm_expanded.csc instead -
+//  the same call already made for Who's Who, and it costs nothing because the
+//  script's functions only touch core client modules.
+// ============================================================================
+xmodel,p6_zm_tm_blood_power_up
+material,mc/mtl_p6_zm_tm_blood_power_up
+xmodel,c_zom_tomb_german_player_fb
+material,generic_filter_zombie_blood_b
+rawfile,vision/zm_powerup_zombie_blood.vision
+fx,maps/zombie_tomb/fx_tomb_pwr_up_zmb_blood
+fx,maps/zombie_tomb/fx_zm_blood_overlay_pclouds
+
+// ============================================================================
 //  TOMBSTONE EVERYWHERE  -  the 12th perk
 //
 //  User, on Nuketown: ".giveperks and i have 11 perks but im missing tombstone

@@ -61,6 +61,16 @@ source folders is built or don't-touch.
   map and moved into the ordinary drop rotation — including on Origins, whose dig sites keep
   working unchanged. Costs no clientfield bits; the icon model ships in `mod.ff` for the four
   maps that lack it.
+- **Zombie Blood on every map.** Origins' power-up: 30 seconds during which every zombie
+  ignores you completely, with the red screen filter, the visionset, the first- and
+  third-person effects, the player-model swap and the looping audio — the full thing, ported
+  asset for asset from `zm_tomb.ff`. Origins is deliberately left running its own copy.
+  Its dig-site reveal is inert elsewhere because no other map has dig sites to reveal.
+- **Three announcer lines that were missing.** Zombie Blood's and Blood Money's exist only in
+  Origins' sound bank, so both drops were silent on every other map; the Death Machine's
+  (`zmb_vox_ann_death_machine`, Die Rise's bank) was recorded by Treyarch and **never wired up
+  anywhere in the game** — zero references across all 2,093 stock scripts. All three are
+  re-shipped in the mod's own sound bank and routed through the stock announcer path.
 - **Instant Pack-a-Punch**, **BO4 Max Ammo**, **wall buys refill the mag**.
 - **Prone at a perk machine = +100 points** (once per machine, every map).
 - **Diner as a Survival location** on TranZit, ported from BO2-Reimagined. Treyarch left

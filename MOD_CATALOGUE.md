@@ -270,7 +270,8 @@ the placement filter (drift puts a marker where no machine is).
 
 | area | change |
 |---|---|
-| **Death Machine** | power-up + weapon, own sound bank, `sv_deathmachine_duration` / `_powerup`. ❌ no BO1 announcer callout yet |
+| **Death Machine** | power-up + weapon, own sound bank, `sv_deathmachine_duration` / `_powerup`. ✅ announcer callout added v1.65.0 — see §7a |
+| **Zombie Blood** 🚧 | Origins' power-up on the other five maps, full port. v1.65.0, deployed — NOT yet booted. See §7a |
 | **BO4 Max Ammo** | replaces `_zm_powerups::full_ammo_powerup` |
 | **Wall buys refill the magazine** | replaces `_zm_weapons::ammo_give` |
 | **Instant Pack-a-Punch** | no wait |
@@ -284,6 +285,52 @@ the placement filter (drift puts a marker where no machine is).
 | **Bleedout bar** | imported from Nathan3197 / Stick Gaming |
 | **Secret song** | on survival |
 | **Health HUD** | allocated on demand |
+
+## 7a. Zombie Blood + the three announcer lines 🚧 *(v1.65.0, deployed — NOT yet booted)*
+
+**Zombie Blood**, ported from `_zm_powerup_zombie_blood.gsc`/`.csc` into `quality_of_life.gsc`
+and `zm_expanded.csc`, gated off `zm_tomb` so Origins keeps running Treyarch's copy.
+
+| part | where |
+|---|---|
+| `player_zombie_blood_fx` (allplayers, 1) | server `main()`, client `perks_register_clientfield()` |
+| `powerup_zombie_blood` (toplayer, 2) | both sides via `add_zombie_powerup` |
+| visionset + overlay, prio 15/16, lerp 15 | server `init()`, client `perks_register_clientfield()` |
+| 6 assets, all `zm_tomb.ff`-only | `zone_source\mod_locations.zone` |
+| 4 sounds + Origins' duck | `soundbank\mod.all.aliases.additions.csv` + `soundbank\ducks\` |
+
+🌟 **The client half is entirely in `perks_register_clientfield()` for FOUR independent
+reasons**, any one of which fails silently on its own: `level.vsmgr_filter_custom_enable` is
+wiped by `_visionset_mgr.csc::init()` after client `main()`; `level.vsmgr` does not exist
+during `main()`; the connect callback must precede `level._customplayerconnectfuncs`
+(`_zm.csc:96`); and `add_zombie_powerup` must precede `set_clientfield_code_callbacks()`.
+
+🛑 **The 12 character reaction lines are deliberately NOT ported.** `create_and_play_dialog`
+picks by the player's character index, so shipping Origins' would put the Origins cast's
+voices in Misty's and Russman's mouths on every other map. Unregistered = silent, which is
+stock's own path for an unregistered dialog type.
+
+**The three announcer lines.** All reached through the generic
+`_zm_powerups.gsc:1147 leaderdialog( self.powerup_name )`, so the aliases must be `vox_zmba_*`:
+
+| `createvox` key | alias | payload source | gate |
+|---|---|---|---|
+| `zombie_blood` | `vox_zmba_qol_powerup_zombie_blood` | `zmb_tomb.english` | off `zm_tomb` |
+| `bonus_points_player` | `vox_zmba_qol_powerup_blood_money` | `zmb_tomb.english` | none |
+| `deathmachine` | `vox_zmba_qol_powerup_death_machine` | `zmb_highrise.english` | none |
+
+Each ships **twice**, with and without the `_0` suffix, because whether `soundexists()` can see
+a mod-bank alias is not answerable offline and the two branches of `getleaderdialogvariant()`
+land on different names. Only one is ever played.
+
+🛑 **Corrects v1.64.0's claim** that Blood Money's silence was parity — that was measured on
+`powerup_vo( "bonus_points_solo" )`, but Origins reaches its line through the dig script's own
+`leaderdialog( "blood_money" )` instead. The line exists.
+
+📝 `playsound( "death_machine" )` in `deathmachine_powerup()` resolves to **no alias in any of
+the nine banks dumped** (`zmb_tomb`, `zmb_highrise`, `zmb_common`, `zmb_patch`, `mod.all`,
+`deathmachine_zm.all`, …), so the Death Machine drop has always been silent. This is the first
+sound it makes.
 
 ---
 
