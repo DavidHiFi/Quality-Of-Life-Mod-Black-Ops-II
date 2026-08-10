@@ -197,7 +197,91 @@ the same discipline used for Electric Cherry.
 
 ---
 
-## 🔨 STILL IN PROGRESS — TASK 2, ZOMBIE BLOOD. NOW UNBLOCKED, NOT YET BUILT.
+## 🔨 THE BUILD SPEC — execute this mechanically, every unknown is already settled
+
+**User asked for this build on 2026-08-11: "build zombie blood and the three announcer lines."
+Scoping is COMPLETE and every mechanism below is measured. NOTHING IS BUILT YET.**
+
+### 🌟 THE ANNOUNCER MECHANISM — settled, and it dictates the alias names
+
+`_zm_powerups.gsc:1147` plays the announcer **generically**, for every powerup, using the powerup's
+own name as the dialog key:
+```
+level thread _zm_audio_announcer::leaderdialog( self.powerup_name, self.power_up_grab_player.pers["team"] );
+```
+and `playleaderdialogonplayer()` builds the alias as
+`game["zmbdialog"]["prefix"] + "_" + game["zmbdialog"][dialog]`, with prefix `"vox_zmba"`.
+
+🛑 **So a ported announcer alias MUST be named `vox_zmba_*`** — a `zmqol_*` name can never be reached
+through this path. Mod-privacy is kept with a `qol_` infix instead, which collides with nothing.
+
+🌟 **And it must end in `_0`.** `getleaderdialogvariant()` calls
+`_zm_spawner::get_number_variants()`, which is a `soundexists( prefix + "_" + i )` loop
+(`_zm_spawner.gsc`). One variant present → `full_alias = base + "_0"`, exactly stock's shape. Ship the
+`_0` row and the base name is what `createvox` takes.
+
+| new alias to ship | payload source | `createvox` call |
+|---|---|---|
+| `vox_zmba_qol_powerup_zombie_blood_0` | `zmb_tomb.english` → `vox_zmba_powerup_zombie_blood_0` | `createvox( "zombie_blood", "qol_powerup_zombie_blood" )` |
+| `vox_zmba_qol_powerup_blood_money_0` | `zmb_tomb.english` → `vox_zmba_powerup_blood_money_0` | `createvox( "bonus_points_player", "qol_powerup_blood_money" )` |
+| `vox_zmba_qol_powerup_death_machine_0` | `zmb_highrise.english` → `zmb_vox_ann_death_machine` | `createvox( "<mod's powerup name>", "qol_powerup_death_machine" )` |
+
+📝 **Blood Money's key is `bonus_points_player`, NOT `blood_money`.** `:1147` passes
+`self.powerup_name`, so the vox must be registered under the powerup's own name. Origins registers it
+as `"blood_money"` and plays it explicitly from the dig script — that is why the generic path is
+silent there for natural drops. Registering under `bonus_points_player` makes the drop announce on
+every map **including Origins**, and leaves the dig's own `leaderdialog( "blood_money" )` untouched.
+
+📝 **Gate Zombie Blood's and Blood Money's vox off Origins** so `zm_tomb` keeps playing Treyarch's
+own alias through Treyarch's path — the clean-A/B discipline used for Electric Cherry. **Death
+Machine needs no gate**: no map plays it in stock, so there is no baseline to preserve.
+
+### Sound extraction — the traps are known
+
+```
+Unlinker --include-assets soundbank --search-path "<BO2>\sound" -o <dir> <BO2>\zone\english\en_zm_tomb.ff
+Unlinker --include-assets soundbank --search-path "<BO2>\sound" -o <dir> <BO2>\zone\english\en_zm_highrise.ff
+```
+🛑 **Dump CSV and payloads in ONE run per bank** — the Unlinker writes `foo.snd.wav.wav` and rewrites
+FileSource to match; mixing runs gives `Unable to find a compatible file for sound`. Do not "fix" the
+doubled extension. Copy the 3 payloads + their rows into
+`soundbank\mod.all.aliases.additions.csv`, rename the `Name` column only, and put the audio under
+`sound\`. `build_ff.bat` does drop-and-append, so an edited row is not a silent no-op.
+
+### Zombie Blood — the port itself
+
+Assets (all in `zm_tomb.ff`, already `--load`ed, **except the `.csc`**):
+`xmodel p6_zm_tm_blood_power_up` + `material mc/mtl_p6_zm_tm_blood_power_up`,
+`fx maps/zombie_tomb/fx_tomb_pwr_up_zmb_blood`, `fx maps/zombie_tomb/fx_zm_blood_overlay_pclouds`,
+`material generic_filter_zombie_blood_b`, `rawfile vision/zm_powerup_zombie_blood.vision`,
+`xmodel c_zom_tomb_german_player_fb`.
+🛑 `script clientscripts/mp/zombies/_zm_powerup_zombie_blood.csc` lives in **`zm_tomb_patch.ff`**,
+which is NOT in `build_ff.bat`'s `--load` list — **append it LAST** so first-load-wins cannot let it
+re-donate a shared asset (the v1.62.6 shader bug). **Re-audit the asset list after linking; expect
+additions only.**
+
+Sounds: `zmb_zombieblood_start`, `_loop`, `_stop`, `_3rd_loop` — Origins-only, re-ship as `zmqol_*`
+(these are played by `playsound`/`playloopat` directly, so they do NOT need the `vox_zmba_` shape).
+
+Server: adapt `_zm_powerup_zombie_blood.gsc` (196 lines, core-safe) into `quality_of_life.gsc`,
+`include_powerup( "zombie_blood" )` **on both sides**, and a `powerup_grab` hook.
+Client: adapt `_zm_powerup_zombie_blood.csc`. 🛑 Its two `vsmgr_register_*` calls must run inside the
+client's visionset window — **the same `perks_register_clientfield()` slot Who's Who uses**, NOT
+client `main()`, and NOT a polling thread ([[t6-visionset-registration-timing]], checkpoint 29 §3).
+
+Cost, re-confirmed: **+1 `allplayers`** (`player_zombie_blood_fx`), **+2 `toplayer`**
+(`powerup_zombie_blood`, from `add_zombie_powerup`), **+1** `visionset_lerp` (15 steps → 4 bits),
+**+0-1** each for `visionset_slot`/`overlay_slot`. Affordable everywhere — Buried classic boots.
+
+📝 `level.a_zombie_blood_entities` stays empty off Origins, so the dig-site reveal code is inert. Not
+a missing feature; there is nothing to reveal.
+📝 `c_zom_tomb_german_player_fb` is ONE model for all four characters — Origins passes it regardless
+of who you are, so the literal port turns you into an Origins German zombie on every map. That is
+what the original does; per [[zm-qol-port-never-tune]] that is what ships.
+
+---
+
+## 🔨 TASK 2 BACKGROUND (scoping, still valid)
 
 🛑 **Zombie Blood did NOT ship in v1.64.0, and the reason is a number, not an oversight.** Unlike
 Blood Money it costs **+1 `allplayers` and +3 to +5 `toplayer`**, and the measurements below put four
