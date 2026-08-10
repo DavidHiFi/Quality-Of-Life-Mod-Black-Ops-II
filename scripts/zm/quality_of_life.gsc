@@ -894,6 +894,52 @@ qol_health_hud_destroy()
     self.qol_hud_health = undefined;
 }
 
+// ============================================================================
+//  zmqol_perf_probe  -  A DIAGNOSTIC SWITCH, NOT A FEATURE          (v1.65.4)
+//
+//  User, 2026-08-11: *"its still framey as hell, started happening with the mod
+//  earlier i just wasnt sure"* - after v1.65.3 removed three sources of redundant
+//  per-tick HUD traffic and it made no difference.
+//
+//  🛑 THIS SHIPS INSTEAD OF A THIRD GUESS. Two rounds of "likely cause" have not
+//  moved it, and stacking a third unverified fix is exactly what
+//  .agents\QUEUE.md's one-at-a-time rule exists to prevent. CLAUDE.md's
+//  pre-mortem section prescribes the alternative directly: *"If something
+//  genuinely cannot be settled offline, ship a probe that distinguishes the
+//  outcomes rather than a fix built on the likeliest one."*
+//
+//  WHAT IT DOES. `qol_perf_probe 1` puts EVERY always-on per-player loop this mod
+//  runs to sleep and stops its per-bullet HUD work:
+//      first_spawn              health bar/text   10Hz  (elements destroyed)
+//      zombiecounter            zombie count       4Hz
+//      shield_hud               shield value      20Hz
+//      zmqol_perk_slot_watcher  perk slots        20Hz
+//      updatedamagefeedback     hitmarkers        PER DAMAGE EVENT
+//  Nothing else in the mod changes - perks, power-ups, weapons, the Wunderfizz
+//  and every gameplay hook keep running exactly as they do now.
+//
+//  🌟 WHY THIS IS WORTH A SESSION: IT HALVES THE SEARCH SPACE EITHER WAY.
+//      still framey with it ON  -> the mod's per-frame SCRIPTS are not the cause,
+//                                  and the whole HUD/reliable-command theory is
+//                                  dead. Look at mod.ff instead: 3,870 assets and
+//                                  776 header-only images that load ahead of every
+//                                  map, or the 48MB sound bank.
+//      smooth with it ON        -> it IS the scripts, and the five loops above
+//                                  are the entire remaining suspect list.
+//
+//  It reads the dvar live, so it can be toggled mid-game from the console with no
+//  map reload: `qol_perf_probe 1` / `qol_perf_probe 0`.
+//
+//  📝 Default 0. getdvarintdefault() handles the dvar being absent, so nothing
+//  needs registering and a player who never types it is unaffected.
+//  📝 REMOVE THIS once the cause is known - it is scaffolding, not a setting, and
+//  it is deliberately not in the README or the options menu.
+// ============================================================================
+zmqol_perf_probe()
+{
+    return getdvarintdefault( "qol_perf_probe", 0 );
+}
+
 first_spawn()
 {
     self._health_overlay.color = ( 0.4, 0, 0 );
@@ -909,7 +955,10 @@ first_spawn()
         //  The difference from every version before v1.53.0: when the bar is
         //  off the five elements are DESTROYED, not merely faded, so the slots
         //  go back to the pool for things like Origins' generator ring.
-        if ( !( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_health_bar", 1 ) ) )
+        //  zmqol_perf_probe() takes the same path as hud_all 0 - the five
+        //  elements are DESTROYED, not just faded, so the loop costs nothing.
+        if ( zmqol_perf_probe() ||
+             !( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_health_bar", 1 ) ) )
         {
             self qol_health_hud_destroy();
             wait 0.25;
@@ -1063,6 +1112,17 @@ zombiecounter()
 
     while ( true )
     {
+        //  DIAGNOSTIC, v1.65.4 - see zmqol_perf_probe(). Hides the element and
+        //  skips the array walk entirely.
+        if ( zmqol_perf_probe() )
+        {
+            self.zombietext.alpha = 0;
+            wait 0.5;
+            continue;
+        }
+
+        self.zombietext.alpha = 1;
+
         //  One array walk per tick instead of two, and the value is only pushed
         //  when it actually moves - between kills it is the same number.
         n_zombies_left = get_round_enemy_array().size + level.zombie_total;
@@ -1101,6 +1161,17 @@ shield_hud()
         shield_hud setshader( "zm_riotshield_hellcatraz_icon", 15, 15 );
     for (;;)
     {
+        //  DIAGNOSTIC, v1.65.4 - see zmqol_perf_probe(). This is the mod's
+        //  highest-frequency per-player loop, so it is the one most worth
+        //  silencing in the test.
+        if ( zmqol_perf_probe() )
+        {
+            shield_text.alpha = 0;
+            shield_hud.alpha = 0;
+            wait 0.5;
+            continue;
+        }
+
         if ( self hasweapon( "riotshield_zm" ) || self hasweapon( "alcatraz_shield_zm" ) || self hasweapon( "tomb_shield_zm" ) )
         {
             shield_text.alpha = 1;
@@ -3357,6 +3428,15 @@ zmqol_perk_slot_watcher()
     for ( ;; )
     {
         wait 0.05;
+
+        //  DIAGNOSTIC, v1.65.4 - see zmqol_perf_probe(). 20Hz per player, and
+        //  each pass walks every specialty in the game, so it is the mod's
+        //  heaviest pure-CPU per-player loop even though it writes no HUD.
+        if ( zmqol_perf_probe() )
+        {
+            wait 0.45;
+            continue;
+        }
 
         //  1. ORDERED delete of anything no longer in a slot. This is the same
         //     operation as the LUI's shift-down, which is the whole reason the
@@ -7247,6 +7327,13 @@ init_hitmarkers()
 updatedamagefeedback( mod, inflictor, death )
 {
     if ( !isplayer( self ) || isdefined( self.disable_hitmarkers ) )
+        return;
+
+    //  DIAGNOSTIC, v1.65.4 - see zmqol_perf_probe(). This function is threaded
+    //  once PER DAMAGE EVENT, so an automatic weapon into a horde runs it a few
+    //  hundred times a second; each run costs a playlocalsound plus HUD writes.
+    //  It is the only per-bullet path the mod owns.
+    if ( zmqol_perf_probe() )
         return;
     if ( isdefined( mod ) && mod != "MOD_CRUSH" && ( mod != "MOD_GRENADE_SPLASH" && mod != "MOD_HIT_BY_OBJECT" ) )
     {
