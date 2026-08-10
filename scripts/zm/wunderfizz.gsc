@@ -561,7 +561,45 @@ setupWunderfizz()
     	zmqol_wf_add((2046, 10332.9, 1336), (0,180,0), zmqol_wf_machine_model());
     	zmqol_wf_add((-1056,8673,1336), (0,90,0), zmqol_wf_machine_model());
     	zmqol_wf_add((2795,9270,1336), (0,180,0), zmqol_wf_machine_model());
-    	zmqol_wf_add((-843,5585,-72), (0,13,0), zmqol_wf_machine_model());
+    	//  🛑 DOCKS - MOVED 57 UNITS WEST IN v1.65.5. User, 2026-08-11, with two
+    	//  screenshots: *"the wunderfizz machine at the docks on mob of the dead
+    	//  collides with the possible shield part spawn... just move it left a
+    	//  bit"*.
+    	//
+    	//  MEASURED, NOT EYEBALLED. Unlinker --include-assets mapents on
+    	//  zm_prison.ff lists ten alcatraz_shield_zm_* structs. Checking all six
+    	//  Mob machines against all ten parts, exactly ONE pair is closer than
+    	//  400 units and it is this one:
+    	//
+    	//      machine (-843, 5585, -72)
+    	//      dolly   (-831.73, 5587.2, -71.75)   t6_wpn_zmb_shield_dlc2_dolly
+    	//      distance 11.5                        <- same spot
+    	//
+    	//  The dolly is one of THREE possible dolly spawns, so the clash only
+    	//  showed up on the games that rolled this one - which is why it survived
+    	//  this long. The other two are 377 and 488 units away from the new spot
+    	//  and were never a problem.
+    	//
+    	//  WHY WEST, and why 57. The dolly sits at +X of the machine, so -X is the
+    	//  only direction that increases separation - and it is the direction the
+    	//  user described (facing the machine at yaw 85, their "left" is -X). Three
+    	//  independent bits of map data agree the floor is open that way:
+    	//    - pathnodes at (-890,5544), (-864,5468), (-1040,5466), (-1092,5546)
+    	//      are the game's OWN record of clear walkable floor to the west and
+    	//      south-west;
+    	//    - the nearest of them, (-890,5544), is 42 units from the new origin,
+    	//      so the machine lands beside it rather than on top of it and zombie
+    	//      pathing is untouched;
+    	//    - the amb_cloth_flap struct at (-977,5611) marks the tarp-covered
+    	//      crate further west, still 80 units clear of the new position.
+    	//
+    	//  New separation from the dolly: 68.3 units, from 11.5.
+    	//
+    	//  📝 zmqol_wf_unclip() still traces 30 units behind the machine and pushes
+    	//  it forward if it finds a wall, so a small overshoot into the geometry
+    	//  behind self-corrects at runtime. It does NOT check the sides, which is
+    	//  why the west margin above was established from map data first.
+    	zmqol_wf_add((-900,5585,-72), (0,13,0), zmqol_wf_machine_model());
     	zmqol_wf_add((2724,9563,1708), (0,90,0), zmqol_wf_machine_model());
     }
     else if(level.script == "zm_buried")

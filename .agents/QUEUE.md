@@ -1814,7 +1814,13 @@ Full write-up: `H:ClaudeunluacREADME_T6.md`.
 2. **God mode drops after Mob's afterlife** — `.god` still reads ON but the
    player can die. Must survive afterlife in/out. Also confirm death barriers
    behave normally when god is OFF and the player is not flying.
-3. **Mob Wunderfizz overlaps the shield part spawn** — move that machine.
+3. ✅ **Mob Wunderfizz overlaps the shield part spawn** — DONE v1.65.5, deployed,
+   not yet booted. The docks machine was **11.5 units** from the
+   `alcatraz_shield_zm_dolly` struct at `(-831.73, 5587.2, -71.75)`; moved 57
+   units west to `(-900, 5585, -72)`, separation now 68.3. Checked ALL six Mob
+   machines against ALL ten `alcatraz_shield_zm_*` structs from the mapents dump —
+   that was the only pair under 400 units, and there is none under 60 now. It only
+   showed up on the games that rolled that one of the three dolly spawns.
 4. **Custom texture packs conflict** — `mod.ff` declares 776 header-only
    images and loads before the map, so a player's own `.iwi` is read through
    our header (a tester's m1911 rendered purple/green). 🛑 The v1.59.7
