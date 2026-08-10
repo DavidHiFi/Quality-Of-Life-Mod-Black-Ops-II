@@ -942,10 +942,33 @@ first_spawn()
             healthbar_bg.alpha = 0.5;
             healthbar_mas.alpha = 1;
         }
-        if ( isdefined( self.health ) )
+        //  🛑 PERF, v1.65.3 - THESE TWO USED TO RUN EVERY 100ms, UNCONDITIONALLY,
+        //  FOR THE WHOLE MATCH.
+        //
+        //  settext() is a RELIABLE SERVER COMMAND per call. ERROR_CATALOGUE §7
+        //  names this exact pattern as the cause of EXE_SERVERCOMMANDOVERFLOW:
+        //  *"settext() every tick floods reliable commands. Use settimer /
+        //  setvalue for changing numeric HUD values instead of re-settext-ing."*
+        //  Health sits at 100/100 for the overwhelming majority of a match, so
+        //  this was sending ~10 identical reliable commands per second per
+        //  player to report that nothing had changed.
+        //
+        //  🌟 THE CACHE LIVES ON THE HUDELEM, NOT IN A LOCAL, and that is what
+        //  makes it safe. The block at the top of this loop DESTROYS and later
+        //  re-CREATES these five elements whenever hud_health_bar is toggled; a
+        //  local would survive that and leave the fresh element permanently
+        //  blank. A new element carries no .qol_last_health, so the very first
+        //  iteration after any re-create writes the text again.
+        if ( isdefined( self.health ) &&
+             ( !isdefined( healthvalue.qol_last_health ) ||
+               healthvalue.qol_last_health != self.health ||
+               healthvalue.qol_last_maxhealth != self.maxhealth ) )
+        {
             healthbar setshader( "progress_bar_fill", int( 100 * ( self.health / self.maxhealth ) ), 3 );
-        if ( isdefined( self.health ) )
             healthvalue settext( self.health + ( "^8 / " + self.maxhealth ) );
+            healthvalue.qol_last_health = self.health;
+            healthvalue.qol_last_maxhealth = self.maxhealth;
+        }
         //  hud_color_health, handled HERE and nowhere else. This loop repaints
         //  the tier colour every 0.1s, so any other thread tinting these
         //  elements loses the race - which is exactly what put a white border on
@@ -1030,13 +1053,26 @@ zombiecounter()
     self.zombietext = createfontstring( "hudsmall", 1.2 );
     self.zombietext setpoint( "LEFT", "BOTTOM_LEFT", -45, -7 );
     self.zombietext.hidewheninmenu = 1;
+
+    //  🛑 PERF, v1.65.3 - THE LABEL WAS SET INSIDE THE LOOP, FOUR TIMES A SECOND,
+    //  BY AN if/else WHOSE TWO BRANCHES WERE IDENTICAL. Both assigned
+    //  &"Zombies: ^1", so the condition decided nothing - but evaluating it cost
+    //  a SECOND full get_round_enemy_array() walk every tick, on top of the one
+    //  feeding setvalue(). The label never changes, so it is set once, here.
+    self.zombietext.label = &"Zombies: ^1";
+
     while ( true )
     {
-        self.zombietext setvalue( get_round_enemy_array().size + level.zombie_total );
-        if ( get_round_enemy_array().size + ( level.zombie_total != 0 ) )
-            self.zombietext.label = &"Zombies: ^1";
-        else
-            self.zombietext.label = &"Zombies: ^1";
+        //  One array walk per tick instead of two, and the value is only pushed
+        //  when it actually moves - between kills it is the same number.
+        n_zombies_left = get_round_enemy_array().size + level.zombie_total;
+
+        if ( !isdefined( self.zombietext.qol_last_value ) || self.zombietext.qol_last_value != n_zombies_left )
+        {
+            self.zombietext setvalue( n_zombies_left );
+            self.zombietext.qol_last_value = n_zombies_left;
+        }
+
         wait 0.25;
     }
 }
@@ -1075,7 +1111,24 @@ shield_hud()
             shield_text.alpha = 0;
             shield_hud.alpha = 0;
         }
-        shield_text setvalue( 2300 - self.shielddamagetaken );
+        //  🛑 PERF, v1.65.3 - THIS RAN AT 20Hz, UNCONDITIONALLY, FOR EVERY
+        //  PLAYER, FOR THE WHOLE MATCH - INCLUDING WHEN THERE IS NO SHIELD AND
+        //  THE ELEMENT IS INVISIBLE. It is the highest-frequency HUD write in
+        //  the mod. self.shielddamagetaken only moves when a shield actually
+        //  takes a hit, so almost every one of those 20 writes per second per
+        //  player marked the element dirty to send a number it had already sent.
+        //
+        //  Cached on the hudelem for the same reason first_spawn()'s is - if the
+        //  element is ever re-created the cache goes with it and the value is
+        //  written again on the next tick.
+        n_shield_left = 2300 - self.shielddamagetaken;
+
+        if ( !isdefined( shield_text.qol_last_value ) || shield_text.qol_last_value != n_shield_left )
+        {
+            shield_text setvalue( n_shield_left );
+            shield_text.qol_last_value = n_shield_left;
+        }
+
         wait 0.05;
         if ( self.shielddamagetaken >= 2300 )
             shield_text.alpha = 0;
