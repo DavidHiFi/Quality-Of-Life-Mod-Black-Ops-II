@@ -59,6 +59,7 @@ The mod is exactly **6 top-level files**. Only `mod.iwd`'s raw source folders ar
 | per-map `.csc` × 6 | 128–252 | one map each | client halves |
 | `clientscripts/mp/zombies/_zm_perk_vulture.csc` | — | — | **stock compiled bytecode**, shipped unmodified so it resolves off Buried |
 | `ui_mp/**/*.lua` × 3 | 873 / 714 / 362 | client | whole-file LUI replacements. The powerups file also carries the perk-row fix — §3d |
+| `privateonlinegamelobby.lua` × 2 | 63 each | client | solo-lobby title — §8. **Identical copies under `ui/` and `ui_mp/`**; T6 resolves `T6.Menus.X` against both roots and the search order is unmeasured |
 
 ---
 
@@ -368,8 +369,26 @@ sound it makes.
   `check_solo_status` on Mob and Origins. Stock tested `getnumexpectedplayers() == 1`; the engine
   reports **0** on Mods-menu launches, so `level.is_forever_solo_game` was never set and Mob's plane
   parts would not all be carried. Now `<= 1`.
-- ❌ **Solo still presents as a custom game** — no intro cutscene, header reads "CUSTOM GAMES". Both
-  live in the menu LUI, before the map loads; no GSC hook reaches them.
+- **Solo lobby header** 🚧 *(v1.65.6, deployed — never booted)* — the Solo Play and Custom Games
+  lobbies are the SAME menu (`PrivateOnlineGameLobby`), and stock titles it `MPUI_CUSTOM_GAMES_CAPS`
+  unconditionally, so Solo Play read "CUSTOM GAMES". The mod now ships that menu file with one
+  branch added: `ZMUI_SOLO_PLAY_CAPS` when `CoD.isZombie` and `party_solo == 1`.
+  - It has to be a **separate file**, not a patch inside `privategamelobby_project.lua`:
+    `privategamelobby.lua` requires `T6.Menus.PrivateGameLobby_Project`, and
+    `privateonlinegamelobby.lua` requires `T6.Menus.PrivateGameLobby` — so the project file runs
+    **first** and any `LUI.createMenu.PrivateOnlineGameLobby` set there is overwritten afterwards.
+    The title is applied after `New()` returns, so no `_Project` hook runs late enough either.
+  - The body is a faithful reconstruction of stock, checked against the constant table of the
+    shipped bytecode (`BO2-Raw-files\ui\t6\menus\privateonlinegamelobby.lua`) — every constant
+    accounted for, in order, nothing left over.
+  - `party_solo` is set by this mod's own `OpenSoloLobby_Zombie` (1) / `OpenCustomGamesLobby` (0)
+    immediately before `openMenu`, so Custom Games keeps its title and MP is untouched.
+  - `ZMUI_SOLO_PLAY_CAPS` is a **stock** key — Plutonium's own `ui/t6/mainlobby.lua:446` uses it for
+    the SOLO PLAY button.
+  - 🛑 `pack_iwd.ps1` did not pack `ui/` and `build.bat`'s raw-shadow sync only walked `ui_mp/`;
+    both were extended, or the file would never have reached the game.
+- ❌ **Solo still has no intro cutscene** — that half also lives in the menu LUI, before the map
+  loads; no GSC hook reaches it.
 
 ---
 

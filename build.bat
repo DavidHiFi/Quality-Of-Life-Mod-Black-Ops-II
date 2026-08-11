@@ -100,7 +100,7 @@ REM  nothing. Any .lua that exists in BOTH this project and raw\ is refreshed
 REM  here. Files only in raw\ are left alone - they are not ours.
 set "RAW_DIR=%LOCALAPPDATA%\Plutonium\storage\t6\raw"
 set "PROJ_DIR=%~dp0"
-"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$raw=$env:RAW_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $raw)){ Write-Host '    [skip] no raw\ folder - nothing shadows the mod'; exit 0 }; $n=0; Get-ChildItem -LiteralPath (Join-Path $proj 'ui_mp') -Recurse -Filter *.lua -ErrorAction SilentlyContinue | ForEach-Object { $rel=$_.FullName.Substring($proj.Length); $dst=Join-Path $raw $rel; if(Test-Path -LiteralPath $dst){ Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [sync] ' + $rel); $n++ } }; if($n -eq 0){ Write-Host '    [ok] nothing in raw\ shadows this mod' }" 2>nul
+"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$raw=$env:RAW_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $raw)){ Write-Host '    [skip] no raw\ folder - nothing shadows the mod'; exit 0 }; $n=0; @('ui_mp','ui') | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $proj $_) -Recurse -Filter *.lua -ErrorAction SilentlyContinue } | ForEach-Object { $rel=$_.FullName.Substring($proj.Length); $dst=Join-Path $raw $rel; if(Test-Path -LiteralPath $dst){ Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [sync] ' + $rel); $n++ } }; if($n -eq 0){ Write-Host '    [ok] nothing in raw\ shadows this mod' }" 2>nul
 
 echo.
 echo Done.
