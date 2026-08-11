@@ -30,12 +30,122 @@ main()
     // dumped at the Bus Depot default spawn and killed instantly - see the header
     // comment in scripts\zm\replaced\zm_transit.gsc for the full chain.
 
+    // --- Diner buildable riot shield (server half; client twin in zm_transit.csc) ---
+    zmqol_diner_shield_init();
+
     electric_door_changes();
 
     if (is_not_busdepot())
 	{
 	   return;
 	}
+}
+
+
+// ============================================================================
+//  zm_qol: THE DINER BUILDABLE RIOT SHIELD                         (v1.66.0)
+//
+//  User, 2026-08-11: *"add the buildable shield to diner, it already exists in
+//  the tranzit map, just remove the tarp on the buildable table in the building
+//  and add the 2 parts spawns just like the regular tranzit."*
+//
+//  It is more than the tarp, and every claim below is read out of the shipped
+//  map or the stock scripts, not assumed.
+//
+//  WHAT SURVIVAL ALREADY HAS (Unlinker --include-assets mapents zm_transit.ff):
+//    * all 3 dolly structs `riotshield_zm_t6_wpn_zmb_shield_dolly` at
+//      (-6118.7,-7869.1,0) (-6467,-7727,0) (-5768.9,-7872.6,1.4)
+//    * all 3 door structs `riotshield_zm_t6_wpn_zmb_shield_door` at
+//      (-4486,-7980,-8.5) (-4995,-7824,-42) (-4404.5,-7740.5,-1.4)
+//      Neither carries script_gameobjectname, so the gamemode filter never
+//      touches them - the parts have been sitting there the whole time. And
+//      generate_zombie_buildable_piece() looks them up by exactly
+//      `buildablename + "_" + modelname`, which is those targetnames.
+//    * the riot shield WEAPON and its equipment handling: zm_transit.gsc:314
+//      calls include_equipment_for_level() from main() with NO gamemode gate,
+//      and that includes "riotshield_zm" (:1630). Core _zm_equipment::init()
+//      runs from _zm.gsc:154 on every map and mode.
+//
+//  WHAT IT DOES NOT HAVE, and why:
+//    1. zm_transit_buildables::include_buildables() / ::init_buildables() are
+//       called from zm_transit_classic.gsc:33-34 and NOWHERE ELSE, so in
+//       survival no riotshield buildable is defined at all.
+//    2. The bench trigger `riotshield_zm_buildable_trigger` and the shield on
+//       the table `buildable_riotshield` both carry
+//       script_gameobjectname "zclassic", and _zm_gametype.gsc:110
+//       game_objects_allowed() calls entity delete() on a mismatch. Handled in
+//       zm_transit_loc_diner.gsc, which runs early enough - see there.
+//
+//  🛑 ONLY THE SHIELD IS REGISTERED, not stock's include_buildables(). That
+//  would drag in the jetgun, turbine, turret, electric trap, power switch and
+//  the buildable Pack-a-Punch, whose triggers are all zclassic-deleted here -
+//  parts with nowhere to go.
+//
+//  WHY level.init_buildables AND NOT A DIRECT CALL. Core
+//  _zm_buildables::init() (_zm.gsc:153) does the resets - buildable_piece_count
+//  0, buildable_stubs [], buildablepickups [] - and THEN calls
+//  [[ level.init_buildables ]](). Registering before that point would have the
+//  resets wipe it. Nothing in the 2,093-file stock dump ever ASSIGNS that
+//  pointer, only reads it, so it is free to take. It is also the exact hook the
+//  client half uses, which keeps the two sides shaped the same.
+//
+//  🛑 MAP-SCOPED ON PURPOSE. This references maps\mp\zm_transit_buildables,
+//  which resolves at SCRIPT LOAD time. It therefore cannot live in
+//  scripts\zm\locs\zm_transit_loc_diner.gsc - not one file under locs\ carries
+//  a maps\mp\zm_* reference, deliberately - nor in quality_of_life.gsc.
+//  AI_CONTEXT rule 2: a map-specific reference in a globally-loaded script
+//  throws "Unresolved external" on every OTHER map, and a runtime guard does
+//  not save it.
+// ============================================================================
+zmqol_diner_shield_enabled()
+{
+    // Twin of zm_transit.csc::zmqol_diner_shield_enabled(). Same two dvars,
+    // same order, same comparisons - if these ever disagree the server and
+    // client clientfield sets differ in width and everyone is dropped at load.
+    return getdvar( "ui_zm_mapstartlocation" ) == "diner" && getdvar( "ui_gametype" ) != "zgrief";
+}
+
+zmqol_diner_shield_init()
+{
+    if ( !zmqol_diner_shield_enabled() )
+        return;
+
+    level.init_buildables = ::zmqol_diner_init_buildables;
+}
+
+zmqol_diner_init_buildables()
+{
+    // Stock's own two calls, argument for argument (zm_transit_buildables.gsc
+    // :31-32). generate_zombie_buildable_piece() precaches the model and the
+    // hud shader itself (:208-211), so nothing extra is needed here. The
+    // trailing 2 and 3 are client_field_state - the values sent through the
+    // "buildable" clientfield, which is why 27 below has to cover them.
+    dolly = maps\mp\zombies\_zm_buildables::generate_zombie_buildable_piece( "riotshield_zm", "t6_wpn_zmb_shield_dolly", 32, 64, 0, "zm_hud_icon_dolly", maps\mp\zm_transit_buildables::onpickup_common, maps\mp\zm_transit_buildables::ondrop_common, undefined, "TAG_RIOT_SHIELD_DOLLY", undefined, 2 );
+    door = maps\mp\zombies\_zm_buildables::generate_zombie_buildable_piece( "riotshield_zm", "t6_wpn_zmb_shield_door", 48, 15, 25, "zm_hud_icon_cardoor", maps\mp\zm_transit_buildables::onpickup_common, maps\mp\zm_transit_buildables::ondrop_common, undefined, "TAG_RIOT_SHIELD_DOOR", undefined, 3 );
+
+    riotshield = spawnstruct();
+    riotshield.name = "riotshield_zm";
+    riotshield maps\mp\zombies\_zm_buildables::add_buildable_piece( dolly );
+    riotshield maps\mp\zombies\_zm_buildables::add_buildable_piece( door );
+
+    // Stock's callbacks, reused rather than reimplemented. onbuyweapon_riotshield
+    // resets the shield's health and location on the player; riotshieldbuildable
+    // is the trigger think that drives the bench.
+    riotshield.onbuyweapon = maps\mp\zm_transit_buildables::onbuyweapon_riotshield;
+    riotshield.triggerthink = maps\mp\zm_transit_buildables::riotshieldbuildable;
+
+    // include_buildable() lives in _zm_utility, not _zm_buildables.
+    maps\mp\zombies\_zm_utility::include_buildable( riotshield );
+    maps\mp\zombies\_zm_buildables::hide_buildable_table_model( "riotshield_zm_buildable_trigger" );
+
+    // 27 is stock TranZit's own number, set in both its .gsc (:12) and its .csc
+    // (:7). Kept rather than reduced to 3: getminbitcountfornum(27) is 5 bits,
+    // exactly what classic TranZit registers, so this is parity instead of a
+    // number of our own. add_zombie_buildable() is what fires
+    // register_clientfields(), and it only fires on the FIRST buildable
+    // (_zm_buildables.gsc:160-162) - so the count must be right BEFORE this line.
+    level.buildable_piece_count = 27;
+    maps\mp\zombies\_zm_buildables::add_zombie_buildable( "riotshield_zm", &"ZOMBIE_BUILD_RIOT", &"ZOMBIE_BUILDING_RIOT", &"ZOMBIE_BOUGHT_RIOT" );
 }
 
 init()

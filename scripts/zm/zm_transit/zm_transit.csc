@@ -5,12 +5,67 @@
 
 main()
 {
+    // zm_qol: CLIENT HALF of the Diner buildable riot shield. Must be set here,
+    // in main(), because clientscripts\mp\zombies\_zm_buildables::init() (called
+    // from _zm.csc:60) does `level.buildable_piece_count = 0` and THEN
+    // `[[ level.init_buildables ]]()`. This .csc's main() runs before _zm.csc's
+    // init list - the same ordering Who's Who relies on - so the pointer is in
+    // place when that call comes, and our count is set after the reset, not
+    // before it. See the server twin in zm_transit.gsc.
+    zmqol_diner_shield_init();
+
     if (is_not_busdepot())
 	{
 	   return;
 	}
 
     replaceFunc(clientscripts\mp\zm_transit::include_weapons, ::include_weapons);
+}
+
+// ============================================================================
+//  zm_qol: DINER BUILDABLE RIOT SHIELD - client half.  EXACT TWIN of
+//  scripts\zm\zm_transit\zm_transit.gsc::zmqol_diner_shield_init().
+//
+//  🛑 THE GATE MUST MATCH THE SERVER'S CHARACTER FOR CHARACTER. Both sides read
+//  the same two dvars, so they cannot disagree - but if they ever did, the two
+//  clientfield sets would differ in width and every player is dropped at load
+//  with EXE_CLIENT_FIELD_MISMATCH.
+//
+//  zgrief is excluded because this mod's own include_weapons() below already
+//  excludes riotshield_zm there (stock's gate, kept), so in grief the buildable
+//  would assemble a weapon the level does not carry.
+//
+//  WHAT GETS REGISTERED. The first add_zombie_buildable() triggers
+//  register_clientfields(), which is
+//      registerclientfield( "toplayer", "buildable", 1,
+//                           getminbitcountfornum( level.buildable_piece_count ), "int" )
+//  on BOTH sides. 27 is stock TranZit's own number (zm_transit_buildables.gsc:12
+//  and zm_transit_buildables.csc:7), so this is 5 bits - identical to what
+//  classic TranZit already registers, and parity rather than a number of our
+//  own choosing. Diner survival measured 54 toplayer in the v1.63.1 dump, so
+//  54 -> 59 with room to spare.
+// ============================================================================
+zmqol_diner_shield_enabled()
+{
+	return getdvar( "ui_zm_mapstartlocation" ) == "diner" && getdvar( "ui_gametype" ) != "zgrief";
+}
+
+zmqol_diner_shield_init()
+{
+	if ( !zmqol_diner_shield_enabled() )
+		return;
+
+	level.init_buildables = ::zmqol_diner_init_buildables;
+}
+
+zmqol_diner_init_buildables()
+{
+	// include first: add_zombie_buildable() returns immediately if
+	// level.zombie_include_buildables[name] is undefined (_zm_buildables.csc:19).
+	clientscripts\mp\zombies\_zm_buildables::include_zombie_buildable( "riotshield_zm" );
+	level.buildable_piece_count = 27;
+	clientscripts\mp\zombies\_zm_buildables::add_zombie_buildable( "riotshield_zm" );
+	level thread clientscripts\mp\zombies\_zm_buildables::set_clientfield_buildables_code_callbacks();
 }
 
 is_not_busdepot()

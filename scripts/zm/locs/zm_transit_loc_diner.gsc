@@ -416,6 +416,76 @@ precache()
 	// care about game mode, only the entity filter does.
 	precachemodel( "p6_anim_zm_buildable_pap_on" );
 	precachemodel( "zombie_sign_please_wait" );
+
+	// zm_qol: the buildable riot shield's bench. See the function's own header.
+	zmqol_unlock_shield_buildable_entities();
+}
+
+
+// ============================================================================
+//  zm_qol: KEEP THE SHIELD BENCH ALIVE IN SURVIVAL                 (v1.66.0)
+//
+//  The riot shield's two bench entities are tagged for classic only, read
+//  straight out of zm_transit.ff's mapents:
+//
+//    trigger_use  "riotshield_zm_buildable_trigger"  (-4688,-7966,-6)
+//        target "buildable_riotshield", zombie_weapon_upgrade "riotshield_zm",
+//        script_gameobjectname "zclassic"
+//    script_model "buildable_riotshield"            (-4680.23,-7977.34,6.63)
+//        model t6_wpn_zmb_shield_world, script_gameobjectname "zclassic"
+//
+//  _zm_gametype.gsc:110 game_objects_allowed() walks getentarray() and calls
+//  **entity delete()** on anything whose script_gameobjectname does not match
+//  the running mode, so in survival both are gone before anything can use them.
+//
+//  🌟 THE TIMING IS WHAT MAKES THIS SAFE, and it was traced, not assumed:
+//  game_objects_allowed() is threaded from rungametypemain() (:429), and this
+//  precache() is reached from rungametypePRECACHE() (:395-418), which runs
+//  first and synchronously. So the re-tag is already done when the filter
+//  looks.
+//
+//  "[all_modes]" rather than "zstandard": entity_is_allowed() short-circuits on
+//  that exact string (_gameobjects.gsc:45) instead of comparing mode lists, so
+//  it works for zstandard and zgrief alike and cannot go stale if a mode is
+//  added later. location_is_allowed() is already satisfied - neither entity has
+//  a script_noteworthy or script_location, so it returns 1 unconditionally.
+//
+//  🛑 NOT A MAP-SPECIFIC REFERENCE. getentarray() is an engine builtin, so this
+//  is safe in a locs\ file, which is loaded broadly. The buildable REGISTRATION
+//  needs maps\mp\zm_transit_buildables and therefore lives in
+//  scripts\zm\zm_transit\zm_transit.gsc instead - AI_CONTEXT rule 2.
+//
+//  Runs on every Diner start, including zgrief, and that is harmless: with no
+//  buildable registered there the bench simply has no trigger think, exactly as
+//  a classic-tagged entity in a mode that ignores it. Nothing else in the map
+//  carries these two targetnames - checked against the full ents dump.
+// ============================================================================
+zmqol_unlock_shield_buildable_entities()
+{
+	a_targetnames = [];
+	a_targetnames[a_targetnames.size] = "riotshield_zm_buildable_trigger";
+	a_targetnames[a_targetnames.size] = "buildable_riotshield";
+
+	n_freed = 0;
+
+	foreach ( str_targetname in a_targetnames )
+	{
+		a_ents = getentarray( str_targetname, "targetname" );
+
+		if ( !isdefined( a_ents ) )
+			continue;
+
+		foreach ( e_ent in a_ents )
+		{
+			if ( !isdefined( e_ent.script_gameobjectname ) )
+				continue;
+
+			e_ent.script_gameobjectname = "[all_modes]";
+			n_freed++;
+		}
+	}
+
+	println( "[zm_qol] diner shield: freed " + n_freed + " bench entities from the gamemode filter (expect 2)" );
 }
 
 main()
@@ -478,8 +548,36 @@ init_barriers()
 	scripts\zm\locs\loc_common::barrier("afr_barrel_biohazard_white_rust", origin + (anglesToForward(angles) * -24) + (anglesToRight(angles) * -16) + (anglesToUp(angles) * 14), angles + (0, 90, 90));
 }
 
+// ============================================================================
+//  zm_qol: THE TARP IS NOW CONDITIONAL                             (v1.66.0)
+//
+//  Its origin (-4688,-7974,-64) is the shield bench - the same spot as
+//  riotshield_zm_buildable_trigger at (-4688,-7966,-6). Reimagined covers the
+//  bench because in survival there is nothing to build on it; now that the riot
+//  shield is registered here, the cover has to come off or the bench is hidden
+//  under a sheet you can still use.
+//
+//  Kept for the case where the shield is NOT enabled - zgrief - so that mode
+//  still gets Reimagined's covered bench rather than a bare one that does
+//  nothing.
+//
+//  🛑 THE GATE IS RE-STATED HERE, NOT CALLED. Calling
+//  scripts\zm\zm_transit\zm_transit::zmqol_diner_shield_enabled() would be a
+//  reference from a locs\ file - which is loaded broadly - into a map-scoped
+//  one, and GSC resolves that at SCRIPT LOAD time: "Unresolved external" on
+//  every map that is not TranZit, with no runtime guard able to prevent it
+//  (AI_CONTEXT rule 2). It reads the same two dvars in the same order, and both
+//  copies carry this note so a change to one is a change to both.
+//
+//  Only ONE tarp is spawned in this whole file, so there is nothing else this
+//  affects.
+// ============================================================================
 generatebuildabletarps()
 {
+	// twin of zm_transit.gsc / zm_transit.csc :: zmqol_diner_shield_enabled()
+	if ( getdvar( "ui_zm_mapstartlocation" ) == "diner" && getdvar( "ui_gametype" ) != "zgrief" )
+		return;
+
 	tarp = spawn("script_model", (-4688, -7974, -64));
 	tarp.angles = (0, 0, 0);
 	tarp setModel("p6_zm_buildable_bench_tarp");
