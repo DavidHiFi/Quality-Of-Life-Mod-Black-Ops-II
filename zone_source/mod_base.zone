@@ -253,7 +253,6 @@ material,gfx_fxt_fire_flame_vert_e
 techniqueset,,distortion_81587199
 image,,fxt_fx_distortion_heat
 material,gfx_fxt_fx_distortion_heat_scale5
-fx,weapon/muzzleflashes/fx_rifle1_flash_base
 image,~~-gfx_shell_spc-rgb&~-rfx_sh~7097a0cb
 image,fx_shell_nml
 image,~-gfx_shell_col
@@ -265,8 +264,6 @@ xmodel,fx_rifle_shell
 image,~~-gfx_shell_spc-rgb&~-rfx_sh~d0e9df3d
 material,mc/mtl_fx_shell_alpha
 xmodel,fx_rifle_shell_blur
-fx,weapon/shellejects/fx_rifle_resting
-fx,weapon/shellejects/fx_rifle
 image,side_small
 material,reticle_side_small
 techniqueset,,effect_8f63534j
@@ -383,11 +380,9 @@ camo,camo_ak47
 weapon,ak47_zm
 image,fxt_mov_smk_puff
 material,gfx_fxt_mov_smk_puff
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_rifle1_flash_base
 image,,fxt_light_incandescent
 material,gfx_fxt_light_incandescent
 material,,gfx_fxt_gas_flash
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_rifle_md_flash_3p
 weapon,ak47_upgraded_zm
 image,~~-gmtl_t6_wpn_smg_ak74u_spc-~e9e9e721
 image,mtl_t6_wpn_smg_ak74u_nml
@@ -435,17 +430,8 @@ techniqueset,effect_23712j0e
 image,,fxt_fire_gas_flash
 material,gfx_fxt_gas_flash_blnd
 material,,gfx_fxt_gas_flash_z0
-fx,weapon/muzzleflashes/fx_muz_break_md_4_sqr
 material,,gfx_fxt_smk_light_z10
-fx,weapon/muzzleflashes/fx_muz_md_smk_3p
-fx,weapon/muzzleflashes/fx_muz_sm_gas_flash_3p
-fx,weapon/muzzleflashes/fx_muz_smg_flash_3p
 material,gfx_fxt_fire_flame_vert_e_blnd
-fx,weapon/muzzleflashes/fx_muz_md_gas_flash_1p
-fx,weapon/muzzleflashes/fx_muz_md_smk
-fx,weapon/muzzleflashes/fx_muz_ar_flash_1p
-fx,weapon/shellejects/fx_pistol_resting
-fx,weapon/shellejects/fx_pistol
 image,t6_camo_comic_alt_col
 image,camo_comic_col
 image,camo_mtx3_aqua_pat
@@ -487,9 +473,6 @@ camo,camo_kobra
 xanim,viewmodel_ak74u_t6_reflex_ads_up
 xanim,viewmodel_ak74u_t6_reflex_ads_down
 attachmentunique,au_ak74u_reflex
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_sm_gas_flash_1p
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_sm_gas_flash_3p
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_smg_flash_3p
 attachment,,defaultattachment
 attachment,reflex
 weapon,ak74u_upgraded_zm
@@ -547,9 +530,6 @@ image,hud_mp_firerate_auto
 material,hud_mp_firerate_auto
 image,menu_mp_weapons_an94
 material,menu_mp_weapons_an94
-fx,weapon/muzzleflashes/fx_muz_md_gas_flash_3p
-fx,weapon/muzzleflashes/fx_muz_break_lg_4_sqr
-fx,weapon/muzzleflashes/fx_muz_ar_flash_3p
 image,t6_camo_massacre_solid
 image,t6_camo_massacre_pattern
 image,t6_camo_mtp_solid
@@ -833,12 +813,6 @@ image,menu_zm_weapons_ballista
 material,menu_zm_weapons_ballista
 image,menu_mp_weapons_ballista
 material,menu_mp_weapons_ballista
-fx,weapon/muzzleflashes/fx_muz_xlg_gas_flash_1p
-fx,weapon/muzzleflashes/fx_muz_xlg_smk_1p
-fx,weapon/muzzleflashes/fx_muz_snpr_flash_1p
-fx,weapon/muzzleflashes/fx_muz_xlg_gas_flash_3p
-fx,weapon/muzzleflashes/fx_muz_lg_smk_3p
-fx,weapon/muzzleflashes/fx_muz_snpr_flash_3p
 material,mc/mtl_weapon_camo_gold_alt_2
 material,mc/mtl_weapon_camo_diamond_alt_2
 material,mc/mtl_weapon_camo_zombies_2
@@ -888,8 +862,6 @@ xanim,viewmodel_ballista_acog_ads_up
 xanim,viewmodel_ballista_acog_ads_down
 attachmentunique,au_ballista_acog
 attachmentunique,au_ballista_is
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_xlg_gas_flash_1p
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_xlg_gas_flash_3p
 attachment,acog
 attachment,is
 weapon,ballista_upgraded_zm
@@ -968,7 +940,6 @@ material,scope_overlay_m40a3_low_res
 camo,camo_vzoom_80s
 attachmentunique,au_barretm82_vzoom
 material,,gfx_fxt_smk_light
-fx,weapon/muzzleflashes/fx_zombie_heavy_flash_base_ug
 image,scope_overlay_vzoom_1024
 material,scope_overlay_vzoom
 attachment,vzoom
@@ -1046,18 +1017,12 @@ xmodel,t6_attach_pistol_fastmag_view
 xmodel,t6_attach_pistol_fastmag_world
 xanim,viewmodel_beretta2023r_fastmag
 xanim,viewmodel_beretta2023r_fastmag_empty
-fx,weapon/muzzleflashes/fx_muz_break_sm_2_side
-fx,weapon/muzzleflashes/fx_muz_sm_gas_flash_1p
-fx,weapon/muzzleflashes/fx_muz_sm_smk_1p
-fx,weapon/muzzleflashes/fx_muz_smg_flash_1p_2_side_mb
 material,mc/mtl_weapon_camo_gold_2
 material,mc/mtl_weapon_camo_bacon_2
 material,mc/mtl_weapon_camo_cybertron_2
 material,mc/mtl_weapon_camo_etching_2
 camo,camo_b23r
 weapon,beretta93r_extclip_zm
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_break_sm_2_side
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_smg_flash_1p_2sd
 attachment,dualclip
 attachment,extbarrel
 attachmentunique,au_beretta93r_none
@@ -1117,8 +1082,6 @@ xanim,viewmodel_zomb_mauser_ads_up
 xanim,viewmodel_zomb_mauser_ads_down
 image,menu_zm_weapons_mc96
 material,menu_zm_weapons_mc96
-fx,weapon/muzzleflashes/fx_muz_break_sm_4_sqr
-fx,weapon/muzzleflashes/fx_muz_smg_flash_1p
 camo,camo_mc96
 weapon,c96_zm
 techniqueset,,effect_775wj8ww
@@ -1146,8 +1109,6 @@ xanim,viewmodel_zomb_mauser_upg_reload_empty
 xanim,viewmodel_zomb_mauser_upgraded_fire
 xanim,viewmodel_zomb_mauser_upgrade_ads_up
 xanim,viewmodel_zomb_mauser_upgrade_ads_down
-fx,weapon/raygun2/fx_zm_raygun2_ug_view
-fx,weapon/raygun2/fx_zm_raygun2_ug_world
 image,fxt_smk_cigar
 material,gfx_fxt_smk_cigar
 image,fxt_fire_anim_flicker_1
@@ -1159,7 +1120,6 @@ material,gfx_fxt_light_hot_add_eo5_z10
 material,,gfx_fxt_exp_fire
 material,,gfx_fxt_smk_light_old
 fx,weapon/raygun2/fx_zm_raygun2_ug_impact
-fx,weapon/raygun2/fx_zm_raygun2_ug_impact_flesh
 fx,weapon/raygun2/fx_zm_raygun2_ug_bolt_emit
 weapon,c96_upgraded_zm
 image,~~-gmtl_t6_wpn_smg_scorpion_s~47bb01de
@@ -1206,8 +1166,6 @@ xanim,viewmodel_skorpion_evo_ads_up
 xanim,viewmodel_skorpion_evo_ads_down
 image,menu_mp_weapons_evoskorpion
 material,menu_mp_weapons_evoskorpion
-fx,weapon/muzzleflashes/fx_muz_break_sm_4_arc
-fx,weapon/muzzleflashes/fx_muz_smg_flash_1p_4_arc_mb
 material,mc/mtl_weapon_camo_ghost_3
 camo,camo_scorpionevo
 weapon,evoskorpion_zm
@@ -1281,11 +1239,6 @@ xanim,viewmodel_hamr_ads_up
 xanim,viewmodel_hamr_ads_down
 image,menu_mp_weapons_hamr
 material,menu_mp_weapons_hamr
-fx,weapon/muzzleflashes/fx_muz_lg_gas_flash_1p
-fx,weapon/muzzleflashes/fx_muz_lg_smk_1p
-fx,weapon/muzzleflashes/fx_muz_mg_flash_1p_4_sqr_mb
-fx,weapon/muzzleflashes/fx_muz_lg_gas_flash_3p
-fx,weapon/muzzleflashes/fx_muz_mg_flash_3p
 image,~~-gfx_bullet_chain_spc-rgb&~~cf27f2d4
 techniqueset,,mc_lit_sm_r0c0s0_986ezzjq
 image,~-gfx_bullet_chain_col
@@ -1293,8 +1246,6 @@ material,mc/mtl_fx_bullet_chain
 xmodel,fx_bullet_chain
 material,mc/mtl_fx_bullet_chain_alpha
 xmodel,fx_bullet_chain_blur
-fx,weapon/shellejects/fx_saw_link_resting
-fx,weapon/shellejects/fx_saw
 tracer,lmg
 material,mc/mtl_weapon_camo_diamond_alt_3
 material,mc/mtl_weapon_camo_armor_alt_2
@@ -1340,10 +1291,6 @@ attachmentunique,au_hamr_reflex
 xanim,viewmodel_hamr_grip_rangefinder_ads_secondary_fire
 xanim,viewmodel_hamr_grip_rangefinder_ads_fire
 attachmentunique,au_hamr_acog+grip
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_lg_gas_flash_1p
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_break_lg_4_sqr
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_mg_flash_1p_4sqr
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_lg_gas_flash_3p
 weapon,hamr_upgraded_zm
 image,menu_mp_weapons_hk416
 material,menu_mp_weapons_hk416
@@ -1407,14 +1354,8 @@ attachmentunique,au_hk416_rangefinder
 xanim,viewmodel_hk416_reflex_ads_up
 xanim,viewmodel_hk416_reflex_ads_down
 attachmentunique,au_hk416_reflex
-fx,weapon/muzzleflashes/fx_muz_break_md_4_arc
-fx,weapon/muzzleflashes/fx_muz_ar_flash_1p_4_arc_mb
 attachment,longbreath
 weapon,hk416_zm
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_md_gas_flash_1p
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_break_md_4_sqr
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_ar_flash_1p_4_sqr
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_md_gas_flash_3p
 weapon,hk416_upgraded_zm
 image,~~-gmtl_t6_wpn_pistol_judge_s~8fa00774
 image,mtl_t6_wpn_pistol_judge_shell_n
@@ -1464,11 +1405,7 @@ xanim,viewmodel_judge_ads_down
 image,menu_mp_weapons_judge
 material,menu_mp_weapons_judge
 material,,gfx_fxt_spark_single
-fx,weapon/muzzleflashes/fx_muz_lg_gas_flash_buck_sm_1p
-fx,weapon/muzzleflashes/fx_muz_judge_flash_1p
 material,,gfx_fxt_spark_grind
-fx,weapon/muzzleflashes/fx_muz_lg_gas_flash_buck_3p
-fx,weapon/muzzleflashes/fx_muz_sg_buck_flash_3p
 tracer,shotgun
 camo,camo_judge
 weapon,judge_zm
@@ -1483,8 +1420,6 @@ xanim,viewmodel_judge_fastmag_reload_in
 xanim,viewmodel_judge_fastmag_reload_out
 attachmentunique,au_judge_dualclip
 attachmentunique,au_judge_extbarrel
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_buck_1p
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_buck_3p
 weapon,judge_upgraded_zm
 image,~~-gmtl_t6_wpn_pistol_kard_sp~430f8966
 image,mtl_t6_wpn_pistol_kard_nml
@@ -1584,10 +1519,6 @@ image,hud_mp_firerate_pump
 material,hud_mp_firerate_pump
 image,menu_mp_weapons_ksg
 material,menu_mp_weapons_ksg
-fx,weapon/muzzleflashes/fx_muz_lg_gas_flash_slug_1p
-fx,weapon/muzzleflashes/fx_muz_sg_slug_flash_1p
-fx,weapon/muzzleflashes/fx_muz_lg_gas_flash_slug_3p
-fx,weapon/muzzleflashes/fx_muz_sg_slug_flash_3p
 image,~~-gfx_shotgun_shell_spc-rgb&~459f19be
 image,fx_shotgun_shell_nml
 image,~-gfx_shotgun_shell_col
@@ -1598,8 +1529,6 @@ material,mc/mtl_fx_shotgun_shell_thermal
 image,~~-gfx_shotgun_shell_spc-rgb&~3eb26b78
 material,mc/mtl_fx_shotgun_shell
 xmodel,fx_shotgun_shell
-fx,weapon/shellejects/fx_shotgun_resting
-fx,weapon/shellejects/fx_shotgun
 camo,camo_ksg
 weapon,ksg_zm
 attachmentunique,au_ksg_none
@@ -1658,7 +1587,6 @@ rawfile,rumble/lmg_fire_h.rmb
 rawfile,rumble/lmg_fire_l.rmb
 image,menu_mp_weapons_lsat
 material,menu_mp_weapons_lsat
-fx,weapon/shellejects/fx_lsat_link
 tracer,lmg_enemy
 camo,camo_lsat
 weapon,lsat_zm
@@ -1789,7 +1717,6 @@ image,~~-gweapon_m203_grenade_spc-r~208d68a0
 material,mc/mtl_weapon_m203_grenade
 physpreset,bottle_plastic
 xmodel,projectile_m203grenade
-fx,impacts/fx_dud_m203
 xanim,viewmodel_m16a2_gl_grenade_idle
 xanim,viewmodel_m16a2_gl_grenade_fire
 xanim,viewmodel_m16a2_gl_grenade_reload_empty
@@ -1822,9 +1749,7 @@ material,,gfx_fxt_debris_fine_clump_ds128
 techniqueset,effect_276zq33q
 image,,fxt_debris_fine_clump
 material,gfx_fxt_debris_fine_clump_ds128_add
-fx,temp_effects/fx_tmp_m203_flash
 material,,gfx_fxt_smk_trail_thick
-fx,weapon/grenade/fx_trail_grenade
 weapon,gl_m16_upgraded_zm
 image,~~-gmtl_t6_wpn_launch_m32_spc~f600f729
 image,mtl_t6_wpn_launch_m32_nml
@@ -1873,7 +1798,6 @@ xanim,t5_viewmodel_camera_mantle
 camo,camo_m32
 fx,"weapon//grenade/fx_trail_grenade"
 weapon,m32_zm
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_m32_3p
 weapon,m32_upgraded_zm
 image,~~-gmtl_t6_wpn_pistol_m1911_s~5546ff61
 image,mtl_t6_wpn_pistol_m1911_nml
@@ -1934,11 +1858,8 @@ xmodel,weapon_parabolic_knife
 techniqueset,,effect_7104842q
 techniqueset,,effect_5f6f0490
 techniqueset,,wc_lit_sm_b0c0n0s0_w16w6e35
-fx,,impacts/fx_flesh_hit_splat
 techniqueset,,effect_32z8zqf9
 xmodel,,fx_axis_createfx
-fx,,impacts/fx_flesh_hit_knife_mp
-fx,,impacts/fx_flesh_hit_knife_noblood
 xanim,viewmodel_m4m203_knife_melee_1
 xanim,viewmodel_m4m203_knife_melee_2
 rawfile,rumble/defaultweapon_melee
@@ -1960,7 +1881,6 @@ xanim,viewmodel_ussmokegrenade_idle
 xanim,viewmodel_syrette_pullout
 xmodel,viewmodel_hands_cloth
 weapon,syrette_zm
-fx,,impacts/fx_flesh_hit_knife
 techniqueset,,mc_projecteddecal_27zq5445
 xmodel,,fx_decal_character_blood
 material,,gfx_fxt_bio_blooddrops_ds64
@@ -1968,7 +1888,6 @@ material,,gfx_fxt_bio_bloodgush_ds64
 material,,gfx_fxt_bio_bloodburst
 material,,gfx_fxt_bio_bloodburst_b_ds64
 material,,gfx_fxt_smk_gen_z10
-fx,impacts/fx_flesh_hit_neck_fatal
 xanim,viewmodel_m1911_dw_right_idle
 xanim,viewmodel_m1911_dw_right_idle_empty
 xanim,viewmodel_m1911_dw_right_fire
@@ -2079,8 +1998,6 @@ material,mc/mtl_t6_attach_belt_links
 xmodel,t6_wpn_minigun_view
 image,distortion_heat
 material,gfx_distortion_heat
-fx,weapon/muzzleflashes/fx_mini_cannon_flash_base1st
-fx,weapon/shellejects/fx_minigun
 material,mc/mtl_t6_wpn_minigun_ammo_noalpha
 xmodel,t6_wpn_minigun_world
 xanim,viewmodel_minigun_t6_idle
@@ -2104,7 +2021,6 @@ image,hud_minigun
 material,hud_icon_minigun
 image,ks_menu_minigun_64
 material,hud_ks_minigun
-fx,weapon/muzzleflashes/fx_heavy_flash_base
 weapon,minigun_alcatraz_zm
 camo,camo_minigun
 weapon,minigun_alcatraz_upgraded_zm
@@ -2214,10 +2130,8 @@ image,viewhands_marine_gloves_nml
 material,mc/mtl_marine_glove
 material,mc/mtl_marine_glovesleeve
 xmodel,viewhands_usmc
-fx,weapon/muzzleflashes/fx_smg_flash_base
 camo,camo_mp40
 weapon,mp40_stalker_zm
-fx,weapon/muzzleflashes/fx_zombie_smg_flash_base_ug
 weapon,mp40_stalker_upgraded_zm
 image,~~-gmtl_t6_wpn_ar_stg44_spc-r~497707e5
 image,mtl_t6_wpn_ar_stg44_nml
@@ -2344,8 +2258,6 @@ xanim,viewmodel_python_sw_ads_up
 xanim,viewmodel_python_sw_ads_down
 image,hud_python
 material,hud_python
-fx,system_elements/fx_null
-fx,weapon/shellejects/fx_revolver
 camo,camo_python
 weapon,python_zm
 xanim,viewmodel_python_sw_reload
@@ -2390,7 +2302,6 @@ xanim,viewmodel_qcw05_ads_up
 xanim,viewmodel_qcw05_ads_down
 image,menu_mp_weapons_qcw
 material,menu_mp_weapons_qcw
-fx,weapon/muzzleflashes/fx_muz_xsm_gas_flash_1p
 material,mc/mtl_weapon_camo_dragon_2
 camo,camo_chicom
 weapon,qcw05_zm
@@ -2515,7 +2426,6 @@ rawfile,rumble/shotgun_fire_h.rmb
 rawfile,rumble/shotgun_fire_l.rmb
 image,menu_mp_weapons_olympia
 material,menu_mp_weapons_olympia
-fx,weapon/muzzleflashes/fx_shotgun_flash_base
 camo,camo_olympia
 weapon,rottweil72_zm
 weapon,rottweil72_upgraded_zm
@@ -2628,8 +2538,6 @@ xanim,viewmodel_saiga12_ads_up
 xanim,viewmodel_saiga12_ads_down
 image,menu_mp_weapons_saiga12
 material,menu_mp_weapons_saiga12
-fx,weapon/muzzleflashes/fx_muz_lg_gas_flash_buck_1p
-fx,weapon/muzzleflashes/fx_muz_sg_buck_flash_1p
 camo,camo_saiga
 weapon,saiga12_zm
 xmodel,t6_attach_fastmag_saiga_view
@@ -2683,7 +2591,6 @@ xanim,viewmodel_saritch_ads_up
 xanim,viewmodel_saritch_ads_down
 image,menu_mp_weapons_saritch
 material,menu_mp_weapons_saritch
-fx,weapon/muzzleflashes/fx_muz_mg_flash_1p
 camo,camo_saritch
 weapon,saritch_zm
 xanim,viewmodel_saritch_rmr_alt_raise_up
@@ -2783,8 +2690,6 @@ xanim,viewmodel_scar_h_ads_up
 xanim,viewmodel_scar_h_ads_down
 image,menu_mp_weapons_scar
 material,menu_mp_weapons_scar
-fx,weapon/muzzleflashes/fx_muz_break_md_5_star
-fx,weapon/muzzleflashes/fx_muz_ar_flash_1p_5_star_mb
 camo,camo_scarh
 weapon,scar_zm
 attachmentunique,au_scar_none
@@ -3156,8 +3061,6 @@ xanim,viewmodel_type95_ar_ads_up
 xanim,viewmodel_type95_ar_ads_down
 image,menu_mp_weapons_type95
 material,menu_mp_weapons_type95
-fx,weapon/muzzleflashes/fx_muz_break_md_2_side
-fx,weapon/muzzleflashes/fx_muz_ar_flash_1p_2_side_mb
 camo,camo_type95
 weapon,type95_zm
 xanim,viewmodel_type95_ar_fastmag
@@ -3302,11 +3205,8 @@ image,flechette_reticle
 material,reticle_flechette
 image,menu_mp_weapons_rpg
 material,menu_mp_weapons_rpg
-fx,weapon/muzzleflashes/fx_at4_flash_world
-fx,weapon/grenade/fx_trail_rpg
 camo,camo_usrpg
 weapon,usrpg_zm
-fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_usrpg_3p
 weapon,usrpg_upgraded_zm
 image,~~-gmtl_t6_wpn_smg_uzi_spc-rg~0879b203
 image,mtl_t6_wpn_smg_uzi_nml
@@ -3409,7 +3309,6 @@ xanim,viewmodel_xm8_ads_up
 xanim,viewmodel_xm8_ads_down
 image,menu_mp_weapons_xm8
 material,menu_mp_weapons_xm8
-fx,weapon/muzzleflashes/fx_muz_ar_flash_1p_4_sqr_mb
 camo,camo_xm8
 weapon,xm8_zm
 xanim,viewmodel_xm8_rangefinder_ads_fire
@@ -3503,9 +3402,6 @@ image,~~-gmtl_t6_attach_optic_aimpo~db82b3c5
 image,~-gmtl_t6_attach_optic_aimpoint_col
 material,mc/mtl_t6_attach_optic_aimpoint
 camo,camo_aimpoint
-fx,,system_elements/fx_blood_drops_decal_emit
-fx,weapon/muzzleflashes/fx_muz_silencer_md
-fx,weapon/muzzleflashes/fx_muz_silencer_md_3p
 soundbank,mod.all
 image,ui_powerup_deathmachine
 material,ui_powerup_deathmachine

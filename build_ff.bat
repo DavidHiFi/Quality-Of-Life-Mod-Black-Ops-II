@@ -267,6 +267,7 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\zm_transit.ff" ^
   --load "%BO2_DIR%\zone\all\so_zclassic_zm_transit.ff" ^
   --load "%PROJ%\zone_source\ww_donor\mod.ff" ^
+  --load "%PROJ%\zone_source\pro7_donor\mod.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^

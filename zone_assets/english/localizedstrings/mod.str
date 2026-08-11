@@ -1,0 +1,28 @@
+// zm_qol - display names for the three ported T5 wonder weapons.
+// Without these the HUD prints the raw localize key, e.g.
+// "ZOMBIE_WEAPON_FREEZEGUN_UPGRADED", which is what the user reported.
+// BO2 ships NO localize entry for any of these six keys - verified by grepping
+// the localize assets of all 191 fastfiles in zone\all.
+VERSION             "1"
+CONFIG              "C:/projects/cod/t6/bin/StringEd.cfg"
+FILENOTES           ""
+
+REFERENCE           ZOMBIE_WEAPON_THUNDERGUN
+LANG_ENGLISH        "Thundergun"
+
+REFERENCE           ZOMBIE_WEAPON_THUNDERGUN_UPGRADED
+LANG_ENGLISH        "Zeus Cannon"
+
+REFERENCE           ZOMBIE_WEAPON_TESLA
+LANG_ENGLISH        "Wunderwaffe DG-2"
+
+REFERENCE           ZOMBIE_WEAPON_TESLA_UPGRADED
+LANG_ENGLISH        "Wunderwaffe DG-3 JZ"
+
+REFERENCE           ZOMBIE_WEAPON_FREEZEGUN
+LANG_ENGLISH        "Winter's Howl"
+
+REFERENCE           ZOMBIE_WEAPON_FREEZEGUN_UPGRADED
+LANG_ENGLISH        "Winter's Fury"
+
+ENDMARKER

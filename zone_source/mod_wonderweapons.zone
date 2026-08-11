@@ -662,3 +662,33 @@ xanim,zombie_dog_tesla_death_e
 //  so it resolves from there, like the techsets and xmodels.
 // ============================================================================
 rawfile,shock/electrocution.shock
+
+// ============================================================================
+//  zm_qol ADDITIONS (v1.73.0) - everything below was measured against the
+//  SHIPPED, WORKING build at Wonder_Weapons-T6ZM\wonder_wepons_zm\, which ships
+//  the SAME 63 raw .efx in its mod.iwd and does not crash. Diffing its mod.ff
+//  against ours produced exactly two gaps.
+//
+//  1. THIRTEEN TECHNIQUESETS. Seven are effect_* / distortion_* - the shaders
+//     particle systems draw with. An fx whose material resolves but whose
+//     techniqueset does not is the 0x80000003 at map load. This is the crash.
+//  2. LOCALIZE. BO2 ships no entry for any of the six weapon-name keys, which
+//     is why the HUD printed ZOMBIE_WEAPON_FREEZEGUN_UPGRADED.
+// ============================================================================
+localize,mod
+
+techniqueset,distortion_81587199
+techniqueset,effect_50567j38
+techniqueset,effect_5e098749
+techniqueset,effect_8f63534j
+techniqueset,effect_8wjj7fj0
+techniqueset,effect_w77q49e8
+techniqueset,effect_z0z25860
+techniqueset,mc_lit_sm_b0c0_fw0jf955
+techniqueset,mc_lit_sm_b0c0n0_67fqj7jf
+techniqueset,mc_lit_sm_b0c0n0s0_91j5z9q9
+techniqueset,mc_lit_sm_b0c0s0_805w75j2
+techniqueset,mc_sw4_3d_thermal_weapon_e4q357fj
+techniqueset,wc_lit_sm_b0c0_jj25624z
+image,sw_radiant_default
+image,thermal_gradient2

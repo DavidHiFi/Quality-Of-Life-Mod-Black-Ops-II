@@ -30,20 +30,18 @@ try {
     # ui\ and ui_mp\ - stock keeps privateonlinegamelobby.lua under ui\ and
     # privategamelobby_project.lua under ui_mp\ - so a mod that overrides a ui\
     # file needs that folder packed too, or the override never reaches the game.
-    # 'fx' carries the T5 wonder weapons' 27 raw .efx. OpenAssetTools cannot read or
-    # write FxEffectDef at ALL, so those effects can never enter mod.ff - but
-    # Plutonium loads them straight out of mod.iwd at runtime.
+    # 'fx' carries the wonder weapons' 63 raw .efx. OpenAssetTools cannot read or
+    # write FxEffectDef, so they can never enter mod.ff - Plutonium loads them
+    # straight out of mod.iwd at runtime.
     #
-    # 🛑 THEY MUST BE CRLF. Every one of the 27 shipped with LF-only endings and the
-    # game hard-crashed (0x80000003) the moment one was parsed - which happened on
-    # EVERY map even with the wonder weapons gated off, because three of them carry
-    # stock BO2 names and core maps\mp\zombies\_zm.gsc:1193 loadfx's
-    # fx_zombie_tesla_neck_spurt unconditionally. Diffed against the independent
-    # Wonder_Weapons-T6ZM port: all 27 were identical apart from line endings, and
-    # that port's copies are CRLF. iwfx VERSION 2 IS CORRECT for T6 - 61 of that
-    # working port's 63 files are iwfx 2 - so the version was never the problem.
-    # After converting, all 27 are byte-identical to that port's copies.
-    $folders  = @('attachmentunique','character','images','maps','scripts','ui','ui_mp','weapons')
+    # 🌟 ALL 63 ARE BYTE-IDENTICAL TO Wonder_Weapons-T6ZM\wonder_wepons_zm\, a
+    # SHIPPED WORKING BUILD whose own mod.iwd carries the same 63 and does not
+    # crash. Do not hand-edit them. Two earlier attempts to "fix" these files -
+    # converting them to CRLF, then substituting 22 materials - were both wrong
+    # theories and neither stopped the crash. The real gap was in mod.ff:
+    # THIRTEEN TECHNIQUESETS, seven of them effect_* / distortion_*, the shaders
+    # particles draw with. See zone_source\mod_wonderweapons.zone.
+    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui','ui_mp','weapons')
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 

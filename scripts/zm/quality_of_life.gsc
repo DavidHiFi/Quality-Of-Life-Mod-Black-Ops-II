@@ -3277,6 +3277,18 @@ zmqol_dev_command_listener()
                 player iprintln( "^2[zm_qol] infinite ammo ON" );
             }
         }
+        else if ( cmd == "thundergun" || cmd == "zeus" )
+        {
+            player zmqol_give_wonder_weapon( "thundergun_zm", "2", "Thundergun" );
+        }
+        else if ( cmd == "wunderwaffe" || cmd == "dg2" || cmd == "tesla" )
+        {
+            player zmqol_give_wonder_weapon( "tesla_gun_zm", "3", "Wunderwaffe DG-2" );
+        }
+        else if ( cmd == "wintershowl" || cmd == "winters" || cmd == "freezegun" )
+        {
+            player zmqol_give_wonder_weapon( "freezegun_zm", "4", "Winter's Howl" );
+        }
         else if ( cmd == "infinitesprint" || cmd == "infsprint" )
         {
             if ( isdefined( player.zmqol_infsprint ) && player.zmqol_infsprint )
@@ -4989,6 +5001,7 @@ zmqol_fly_key_bind()
     self notifyonplayercommand( "zmqol_fly_key", "+actionslot 7" );
     self thread zmqol_fly_key_toggle();
     self thread zmqol_fly_dvar_watch();
+    self thread zmqol_ww_give_dvar_watch();
 }
 
 // ============================================================================
@@ -5019,6 +5032,94 @@ zmqol_fly_key_bind()
 //  server. The chat command and the key bind are both per-player and remain the
 //  correct choice there.
 // ============================================================================
+// ============================================================================
+//  zm_qol: GIVE A WONDER WEAPON                                    (v1.73.0)
+//
+//  User, 2026-08-11: "instead of me having to spin the box a fuck load of times,
+//  give me a console command to give each of the imported wonder weapons, one
+//  for each (3 commands)."
+//
+//      chat        .thundergun          .wunderwaffe  (.dg2, .tesla)
+//                  .wintershowl         (.winters, .freezegun)
+//      console     give_thundergun 1    give_wunderwaffe 1    give_wintershowl 1
+//
+//  Per the standing rule that every chat command must ALSO be a bindable console
+//  command, each has a dvar front-end polled by zmqol_ww_give_dvar_watch(). The
+//  dvar is a TRIGGER, not a state: it is reset to 0 the moment it is consumed,
+//  so binding it to a key gives the gun on every press.
+//
+//  🛑 GATED ON zmqol_ww, and the check mirrors the three gate scripts exactly
+//  (thundergun.gsc:25, teslagun.gsc:26, freeze.gsc:25). If a gun's init never
+//  ran, its weapon was never precacheitem'd, and giveweapon on an unprecached
+//  weapon is not a no-op - it is a script error. Unset means ON, matching the
+//  scripts' own "" test.
+// ============================================================================
+zmqol_ww_gate_allows( str_which )
+{
+    str_ww = getdvar( "zmqol_ww" );
+    return ( str_ww == "" || str_ww == "1" || str_ww == str_which );
+}
+
+zmqol_give_wonder_weapon( str_weapon, str_which, str_name )
+{
+    if ( !zmqol_ww_gate_allows( str_which ) )
+    {
+        self iprintln( "^1[zm_qol] " + str_name + " is off ^7- zmqol_ww is " + getdvar( "zmqol_ww" ) );
+        return;
+    }
+
+    if ( self hasweapon( str_weapon ) )
+    {
+        self givemaxammo( str_weapon );
+        self switchtoweapon( str_weapon );
+        self iprintln( "^2[zm_qol] " + str_name + " ^7- refilled" );
+        return;
+    }
+
+    self giveweapon( str_weapon );
+    self givemaxammo( str_weapon );
+    self switchtoweapon( str_weapon );
+    self iprintln( "^2[zm_qol] gave ^7" + str_name );
+}
+
+zmqol_ww_give_dvar_watch()
+{
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    if ( getdvar( "give_thundergun" ) == "" )
+        setdvar( "give_thundergun", "0" );
+
+    if ( getdvar( "give_wunderwaffe" ) == "" )
+        setdvar( "give_wunderwaffe", "0" );
+
+    if ( getdvar( "give_wintershowl" ) == "" )
+        setdvar( "give_wintershowl", "0" );
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        if ( getdvarintdefault( "give_thundergun", 0 ) )
+        {
+            setdvar( "give_thundergun", "0" );
+            self zmqol_give_wonder_weapon( "thundergun_zm", "2", "Thundergun" );
+        }
+
+        if ( getdvarintdefault( "give_wunderwaffe", 0 ) )
+        {
+            setdvar( "give_wunderwaffe", "0" );
+            self zmqol_give_wonder_weapon( "tesla_gun_zm", "3", "Wunderwaffe DG-2" );
+        }
+
+        if ( getdvarintdefault( "give_wintershowl", 0 ) )
+        {
+            setdvar( "give_wintershowl", "0" );
+            self zmqol_give_wonder_weapon( "freezegun_zm", "4", "Winter's Howl" );
+        }
+    }
+}
+
 zmqol_fly_dvar_watch()
 {
     self endon( "disconnect" );
