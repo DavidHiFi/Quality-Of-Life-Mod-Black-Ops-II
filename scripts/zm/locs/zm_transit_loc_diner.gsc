@@ -603,30 +603,52 @@ zmqol_semtex_wallbuy_origin()
 	// defaults - if these ever disagree the two sides register different
 	// clientfield names and everyone is dropped at load.
 	//
-	// 🌟 x = -5172 IS THE WALL'S ROOM-SIDE FACE, MEASURED (v1.69.10). The doorway
-	// beside this spot is entity auto2279, model p_rus_door_white_plain_right, at
-	// (-5178,-7842.1,-64) yaw 270. That model's bounds are local X 0..60 (panel
-	// width, hinged at 0), local Z 0..102 (height), local Y -3.05..6.01 - a 9.06
-	// unit span, which is the frame, i.e. the wall thickness. At yaw 270 local +Y
-	// maps to world +X, so the wall occupies x -5181.05 .. -5171.99 and its room
-	// side is x = -5172. The -5176 that shipped in v1.68.0/68.1 was FOUR UNITS
-	// INSIDE that face, and semtex_bag only stands 5.87 units off its own back
-	// plane, so ~1.9 units showed - the "literally inside the wall" the user saw.
-	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5172 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
+	// 🛑 v1.69.10's -5172 WAS WRONG AND IS CORRECTED HERE. It came from reading the
+	// doorway model's bounds without the handedness flip below, which put the wall
+	// face 3 units too far into the room. With the flip:
+	//
+	//   doorway = entity auto2279, p_rus_door_white_plain_right, at
+	//   (-5178,-7842.1,-64) yaw 270. glTF bounds X 0..60 (panel, hinged at 0),
+	//   Y 0..102 (height), Z -3.05..6.01. CoD Y = -glTF Z, so CoD Y is -6.01..3.05
+	//   - a 9.06 unit span, the frame, i.e. the wall thickness. At yaw 270 local +Y
+	//   maps to world +X, so the wall occupies x -5184.01 .. -5174.95 and its
+	//   ROOM-SIDE FACE IS x = -5175.
+	//
+	// So -5176 (v1.68.0/68.1) was already within a unit of flush. The position was
+	// never really the problem - see the yaw note in zmqol_add_semtex_wallbuy().
+	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5175 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
 }
 
 zmqol_add_semtex_wallbuy()
 {
 	v_origin = zmqol_semtex_wallbuy_origin();
-	// 🌟 YAW 90 IS CORRECT, and now it is measured rather than argued. semtex_bag's
-	// bounds are local X -6.04..6.04 (width), local Z -8.61..11.32 (height), local
-	// Y -5.87..0.22 - the ONE-SIDED axis, so its flat mounting face is local +Y ~ 0
-	// and the body hangs toward local -Y. Mounted on a wall whose normal is world
-	// +X, local -Y has to point +X, which is yaw 90. (Axis mapping confirmed off
-	// two known models: zombie_vending_jugg is 99.7 long on glTF Y - that is CoD Z,
-	// up - and t6_wpn_smg_mp5_world is 31.9 long on glTF X - that is CoD X, the
-	// barrel. So glTF X,Y,Z = CoD X, Z, Y.)
-	v_angles = ( 0, getdvarintdefault( "zmqol_semtex_diner_yaw", 90 ), 0 );
+	// 🛑 YAW 270. Yaw was the whole bug all along - 0 in v1.68.0, 90 in v1.68.1/69.10,
+	// and BOTH buried or splayed the bag. The derivation, cross-checked four ways:
+	//
+	// AXES. OAT's GLB export is CoD X -> glTF X, CoD Z -> glTF Y, and therefore
+	// CoD Y -> -glTF Z, because both spaces are right-handed and fixing two axes
+	// forces the third's SIGN. Confirmed independently: t6_wpn_smg_mp5_world's own
+	// tags put tag_flash (muzzle) at glTF x +8.62 and tag_stock_off at -13.70, so
+	// glTF +X is the barrel = CoD forward; zombie_vending_jugg is 99.7 long on
+	// glTF Y, and a perk machine is ~100 tall, so glTF Y is CoD Z. 🛑 The missing
+	// sign flip is exactly what made v1.69.10 wrong.
+	//
+	// THE MODEL. semtex_bag glTF X -6.04..6.04, Y -8.61..11.32, Z -5.87..0.22.
+	// Through the mapping: CoD X -6.04..6.04 (width along the wall), CoD Z
+	// -8.61..11.32 (height), CoD Y -0.22..5.87 - the ONE-SIDED axis. So the flat
+	// mounting face is the local -Y side and the bag's body hangs toward local +Y.
+	//
+	// THE RULE. local +Y must point OUT of the wall. Our wall normal is world +X
+	// (the player stands at greater X and faces it), and local +Y -> (-sin,cos),
+	// so (-sin,cos) = (1,0) gives yaw 270. At yaw 90 local +Y points world -X,
+	// straight into the wall - the bag has been fully inside the brush every build
+	// since v1.68.1, which is why only the fx ever showed.
+	//
+	// CHECKED AGAINST STOCK. Town's semtex (the only other one in the game) sits at
+	// (1083.7,-1579.5,12) yaw ~0, which puts its body toward world +Y - and the
+	// pathnodes around it are predominantly +Y, so the room really is on that side.
+	// Same rule, same result.
+	v_angles = ( 0, getdvarintdefault( "zmqol_semtex_diner_yaw", 270 ), 0 );
 
 	s_model = spawnstruct();
 	s_model.targetname = "zmqol_semtex_diner";

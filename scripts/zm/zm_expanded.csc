@@ -296,11 +296,11 @@ struct_class_init()
 // ============================================================================
 zmqol_semtex_wallbuy_origin()
 {
-	// Twin of zm_transit_loc_diner.gsc::zmqol_semtex_wallbuy_origin(). x = -5172 is
+	// Twin of zm_transit_loc_diner.gsc::zmqol_semtex_wallbuy_origin(). x = -5175 is
 	// the wall's room-side face, measured from the doorway model - see the server
-	// copy for the full derivation. These two MUST stay identical: the clientfield
-	// name is built from the origin.
-	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5172 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
+	// copy for the full derivation and for why v1.69.10's -5172 was 3 units out.
+	// These two MUST stay identical: the clientfield name is built from the origin.
+	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5175 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
 }
 
 zmqol_client_add_struct( s_struct )
@@ -318,7 +318,9 @@ zmqol_add_semtex_wallbuy()
 		return;
 
 	v_origin = zmqol_semtex_wallbuy_origin();
-	v_angles = ( 0, getdvarintdefault( "zmqol_semtex_diner_yaw", 90 ), 0 );
+	// 270, not 90 - see the server copy. At 90 the bag's body points world -X,
+	// i.e. straight into the wall, which is why only the wallbuy fx ever showed.
+	v_angles = ( 0, getdvarintdefault( "zmqol_semtex_diner_yaw", 270 ), 0 );
 
 	s_model = spawnstruct();
 	s_model.targetname = "zmqol_semtex_diner";
