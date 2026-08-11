@@ -73,6 +73,17 @@ source folders is built or don't-touch.
   (`zmb_vox_ann_death_machine`, Die Rise's bank) was recorded by Treyarch and **never wired up
   anywhere in the game** — zero references across all 2,093 stock scripts. All three are
   re-shipped in the mod's own sound bank and routed through the stock announcer path.
+- **Three Black Ops 1 wonder weapons in the mystery box** — the **Thundergun**,
+  **Wunderwaffe DG-2** and **Winter's Howl**, each with its Pack-a-Punch upgrade
+  (Zeus Cannon / DG-3 JZ / Winter's Fury). They fire, chain, freeze and knock back
+  properly, and handle the special enemies (Brutus, the Avogadro, screechers,
+  leapers, mechz, dogs). Console commands give one directly:
+  `give_thundergun 1`, `give_wunderwaffe 1`, `give_wintershowl 1` — or in chat,
+  `.thundergun`, `.wunderwaffe`, `.wintershowl`. `zmqol_ww 0` turns all three off.
+  🛑 **Known gaps, honestly:** they do **not** get Pack-a-Punch camos yet, the
+  Wunderwaffe's view-model lights are too bright, and one report of the DG-2 not
+  appearing from the box across a full game is still unexplained — see
+  `.agents/QUEUE.md`.
 - **Instant Pack-a-Punch**, **BO4 Max Ammo**, **wall buys refill the mag**.
 - **Prone at a perk machine = +100 points** (once per machine, every map).
 - **Diner as a Survival location** on TranZit, ported from BO2-Reimagined. Treyarch left
