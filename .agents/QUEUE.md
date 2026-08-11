@@ -2200,3 +2200,61 @@ turns up that Reimagined does not carry. See `H:\Claude\unluac\README_T6.md`.
 ### Next concrete step
 Reconcile `privateonlinegamelobby.lua` against stock and change the title — **it ships alone**,
 because a bad LUI file hard-crashes the game.
+
+---
+
+## 🔴 QUEUED 2026-08-11 — FIVE ITEMS FROM THE ROUND-32 LEGIT GAME
+
+Wonder weapons confirmed working: all three from the box, correct names, correct
+weapon count, Winter's Howl frost fx now persist (v1.74.1 confirmed in game).
+**None of the five below has been started.** Listed in the order they should be taken.
+
+### 1. 🐛 WUNDERWAFFE NEVER CAME OUT OF THE BOX — round 32, legit game
+
+User got Winter's Howl and the Thundergun but never the DG-2.
+
+📝 **Registration is NOT the cause and that is measured** — all three are identical:
+`include_weapon`, `add_limited_weapon( x, 1 )`, `add_zombie_weapon( ..., 10, ... )`,
+same weight, same limit (`thundergun.gsc:36-38`, `teslagun.gsc:45-47`,
+`freeze.gsc:36-38`). So the next place to look is the box's own exclusion logic:
+`_zm_magicbox.gsc` — this mod already ships its own copy at
+`maps\mp\zombies\_zm_magicbox.gsc`, so **diff that against stock first**. Check
+`treasure_chest_weapon_is_limited`/limited-weapon accounting and whether
+`tesla_gun_zm` is being counted as already-taken.
+
+### 2. 🐛 A SPAWN POINT NEAR THE DINER STRANDS THE LAST ZOMBIE OF A ROUND
+
+User's `.where` looking straight at it: **x -6269 y -7206 z -63 yaw 236** (the ground
+behind the car, outside). The zombie spawns and stands there without pathing in until
+it despawns and re-spawns elsewhere.
+
+This is the SAME CLASS as the boarded-window bug fixed in v1.63.1 — a spawner whose
+zone/path setup is wrong. Method that worked there: `Unlinker --include-assets mapents
+zm_transit.ff`, find the spawner nearest that origin, read its `script_string` /
+`script_noteworthy`, and check it against `disable_zombie_spawn_locations()` in
+`zm_transit_loc_diner.gsc`, which already suppresses four problem spawners.
+
+### 3. 🎨 VULTURE AID VISUAL BUG
+
+Screenshot: a stray green Vulture-Aid shield icon drawn low-centre, near the perk row
+but detached from it. Looks like an orphaned HUD element or a world icon rendering at
+the wrong depth. Start from the mod's Vulture work in
+`maps\mp\zombies\_zm_perk_vulture.gsc` / `.csc`.
+
+### 4. 🖥️ SHIELD HEALTH BAR — restack it
+
+> *"move the sheild health counter as another white health bar above the player health
+> bar, stacked on top fitting perfectly and the same height and length, literally a
+> duplicate bar but white and for the shield not the player."*
+
+Same width and height as the player bar, directly above it, white. The player bar's
+own definition is the spec to copy - do not hand-tune dimensions.
+
+### 5. 🎨 PACK-A-PUNCH CAMOS FOR THE THREE WONDER WEAPONS
+
+They Pack fine but keep their base skin. The upgraded weapon defs
+(`weapons\zm\*_upgraded_zm`) need the PaP camo applied the way stock upgraded weapons
+get theirs. 📝 The pro7 donor `mod.ff` carries **2 `camo` assets** — check those first,
+they may already be exactly this.
+
+---
