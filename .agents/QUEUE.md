@@ -29,6 +29,119 @@ Who's Who, Zombie Blood, Blood Money, the wall-buys and everything after them.
 
 ---
 
+## ✅ SOLO PLAY — TITLE + INTRO CUTSCENES, BOTH CONFIRMED IN GAME 2026-08-11
+
+- **v1.65.6** — the lobby header reads **SOLO PLAY**, not CUSTOM GAMES. User: *"it says solo play
+  now, works."* Ships `privateonlinegamelobby.lua` (identical copies under `ui/` and `ui_mp/`).
+- **v1.65.8** — the **intro cutscenes play** on Die Rise / Mob / Buried / Origins. User: *"ok it
+  works"*. `zmQolForceSoloPartySize()` calls `Engine.PartySetMaxPlayerCount(1)` **and** the dvar,
+  from lobby creation and from a wrap around `Button_StartMatch`.
+
+### 🌟 Three findings from this that are worth keeping
+
+1. **`CoD.PrivateGameLobby.ButtonStartGame` IS DEAD CODE.** The string occurs in **no** stock LUI
+   file and nowhere in Plutonium's `raw\`. The real handler is `Button_StartMatch`, wired by stock
+   `privategamelobby.lua` as `registerEventHandler("button_action", …)`. **So this mod's
+   "instant start" override has never run.** Left in place and commented; removing or re-pointing
+   it is a separate change — see §NEXT below.
+2. **Load order decides where a LUI hook can live.** `privategamelobby.lua` requires
+   `…_Project`, so the project file runs FIRST and anything it defines that
+   `privategamelobby.lua` also defines is overwritten. `privateonlinegamelobby.lua` requires
+   `privategamelobby.lua`, so it runs AFTER — it is the only place a `Button_StartMatch` wrap
+   survives.
+3. **`Dvar.party_maxplayers` is a mirror, not the authority.** Stock calls
+   `Engine.PartySetMaxPlayerCount( GameTypeGroups[gt].maxPlayers )` right after `SetGametype`;
+   setting the dvar alone loses. Both are set now.
+
+📝 `zmqol_loadmovie_probe` (LUI dvar + the GSC println) is **scaffolding and should be deleted** now
+that the cutscene is confirmed.
+
+---
+
+## 🔴 IN FLIGHT — TWO REQUESTS, user 2026-08-11
+
+> *"the frametime lag from the mod is still weird, fix that. also add the buildable shield to diner,
+> it already exists in the tranzit map, just remove the tarp on the buildable table in the building
+> and add the 2 parts spawns just like the regular tranzit."*
+
+### 1. FRAMETIME — no code shipped, because there is still no measurement
+
+Checkpoint 32 §1 stands: it was reported fixed once, **the cause was never attributed**, and it is
+back. Screenshot 2026-08-11 shows `91 FPS / 30 LOW / 144 AVG / FRAMETIME 12.8` on Diner — real dips.
+
+🛑 **Do not ship a third guess.** `qol_perf_probe` exists for exactly this, is still in the build,
+is default-off, and **reads the dvar live so it toggles mid-game with no map reload**. It sleeps
+every always-on per-player loop the mod runs (health bar 10Hz, zombie counter 4Hz, shield HUD 20Hz,
+perk slots 20Hz, hitmarkers per damage event) and changes nothing else.
+
+- still framey with `qol_perf_probe 1` → the mod's per-frame **scripts** are not the cause; look at
+  `mod.ff` (3,870 assets, 776 header-only images) and the 48MB sound bank.
+- smooth with it on → it **is** the scripts, and those five loops are the whole suspect list.
+
+Also ask for `developer_script 1` — it was `"0"` all session, so per `ERROR_CATALOGUE.md` §8 every
+GSC runtime error is being swallowed, and an error firing every frame inside a loop is invisible.
+
+### 2. DINER BUILDABLE SHIELD — feasible, but it is NOT "just remove the tarp"
+
+**Everything below is measured from the shipped map, not assumed.**
+
+#### What already exists in survival
+
+| thing | state in Diner survival |
+|---|---|
+| the 3 **dolly** spawn structs `riotshield_zm_t6_wpn_zmb_shield_dolly` at `(-6118.7,-7869.1,0)`, `(-6467,-7727,0)`, `(-5768.9,-7872.6,1.4)` | ✅ **present** — no `script_gameobjectname`, so the filter never touches them |
+| the 3 **door** spawn structs `riotshield_zm_t6_wpn_zmb_shield_door` at `(-4486,-7980,-8.5)`, `(-4995,-7824,-42)`, `(-4404.5,-7740.5,-1.4)` | ✅ **present**, same reason |
+| core `maps\mp\zombies\_zm_buildables::init()` | ✅ runs — called from core `_zm.gsc:153`, every map, every mode |
+| the tarp over the bench | spawned by **this mod**, `zm_transit_loc_diner.gsc:481 generatebuildabletarps()`, at `(-4688,-7974,-64)` |
+
+#### 🛑 What does NOT exist, and why
+
+1. **The trigger and the bench shield model are DELETED in survival.**
+   `riotshield_zm_buildable_trigger` (`trigger_use`, `(-4688,-7966,-6)`, `target buildable_riotshield`,
+   `zombie_weapon_upgrade riotshield_zm`) and `buildable_riotshield`
+   (`script_model t6_wpn_zmb_shield_world`, `(-4680.23,-7977.34,6.63)`) both carry
+   **`script_gameobjectname "zclassic"`**, and `_zm_gametype.gsc:110 game_objects_allowed()` calls
+   **`entity delete()`** on anything whose mode does not match. It is threaded from
+   `_zm_gametype.gsc:429`.
+   → Fix shape: re-tag `script_gameobjectname` **before** that thread runs (the same trick
+   `loc_common::enable_wallbuys()` already uses for `script_noteworthy`), or spawn replacements.
+   **The ordering against `:429` has NOT been established yet — that is the first thing to settle.**
+2. **TranZit's buildable registration never runs in survival.**
+   `zm_transit_buildables::include_buildables()` and `::init_buildables()` are called from
+   **`zm_transit_classic.gsc:33-34` and nowhere else**. So there is no `riotshield_zm` buildable
+   defined at all — no pieces, no `triggerthink`, no `onbuyweapon`.
+   → Register **only** the riot shield, not the whole list. Calling stock's
+   `include_buildables()` would drag in the jetgun, turbine, turret, electric trap, power switch
+   and the buildable PaP, all of whose triggers are also `zclassic`-deleted.
+
+#### ⚠️ THE RISK THAT DECIDES WHETHER THIS SHIPS — clientfields
+
+`generate_zombie_buildable_piece(...)` takes a **piece index** (dolly = 2, door = 3) and stock sets
+`level.buildable_piece_count = 27`. Buildable state is a clientfield, so adding buildables to a mode
+that has none changes the set's width, and **a server-side change with no `.csc` twin is
+`EXE_CLIENT_FIELD_MISMATCH` for everyone at load** — the failure this project has hit repeatedly.
+**Read `_zm_buildables.gsc`'s registration and mirror it in `zm_expanded.csc` before writing
+anything.** Diner survival measured 54/32-set `toplayer` in the v1.63.1 dump, so there is room; the
+symmetry is the issue, not the budget.
+
+#### Working precedent to read first
+
+`BO2-Reimagined\scripts\zm\_zm_reimagined.gsc:2698-2703` builds a `level.buildables_available`
+array containing `"riotshield_zm"` and calls `buildbuildable("riotshield_zm")`; `:3092` and `:3110`
+walk `level.zombie_include_buildables`. Read that before designing.
+
+#### Order of work when it starts
+
+1. settle the ordering against `game_objects_allowed` (`_zm_gametype.gsc:429`)
+2. mirror the buildable clientfields into `zm_expanded.csc`
+3. register the riot shield buildable only, from the Diner location script (map-scoped, so a
+   `maps\mp\zm_transit_buildables::` reference is safe there — **never** from a root script)
+4. re-tag / re-spawn the trigger + bench model
+5. **delete the tarp last** — a bare bench that does nothing is the half-implementation this
+   project does not ship, so the tarp comes off only once the rest works
+
+---
+
 ## 🚧 v1.65.0 — ZOMBIE BLOOD + THE THREE ANNOUNCER LINES. DEPLOYED, NOT YET BOOTED.
 
 **User, 2026-08-11:** *"build zombie blood and the three announcer lines."*

@@ -387,7 +387,7 @@ sound it makes.
     the SOLO PLAY button.
   - 🛑 `pack_iwd.ps1` did not pack `ui/` and `build.bat`'s raw-shadow sync only walked `ui_mp/`;
     both were extended, or the file would never have reached the game.
-- **Solo intro cutscenes** 🚧 *(v1.65.7, deployed — never booted)* — `ui_mp/t6/hud/loading.lua:229`
+- **Solo intro cutscenes** ✅ *(v1.65.8, confirmed in game 2026-08-11)* — `ui_mp/t6/hud/loading.lua:229`
   plays `video/<map>_load.webm` only when **not theater** AND `party_maxplayers == 1` AND the map is
   `zm_highrise` / `zm_prison` / `zm_buried` / `zm_tomb` AND gametype is `zclassic`. Three of the four
   already held in solo; **`party_maxplayers` was the one that failed**, measured at `"4"` in the dvar
