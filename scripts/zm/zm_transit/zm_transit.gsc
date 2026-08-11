@@ -102,7 +102,7 @@ zmqol_diner_shield_enabled()
     // Twin of zm_transit.csc::zmqol_diner_shield_enabled(). Same two dvars,
     // same order, same comparisons - if these ever disagree the server and
     // client clientfield sets differ in width and everyone is dropped at load.
-    return getdvar( "ui_zm_mapstartlocation" ) == "diner" && getdvar( "ui_gametype" ) != "zgrief";
+    return getdvarintdefault( "zmqol_diner_shield", 1 ) && getdvar( "ui_zm_mapstartlocation" ) == "diner" && getdvar( "ui_gametype" ) != "zgrief";
 }
 
 zmqol_diner_shield_init()

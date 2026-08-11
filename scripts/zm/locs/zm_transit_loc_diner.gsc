@@ -508,19 +508,52 @@ zmqol_pap_visibility_probe()
 
 		n_found++;
 
-		str_hidden = "shown";
+		// 🛑 v1.66.3 - THIS IS THE FIX, and the probe is why it is this and not
+		// something else. The v1.66.2 probe answered:
+		//     [zm_qol] pap probe: ent 1 at (-6378,-7718,226) shown
+		// The machine EXISTS and sits at EXACTLY its registered origin - the
+		// same (-6378,-7718,226) this file has passed to register_perk_struct
+		// since v1.48.0, which the user once confirmed as "the right position".
+		// So it is neither missing nor misplaced, and the asset side was already
+		// cleared (model + all six materials in zm_transit.ff, no "Could not
+		// load" line for any of them).
+		//
+		// That leaves "something hid it", and the timeline names the suspect:
+		// the machine was visible for every build up to v1.65.x and went
+		// invisible in v1.66.0, the release that first made _zm_buildables
+		// actually run in Diner survival. Core hides buildable models by
+		// default - setup_unitrigger_buildable_internal() does
+		// `unitrigger_stub.model hide()` (_zm_buildables.gsc:1408) and
+		// hide_buildable_table_model() does the same (:1309) - because on
+		// TranZit the Pack-a-Punch IS a buildable and its model is meant to stay
+		// hidden until it is built. p6_anim_zm_buildable_pap_on is that very
+		// model.
+		//
+		// 📝 HONEST CONFIDENCE: the mechanism above is the best-supported
+		// explanation, not a proven one - both hide() calls resolve through the
+		// riot shield's own trigger target, and I could not trace a path from
+		// either to this entity. What IS certain is that the entity is present
+		// and correctly placed, so re-asserting show() cannot be wrong: it is a
+		// no-op if the model was already visible, and the cure if it was not.
+		// solid() is paired with it because the two core calls above always hide
+		// and notsolid together.
+		e_ent show();
+		e_ent solid();
 
-		// .hidden is not a stock field; a hidden ent reports through
-		// isdefined( self.hidden ) only where script set it. Print the origin
-		// either way - a machine standing inside geometry looks identical to a
-		// hidden one from the roof, and the coordinates tell them apart.
-		if ( isdefined( e_ent.hidden ) && e_ent.hidden )
-			str_hidden = "HIDDEN";
-
-		println( "[zm_qol] pap probe: ent " + n_found + " at (" + int( e_ent.origin[0] ) + "," + int( e_ent.origin[1] ) + "," + int( e_ent.origin[2] ) + ") " + str_hidden );
+		println( "[zm_qol] pap probe: ent " + n_found + " at (" + int( e_ent.origin[0] ) + "," + int( e_ent.origin[1] ) + "," + int( e_ent.origin[2] ) + ") - show()+solid() re-asserted" );
 	}
 
 	println( "[zm_qol] pap probe: " + n_found + " entity(ies) carrying p6_anim_zm_buildable_pap_on (expect 1)" );
+
+	// 🔎 THE A/B THAT SETTLES IT IF show() IS NOT ENOUGH. `zmqol_diner_shield 0`
+	// in the console before starting a match turns the riot shield registration
+	// off entirely (zm_transit.gsc::zmqol_diner_shield_enabled reads it too), so
+	// _zm_buildables goes back to doing nothing here. If the machine is visible
+	// with it off and invisible with it on, the buildable system is the cause
+	// and this narrows to one function; if it is invisible either way, the
+	// buildables are innocent and the search moves to _zm_perks.
+	if ( getdvarintdefault( "zmqol_diner_shield", 1 ) == 0 )
+		println( "[zm_qol] pap probe: zmqol_diner_shield is 0 - the riot shield is OFF this match" );
 }
 
 zmqol_unlock_shield_buildable_entities()

@@ -58,6 +58,53 @@ that the cutscene is confirmed.
 
 ---
 
+
+## 🧸 QUEUED — THE THREE TEDDY BEARS ON DINER (user, 2026-08-11)
+
+> *"time to add the 3 teddy bears around the map in Diner survival same as the ones that were
+> added to bus depot, farm and town, the sound effect that eminates from them when you're close,
+> the sound effect when you interact with them and all, to activate the easter egg song after
+> interacting with all 3. This way all the standalone survival maps will have the 3 teddy bear
+> interact easter egg song."*
+
+**NOT STARTED.** Queued behind the Pack-a-Punch regression (v1.66.3), which is in flight.
+
+### The three placements, from the user's own `.where` lines + screenshots
+
+🛑 These are **PLAYER** positions with the yaw they were facing, not bear origins. Each bear goes
+where the red arrow pointed, a short distance ahead along that yaw, sitting on the surface named.
+
+| # | where | player `.where` | facing | surface |
+|---|---|---|---|---|
+| 1 | diner interior, **on the table** | `-3679 -7392 -58` | yaw 264 | the flat table top ahead |
+| 2 | **on the shelf** right by the riot-shield buildable bench | `-4830 -7918 -62` | yaw 270 | the middle shelf, between the two cans |
+| 3 | **diner roof**, in the corner | `-5661 -7913 227` | yaw 323 | the roof floor, tucked into the parapet corner |
+
+All three **sitting down**.
+
+### What the port has to include — the completeness audit applies
+
+| | |
+|---|---|
+| model | the real bear, the same one Bus Depot / Farm / Town use |
+| proximity audio | the looping music-box that emanates when you get close |
+| interact audio | the sound on use |
+| trigger | the use prompt on each bear |
+| progression | interacting with all 3 starts the easter-egg song |
+| client half | any clientfield the bears' audio/fx needs, twinned in the .csc |
+
+### Where to read the working implementation first
+
+The mod ALREADY ships this for the other survival locations — find `secret song survival` in
+`quality_of_life.gsc` (one of the 17 merged modules) and the equivalent in `BO2-Reimagined`. This is
+a **placement** job on top of an existing system, not a new feature, IF that system is per-location
+data-driven. Confirm which before designing.
+
+📝 The user's framing: *"This way all the standalone survival maps will have the 3 teddy bear
+interact easter egg song"* — so Diner is the last one missing it. Check what the other locations
+register and mirror it exactly.
+
+---
 ## 🔴 IN FLIGHT — TWO REQUESTS, user 2026-08-11
 
 > *"the frametime lag from the mod is still weird, fix that. also add the buildable shield to diner,
