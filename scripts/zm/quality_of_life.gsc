@@ -5068,17 +5068,23 @@ zmqol_give_wonder_weapon( str_weapon, str_which, str_name )
         return;
     }
 
-    if ( self hasweapon( str_weapon ) )
-    {
-        self givemaxammo( str_weapon );
-        self switchtoweapon( str_weapon );
-        self iprintln( "^2[zm_qol] " + str_name + " ^7- refilled" );
-        return;
-    }
-
-    self giveweapon( str_weapon );
-    self givemaxammo( str_weapon );
-    self switchtoweapon( str_weapon );
+    // 🛑 weapon_give(), NOT giveweapon(). User, 2026-08-11: "for some reason i have
+    // 4 weapons, the m1911 you spawn in with, and the 3 wonder weapons."
+    //
+    // giveweapon() is the raw engine builtin - it hands over a weapon and nothing
+    // else. It does not know about the zombies weapon limit, so three calls stacked
+    // three guns on top of the starting pistol. maps\mp\zombies\_zm_weapons::
+    // weapon_give() is the path the mystery box itself uses (:2331): it reads
+    // get_player_weapon_limit( self ) - 2 normally, 3 with Mule Kick - takes the
+    // current weapon when the player is at the limit, gives start ammo, switches,
+    // and plays the pickup sound. Routing through it makes the console command
+    // behave exactly like pulling the gun out of the box, which is the whole point.
+    //
+    // 📝 It also handles the already-holding case itself: givestartammo() then
+    // switchtoweapon(), so no separate refill branch is needed here.
+    // maps\mp\zombies\_zm* is globally safe to reference from a root script
+    // (AI_CONTEXT rule 2), so this is legal from quality_of_life.gsc.
+    self maps\mp\zombies\_zm_weapons::weapon_give( str_weapon );
     self iprintln( "^2[zm_qol] gave ^7" + str_name );
 }
 
