@@ -266,6 +266,73 @@ struct_class_init()
 	// The index has to exist before getstructarray() works, so the re-tag runs
 	// after the loop - exactly as the server's struct_init() does.
 	zmqol_enable_wallbuys();
+	zmqol_add_semtex_wallbuy();
+}
+
+// ============================================================================
+//  zm_qol: SEMTEX WALL-BUY BY THE DINER EXIT DOOR - CLIENT HALF     (v1.68.0)
+//
+//  🛑 EXACT TWIN of scripts\zm\locs\zm_transit_loc_diner.gsc::
+//  zmqol_add_semtex_wallbuy(). This is not optional and it is not cosmetic.
+//  _zm_weapons registers one "world" clientfield per wallbuy struct, named from
+//  the struct itself - _zm_weapons.csc:218 builds
+//      script_label = zombie_weapon_upgrade + "_" + origin
+//  and :225 registers it. So a struct that exists on only one side makes the two
+//  sets differ by one field and every player is dropped at load, exactly like
+//  the Tunnel M16 incident recorded in zmqol_enable_wallbuys() above.
+//
+//  Both halves read the SAME dvars with the SAME defaults, so the origin - and
+//  therefore the field name - cannot diverge, and tuning the placement stays
+//  safe because it renames the field identically on both sides.
+//
+//  The gate is the one enable_wallbuys() already uses for this location: map
+//  zm_transit, start location diner. The server's struct_init() for diner is
+//  registered for zstandard AND zgrief, and this matches that by not testing
+//  gametype at all.
+//
+//  Appends straight into level.struct_class_names["targetname"], which is what
+//  getstructarray() reads and what the loop above has just built - the client
+//  has no add_struct() helper, so this does that one job inline.
+// ============================================================================
+zmqol_semtex_wallbuy_origin()
+{
+	// Twin of zm_transit_loc_diner.gsc::zmqol_semtex_wallbuy_origin().
+	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5176 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
+}
+
+zmqol_client_add_struct( s_struct )
+{
+	if ( !isdefined( level.struct_class_names["targetname"][s_struct.targetname] ) )
+		level.struct_class_names["targetname"][s_struct.targetname] = [];
+
+	n_size = level.struct_class_names["targetname"][s_struct.targetname].size;
+	level.struct_class_names["targetname"][s_struct.targetname][n_size] = s_struct;
+}
+
+zmqol_add_semtex_wallbuy()
+{
+	if ( getdvar( "mapname" ) != "zm_transit" || getdvar( "ui_zm_mapstartlocation" ) != "diner" )
+		return;
+
+	v_origin = zmqol_semtex_wallbuy_origin();
+	v_angles = ( 0, getdvarintdefault( "zmqol_semtex_diner_yaw", 0 ), 0 );
+
+	s_model = spawnstruct();
+	s_model.targetname = "zmqol_semtex_diner";
+	s_model.origin = v_origin;
+	s_model.angles = v_angles;
+	s_model.model = "semtex_bag";
+	zmqol_client_add_struct( s_model );
+
+	s_buy = spawnstruct();
+	s_buy.targetname = "weapon_upgrade";
+	s_buy.origin = v_origin;
+	s_buy.angles = v_angles;
+	s_buy.zombie_weapon_upgrade = "sticky_grenade_zm";
+	s_buy.target = "zmqol_semtex_diner";
+	zmqol_client_add_struct( s_buy );
+
+	println( "[zm_qol] CLIENT diner semtex: wallbuy struct at (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ")" );
 }
 
 zmqol_enable_wallbuys()

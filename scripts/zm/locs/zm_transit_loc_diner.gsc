@@ -183,6 +183,8 @@ struct_init()
 	a_wallbuys[a_wallbuys.size] = ( -6399.2, -7938.5, 207.25 );  // tazer_knuckles_zm (Galvaknuckles), diner roof
 	scripts\zm\locs\loc_common::enable_wallbuys( a_wallbuys );
 
+	zmqol_add_semtex_wallbuy();
+
 	gameObjects = getEntArray("script_model", "classname");
 
 	foreach (object in gameObjects)
@@ -554,6 +556,76 @@ zmqol_pap_visibility_probe()
 	// buildables are innocent and the search moves to _zm_perks.
 	if ( getdvarintdefault( "zmqol_diner_shield", 1 ) == 0 )
 		println( "[zm_qol] pap probe: zmqol_diner_shield is 0 - the riot shield is OFF this match" );
+}
+
+// ============================================================================
+//  zm_qol: SEMTEX WALL-BUY BY THE DINER EXIT DOOR                  (v1.68.0)
+//
+//  User, 2026-08-11: *"put a semtex wall buy right here next to this door way
+//  right on the wall, this will complete diner"*. Their `.where` at the spot was
+//  (-5106,-7924,-62) facing yaw 181, so the wall is ~70 units ahead along
+//  (cos181,sin181) = (-1.00,-0.02), i.e. almost straight -X.
+//
+//  🛑 THIS IS THE FIRST WALL-BUY THIS PROJECT CREATES RATHER THAN RE-TAGS, and
+//  that distinction is the whole risk. loc_common::enable_wallbuys() only edits
+//  script_noteworthy on structs the map already ships; there is no semtex struct
+//  anywhere near the diner. The one on TranZit sits at (1083.7,-1579.5,12) in
+//  Town and carries NO location tag, so it already spawns in every mode -
+//  moving it would simply take Semtex away from Town. So a new struct pair has
+//  to be built.
+//
+//  🛑 AND THAT COSTS A CLIENTFIELD, WHICH IS WHY BOTH SIDES DO IT. _zm_weapons
+//  registers one "world" field per wallbuy, named from the struct itself -
+//  _zm_weapons.csc:218 builds `script_label = zombie_weapon_upgrade + "_" +
+//  origin` and :225 registers it. Create the struct only on the server and the
+//  client is one field short; only on the client and it is one too many. Either
+//  way every player is dropped at load. The exact twin lives in
+//  scripts\zm\zm_expanded.csc::zmqol_add_semtex_wallbuy(), built from the SAME
+//  dvars with the SAME defaults, so the two origins - and therefore the two
+//  field names - cannot diverge. 📝 Tuning the dvars is still safe: it renames
+//  the field on both sides identically.
+//
+//  Two structs, the shape stock uses (read from the zm_transit ents dump, the
+//  Town semtex entry):
+//      weapon_upgrade  zombie_weapon_upgrade "sticky_grenade_zm", target -> the
+//                      model struct
+//      the model       model "semtex_bag"
+//
+//  🌟 NO ASSET WORK NEEDED, checked rather than assumed: sticky_grenade_zm is
+//  already in this mod's include_weapons() for TranZit, and "semtex_bag" is
+//  already in the level because Town's untagged semtex wallbuy spawns in every
+//  mode - including Diner survival. That is the same reasoning that settled the
+//  teddy bear assets, and it is why this needs no mod.ff change.
+// ============================================================================
+zmqol_semtex_wallbuy_origin()
+{
+	// Twin of zm_expanded.csc::zmqol_semtex_wallbuy_origin(). Same dvars, same
+	// defaults - if these ever disagree the two sides register different
+	// clientfield names and everyone is dropped at load.
+	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5176 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
+}
+
+zmqol_add_semtex_wallbuy()
+{
+	v_origin = zmqol_semtex_wallbuy_origin();
+	v_angles = ( 0, getdvarintdefault( "zmqol_semtex_diner_yaw", 0 ), 0 );
+
+	s_model = spawnstruct();
+	s_model.targetname = "zmqol_semtex_diner";
+	s_model.origin = v_origin;
+	s_model.angles = v_angles;
+	s_model.model = "semtex_bag";
+	scripts\zm\replaced\utility::add_struct( s_model );
+
+	s_buy = spawnstruct();
+	s_buy.targetname = "weapon_upgrade";
+	s_buy.origin = v_origin;
+	s_buy.angles = v_angles;
+	s_buy.zombie_weapon_upgrade = "sticky_grenade_zm";
+	s_buy.target = "zmqol_semtex_diner";
+	scripts\zm\replaced\utility::add_struct( s_buy );
+
+	println( "[zm_qol] diner semtex: wallbuy struct at (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ") yaw " + v_angles[1] );
 }
 
 zmqol_unlock_shield_buildable_entities()
