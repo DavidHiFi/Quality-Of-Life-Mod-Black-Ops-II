@@ -2528,12 +2528,29 @@ sss_onplayerspawned()
 //     play; the real reason the song never played is the missing loop below).
 //   - the secret song now plays via a dedicated threaded function mirroring
 //     stock's sndplaymusicegg(), instead of a bare playsound() call inline.
-spawnteddybear( x, y, z, angle )
+// v1.67.1: pitch and roll are OPTIONAL trailing parameters. The teddy bear model
+// has no sitting pose - it is a single rigid stand-up mesh - so "sitting on a
+// shelf" can only be done by laying it over, which needs roll. Town, Bus Depot
+// and Farm all call this with four arguments, so both default to 0 and their
+// bears are bit-for-bit unchanged.
+//
+// 📝 The model measures 26.1 tall (y -3.46..22.66 in its GLB), 10.6 across and
+// 17.4 deep, read from the bounding box in zombie_teddybear_lod0.glb rather than
+// estimated. Rolled onto its side the 5.32 half-width becomes the lowest point
+// instead of the 3.46 base, so a laid-down bear sinks ~1.9 units - which is why
+// the Diner z values below are lifted a few units rather than reused as-is.
+spawnteddybear( x, y, z, angle, pitch, roll )
 {
+    if ( !isdefined( pitch ) )
+        pitch = 0;
+
+    if ( !isdefined( roll ) )
+        roll = 0;
+
     teddytrigger = spawn( "trigger_radius", ( x, y, z ), 1, 50, 50 );
     teddymodel = spawn( "script_model", ( x, y, z ), 1, 50, 50 );
     teddymodel setmodel( "zombie_teddybear" );
-    teddymodel rotateto( ( 0, angle, 0 ), 0.1 );
+    teddymodel rotateto( ( pitch, angle, roll ), 0.1 );
     teddymodel playloopsound( "zmb_meteor_loop" );
     while ( true )
     {
@@ -2642,25 +2659,50 @@ setteddybears()
             // ================================================================
             else if ( getdvar( "ui_zm_mapstartlocation" ) == "diner" )
             {
+                // v1.67.1, after the user saw all three in game:
+                //   1 workshop table - *"lie this one on it's side as well"*
+                //   2 shelf          - *"just lie it down flat on the shelf on
+                //                       it's side"* (the model T-poses; there is
+                //                       no sitting pose to use)
+                //   3 roof corner    - *"seems fine maybe just move it back a
+                //                       tiny bit"*, so orientation is untouched
+                //                       and only the origin moves
+                //
+                // Bears 1 and 2 take roll 90. Their z is lifted 4 units over the
+                // standing value that already looked right in the screenshots,
+                // to cover the ~1.9 the model sinks when the 5.32 half-width
+                // becomes its lowest point instead of the 3.46 base.
+                //
+                // Bear 3 moves 14 units further along the exact bearing the user
+                // was facing when they framed it (yaw 318 -> 0.743,-0.669),
+                // which is "back" from where they stood. Confirmed that bearing
+                // is right: their .where (-5672,-7893) to the bear's spawn
+                // (-5593,-7964) is (79,-71), i.e. the same heading.
                 thread spawnteddybear( getdvarintdefault( "zmqol_bear1_diner_x", -3685 ),
                                        getdvarintdefault( "zmqol_bear1_diner_y", -7452 ),
-                                       getdvarintdefault( "zmqol_bear1_diner_z", -24 ),
-                                       getdvarintdefault( "zmqol_bear1_diner_yaw", 84 ) );
+                                       getdvarintdefault( "zmqol_bear1_diner_z", -20 ),
+                                       getdvarintdefault( "zmqol_bear1_diner_yaw", 84 ),
+                                       getdvarintdefault( "zmqol_bear1_diner_pitch", 0 ),
+                                       getdvarintdefault( "zmqol_bear1_diner_roll", 90 ) );
 
                 thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4830 ),
                                        getdvarintdefault( "zmqol_bear2_diner_y", -7978 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_z", -18 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 90 ) );
+                                       getdvarintdefault( "zmqol_bear2_diner_z", -14 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 90 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_pitch", 0 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_roll", 90 ) );
 
-                thread spawnteddybear( getdvarintdefault( "zmqol_bear3_diner_x", -5593 ),
-                                       getdvarintdefault( "zmqol_bear3_diner_y", -7964 ),
+                thread spawnteddybear( getdvarintdefault( "zmqol_bear3_diner_x", -5583 ),
+                                       getdvarintdefault( "zmqol_bear3_diner_y", -7973 ),
                                        getdvarintdefault( "zmqol_bear3_diner_z", 227 ),
-                                       getdvarintdefault( "zmqol_bear3_diner_yaw", 143 ) );
+                                       getdvarintdefault( "zmqol_bear3_diner_yaw", 143 ),
+                                       getdvarintdefault( "zmqol_bear3_diner_pitch", 0 ),
+                                       getdvarintdefault( "zmqol_bear3_diner_roll", 0 ) );
 
                 // Printed so a bad placement is diagnosable from the log without
                 // another screenshot round: compare these against the .where the
                 // user reads standing next to each bear.
-                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -24 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4830 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -18 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5593 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7964 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
+                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -20 ) + " roll " + getdvarintdefault( "zmqol_bear1_diner_roll", 90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4830 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -14 ) + " roll " + getdvarintdefault( "zmqol_bear2_diner_roll", 90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
             }
         }
     }
