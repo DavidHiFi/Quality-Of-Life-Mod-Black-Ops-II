@@ -15,11 +15,7 @@
 //  them from the iwd at runtime.
 // ============================================================================
 
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,maps/mp/zombies/_zm_weap_thundergun.gsc
+script,maps/mp/zombies/_zm_weap_thundergun.gsc
 script,clientscripts/mp/zombies/_zm_weap_thundergun.csc
 techniqueset,mc_sw4_3d_unlit_3layer_nofog_falloff_5z943qe4
 image,~-gthunder_chamber_main_c
@@ -72,11 +68,7 @@ rawfile,rumble/subwoofer_heavy
 rawfile,rumble/tank_damage_heavy_h.rmb
 rawfile,rumble/tank_damage_heavy_l.rmb
 script,scripts/zm/thundergun.csc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/thundergun.gsc
+script,scripts/zm/thundergun.gsc
 rawfile,animtrees/zm_tomb_basic.atr
 rawfile,animtrees/zm_nuked_basic.atr
 rawfile,animtrees/zm_buried_basic.atr
@@ -89,41 +81,13 @@ rawfile,animstatedefs/zm_buried_basic.asd
 rawfile,animstatedefs/zm_prison_basic.asd
 rawfile,animstatedefs/zm_transit_basic.asd
 rawfile,animstatedefs/zm_highrise_basic.asd
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_tomb/anims_thundergun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_nuked/anims_thundergun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_buried/anims_thundergun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_prison/anims_thundergun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_transit/anims_thundergun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_highrise/anims_thundergun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,maps/mp/zombies/_zm_weap_freezegun.gsc
+script,scripts/zm/zm_tomb/anims_thundergun.gsc
+script,scripts/zm/zm_nuked/anims_thundergun.gsc
+script,scripts/zm/zm_buried/anims_thundergun.gsc
+script,scripts/zm/zm_prison/anims_thundergun.gsc
+script,scripts/zm/zm_transit/anims_thundergun.gsc
+script,scripts/zm/zm_highrise/anims_thundergun.gsc
+script,maps/mp/zombies/_zm_weap_freezegun.gsc
 script,clientscripts/mp/zombies/_zm_weap_freezegun.csc
 techniqueset,effect_910219f6
 techniqueset,,trivial_9z33feqw
@@ -288,46 +252,14 @@ image,t6_camo_tiger_jungle_solid
 image,t6_camo_tiger_jungle_pattern
 camo,camo_freezegun
 script,scripts/zm/Freeze.csc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/freeze.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_tomb/anims_freeze.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_nuked/anims_freeze.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_buried/anims_freeze.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_prison/anims_freeze.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_transit/anims_freeze.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_highrise/anims_freeze.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,maps/mp/zombies/_zm_weap_tesla.gsc
+script,scripts/zm/freeze.gsc
+script,scripts/zm/zm_tomb/anims_freeze.gsc
+script,scripts/zm/zm_nuked/anims_freeze.gsc
+script,scripts/zm/zm_buried/anims_freeze.gsc
+script,scripts/zm/zm_prison/anims_freeze.gsc
+script,scripts/zm/zm_transit/anims_freeze.gsc
+script,scripts/zm/zm_highrise/anims_freeze.gsc
+script,maps/mp/zombies/_zm_weap_tesla.gsc
 script,clientscripts/mp/zombies/_zm_weap_tesla.csc
 techniqueset,effect_8e1qf0qq
 image,fxt_env_electric_arc1
@@ -428,41 +360,13 @@ material,hud_tesla
 xmodel,t6_wpn_zmb_tesla_view
 xmodel,t6_wpn_zmb_tesla_world
 script,scripts/zm/teslagun.csc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/teslagun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_transit/anims_teslagun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_highrise/anims_teslagun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_nuked/anims_teslagun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_prison/anims_teslagun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_buried/anims_teslagun.gsc
-// zm_qol: NOT declared - this project runs .gsc RAW out of mod.iwd (see CLAUDE.md &sect;3),
-// exactly as quality_of_life.gsc does while appearing in no zone file. Declaring it here
-// makes the Linker demand a zone_assets copy: ERROR Missing asset "..." of type "script".
-// The .csc lines below ARE kept - client scripts only load from the fastfile.
-// script,scripts/zm/zm_tomb/anims_teslagun.gsc
+script,scripts/zm/teslagun.gsc
+script,scripts/zm/zm_transit/anims_teslagun.gsc
+script,scripts/zm/zm_highrise/anims_teslagun.gsc
+script,scripts/zm/zm_nuked/anims_teslagun.gsc
+script,scripts/zm/zm_prison/anims_teslagun.gsc
+script,scripts/zm/zm_buried/anims_teslagun.gsc
+script,scripts/zm/zm_tomb/anims_teslagun.gsc
 
 // HUD assets the weapondefs reference that are NOT resident on every enabled map.
 // hud_flamethrower_reticle (tesla + thundergun reticleCenter) is scope=top in frontend,
@@ -478,3 +382,131 @@ image,hud_flamethrower_reticle
 material,hud_flamethrower_reticle
 image,hud_thundergun
 material,hud_thundergun
+
+// ============================================================================
+//  🛑 zm_qol ADDITION - THE XANIMS ARE DECLARED EXPLICITLY.
+//
+//  The package README says the 102 zombie reaction anims "arrive through the
+//  animtree, not by name", pulled in as dependencies once each map's
+//  anims_<gun>.gsc is linked, and that is why its manifest lists no xanim.
+//  MEASURED: THAT DOES NOT HAPPEN HERE. With all 24 .gsc declared and linking
+//  cleanly, mod.ff's xanim count did not move - 1549 before, 1549 after. OAT's
+//  Linker stores a script as raw text; it does not parse GSC for %anim
+//  references, so nothing walks those dummy_anim_ref assignments.
+//
+//  That matters because this mod ALSO ships the package's MODIFIED
+//  animtrees/zm_*_basic.atr and animstatedefs/zm_*_basic.asd, which declare the
+//  27 zm_thundergun_fall_* / getup_* states. Shipping those while the anims
+//  they name are absent is what crashed Diner survival at load on v1.69.0 -
+//  the log stops mid-FX-registration with 0x80000003 and no script error.
+//
+//  So every xanim the package ships is named here. They resolve from the raw
+//  sources in zone_assets\xanim\ (106 files), with the donor fastfile as the
+//  fallback for any the raw set is missing.
+// ============================================================================
+xanim,ai_zombie_crawl_freeze_death_01
+xanim,ai_zombie_crawl_freeze_death_02
+xanim,ai_zombie_freeze_death_a
+xanim,ai_zombie_freeze_death_b
+xanim,ai_zombie_freeze_death_c
+xanim,ai_zombie_freeze_death_d
+xanim,ai_zombie_freeze_death_e
+xanim,ai_zombie_quad_death_tesla
+xanim,ai_zombie_quad_death_tesla_2
+xanim,ai_zombie_quad_death_tesla_3
+xanim,ai_zombie_quad_death_tesla_4
+xanim,ai_zombie_quad_freeze_death_a
+xanim,ai_zombie_quad_freeze_death_b
+xanim,ai_zombie_tesla_crawl_death_a
+xanim,ai_zombie_tesla_crawl_death_b
+xanim,ai_zombie_tesla_death_a
+xanim,ai_zombie_tesla_death_b
+xanim,ai_zombie_tesla_death_c
+xanim,ai_zombie_tesla_death_d
+xanim,ai_zombie_tesla_death_e
+xanim,ai_zombie_thundergun_getup
+xanim,ai_zombie_thundergun_getup_a
+xanim,ai_zombie_thundergun_getup_b
+xanim,ai_zombie_thundergun_getup_c
+xanim,ai_zombie_thundergun_getup_quick_b
+xanim,ai_zombie_thundergun_getup_quick_c
+xanim,ai_zombie_thundergun_hit_armslegsforward
+xanim,ai_zombie_thundergun_hit_deadfallknee
+xanim,ai_zombie_thundergun_hit_doublebounce
+xanim,ai_zombie_thundergun_hit_faceplant
+xanim,ai_zombie_thundergun_hit_flatonback
+xanim,ai_zombie_thundergun_hit_forwardtoface
+xanim,ai_zombie_thundergun_hit_jackiespin_left
+xanim,ai_zombie_thundergun_hit_jackiespin_right
+xanim,ai_zombie_thundergun_hit_legsout_left
+xanim,ai_zombie_thundergun_hit_legsout_right
+xanim,ai_zombie_thundergun_hit_stumblefall
+xanim,ai_zombie_thundergun_hit_upontoback
+xanim,qolwf_diesel_ballspin_loop
+xanim,qolwf_diesel_on_idle
+xanim,qolwf_diesel_turn_off
+xanim,qolwf_diesel_turn_on
+xanim,viewmodel_freeze_gun_ads_down
+xanim,viewmodel_freeze_gun_ads_fire
+xanim,viewmodel_freeze_gun_ads_up
+xanim,viewmodel_freeze_gun_dtp_in
+xanim,viewmodel_freeze_gun_dtp_loop
+xanim,viewmodel_freeze_gun_dtp_out
+xanim,viewmodel_freeze_gun_fire
+xanim,viewmodel_freeze_gun_first_raise
+xanim,viewmodel_freeze_gun_idle
+xanim,viewmodel_freeze_gun_pullout
+xanim,viewmodel_freeze_gun_pullout_quick
+xanim,viewmodel_freeze_gun_putaway
+xanim,viewmodel_freeze_gun_putaway_quick
+xanim,viewmodel_freeze_gun_reload
+xanim,viewmodel_freeze_gun_sprint_in
+xanim,viewmodel_freeze_gun_sprint_loop
+xanim,viewmodel_freeze_gun_sprint_out
+xanim,viewmodel_tesla_ADS_down
+xanim,viewmodel_tesla_ADS_fire
+xanim,viewmodel_tesla_ADS_up
+xanim,viewmodel_tesla_d2p_in
+xanim,viewmodel_tesla_d2p_loop
+xanim,viewmodel_tesla_d2p_out
+xanim,viewmodel_tesla_fire
+xanim,viewmodel_tesla_first_raise
+xanim,viewmodel_tesla_idle
+xanim,viewmodel_tesla_pullout
+xanim,viewmodel_tesla_pullout_fast
+xanim,viewmodel_tesla_putaway
+xanim,viewmodel_tesla_putaway_fast
+xanim,viewmodel_tesla_reload
+xanim,viewmodel_tesla_sprint_in
+xanim,viewmodel_tesla_sprint_loop
+xanim,viewmodel_tesla_sprint_out
+xanim,viewmodel_thundergun_ads_down
+xanim,viewmodel_thundergun_ads_up
+xanim,viewmodel_thundergun_d2p_in
+xanim,viewmodel_thundergun_d2p_loop
+xanim,viewmodel_thundergun_d2p_out
+xanim,viewmodel_thundergun_empty_d2p_in
+xanim,viewmodel_thundergun_empty_d2p_loop
+xanim,viewmodel_thundergun_empty_d2p_out
+xanim,viewmodel_thundergun_empty_idle
+xanim,viewmodel_thundergun_fire
+xanim,viewmodel_thundergun_idle
+xanim,viewmodel_thundergun_last_fire
+xanim,viewmodel_thundergun_pullout
+xanim,viewmodel_thundergun_pullout_empty
+xanim,viewmodel_thundergun_pullout_quick
+xanim,viewmodel_thundergun_putaway
+xanim,viewmodel_thundergun_putaway_empty
+xanim,viewmodel_thundergun_putaway_quick
+xanim,viewmodel_thundergun_reload_empty
+xanim,viewmodel_thundergun_sprint_empty_intro
+xanim,viewmodel_thundergun_sprint_empty_loop
+xanim,viewmodel_thundergun_sprint_empty_outro
+xanim,viewmodel_thundergun_sprint_intro
+xanim,viewmodel_thundergun_sprint_loop
+xanim,viewmodel_thundergun_sprint_outro
+xanim,zombie_dog_tesla_death_a
+xanim,zombie_dog_tesla_death_b
+xanim,zombie_dog_tesla_death_c
+xanim,zombie_dog_tesla_death_d
+xanim,zombie_dog_tesla_death_e
