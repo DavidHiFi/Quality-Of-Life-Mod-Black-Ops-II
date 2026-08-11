@@ -6142,6 +6142,7 @@ zmqol_zb_powerup( m_powerup, e_player )
     e_player endon( "disconnect" );
     e_player thread maps\mp\zombies\_zm_powerups::powerup_vo( "zombie_blood" );
     e_player.ignoreme = 1;
+    e_player thread zmqol_zb_hold_ignoreme();
     e_player._show_solo_hud = 1;
     e_player.zombie_vars[ "zombie_powerup_zombie_blood_time" ] = 30;
     e_player.zombie_vars[ "zombie_powerup_zombie_blood_on" ] = 1;
@@ -6259,6 +6260,64 @@ zmqol_zb_fx_disconnect_watch( e_player )
     self endon( "death" );
     e_player waittill( "disconnect" );
     self delete();
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_zb_hold_ignoreme  -  keep the "AI ignores me" flag set   (v1.68.1)
+//
+//  User, 2026-08-11: *"one time whilst I had a zombie blood the zombies still
+//  came for me and attacked me, all the fx visual and sound wise were working
+//  just the actual functionality was scuffed"*.
+//
+//  🌟 THE FX WORKING IS THE DIAGNOSIS. `e_player.ignoreme = 1` is the FIRST
+//  thing zombie_blood_powerup() does - three lines before any of the fx, the
+//  visionsets or the clientfield. If the fx ran, the flag was set. So it was set
+//  and then something CLEARED it, and this re-asserts it for the 30 seconds the
+//  power-up owns.
+//
+//  🛑 IS THIS "TUNING A PORT"? No, and the distinction matters. The port is
+//  otherwise byte-faithful to Origins' zombie_blood_powerup(), which relies on
+//  the flag simply staying put for 30s. Something in this mod's environment does
+//  not let it. Holding it at the value stock sets restores stock behaviour; it
+//  does not make the power-up stronger, longer or wider than Treyarch's. That is
+//  the additive gap-filling QUEUE.md's standing rule explicitly allows, not a
+//  behaviour change.
+//
+//  📝 WHO CLEARS IT IS STILL UNKNOWN, so this also PRINTS. Core has at least one
+//  unconditional writer - _zm.gsc:1381 player_spawn_protection() runs 3s of
+//  ignoreme = 1 from onplayerspawned() and then ends with a bare
+//  `self.ignoreme = 0`, which would wipe a power-up grabbed just after a spawn
+//  or a revive - and _zm.gsc:2598 does the same on the respawn path. Neither was
+//  proven to be what the user hit. The count in the log names the culprit's
+//  timing on the next occurrence:
+//      [zm_qol] zombie blood: ignoreme cleared (N) - re-asserted after Ns
+//  If N is 1 and it lands ~3s after a spawn, it is spawn protection. If it
+//  repeats steadily, it is a loop.
+//
+//  Ends on the same notifies the power-up itself uses, so a second pickup or the
+//  power-up expiring stops it - it can never hold the flag past the effect.
+// ----------------------------------------------------------------------------
+zmqol_zb_hold_ignoreme()
+{
+    self endon( "disconnect" );
+    self endon( "zombie_blood" );
+    self endon( "zombie_blood_over" );
+    level endon( "end_game" );
+
+    n_start = gettime();
+    n_cleared = 0;
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        if ( isdefined( self.ignoreme ) && self.ignoreme )
+            continue;
+
+        n_cleared++;
+        self.ignoreme = 1;
+        println( "[zm_qol] zombie blood: ignoreme cleared (" + n_cleared + ") - re-asserted after " + ( ( gettime() - n_start ) / 1000 ) + "s" );
+    }
 }
 
 zmqol_zb_watch_early_exit()

@@ -315,7 +315,7 @@ zmqol_add_semtex_wallbuy()
 		return;
 
 	v_origin = zmqol_semtex_wallbuy_origin();
-	v_angles = ( 0, getdvarintdefault( "zmqol_semtex_diner_yaw", 0 ), 0 );
+	v_angles = ( 0, getdvarintdefault( "zmqol_semtex_diner_yaw", 90 ), 0 );
 
 	s_model = spawnstruct();
 	s_model.targetname = "zmqol_semtex_diner";
