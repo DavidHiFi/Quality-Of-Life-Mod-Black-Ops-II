@@ -105,12 +105,48 @@ script,scripts/zm/thundergun.gsc
 // rawfile,animstatedefs/zm_prison_basic.asd
 // rawfile,animstatedefs/zm_transit_basic.asd
 // rawfile,animstatedefs/zm_highrise_basic.asd
-script,scripts/zm/zm_tomb/anims_thundergun.gsc
-script,scripts/zm/zm_nuked/anims_thundergun.gsc
-script,scripts/zm/zm_buried/anims_thundergun.gsc
-script,scripts/zm/zm_prison/anims_thundergun.gsc
-script,scripts/zm/zm_transit/anims_thundergun.gsc
-script,scripts/zm/zm_highrise/anims_thundergun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_tomb/anims_thundergun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_nuked/anims_thundergun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_buried/anims_thundergun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_prison/anims_thundergun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_transit/anims_thundergun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_highrise/anims_thundergun.gsc
 script,maps/mp/zombies/_zm_weap_freezegun.gsc
 script,clientscripts/mp/zombies/_zm_weap_freezegun.csc
 techniqueset,effect_910219f6
@@ -277,12 +313,48 @@ image,t6_camo_tiger_jungle_pattern
 camo,camo_freezegun
 script,scripts/zm/Freeze.csc
 script,scripts/zm/freeze.gsc
-script,scripts/zm/zm_tomb/anims_freeze.gsc
-script,scripts/zm/zm_nuked/anims_freeze.gsc
-script,scripts/zm/zm_buried/anims_freeze.gsc
-script,scripts/zm/zm_prison/anims_freeze.gsc
-script,scripts/zm/zm_transit/anims_freeze.gsc
-script,scripts/zm/zm_highrise/anims_freeze.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_tomb/anims_freeze.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_nuked/anims_freeze.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_buried/anims_freeze.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_prison/anims_freeze.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_transit/anims_freeze.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_highrise/anims_freeze.gsc
 script,maps/mp/zombies/_zm_weap_tesla.gsc
 script,clientscripts/mp/zombies/_zm_weap_tesla.csc
 techniqueset,effect_8e1qf0qq
@@ -385,12 +457,48 @@ xmodel,t6_wpn_zmb_tesla_view
 xmodel,t6_wpn_zmb_tesla_world
 script,scripts/zm/teslagun.csc
 script,scripts/zm/teslagun.gsc
-script,scripts/zm/zm_transit/anims_teslagun.gsc
-script,scripts/zm/zm_highrise/anims_teslagun.gsc
-script,scripts/zm/zm_nuked/anims_teslagun.gsc
-script,scripts/zm/zm_prison/anims_teslagun.gsc
-script,scripts/zm/zm_buried/anims_teslagun.gsc
-script,scripts/zm/zm_tomb/anims_teslagun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_transit/anims_teslagun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_highrise/anims_teslagun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_nuked/anims_teslagun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_prison/anims_teslagun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_buried/anims_teslagun.gsc
+// zm_qol: REMOVED. These files exist only so the Linker walks their %anim
+// references - which it does not do (see the xanim block below). With the
+// modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
+// is undefined in the stock tree, and the game refuses to compile:
+//   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
+//   not defined in anim tree "zm_transit_basic"
+// script,scripts/zm/zm_tomb/anims_teslagun.gsc
 
 // HUD assets the weapondefs reference that are NOT resident on every enabled map.
 // hud_flamethrower_reticle (tesla + thundergun reticleCenter) is scope=top in frontend,

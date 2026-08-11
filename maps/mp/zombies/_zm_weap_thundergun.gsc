@@ -233,10 +233,30 @@ thundergun_fling_zombie( player, fling_vec, index )
 // this actually catches are Brutus (MotD) and the Jumping Jacks / denizens (Die Rise, TranZit).
 srs_ww_anims_supported()
 {
-    if ( !IsDefined( self.animname ) )
-        return false;
-
-    return self.animname == "zombie" || self.animname == "zombie_dog";
+    // 🛑 zm_qol: FORCED FALSE, and this is deliberate.
+    //
+    // The wonder-weapon reaction states - zm_thundergun_fall_*, getup_*, the
+    // freeze poses - are defined only in the package's MODIFIED
+    // animstatedefs/zm_*_basic.asd. This mod does not ship those: they are what
+    // killed every map at load (v1.69.0-v1.69.5), proven by a boot with all
+    // three guns gated OFF crashing at the identical point.
+    //
+    // With the stock animation tree in place those states do not exist, and
+    // driving AnimCustom into a state an animname does not define is exactly
+    // the "boss frozen mid-animation" failure the package README warns about -
+    // here it would hit every ordinary zombie.
+    //
+    // Returning false takes the path the package ALREADY uses for every special
+    // enemy: the gun plays its sound and applies FULL knockdown damage, the
+    // zombie dies normally, and there is no fall, getup or gib animation. The
+    // README's own words for that trade: "Degrading to normal death, full
+    // damage beats gun does nothing."
+    //
+    // 📝 To restore the animations properly, the modified .asd/.atr have to come
+    // back WITH the runtime scriptmodelsuseanimtree() contract this project
+    // documents in zone_source/mod_locations.zone - not by re-declaring the
+    // rawfiles on their own, which is what crashed.
+    return false;
 }
 
 // MotD's Hell's Retriever soul catchers. A zombie killed inside a wolf volume gets
