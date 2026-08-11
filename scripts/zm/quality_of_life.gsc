@@ -2552,7 +2552,51 @@ sss_onplayerspawned()
 // the supplied z is kept, so the worst case is exactly the behaviour before this
 // change. Which branch ran is printed, so one boot says whether the surface is
 // solid.
-spawnteddybear( x, y, z, angle, pitch, roll, snap )
+// ============================================================================
+//  zm_qol: LIVE BEAR TUNING  -  `zmqol_bear_live 1`                (v1.67.8)
+//
+//  🛑 THIS EXISTS BECAUSE SEVEN ROUNDS OF INFERRING A POSITION FROM SCREENSHOTS
+//  IS SEVEN TOO MANY. Every placement so far has been me reading an arrow in an
+//  image, converting it to a bearing, and shipping a build - and the shelf bear
+//  has now cost six of them. The dvars were meant to avoid that but still need a
+//  match restart to take effect, because setteddybears() reads them once.
+//
+//  With `zmqol_bear_live 1` a tagged bear re-reads its six dvars four times a
+//  second and moves immediately, so the console becomes a direct manipulator:
+//
+//      zmqol_bear_live 1
+//      zmqol_bear2_diner_yaw 200      <- the bear turns as you type it
+//      zmqol_bear2_diner_x -4838
+//
+//  Dial it until it looks right, read the numbers back, and they become the
+//  defaults. No build, no restart, no more arrows.
+//
+//  Default OFF, so a normal game never runs the loop. Only the three Diner bears
+//  pass a tune id at all - Town, Bus Depot and Farm cannot reach this code.
+//  📝 REMOVE once the Diner placements are settled; this is scaffolding.
+// ============================================================================
+zmqol_bear_live_tune( str_prefix, e_trigger )
+{
+    level endon( "end_game" );
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        if ( getdvarintdefault( "zmqol_bear_live", 0 ) != 1 )
+            continue;
+
+        v_origin = ( getdvarintdefault( str_prefix + "_x", int( self.origin[0] ) ), getdvarintdefault( str_prefix + "_y", int( self.origin[1] ) ), getdvarintdefault( str_prefix + "_z", int( self.origin[2] ) ) );
+
+        self.origin = v_origin;
+        self.angles = ( getdvarintdefault( str_prefix + "_pitch", 0 ), getdvarintdefault( str_prefix + "_yaw", 0 ), getdvarintdefault( str_prefix + "_roll", 0 ) );
+
+        if ( isdefined( e_trigger ) )
+            e_trigger.origin = v_origin;
+    }
+}
+
+spawnteddybear( x, y, z, angle, pitch, roll, snap, tune )
 {
     if ( !isdefined( pitch ) )
         pitch = 0;
@@ -2589,6 +2633,10 @@ spawnteddybear( x, y, z, angle, pitch, roll, snap )
     teddymodel setmodel( "zombie_teddybear" );
     teddymodel rotateto( ( pitch, angle, roll ), 0.1 );
     teddymodel playloopsound( "zmb_meteor_loop" );
+
+    if ( isdefined( tune ) )
+        teddymodel thread zmqol_bear_live_tune( tune, teddytrigger );
+
     while ( true )
     {
         teddytrigger waittill( "trigger", i );
@@ -2784,7 +2832,7 @@ setteddybears()
                                        getdvarintdefault( "zmqol_bear1_diner_z", -21 ),
                                        getdvarintdefault( "zmqol_bear1_diner_yaw", 110 ),
                                        getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ),
-                                       getdvarintdefault( "zmqol_bear1_diner_roll", 0 ) );
+                                       getdvarintdefault( "zmqol_bear1_diner_roll", 0 ), 0, "zmqol_bear1_diner" );
 
                 // 🌟 v1.67.4's TRACE ANSWERED THE HEIGHT QUESTION FOR GOOD, and
                 // the answer was "you cannot measure it". The log read:
@@ -2836,25 +2884,25 @@ setteddybears()
                 // 📝 Both are dvars, so this is dialable in game without waiting
                 // on a build: set zmqol_bear2_diner_x / _yaw and restart the
                 // match - setteddybears() reads them when the bears spawn.
-                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4833 ),
+                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4838 ),
                                        getdvarintdefault( "zmqol_bear2_diner_y", -7978 ),
                                        getdvarintdefault( "zmqol_bear2_diner_z", -27 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 170 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 190 ),
                                        getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ),
                                        getdvarintdefault( "zmqol_bear2_diner_roll", 0 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_snap", 0 ) );
+                                       getdvarintdefault( "zmqol_bear2_diner_snap", 0 ), "zmqol_bear2_diner" );
 
                 thread spawnteddybear( getdvarintdefault( "zmqol_bear3_diner_x", -5583 ),
                                        getdvarintdefault( "zmqol_bear3_diner_y", -7973 ),
                                        getdvarintdefault( "zmqol_bear3_diner_z", 227 ),
                                        getdvarintdefault( "zmqol_bear3_diner_yaw", 143 ),
                                        getdvarintdefault( "zmqol_bear3_diner_pitch", 0 ),
-                                       getdvarintdefault( "zmqol_bear3_diner_roll", 0 ) );
+                                       getdvarintdefault( "zmqol_bear3_diner_roll", 0 ), 0, "zmqol_bear3_diner" );
 
                 // Printed so a bad placement is diagnosable from the log without
                 // another screenshot round: compare these against the .where the
                 // user reads standing next to each bear.
-                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4833 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
+                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4838 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
             }
         }
     }
