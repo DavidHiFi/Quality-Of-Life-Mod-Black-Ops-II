@@ -43,7 +43,7 @@ try {
     # that port's copies are CRLF. iwfx VERSION 2 IS CORRECT for T6 - 61 of that
     # working port's 63 files are iwfx 2 - so the version was never the problem.
     # After converting, all 27 are byte-identical to that port's copies.
-    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui','ui_mp','weapons')
+    $folders  = @('attachmentunique','character','images','maps','scripts','ui','ui_mp','weapons')
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 
