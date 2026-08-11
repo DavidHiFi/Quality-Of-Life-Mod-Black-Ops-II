@@ -2539,13 +2539,50 @@ sss_onplayerspawned()
 // estimated. Rolled onto its side the 5.32 half-width becomes the lowest point
 // instead of the 3.46 base, so a laid-down bear sinks ~1.9 units - which is why
 // the Diner z values below are lifted a few units rather than reused as-is.
-spawnteddybear( x, y, z, angle, pitch, roll )
+// v1.67.4: `snap` is a fourth optional parameter. When set, the bear's HEIGHT is
+// measured in game with a downward bullettrace instead of being supplied, and z
+// becomes only a starting guess. Three rounds of "still floating" on the shelf
+// bear is three rounds too many - the engine knows exactly where that board is
+// and script can just ask it.
+//
+// 🛑 IT FAILS SAFE. Two ways the trace can mislead, both rejected rather than
+// trusted: no hit at all (fraction 1, e.g. a decorative shelf with no
+// collision), or a hit far below the seed - which would mean it punched through
+// the shelf and found the floor, dropping the bear to ground level. Either way
+// the supplied z is kept, so the worst case is exactly the behaviour before this
+// change. Which branch ran is printed, so one boot says whether the surface is
+// solid.
+spawnteddybear( x, y, z, angle, pitch, roll, snap )
 {
     if ( !isdefined( pitch ) )
         pitch = 0;
 
     if ( !isdefined( roll ) )
         roll = 0;
+
+    if ( isdefined( snap ) && snap )
+    {
+        // How far the origin must sit above the surface, straight off
+        // zombie_teddybear_lod0.glb's bounds - the origin is near the feet, not
+        // centred, so the pose decides which half-extent is vertical.
+        n_lift = 3.46;
+
+        if ( pitch != 0 )
+            n_lift = 8.69;
+        else if ( roll != 0 )
+            n_lift = 5.32;
+
+        v_start = ( x, y, z + 40 );
+        a_trace = bullettrace( v_start, ( x, y, z - 80 ), 0, undefined );
+
+        if ( isdefined( a_trace ) && isdefined( a_trace["position"] ) && a_trace["fraction"] < 1 && a_trace["position"][2] > ( z - 30 ) )
+        {
+            z = a_trace["position"][2] + n_lift;
+            println( "[zm_qol] bear snap: surface at " + a_trace["position"][2] + ", lift " + n_lift + " -> z " + z );
+        }
+        else
+            println( "[zm_qol] bear snap: NO usable surface under (" + x + "," + y + ") - keeping z " + z );
+    }
 
     teddytrigger = spawn( "trigger_radius", ( x, y, z ), 1, 50, 50 );
     teddymodel = spawn( "script_model", ( x, y, z ), 1, 50, 50 );
@@ -2749,12 +2786,32 @@ setteddybears()
                                        getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ),
                                        getdvarintdefault( "zmqol_bear1_diner_roll", 0 ) );
 
-                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4842 ),
+                // v1.67.4 - BEAR 2 NOW MEASURES ITS OWN HEIGHT. *"still
+                // floating, just push it down so it's actually laying on the
+                // shelf, and position it so it fits inbetween anything in the
+                // way."* Three estimates in a row missed, so the last argument
+                // turns on the downward trace: z below is only a seed, and the
+                // shelf board's real height decides where it lands. It fails
+                // back to the seed if the shelf turns out to have no collision.
+                //
+                // The seed is also corrected downward independently, so the
+                // fallback is not a repeat of v1.67.3: the bear was floating in
+                // the middle of the gap between two shelf boards, and the player
+                // is looking DOWN at that shelf from feet z -62, which puts the
+                // board around waist height, S ~= -36, not the -24 I had. Flat
+                // on its back that is -36 + 8.69 = -27.3.
+                //
+                // x moves 8 further along the player's right, to -4850: the
+                // v1.67.3 nudge cleared the standing jerry can but the arrow
+                // shows the free span sits between that can and the one lying to
+                // its right, not hard against the first.
+                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4850 ),
                                        getdvarintdefault( "zmqol_bear2_diner_y", -7978 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_z", -16 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_z", -27 ),
                                        getdvarintdefault( "zmqol_bear2_diner_yaw", 115 ),
                                        getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_roll", 0 ) );
+                                       getdvarintdefault( "zmqol_bear2_diner_roll", 0 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_snap", 1 ) );
 
                 thread spawnteddybear( getdvarintdefault( "zmqol_bear3_diner_x", -5583 ),
                                        getdvarintdefault( "zmqol_bear3_diner_y", -7973 ),
@@ -2766,7 +2823,7 @@ setteddybears()
                 // Printed so a bad placement is diagnosable from the log without
                 // another screenshot round: compare these against the .where the
                 // user reads standing next to each bear.
-                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4842 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -16 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
+                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4850 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
             }
         }
     }
