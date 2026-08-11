@@ -81,14 +81,25 @@ source folders is built or don't-touch.
   `give_thundergun 1`, `give_wunderwaffe 1`, `give_wintershowl 1` — or in chat,
   `.thundergun`, `.wunderwaffe`, `.wintershowl`. `zmqol_ww 0` turns all three off.
   🛑 **Known gaps, honestly:** the Wunderwaffe's view-model lights are still too
-  bright. Pack-a-Punch camos are **applied as of v1.75.0 but not yet confirmed
-  in game** — the camo assets were already in `mod.ff`; the upgraded weapon defs
-  just had an empty `camo` field.
+  bright, and **Winter's Howl's freeze fx can stop appearing during sustained
+  rapid fire** — not yet root-caused, so nothing speculative has been shipped for
+  it. Pack-a-Punch camos are **fixed in v1.76.0 but not yet confirmed in game**:
+  the camo assets were already in `mod.ff` and the upgraded defs' `camo` field was
+  empty (v1.75.0), but the real blocker was that all three camo assets were
+  missing **slot 3** — stock asks for camo index 39 on every map except MotD (40)
+  and Origins (45), and every stock camo carries entries at exactly slots
+  {3, 8, 12} while these three carried {0, 8, 12}.
   📝 The report of the DG-2 never appearing from the box **was measured and is not
   a bug**: all three guns register identically, and with stock's box filters
   removed a specific gun is ~3.8% per spin, so missing it across a long game is
   ordinary variance. `zmqol_box_wonder_weight` (default 2, `0` = stock) now
   weights an unheld wonder weapon from round 10 — see `.agents/QUEUE.md`.
+- **Jump to any round** — `.round 30` in chat (or `.setround 30`; `.round` alone
+  prints the current one). Console/bind twin: `set_round 30`. 📝 Stock's own
+  `zombie_devgui_goto_round()` cannot be used — its whole body, *and* every
+  `endon( "kill_round" )` it relies on, sit inside `/# #/` developer blocks, so
+  neither exists in a retail game. This drives stock's normal round-end path
+  instead.
 - **Instant Pack-a-Punch**, **BO4 Max Ammo**, **wall buys refill the mag**.
 - **Prone at a perk machine = +100 points** (once per machine, every map).
 - **Diner as a Survival location** on TranZit, ported from BO2-Reimagined. Treyarch left

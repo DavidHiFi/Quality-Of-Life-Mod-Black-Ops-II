@@ -269,6 +269,7 @@ init()
     zmqol_dev_commands();
     zmqol_box_wonder_weapon_weights_init();
     level thread zmqol_stranded_zombie_probe();
+    level thread zmqol_round_dvar_watch();
     level thread zmqol_credits_banner();
     level thread zmqol_perk_slot_connect();
     level thread zmqol_blood_money_natural_drop();
@@ -3207,6 +3208,17 @@ zmqol_dev_command_listener()
             player maps\mp\zombies\_zm_score::add_to_player_score( amount, 1 );
             player iprintln( "^2[zm_qol] ^7points ^2+" + amount );
         }
+        else if ( cmd == "round" || cmd == "setround" )
+        {
+            //  User, 2026-08-12: ".round (number)". Console twin: set_round <n>.
+            if ( tokens.size < 2 || int( tokens[1] ) < 1 )
+            {
+                player iprintln( "^3[zm_qol] usage: ^7.round <number>  ^3(current: ^7" + level.round_number + "^3)" );
+                continue;
+            }
+
+            level thread zmqol_goto_round( int( tokens[1] ), player );
+        }
         else if ( cmd == "god" )
         {
             if ( isdefined( player.zmqol_god ) && player.zmqol_god )
@@ -5447,15 +5459,110 @@ zmqol_stranded_zombie_probe()
             v_at = ai.origin;
             str_at = "(" + int( v_at[0] ) + "," + int( v_at[1] ) + "," + int( v_at[2] ) + ")";
 
+            //  🛑 LOG ONLY, NEVER ON SCREEN. User, 2026-08-12: "don't show the
+            //  zombie spawn on the chat or whatever". The v1.75.0 version also
+            //  iprintln'd this to every player, which put diagnostic text in the
+            //  middle of a normal game. println() still reaches console_zm.log,
+            //  which is where it gets read from anyway.
             println( "[zm_qol] STRANDED ZOMBIE stuck at " + str_at + " | spawn_point " + str_spawn );
-
-            // On screen too - the log needs developer_script to be worth reading,
-            // and this is the one line that matters.
-            a_players = get_players();
-
-            for ( p = 0; p < a_players.size; p++ )
-                a_players[p] iprintln( "^3[zm_qol] stranded zombie ^7" + str_at + " ^3from spawn ^7" + str_spawn );
         }
+    }
+}
+
+// ============================================================================
+//  .round <n>  -  JUMP TO A ROUND                            (v1.76.0)
+//
+//  User, 2026-08-12: *"add a command to change the round .round (number) chat
+//  command"*.
+//
+//      chat      .round 30      .setround 30      .round  (prints the current one)
+//      console   set_round 30
+//
+//  🛑 STOCK'S OWN "GO TO ROUND" CANNOT BE CALLED, and this is the `.fog` trap
+//  again. maps\mp\zombies\_zm_devgui::zombie_devgui_goto_round() looks like
+//  exactly the right function and its ENTIRE BODY sits inside /# #/, so it does
+//  not exist in retail. Worse, its mechanism would not work even if copied
+//  verbatim: it drives the jump with `level notify( "kill_round" )`, and every
+//  matching `level endon( "kill_round" )` - _zm.gsc:2902, :3153,
+//  _zm_ai_dogs.gsc:95 - is ALSO inside a /# #/ block. In a retail game that
+//  notify is heard by nobody.
+//
+//  🌟 THE RETAIL PATH, read out of round_think()/round_wait() instead:
+//  round_wait() (_zm.gsc:3700) returns as soon as
+//      get_current_zombie_count() == 0 && level.zombie_total == 0 && !intermission
+//  and round_think() then fires "end_of_round" and does level.round_number++
+//  (:3483-3514) before looping into round_start(), which re-derives everything
+//  for the new round. round_spawning() calls ai_calculate_health() itself at
+//  :2921, so health does NOT need setting by hand.
+//
+//  So the whole jump is: park round_number at target-1, empty the round, kill
+//  what is still walking, and let stock's own loop close the round normally.
+//  Nothing is forced and no stock function is replaced.
+//
+//  📝 level.devcheater is deliberately NOT set. The devgui sets it on every
+//  cheat, but it is written and read ONLY inside _zm_devgui.gsc in the whole
+//  2,093-file dump, so in retail it is a variable nothing observes.
+//  📝 respawn_players() is deliberately NOT called either -
+//  _zm_game_module::zombie_goto_round() does that because grief needs it; for a
+//  round jump it would just yank everyone back to spawn.
+// ============================================================================
+zmqol_goto_round( n_target, e_player )
+{
+    if ( n_target < 1 )
+        n_target = 1;
+
+    //  round_think() clamps to 255 itself (_zm.gsc:3516); matching that here
+    //  keeps the announced number honest.
+    if ( n_target > 255 )
+        n_target = 255;
+
+    n_from = level.round_number;
+
+    //  round_think() increments AFTER the round closes, so park one below.
+    level.round_number = n_target - 1;
+    level.zombie_total = 0;
+
+    a_enemies = get_round_enemy_array();
+
+    if ( isdefined( a_enemies ) )
+    {
+        for ( i = 0; i < a_enemies.size; i++ )
+        {
+            if ( !isdefined( a_enemies[i] ) || !isalive( a_enemies[i] ) )
+                continue;
+
+            //  +666 is stock's own margin in both goto-round implementations.
+            a_enemies[i] dodamage( a_enemies[i].health + 666, a_enemies[i].origin );
+        }
+    }
+
+    println( "[zm_qol] .round: " + n_from + " -> " + n_target );
+
+    if ( isdefined( e_player ) )
+        e_player iprintln( "^2[zm_qol] round ^7" + n_from + " ^2-> ^7" + n_target );
+}
+
+//  Console/bind front-end. A TRIGGER dvar, not a state: it is consumed and
+//  reset to 0, so a bind fires on every press. Same shape as the three
+//  give_<gun> dvars above.
+zmqol_round_dvar_watch()
+{
+    level endon( "game_ended" );
+
+    if ( getdvar( "set_round" ) == "" )
+        setdvar( "set_round", "0" );
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        n_want = getdvarintdefault( "set_round", 0 );
+
+        if ( n_want < 1 )
+            continue;
+
+        setdvar( "set_round", "0" );
+        level thread zmqol_goto_round( n_want, undefined );
     }
 }
 

@@ -2203,6 +2203,67 @@ because a bad LUI file hard-crashes the game.
 
 ---
 
+## 🟡 v1.76.0 — FOUR MORE, 2026-08-12. DEPLOYED, NOT YET BOOTED.
+
+> *"add a command to change the round .round (number) chat command, also don't show the zombie
+> spawn on the chat or whatever, also the effects for the winters howl stop working sometimes like
+> when i was spam shooting it… Also, the 3 ported wonder weapons still don't have pap camos"*
+
+| item | state |
+|---|---|
+| `.round <n>` chat command + `set_round` dvar | ✅ built |
+| stranded probe no longer draws on screen | ✅ built — `println` only now |
+| **PaP camos — REAL cause found, v1.75.0's fix was necessary but not sufficient** | ✅ built |
+| Winter's Howl fx dropping under rapid fire | 🛑 **NOT ROOT-CAUSED — nothing shipped** |
+
+### 🌟 THE PaP CAMO CAUSE — a missing SLOT, not a missing field
+
+v1.75.0 filled the empty `camo` field on the three `*_upgraded_zm` defs. Necessary, but the guns
+still Packed to stock skin, because the camo **assets themselves** were incomplete.
+
+`_zm_weapons::get_pack_a_punch_weapon_options()` picks a camo **index**:
+`camo_index = 39`, except `zm_prison` → 40 and `zm_tomb` → 45 (`:2286-2291`), fed to
+`calcweaponoptions()`. Dumping all 50 camo assets out of the built `mod.ff` shows every stock camo
+carries entries at exactly slots **{3, 8, 12}** — `camo_mp40` carries *only* those three — matching
+the three ZM camo indices one-for-one. **The three ported camos carried {0, 8, 12}: slot 3, the
+TranZit/Die Rise/Buried/Nuketown case, was missing entirely.** So the guns had a camo on MotD and
+Origins and nothing anywhere else — and Origins has them gated off.
+
+Fixed by adding slot 3 to all three, shape copied verbatim from stock `camo_mp40`'s slot 3
+(`shaderConsts [3,3,0,…]`, `useNormalMap true`, cycling
+`mtl_weapon_camo_zombies` / `_1` / `_2`). **No new assets were needed** — those materials and their
+images were already in `mod.ff`. Needs `build_ff.bat`; link was 0 errors and the rebuilt asset was
+dumped back out and confirmed to carry slot 3.
+
+📝 `mtl_weapon_camo_packapunch` sits at slot 0 on thundergun/freezegun and is referenced by **no
+stock camo asset at all** — a red herring from whoever authored them. Left alone; slot 0 is not
+what ZM asks for.
+
+### 🛑 WINTER'S HOWL fx UNDER RAPID FIRE — deliberately NOT fixed
+
+No guess shipped. What was checked and cleared:
+
+1. **Not the v1.74.1 leak** — that fix is present and correct.
+2. **Not a shared-scratch race.** `level.freezegun_enemies` is level-scoped and `freezegun_fired()`
+   is threaded, which looked like the answer — but the function contains no `wait` anywhere on that
+   path (`freezegun_get_enemies_in_range()` is straight-line), so it runs to completion atomically
+   and two shots cannot interleave.
+3. **Not a divergence from the port.** Diffed both `.gsc` and `.csc` against the shipped working
+   `Wonder_Weapons-T6ZM` build: the only differences are this mod's map gates and the v1.74.1 leak
+   fix.
+
+Leading hypothesis, **unverified**: engine fx-pool exhaustion — every shot spawns a
+`freezegun_smoke_cloud` world fx on top of the per-zombie looping tag fx, and T6 silently drops
+`playfx` calls once the pool is full.
+
+**THE ONE OBSERVATION THAT SPLITS IT** — ask the user next time it happens:
+*when the freeze fx stops, does the muzzle/smoke puff at the barrel stop too, or is it only the
+frost on the zombies?*
+- **both stop** → engine fx budget, and the fix is to throttle/shrink what each shot spawns.
+- **only the zombies** → script-side clientfield/handle state, and it is fixable in the `.csc`.
+
+---
+
 ## 🟡 ALL FIVE BUILT IN v1.75.0 — DEPLOYED, NOT YET BOOTED (2026-08-12)
 
 **The user explicitly overrode the one-at-a-time rule** ("fix all from the prompt from the
