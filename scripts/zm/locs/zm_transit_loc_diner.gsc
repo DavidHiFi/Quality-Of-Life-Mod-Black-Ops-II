@@ -460,6 +460,69 @@ precache()
 //  a classic-tagged entity in a mode that ignores it. Nothing else in the map
 //  carries these two targetnames - checked against the full ents dump.
 // ============================================================================
+// ============================================================================
+//  zm_qol: PACK-A-PUNCH VISIBILITY PROBE                           (v1.66.2)
+//
+//  User: *"for some reason you made the pack a punch machine on the roof
+//  invisible? the textures are just missing it seems like"*.
+//
+//  🛑 THIS IS A PROBE, NOT A FIX, and that is deliberate. The asset theory that
+//  explained the shield parts does NOT explain this one, and it was checked
+//  rather than assumed:
+//      xmodel   p6_anim_zm_buildable_pap_on            -> in zm_transit.ff  ✓
+//      material mc/mtl_zombie_vending_packapunch       -> in zm_transit.ff  ✓
+//               mc/mtl_zombie_vending_packapunch_on    -> in zm_transit.ff  ✓
+//               mc/mtl_zombie_vending_packapunch_moving-> in zm_transit.ff  ✓
+//               mc/mtl_p6_zm_buildable_pap_table       -> in zm_transit.ff  ✓
+//               mc/mtl_p6_zm_buildable_etrap           -> in zm_transit.ff  ✓
+//               mc/mtl_p_glo_cinder_block              -> in zm_transit.ff  ✓
+//  All six materials the model's GLB names, plus the model itself, are in a
+//  fastfile Diner survival DOES load, and the boot log has no "Could not load"
+//  line for any of them. So this is not the missing-asset class of bug, and
+//  guessing at a second mechanism is exactly what this project does not do.
+//
+//  What this prints instead, one boot, no more blind rounds: every entity whose
+//  model is the PaP, its origin, and whether it is hidden. That distinguishes
+//  the three candidates outright -
+//      no entity at all      -> the struct never became a machine
+//      entity present, shown -> it is drawing, and the problem is placement or
+//                               geometry (compare the origin against the roof)
+//      entity present, hidden-> something called hide() on it, and the search
+//                               narrows to whatever did
+//
+//  Delayed until after "initial_blackscreen_passed" because _zm_perks spawns
+//  the machine models during its own init, well after this main() runs.
+// ============================================================================
+zmqol_pap_visibility_probe()
+{
+	flag_wait( "initial_blackscreen_passed" );
+	wait 3;
+
+	a_ents = getentarray( "script_model", "classname" );
+	n_found = 0;
+
+	foreach ( e_ent in a_ents )
+	{
+		if ( !isdefined( e_ent.model ) || e_ent.model != "p6_anim_zm_buildable_pap_on" )
+			continue;
+
+		n_found++;
+
+		str_hidden = "shown";
+
+		// .hidden is not a stock field; a hidden ent reports through
+		// isdefined( self.hidden ) only where script set it. Print the origin
+		// either way - a machine standing inside geometry looks identical to a
+		// hidden one from the roof, and the coordinates tell them apart.
+		if ( isdefined( e_ent.hidden ) && e_ent.hidden )
+			str_hidden = "HIDDEN";
+
+		println( "[zm_qol] pap probe: ent " + n_found + " at (" + int( e_ent.origin[0] ) + "," + int( e_ent.origin[1] ) + "," + int( e_ent.origin[2] ) + ") " + str_hidden );
+	}
+
+	println( "[zm_qol] pap probe: " + n_found + " entity(ies) carrying p6_anim_zm_buildable_pap_on (expect 1)" );
+}
+
 zmqol_unlock_shield_buildable_entities()
 {
 	a_targetnames = [];
@@ -511,6 +574,8 @@ main()
 	// zone_trans_diner2 stays off - it is a separate area, nothing here reaches it.
 	if ( isdefined( level.zones ) && isdefined( level.zones["zone_trans_diner2"] ) )
 		level.zones["zone_trans_diner2"].is_enabled = 0;
+
+	level thread zmqol_pap_visibility_probe();
 
 	treasure_chest_init();
 	init_barriers();

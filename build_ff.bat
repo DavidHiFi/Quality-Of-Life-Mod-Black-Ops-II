@@ -265,6 +265,7 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\zm_buried_patch.ff" ^
   --load "%BO2_DIR%\zone\all\zm_highrise.ff" ^
   --load "%BO2_DIR%\zone\all\zm_transit.ff" ^
+  --load "%BO2_DIR%\zone\all\so_zclassic_zm_transit.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^

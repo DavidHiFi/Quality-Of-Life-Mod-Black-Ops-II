@@ -668,3 +668,48 @@ fx,maps/zombie_tomb/fx_tomb_dieselmagic_light
 fx,maps/zombie_tomb/fx_tomb_dieselmagic_identify
 fx,maps/zombie_tomb/fx_tomb_dieselmagic_steam
 xmodel,t6_wpn_zmb_perk_bottle_bear_world
+
+// ============================================================================
+//  THE DINER BUILDABLE RIOT SHIELD  -  its four classic-only assets   v1.66.2
+//
+//  User on v1.66.1: *"the spawn for the part is there ... but that is not the
+//  right object what the hell is that"* and *"the hud icon after when i picked
+//  it up, it's missing"*.
+//
+//  🌟 ONE CAUSE, MEASURED FROM THE BOOT LOG AND THE FASTFILES. Diner survival
+//  loads so_zSURVIVAL_zm_transit.ff; the shield's part models and their HUD
+//  icons ship only in so_zCLASSIC_zm_transit.ff. Unlinker --list, per asset:
+//
+//      asset                              so_zclassic  so_zsurvival  zm_transit
+//      xmodel   t6_wpn_zmb_shield_dolly        1            0            0
+//      xmodel   t6_wpn_zmb_shield_door         1            0            0
+//      material zm_hud_icon_dolly              1            0            0
+//      material zm_hud_icon_cardoor            1            0            0
+//      image    zom_hud_icon_buildable_item_dolly       1    0            0
+//      image    zom_hud_icon_buildable_item_cardoortif  1    0            0
+//
+//  and the boot log agrees, in as many words:
+//      Could not load material "zm_hud_icon_dolly".
+//      Could not load material "zm_hud_icon_cardoor".
+//  So the parts had no model to draw - which is the "not the right object" -
+//  and the carry icon drew the missing-material checkerboard. Exactly the shape
+//  of the Fire Sale icon bug above, found the same way.
+//
+//  🌟 THE PART SURFACES DID NOT NEED SHIPPING, and that was checked rather than
+//  assumed: both GLBs name mc/mtl_t6_wpn_zmb_shield (and the door also
+//  mc/mtl_t6_wpn_zmb_shield_glass), and all three of those live in zm_transit.ff
+//  itself, which survival DOES load. Only the model and icon headers were absent.
+//
+//  🛑 A NEW --load WAS NEEDED: so_zclassic_zm_transit.ff was in no donor list.
+//  It is appended LAST in build_ff.bat, after zm_transit.ff, so first-load-wins
+//  means it can only supply assets no earlier fastfile carries - it cannot
+//  re-donate a shared copy. That is the v1.62.6 shader lesson applied.
+//
+//  The images are not listed explicitly; the Linker resolves a material's
+//  colorMap through the loaded donor, the same way material,specialty_firesale_
+//  zombies above pulls its own. Confirm in the asset audit, not by assumption.
+// ============================================================================
+xmodel,t6_wpn_zmb_shield_dolly
+xmodel,t6_wpn_zmb_shield_door
+material,zm_hud_icon_dolly
+material,zm_hud_icon_cardoor
