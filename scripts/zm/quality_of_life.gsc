@@ -2819,13 +2819,27 @@ setteddybears()
                 // rather than square to the boards. x also moves 14 further left
                 // (+X is left at yaw 270), -4840 -> -4826.
                 //
+                // v1.67.7, and this one is BRACKETED rather than guessed:
+                // *"turned off to the left diagonally a lil too much,
+                // horizontally is a bit too far off to the left, move it back to
+                // the right so it fits perfectly inbetween the 2 petrol cans."*
+                //   x  -4840 was too far RIGHT (into the lying can)
+                //      -4826 is too far LEFT
+                //   -> -4833, the midpoint of a bracket both ends of which the
+                //      user has now seen, so this is interpolation, not another
+                //      estimate.
+                //   yaw 155 -> 170. 115 sprawled across the shelf, 155 is "a lil
+                //      too much" diagonal; 170 is (cos170,sin170) =
+                //      (-0.98,0.17), near-parallel to the boards with just
+                //      enough tilt to stay off square.
+                //
                 // 📝 Both are dvars, so this is dialable in game without waiting
                 // on a build: set zmqol_bear2_diner_x / _yaw and restart the
                 // match - setteddybears() reads them when the bears spawn.
-                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4826 ),
+                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4833 ),
                                        getdvarintdefault( "zmqol_bear2_diner_y", -7978 ),
                                        getdvarintdefault( "zmqol_bear2_diner_z", -27 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 155 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 170 ),
                                        getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ),
                                        getdvarintdefault( "zmqol_bear2_diner_roll", 0 ),
                                        getdvarintdefault( "zmqol_bear2_diner_snap", 0 ) );
@@ -2840,7 +2854,7 @@ setteddybears()
                 // Printed so a bad placement is diagnosable from the log without
                 // another screenshot round: compare these against the .where the
                 // user reads standing next to each bear.
-                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4826 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
+                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4833 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
             }
         }
     }
