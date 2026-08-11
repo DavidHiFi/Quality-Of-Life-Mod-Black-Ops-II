@@ -80,10 +80,15 @@ source folders is built or don't-touch.
   leapers, mechz, dogs). Console commands give one directly:
   `give_thundergun 1`, `give_wunderwaffe 1`, `give_wintershowl 1` — or in chat,
   `.thundergun`, `.wunderwaffe`, `.wintershowl`. `zmqol_ww 0` turns all three off.
-  🛑 **Known gaps, honestly:** they do **not** get Pack-a-Punch camos yet, the
-  Wunderwaffe's view-model lights are too bright, and one report of the DG-2 not
-  appearing from the box across a full game is still unexplained — see
-  `.agents/QUEUE.md`.
+  🛑 **Known gaps, honestly:** the Wunderwaffe's view-model lights are still too
+  bright. Pack-a-Punch camos are **applied as of v1.75.0 but not yet confirmed
+  in game** — the camo assets were already in `mod.ff`; the upgraded weapon defs
+  just had an empty `camo` field.
+  📝 The report of the DG-2 never appearing from the box **was measured and is not
+  a bug**: all three guns register identically, and with stock's box filters
+  removed a specific gun is ~3.8% per spin, so missing it across a long game is
+  ordinary variance. `zmqol_box_wonder_weight` (default 2, `0` = stock) now
+  weights an unheld wonder weapon from round 10 — see `.agents/QUEUE.md`.
 - **Instant Pack-a-Punch**, **BO4 Max Ammo**, **wall buys refill the mag**.
 - **Prone at a perk machine = +100 points** (once per machine, every map).
 - **Diner as a Survival location** on TranZit, ported from BO2-Reimagined. Treyarch left

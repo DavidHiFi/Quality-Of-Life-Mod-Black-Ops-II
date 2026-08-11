@@ -267,6 +267,8 @@ init()
     zmqol_register_vulture_visionset();
     zmqol_register_zombie_blood_visionsets();
     zmqol_dev_commands();
+    zmqol_box_wonder_weapon_weights_init();
+    level thread zmqol_stranded_zombie_probe();
     level thread zmqol_credits_banner();
     level thread zmqol_perk_slot_connect();
     level thread zmqol_blood_money_natural_drop();
@@ -1164,72 +1166,169 @@ zombiecounter()
     }
 }
 
+// ============================================================================
+//  SHIELD HUD - NOW A WHITE BAR STACKED ON THE PLAYER BAR      (v1.75.0)
+//
+//  User, 2026-08-11: *"move the sheild health counter as another white health
+//  bar above the player health bar, stacked on top fitting perfectly and the
+//  same height and length, literally a duplicate bar but white and for the
+//  shield not the player."*
+//
+//  🌟 THIS ALSO CLOSES THE "STRAY VULTURE AID ICON" REPORT - THEY WERE THE SAME
+//  ELEMENT. The screenshot's detached low-centre icon is not Vulture Aid: it is
+//  THIS function's shield icon, and on TranZit it was drawn with the
+//  "damage_feedback" shader (the hitmarker), which is why it read as a stray
+//  crest nobody could place. It was also positioned with nonsense values -
+//  alignx/aligny are STRING alignment fields ("left"/"middle"/...) and this set
+//  them to the numbers 240 and 460, so the element landed wherever the engine
+//  fell back to. Both the icon and the centre number are gone now; the bar
+//  replaces them.
+//
+//  🌟 EVERY DIMENSION IS COPIED FROM qol_health_hud_create(), NOT HAND-TUNED,
+//  exactly as asked. Background "white" 104x5 at x -45; fill "progress_bar_fill"
+//  100x3 at x -43; same alignx/aligny/horzalign/vertalign; same sort order.
+//  The ONLY differences are y and colour.
+//
+//  THE Y VALUE IS DERIVED, NOT GUESSED. Measured from the three elements that
+//  already share this corner: zombie counter y = -7, player bar y = 7, player
+//  name y = 18 - and in the screenshot they render top-to-bottom in that order,
+//  which proves positive y is DOWNWARD here. The player bar's background is 5
+//  tall with aligny "middle", so it spans 4.5..9.5; a bar of the same height
+//  sitting flush on top of it has its centre at 4.5 - 2.5 = 2. Hence y = 2, and
+//  it lands in the gap that already exists between the counter and the bar.
+//
+//  🌟 ALLOCATE-ON-DEMAND, the same pattern and for the same reason as
+//  qol_health_hud_create/_destroy above: a client has a fixed hudelem
+//  allowance, and the old code held its two elements for the whole match even
+//  with no shield. Now nothing is allocated until a shield is actually carried,
+//  so this is a NET REDUCTION in held elements for most of a game, not an
+//  increase - which matters while the frametime complaint is still open.
+//
+//  📝 2300 is carried over verbatim from the previous implementation, as is the
+//  three-weapon check. Neither is re-tuned here.
+//  📝 The two zm_riotshield_* precacheshader calls are left in place: they cost
+//  one asset slot each and removing a precache is a bigger change than leaving
+//  a dormant one.
+// ============================================================================
+qol_shield_hud_create()
+{
+    if ( isdefined( self.qol_hud_shield ) && self.qol_hud_shield.size == 2 )
+        return;
+
+    shieldbar_bg = newclienthudelem( self );
+    shieldbar_bg.x = 0;
+    shieldbar_bg.y = 0;
+    shieldbar_bg setshader( "white", 104, 5 );
+    shieldbar_bg.alignx = "left";
+    shieldbar_bg.aligny = "middle";
+    shieldbar_bg.horzalign = "left";
+    shieldbar_bg.vertalign = "bottom";
+    shieldbar_bg.x = shieldbar_bg.x + -45;
+    shieldbar_bg.y = shieldbar_bg.y + 2;
+    shieldbar_bg.color = ( 0, 0, 0 );
+    shieldbar_bg.alpha = 0.5;
+    shieldbar_bg.hidewheninmenu = 1;
+    shieldbar_bg.sort = -1;
+
+    shieldbar = newclienthudelem( self );
+    shieldbar.x = 0;
+    shieldbar.y = 0;
+    shieldbar setshader( "progress_bar_fill", 100, 3 );
+    shieldbar.alignx = "left";
+    shieldbar.aligny = "middle";
+    shieldbar.horzalign = "left";
+    shieldbar.vertalign = "bottom";
+    shieldbar.x = shieldbar.x + -43;
+    shieldbar.y = shieldbar.y + 2;
+    shieldbar.color = ( 1, 1, 1 );
+    shieldbar.hidewheninmenu = 1;
+    shieldbar.width = 100;
+    shieldbar.sort = 0;
+
+    self.qol_hud_shield = [];
+    self.qol_hud_shield[0] = shieldbar_bg;
+    self.qol_hud_shield[1] = shieldbar;
+}
+
+qol_shield_hud_destroy()
+{
+    if ( !isdefined( self.qol_hud_shield ) )
+        return;
+
+    for ( i = 0; i < self.qol_hud_shield.size; i++ )
+    {
+        if ( isdefined( self.qol_hud_shield[i] ) )
+            self.qol_hud_shield[i] destroy();
+    }
+
+    self.qol_hud_shield = undefined;
+}
+
 shield_hud()
 {
     self endon( "disconnect" );
     flag_wait( "initial_blackscreen_passed" );
-    shield_text = self createprimaryprogressbartext();
-    shield_text setpoint( "CENTER", "CENTER", 275, 225 );
-    shield_text.hidewheninmenu = 1;
-    shield_hud = newclienthudelem( self );
-    shield_hud.alignx = 240;
-    shield_hud.aligny = 460;
-    shield_hud.horzalign = "center";
-    shield_hud.vertalign = "center";
-    shield_hud.x = 240;
-    shield_hud.y = 460;
-    shield_hud.alpha = 0;
-    shield_hud.hidewheninmenu = 1;
-    if ( getdvar( "mapname" ) == "zm_transit" )
-        shield_hud setshader( "damage_feedback", 15, 15 );
-    if ( getdvar( "mapname" ) == "zm_tomb" )
-        shield_hud setshader( "zm_riotshield_tomb_icon", 15, 15 );
-    if ( getdvar( "mapname" ) == "zm_prison" )
-        shield_hud setshader( "zm_riotshield_hellcatraz_icon", 15, 15 );
+
+    n_max = 2300;
+
     for (;;)
     {
-        //  DIAGNOSTIC, v1.65.4 - see zmqol_perf_probe(). This is the mod's
-        //  highest-frequency per-player loop, so it is the one most worth
-        //  silencing in the test.
+        //  DIAGNOSTIC, v1.65.4 - see zmqol_perf_probe(). Same path as "no
+        //  shield": the elements are DESTROYED, not merely faded, so the loop
+        //  costs nothing while the probe is on.
         if ( zmqol_perf_probe() )
         {
-            shield_text.alpha = 0;
-            shield_hud.alpha = 0;
+            self qol_shield_hud_destroy();
             wait 0.5;
             continue;
         }
 
-        if ( self hasweapon( "riotshield_zm" ) || self hasweapon( "alcatraz_shield_zm" ) || self hasweapon( "tomb_shield_zm" ) )
-        {
-            shield_text.alpha = 1;
-            shield_hud.alpha = 1;
-        }
-        else
-        {
-            shield_text.alpha = 0;
-            shield_hud.alpha = 0;
-        }
-        //  🛑 PERF, v1.65.3 - THIS RAN AT 20Hz, UNCONDITIONALLY, FOR EVERY
-        //  PLAYER, FOR THE WHOLE MATCH - INCLUDING WHEN THERE IS NO SHIELD AND
-        //  THE ELEMENT IS INVISIBLE. It is the highest-frequency HUD write in
-        //  the mod. self.shielddamagetaken only moves when a shield actually
-        //  takes a hit, so almost every one of those 20 writes per second per
-        //  player marked the element dirty to send a number it had already sent.
-        //
-        //  Cached on the hudelem for the same reason first_spawn()'s is - if the
-        //  element is ever re-created the cache goes with it and the value is
-        //  written again on the next tick.
-        n_shield_left = 2300 - self.shielddamagetaken;
+        b_has_shield = ( self hasweapon( "riotshield_zm" ) ||
+                         self hasweapon( "alcatraz_shield_zm" ) ||
+                         self hasweapon( "tomb_shield_zm" ) );
 
-        if ( !isdefined( shield_text.qol_last_value ) || shield_text.qol_last_value != n_shield_left )
+        //  shielddamagetaken is undefined until a shield has been carried once,
+        //  and arithmetic on undefined is fatal in GSC.
+        n_taken = 0;
+
+        if ( isdefined( self.shielddamagetaken ) )
+            n_taken = self.shielddamagetaken;
+
+        n_left = n_max - n_taken;
+
+        //  A broken shield hid the old counter, so hiding the bar keeps parity.
+        if ( !b_has_shield || n_left <= 0 )
         {
-            shield_text setvalue( n_shield_left );
-            shield_text.qol_last_value = n_shield_left;
+            self qol_shield_hud_destroy();
+            wait 0.25;
+            continue;
         }
 
-        wait 0.05;
-        if ( self.shielddamagetaken >= 2300 )
-            shield_text.alpha = 0;
+        self qol_shield_hud_create();
+        shieldbar = self.qol_hud_shield[1];
+
+        //  Resized by re-issuing the shader at a new width - the same mechanism
+        //  first_spawn() uses for the player bar, rather than writing .width.
+        n_fill = int( 100 * ( n_left / n_max ) );
+
+        if ( n_fill < 1 )
+            n_fill = 1;
+
+        //  🌟 CACHE ON THE HUDELEM, not in a local. These elements are destroyed
+        //  and re-created whenever the shield is dropped or the probe toggles; a
+        //  local would survive that and leave the fresh element stuck at its
+        //  default width. A new element carries no .qol_last_fill, so the first
+        //  iteration after any re-create writes the shader again.
+        if ( !isdefined( shieldbar.qol_last_fill ) || shieldbar.qol_last_fill != n_fill )
+        {
+            shieldbar setshader( "progress_bar_fill", n_fill, 3 );
+            shieldbar.qol_last_fill = n_fill;
+        }
+
+        //  10Hz, matching the player health bar this now duplicates. The old
+        //  implementation ran at 20Hz and was the mod's highest-frequency HUD
+        //  loop.
+        wait 0.1;
     }
 }
 
@@ -5122,6 +5221,240 @@ zmqol_ww_give_dvar_watch()
         {
             setdvar( "give_wintershowl", "0" );
             self zmqol_give_wonder_weapon( "freezegun_zm", "4", "Winter's Howl" );
+        }
+    }
+}
+
+// ============================================================================
+//  BOX WEIGHTING FOR THE THREE WONDER WEAPONS          (v1.75.0)
+//
+//  User, 2026-08-11: the Wunderwaffe never came out of the box across a whole
+//  round-32 game, while the Thundergun and Winter's Howl both did.
+//
+//  🛑 THERE IS NO ASYMMETRY, AND THAT IS MEASURED. This is NOT a bug fix.
+//  All three guns register identically - same include_weapon, same
+//  add_limited_weapon( x, 1 ), same add_zombie_weapon weight of 10
+//  (thundergun.gsc:36-38, teslagun.gsc:45-47, freeze.gsc:36-44). The
+//  2026-08-11 23:32 boot log confirms all three reached the running game:
+//  "Loaded weapon: freezegun_zm / tesla_gun_zm / thundergun_zm" and a
+//  "GSC Executed ...::init()" for each, with no script error anywhere in the
+//  file. And the user pulled two of the three FROM THE BOX in that same game,
+//  which proves the path itself works. Neither _zm_weap_tesla.gsc nor either
+//  of its two siblings touches the box.
+//
+//  The real number: this mod's own _zm_magicbox.gsc strips the three stock
+//  filters, so treasure_chest_chooseweightedrandomweapon() is a UNIFORM draw
+//  over the in-box weapons. TranZit ships 23 of those (zm_transit_dr.gsc,
+//  include_weapon calls without in_box=0) plus these 3 = 26. A specific gun is
+//  1/26 = 3.8% per spin, so missing it across ~40 spins is (25/26)^40 = 21%.
+//  One game in five looks exactly like the user's. Variance, not a defect.
+//
+//  🌟 SO THIS IS A DELIBERATE WEIGHTING, and it rides TREYARCH'S OWN LIVE HOOK.
+//  level.customrandomweaponweights is read by the box at _zm_magicbox.gsc:1039
+//  (deliberately KEPT when this project overrode that file) and is the same
+//  hook zm_buried.gsc:375 uses. Its contract is fixed by Buried's own
+//  implementation (zm_buried.gsc:452): called ON THE PLAYER, takes the
+//  randomized key array, returns a key array. Because the box returns the FIRST
+//  key that passes its filter, extra copies of a name raise its odds - the same
+//  mechanism stock's own dev-only arrayinsert( keys, forced_weapon, 0 ) relies
+//  on at _zm_magicbox.gsc:1046.
+//
+//  📝 NOT level.weapon_weighting_funcs. That array is WRITTEN at
+//  _zm_weapons.gsc:704-706 and READ NOWHERE in the 2,093-file stock dump - dead
+//  WaW/BO1 legacy. Which is why stock's own default_tesla_weighting_func()
+//  (:606), a pity timer written for this exact gun, has never once run in T6.
+//
+//  Bounded and reversible, per the standing "every command is also a dvar" rule:
+//      zmqol_box_wonder_weight 0    stock behaviour, no weighting at all
+//      zmqol_box_wonder_weight 2    DEFAULT - 2 extra entries per unheld gun
+//  Gated on round 10 (stock's default_tesla_weighting_func gates on round > 10)
+//  and only for a gun the pulling player does NOT already hold, so it can never
+//  spam a gun you are carrying. At the default, 26 in-box entries become 32 with
+//  9 wonder-weapon entries: a specific gun goes 3.8% -> 9.4% per spin, and
+//  P(never seeing it in 40 spins) drops from 21% to 2%.
+// ============================================================================
+zmqol_box_wonder_weapon_weights_init()
+{
+    // Chain, never clobber. Buried assigns this same pointer (zm_buried.gsc:375);
+    // its implementation is a no-op stub that returns keys unchanged, so chaining
+    // costs nothing there - but re-pointing without chaining would be CLAUDE.md
+    // section 4 failure mode 2.
+    if ( isdefined( level.customrandomweaponweights ) )
+        level.zmqol_prev_box_weights = level.customrandomweaponweights;
+
+    level.customrandomweaponweights = ::zmqol_box_wonder_weapon_weights;
+}
+
+zmqol_box_wonder_weapon_weights( keys )
+{
+    // self = the player pulling the box. The box calls this as
+    //     keys = player [[ level.customrandomweaponweights ]]( keys );
+    if ( isdefined( level.zmqol_prev_box_weights ) )
+        keys = self [[ level.zmqol_prev_box_weights ]]( keys );
+
+    n_extra = getdvarintdefault( "zmqol_box_wonder_weight", 2 );
+
+    if ( n_extra <= 0 )
+        return keys;
+
+    if ( !isdefined( level.round_number ) || level.round_number < 10 )
+        return keys;
+
+    if ( !isdefined( level.zombie_weapons ) )
+        return keys;
+
+    guns = [];
+    guns[ guns.size ] = "tesla_gun_zm";
+    guns[ guns.size ] = "thundergun_zm";
+    guns[ guns.size ] = "freezegun_zm";
+
+    for ( i = 0; i < guns.size; i++ )
+    {
+        str_gun = guns[i];
+
+        // Not registered on this map at all - either the zmqol_ww bisect gate or
+        // the zm_tomb/zm_buried map gate turned this gun off. Skip silently.
+        if ( !isdefined( level.zombie_weapons[ str_gun ] ) )
+            continue;
+
+        // is_in_box is add_zombie_weapon's copy of include_weapon's in_box flag
+        // (_zm_weapons.gsc:558). Never boost something the box cannot hand out.
+        if ( !isdefined( level.zombie_weapons[ str_gun ].is_in_box ) || !level.zombie_weapons[ str_gun ].is_in_box )
+            continue;
+
+        if ( self has_weapon_or_upgrade( str_gun ) )
+            continue;
+
+        for ( j = 0; j < n_extra; j++ )
+            keys[ keys.size ] = str_gun;
+    }
+
+    // Re-shuffle: the appended copies all sit at the tail otherwise, and the
+    // box's first-match loop would never reach them.
+    return array_randomize( keys );
+}
+
+// ============================================================================
+//  STRANDED-ZOMBIE PROBE                                 (v1.75.0)
+//
+//  User, 2026-08-11: "a spawn point near the diner strands the last zombie of a
+//  round" - .where x -6269 y -7206 z -63 yaw 236, the ground behind the car.
+//
+//  🛑 I COULD NOT NAME THE SPAWNER OFFLINE, so this ships a MEASUREMENT rather
+//  than a guessed fix (CLAUDE.md: "ship a probe that distinguishes the outcomes
+//  rather than a fix built on the likeliest one"). What was ruled out, each from
+//  a file actually read:
+//
+//    1. It is not one of the 8 spawners already disabled. All 8 origins were
+//       matched against the zm_transit mapents dump and every one is real, and
+//       "[zm_qol] diner main: DONE" is present in the boot log AFTER
+//       disable_zombie_spawn_locations() runs - so the pass completed without
+//       erroring and the disables applied.
+//    2. Nothing re-enables them. _zm_zonemgr::reinit_zone_spawners() DOES force
+//       is_enabled = 1 on every unblocked spot (:357-360), but it is called
+//       NOWHERE in the 2,093-file stock dump - dead code. zone_init() returns
+//       early on an already-initialised zone (:168), so it cannot re-run either.
+//    3. No enabled regular spawner is anywhere near the reported spot. Every
+//       *_spawners struct in the Diner-area zones was dumped and classified; the
+//       nearest ENABLED one is (-5718,-7272,-64), 555 units away. The nearest
+//       spawner of any kind is (-6462,-7159,-64) at 198 units - already off.
+//    4. It is not the undefined-entrance-node path at _zm_spawner.gsc:411-425.
+//       That branch would assign an undefined node (zm_transit has 38
+//       exterior_goal structs and ZERO with script_string "find_flesh"), but
+//       should_skip_teardown() returns true for exactly that string at :330, so
+//       the :383 branch is taken and RETURNS at :409 first. It never runs.
+//
+//  So the zombie is very likely standing where it was BLOCKED rather than where
+//  it spawned, and only its own spawn_point can identify the source.
+//
+//  🌟 self.spawn_point is assigned in exactly ONE place in stock -
+//  _zm_spawner.gsc:2674, "self.spawn_point = spot" - so every zombie carries the
+//  struct that produced it. Printing that names the offending spawner outright,
+//  and the fix is then the same one-line origin match the other 8 use.
+//
+//      zmqol_stranded_probe 1   DEFAULT - report, costs one 5s loop
+//      zmqol_stranded_probe 0   off
+//
+//  📝 Deliberately cheap, because frametimes are an open complaint: it wakes
+//  every 5 seconds, does nothing at all unless 3 or fewer enemies are alive
+//  (the reported symptom is the LAST zombie), and prints once per zombie.
+// ============================================================================
+zmqol_stranded_zombie_probe()
+{
+    level endon( "game_ended" );
+
+    for ( ;; )
+    {
+        wait 5;
+
+        if ( !getdvarintdefault( "zmqol_stranded_probe", 1 ) )
+            continue;
+
+        a_enemies = get_round_enemy_array();
+
+        // Only the tail of a round is interesting, and this keeps the probe
+        // silent (and free) for the other 99% of a match.
+        if ( a_enemies.size == 0 || a_enemies.size > 3 )
+            continue;
+
+        for ( i = 0; i < a_enemies.size; i++ )
+        {
+            ai = a_enemies[i];
+
+            if ( !isdefined( ai ) || !isalive( ai ) )
+                continue;
+
+            if ( !isdefined( ai.zmqol_probe_org ) )
+            {
+                ai.zmqol_probe_org = ai.origin;
+                ai.zmqol_probe_ticks = 0;
+                continue;
+            }
+
+            // 64 units in 5 seconds is far below a walker's pace, so anything
+            // under it is genuinely not making progress.
+            if ( distancesquared( ai.origin, ai.zmqol_probe_org ) > 4096 )
+            {
+                ai.zmqol_probe_org = ai.origin;
+                ai.zmqol_probe_ticks = 0;
+                continue;
+            }
+
+            ai.zmqol_probe_ticks++;
+
+            // Exactly 3 - "!= 3" rather than ">= 3" makes this print ONCE per
+            // zombie instead of every 5s for the rest of the round.
+            if ( ai.zmqol_probe_ticks != 3 )
+                continue;
+
+            str_spawn = "none";
+
+            if ( isdefined( ai.spawn_point ) && isdefined( ai.spawn_point.origin ) )
+            {
+                v_sp = ai.spawn_point.origin;
+                str_spawn = "(" + int( v_sp[0] ) + "," + int( v_sp[1] ) + "," + int( v_sp[2] ) + ")";
+
+                if ( isdefined( ai.spawn_point.targetname ) )
+                    str_spawn = str_spawn + " tn=" + ai.spawn_point.targetname;
+
+                if ( isdefined( ai.spawn_point.script_noteworthy ) )
+                    str_spawn = str_spawn + " nw=" + ai.spawn_point.script_noteworthy;
+
+                if ( isdefined( ai.spawn_point.zone_name ) )
+                    str_spawn = str_spawn + " zone=" + ai.spawn_point.zone_name;
+            }
+
+            v_at = ai.origin;
+            str_at = "(" + int( v_at[0] ) + "," + int( v_at[1] ) + "," + int( v_at[2] ) + ")";
+
+            println( "[zm_qol] STRANDED ZOMBIE stuck at " + str_at + " | spawn_point " + str_spawn );
+
+            // On screen too - the log needs developer_script to be worth reading,
+            // and this is the one line that matters.
+            a_players = get_players();
+
+            for ( p = 0; p < a_players.size; p++ )
+                a_players[p] iprintln( "^3[zm_qol] stranded zombie ^7" + str_at + " ^3from spawn ^7" + str_spawn );
         }
     }
 }

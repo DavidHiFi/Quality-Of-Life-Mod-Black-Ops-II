@@ -2203,11 +2203,69 @@ because a bad LUI file hard-crashes the game.
 
 ---
 
-## 🔴 QUEUED 2026-08-11 — FIVE ITEMS FROM THE ROUND-32 LEGIT GAME
+## 🟡 ALL FIVE BUILT IN v1.75.0 — DEPLOYED, NOT YET BOOTED (2026-08-12)
+
+**The user explicitly overrode the one-at-a-time rule** ("fix all from the prompt from the
+previous session, 1-5"), so all five ship in one build. What that costs is attribution: if this
+boot fails, five changes are in flight at once. They touch four independent subsystems (magic
+box / AI spawn probe / HUD / weapon defs), so a failure should still be nameable.
+
+| # | item | what shipped | confidence |
+|---|---|---|---|
+| 1 | Wunderwaffe box drop | **NOT A BUG** — measured symmetric. Shipped a deliberate, bounded pity weighting on Treyarch's own live hook | mechanism verified, effect unverified |
+| 2 | stranded zombie | **CAUSE NOT FOUND OFFLINE** — shipped a probe that names the spawner in one boot | probe logic verified |
+| 3 | "stray Vulture Aid icon" | **SAME ELEMENT AS #4** — it was `shield_hud()`'s icon drawn with the `damage_feedback` shader | root cause verified |
+| 4 | shield bar restack | white bar, dimensions copied from the player bar, y derived from measurement | verified offline |
+| 5 | PaP camos | the 3 camo assets were **already in `mod.ff`**; the weapon defs' `camo` field was simply empty | verified in the deployed files |
+
+### 🛑 #1 — THERE WAS NO BUG, AND THAT IS MEASURED
+
+All three guns register identically; the 23:32 boot log shows `Loaded weapon:` and a
+`GSC Executed ...::init()` for each with no script error; and **the user pulled two of the three
+FROM THE BOX in that same game**. The mod's `_zm_magicbox.gsc` strips the three stock filters, so
+selection is a uniform draw over 26 in-box weapons (23 TranZit + 3). A specific gun is 3.8% per
+spin; missing it across ~40 spins is **21%** — one game in five looks exactly like this.
+
+What shipped is therefore a **deliberate weighting**, not a fix: `zmqol_box_wonder_weight` (default
+2, `0` = stock) adds entries for an unheld wonder weapon from round 10, via
+`level.customrandomweaponweights` — the hook Buried itself uses and which this mod's magicbox
+override deliberately kept. 📝 `level.weapon_weighting_funcs` is written at `_zm_weapons.gsc:704`
+and **read nowhere in the stock dump**, so stock's own `default_tesla_weighting_func()` pity timer
+has never run in T6.
+
+### 🛑 #2 — WHAT WAS RULED OUT, so nobody re-treads it
+
+1. Not one of the 8 already-disabled spawners — all 8 origins matched against the mapents dump, and
+   `[zm_qol] diner main: DONE` prints AFTER the disable pass, so it completed.
+2. Nothing re-enables them: `reinit_zone_spawners()` does force `is_enabled = 1` (`:357-360`) but is
+   **called nowhere in the 2,093-file dump**; `zone_init()` early-returns on an existing zone.
+3. **No enabled regular spawner is near the reported spot.** Nearest enabled is `(-5718,-7272,-64)`,
+   555 units away; nearest of any kind is the already-disabled `(-6462,-7159,-64)` at 198 units.
+4. Not the undefined-entrance-node path at `_zm_spawner.gsc:411-425` — `should_skip_teardown()`
+   returns true for `"find_flesh"` at `:330`, so the `:383` branch returns at `:409` first.
+
+So the zombie is probably standing where it was **blocked**, not where it spawned.
+`zmqol_stranded_probe` (default on) prints its `spawn_point` — assigned in exactly one place in
+stock, `_zm_spawner.gsc:2674` — to console and screen after 15s without moving 64 units, only when
+≤3 enemies are alive. **One boot names the spawner; the fix is then the same one-line origin match
+the other 8 use.**
+
+### 📝 A stale comment found in passing, NOT changed
+
+`teslagun.gsc:21`, `thundergun.gsc:20` and `freeze.gsc:20` all claim *"DEFAULT IS OFF… a normal
+launch loads the mod with no wonder weapon code running at all."* **That is wrong.** The gate is
+`if ( str_ww != "" && str_ww != "1" && str_ww != "N" ) return;` — unset makes `str_ww != ""` false,
+so the guard never fires and the guns are **ON by default**, which is what the boot log shows and
+what the user experiences. Left alone deliberately: it is three files outside this change's scope
+and the behaviour is correct, only the prose is not.
+
+---
+
+## 🔴 ORIGINAL REQUEST — FIVE ITEMS FROM THE ROUND-32 LEGIT GAME (all now built, see above)
 
 Wonder weapons confirmed working: all three from the box, correct names, correct
 weapon count, Winter's Howl frost fx now persist (v1.74.1 confirmed in game).
-**None of the five below has been started.** Listed in the order they should be taken.
+Listed in the order they were taken.
 
 ### 1. 🐛 WUNDERWAFFE NEVER CAME OUT OF THE BOX — round 32, legit game
 
