@@ -201,3 +201,47 @@ effect (`_zm.gsc:1227`, `_zm.csc:323`) — and it is what the user has been seei
 📝 `add_dynamic_wallbuy()` (:993) is a different path that *does* set the field immediately and keeps
 a server-side `wallmodel`. Static wallbuys keep no server model at all — `init_spawnable_weapon_upgrade`
 uses a `tempmodel` only to measure bounds and then deletes it.
+
+---
+
+## 8. 🛑 THE REAL WONDER-WEAPON CAUSE — LF LINE ENDINGS. §1's format theory is WITHDRAWN.
+
+§1 correctly identified *which file* killed the boot and *why the gate could not stop it*. Its guess
+at the underlying reason — "`iwfx 2` is probably T5's format, not T6's" — **is wrong.**
+
+**`iwfx 2` IS T6's format.** `H:\Claude\Wonder_Weapons-T6ZM` is an independent, self-contained T6
+port with a prebuilt `WW.ff`, and **61 of its 63 `.efx` are `iwfx 2`** (the other two are `iwfx 3`).
+
+### What was actually wrong
+
+Diffed our 27 against that port's copies of the same 27 files:
+
+```
+byte-identical: 0    differ ONLY by line endings: 27    real content differences: 0
+```
+
+**Ours had ZERO CR bytes.** Every one was LF-only; the working port's are CRLF. T6's fx parser is a
+text parser and a mis-terminated file produces a malformed FxEffectDef, which is the `0x80000003`.
+
+📝 The upstream `SRS_T5_WonderWeapons_portable` package ships them LF-only too, so this was inherited,
+not introduced by a `sed -i` here — but it is the **same failure class already recorded in 34 §2**
+("never `sed -i` a `.bat`, it strips CRLF"). That note was filed under batch files. **It is about any
+file the engine parses as text.**
+
+### The fix — v1.70.0
+
+Converted all 27 in place to CRLF and restored `fx` to `pack_iwd.ps1`'s `$folders`. Verified: **all 27
+are now byte-identical to the known-good T6 port's copies**, and the deployed `mod.iwd` carries 27
+`.efx` with `tesla_neck_spurt.efx` at 43434 bytes / 2348 CR — matching exactly.
+
+### 🛑 The gate is STILL DEFAULT OFF, deliberately — this is a one-variable test
+
+With the guns off, `fx_zombie_tesla_neck_spurt` is *still* loaded on every map by core
+`_zm.gsc:1193`. So a normal boot now tests the CRLF fix **alone**, with none of the wonder-weapon
+code running:
+
+- **boots** → the `.efx` are parseable, and the only remaining question is the gun code
+- **crashes at the same line** → line endings were not it either, and the `.efx` route is finished
+
+Only after that should `zmqol_ww 1` be tried. **Do not flip the default to ON until the guns
+themselves are confirmed** — an always-on crash makes the mod unbootable and hides its own cause.

@@ -30,16 +30,20 @@ try {
     # ui\ and ui_mp\ - stock keeps privateonlinegamelobby.lua under ui\ and
     # privategamelobby_project.lua under ui_mp\ - so a mod that overrides a ui\
     # file needs that folder packed too, or the override never reaches the game.
-    # 'fx' is DELIBERATELY ABSENT - see disabled_fx\. Plutonium does load raw .efx
-    # out of mod.iwd (that part was measured and is still true), but the T5 wonder
-    # weapons' 27 files are iwfx VERSION 2 and three of them carry STOCK BO2 fx
-    # names. Core maps\mp\zombies\_zm.gsc:1193 loadfx's one of those
-    # - fx_zombie_tesla_neck_spurt - unconditionally, on every map, in every mode,
-    # so no script-side gate can reach it. Every crash boot logs
-    # "Loaded fx: ...tesla_neck_spurt" and dies two lines later; the boot that
-    # played logs "Could not load fx" for the same name. Re-add the folder ONLY
-    # with mod-private names and a format known to be T6's.
-    $folders  = @('attachmentunique','character','images','maps','scripts','ui','ui_mp','weapons')
+    # 'fx' carries the T5 wonder weapons' 27 raw .efx. OpenAssetTools cannot read or
+    # write FxEffectDef at ALL, so those effects can never enter mod.ff - but
+    # Plutonium loads them straight out of mod.iwd at runtime.
+    #
+    # 🛑 THEY MUST BE CRLF. Every one of the 27 shipped with LF-only endings and the
+    # game hard-crashed (0x80000003) the moment one was parsed - which happened on
+    # EVERY map even with the wonder weapons gated off, because three of them carry
+    # stock BO2 names and core maps\mp\zombies\_zm.gsc:1193 loadfx's
+    # fx_zombie_tesla_neck_spurt unconditionally. Diffed against the independent
+    # Wonder_Weapons-T6ZM port: all 27 were identical apart from line endings, and
+    # that port's copies are CRLF. iwfx VERSION 2 IS CORRECT for T6 - 61 of that
+    # working port's 63 files are iwfx 2 - so the version was never the problem.
+    # After converting, all 27 are byte-identical to that port's copies.
+    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui','ui_mp','weapons')
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 
