@@ -2907,8 +2907,8 @@ setteddybears()
                 // 📝 Both are dvars, so this is dialable in game without waiting
                 // on a build: set zmqol_bear2_diner_x / _yaw and restart the
                 // match - setteddybears() reads them when the bears spawn.
-                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4838 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_y", -7978 ),
+                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4830 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_y", -7972 ),
                                        getdvarintdefault( "zmqol_bear2_diner_z", -27 ),
                                        getdvarintdefault( "zmqol_bear2_diner_yaw", 100 ),
                                        getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ),
@@ -2925,7 +2925,7 @@ setteddybears()
                 // Printed so a bad placement is diagnosable from the log without
                 // another screenshot round: compare these against the .where the
                 // user reads standing next to each bear.
-                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4838 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
+                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4830 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7972 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
             }
         }
     }
