@@ -1,0 +1,451 @@
+{
+    "$schema": "http://openassettools.dev/schema/material.v1.json",
+    "_game": "t6",
+    "_type": "material",
+    "_version": 1,
+    "cameraRegion": "litOpaque",
+    "constants": [
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer2Origin"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer2Offset"
+        },
+        {
+            "literal": [
+                0.5,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Reflection_Amount"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer3Scroll"
+        },
+        {
+            "literal": [
+                3.5,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Emissive_Amount_Off"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer3Rotation"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer2Rotation"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer3Origin"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer3Offset"
+        },
+        {
+            "literal": [
+                1.0,
+                1.0,
+                0.0,
+                1.0
+            ],
+            "name": "WarpScale"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer1Rotation"
+        },
+        {
+            "literal": [
+                0.5,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "NormalHeight"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer1Scroll"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer1Origin"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer1Offset"
+        },
+        {
+            "literal": [
+                1.0,
+                1.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer1Scale"
+        },
+        {
+            "literal": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer2Scroll"
+        },
+        {
+            "literal": [
+                1.100000023841858,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer1Alpha"
+        },
+        {
+            "literal": [
+                0.07000000029802322,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer1Depth"
+        },
+        {
+            "literal": [
+                1.5,
+                1.2000000476837158,
+                0.0,
+                1.0
+            ],
+            "name": "Layer2Scale"
+        },
+        {
+            "literal": [
+                4.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer2Alpha"
+        },
+        {
+            "literal": [
+                0.10000000149011612,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer2Depth"
+        },
+        {
+            "literal": [
+                1.5,
+                0.75,
+                0.0,
+                1.0
+            ],
+            "name": "Layer3Scale"
+        },
+        {
+            "literal": [
+                4.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer3Alpha"
+        },
+        {
+            "literal": [
+                0.019999999552965164,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Layer3Depth"
+        },
+        {
+            "literal": [
+                1.0,
+                0.0,
+                0.0,
+                1.0
+            ],
+            "name": "Gloss_Amount"
+        }
+    ],
+    "contents": 1,
+    "gameFlags": [
+        "10",
+        "CASTS_SHADOW"
+    ],
+    "layeredSurfaceTypes": 536870925,
+    "sortKey": 4,
+    "stateBits": [
+        {
+            "alphaTest": "disabled",
+            "blendOpAlpha": "disabled",
+            "blendOpRgb": "disabled",
+            "colorWriteAlpha": false,
+            "colorWriteRgb": false,
+            "cullFace": "back",
+            "depthTest": "less_equal",
+            "depthWrite": true,
+            "dstBlendAlpha": "zero",
+            "dstBlendRgb": "zero",
+            "polygonOffset": "offset0",
+            "polymodeLine": false,
+            "srcBlendAlpha": "one",
+            "srcBlendRgb": "one",
+            "stencilFront": {
+                "fail": "keep",
+                "func": "equal",
+                "pass": "keep",
+                "zfail": "keep"
+            }
+        },
+        {
+            "alphaTest": "disabled",
+            "blendOpAlpha": "disabled",
+            "blendOpRgb": "disabled",
+            "colorWriteAlpha": false,
+            "colorWriteRgb": false,
+            "cullFace": "back",
+            "depthTest": "less_equal",
+            "depthWrite": true,
+            "dstBlendAlpha": "zero",
+            "dstBlendRgb": "zero",
+            "polygonOffset": "offsetShadowmap",
+            "polymodeLine": false,
+            "srcBlendAlpha": "one",
+            "srcBlendRgb": "one"
+        },
+        {
+            "alphaTest": "disabled",
+            "blendOpAlpha": "disabled",
+            "blendOpRgb": "disabled",
+            "colorWriteAlpha": true,
+            "colorWriteRgb": true,
+            "cullFace": "back",
+            "depthTest": "less_equal",
+            "depthWrite": true,
+            "dstBlendAlpha": "zero",
+            "dstBlendRgb": "zero",
+            "polygonOffset": "offset0",
+            "polymodeLine": false,
+            "srcBlendAlpha": "one",
+            "srcBlendRgb": "one"
+        },
+        {
+            "alphaTest": "disabled",
+            "blendOpAlpha": "disabled",
+            "blendOpRgb": "disabled",
+            "colorWriteAlpha": false,
+            "colorWriteRgb": true,
+            "cullFace": "back",
+            "depthTest": "less_equal",
+            "depthWrite": false,
+            "dstBlendAlpha": "zero",
+            "dstBlendRgb": "zero",
+            "polygonOffset": "offset2",
+            "polymodeLine": true,
+            "srcBlendAlpha": "one",
+            "srcBlendRgb": "one"
+        },
+        {
+            "alphaTest": "disabled",
+            "blendOpAlpha": "disabled",
+            "blendOpRgb": "add",
+            "colorWriteAlpha": true,
+            "colorWriteRgb": true,
+            "cullFace": "back",
+            "depthTest": "less_equal",
+            "depthWrite": true,
+            "dstBlendAlpha": "zero",
+            "dstBlendRgb": "one",
+            "polygonOffset": "offset0",
+            "polymodeLine": false,
+            "srcBlendAlpha": "one",
+            "srcBlendRgb": "one"
+        }
+    ],
+    "stateBitsEntry": [
+        0,
+        1,
+        2,
+        -1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        3,
+        -1,
+        -1,
+        4
+    ],
+    "stateFlags": 121,
+    "surfaceFlags": 13631488,
+    "surfaceTypeBits": 4096,
+    "techniqueSet": "mc_sw4_3d_weapon_camo_3layer_w1w78372",
+    "textureAtlas": {
+        "columns": 1,
+        "rows": 1
+    },
+    "textures": [
+        {
+            "image": "camo_code_nml",
+            "isMatureContent": false,
+            "name": "Weapon_Normal_Map",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "color1Map"
+        },
+        {
+            "image": "mtl_t6_wpn_zmb_staff_crystal_nml",
+            "isMatureContent": false,
+            "name": "normalMap",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "normalMap"
+        },
+        {
+            "image": "~-gmtl_t6_wpn_zmb_staff_crystal_camo_e",
+            "isMatureContent": false,
+            "name": "Layer3Map_Off",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "colorMap"
+        },
+        {
+            "image": "~-gmtl_t6_wpn_zmb_staff_cryst~95c3e639",
+            "isMatureContent": false,
+            "name": "Layer1Map",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "colorMap"
+        },
+        {
+            "image": "~-gmtl_t6_wpn_zmb_staff_cryst~5094c494",
+            "isMatureContent": false,
+            "name": "Layer2Map",
+            "samplerState": {
+                "clampU": false,
+                "clampV": false,
+                "clampW": false,
+                "filter": "aniso4x",
+                "mipMap": "linear"
+            },
+            "semantic": "colorMap"
+        }
+    ]
+}

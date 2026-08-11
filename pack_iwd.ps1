@@ -30,7 +30,12 @@ try {
     # ui\ and ui_mp\ - stock keeps privateonlinegamelobby.lua under ui\ and
     # privategamelobby_project.lua under ui_mp\ - so a mod that overrides a ui\
     # file needs that folder packed too, or the override never reaches the game.
-    $folders  = @('attachmentunique','character','images','maps','scripts','ui','ui_mp','weapons')
+    # 'fx' carries the T5 wonder weapons' 27 raw .efx. OpenAssetTools cannot read
+    # or write FxEffectDef at ALL, so those effects can never enter mod.ff - but
+    # Plutonium loads them straight out of mod.iwd at runtime. Measured, not
+    # assumed: the donor mod ships 61 .efx in its OWN mod.iwd while its mod.ff
+    # owns exactly one of them, and it runs on public servers.
+    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui','ui_mp','weapons')
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 

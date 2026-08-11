@@ -81,7 +81,7 @@ REM  - client scripts are conventionally only loaded from the fastfile. Staging
 REM  them here means the copy in mod.ff is always the current source, so it does
 REM  not matter which of the two the engine ends up preferring.
 echo   Staging current .csc sources into zone_assets ...
-"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$proj='%PROJ%'; $n=0; Get-ChildItem -LiteralPath (Join-Path $proj 'scripts') -Recurse -Filter *.csc | ForEach-Object { $rel=$_.FullName.Substring($proj.Length+1); $dst=Join-Path (Join-Path $proj 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [stage] ' + $rel); $n++ }; Write-Host ('    ' + $n + ' client script(s) staged')"
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$proj='%PROJ%'; $n=0; @('scripts','clientscripts') | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $proj $_) -Recurse -Filter *.csc -ErrorAction SilentlyContinue } | ForEach-Object { $rel=$_.FullName.Substring($proj.Length+1); $dst=Join-Path (Join-Path $proj 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [stage] ' + $rel); $n++ }; Write-Host ('    ' + $n + ' client script(s) staged')"
 if errorlevel 1 ( echo   ERROR: could not stage .csc sources. & exit /b 1 )
 
 REM --- stage the sound bank source --------------------------------------------
@@ -266,6 +266,7 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\zm_highrise.ff" ^
   --load "%BO2_DIR%\zone\all\zm_transit.ff" ^
   --load "%BO2_DIR%\zone\all\so_zclassic_zm_transit.ff" ^
+  --load "%PROJ%\zone_source\ww_donor\mod.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^
