@@ -146,6 +146,45 @@ zmqol_diner_init_buildables()
     // (_zm_buildables.gsc:160-162) - so the count must be right BEFORE this line.
     level.buildable_piece_count = 27;
     maps\mp\zombies\_zm_buildables::add_zombie_buildable( "riotshield_zm", &"ZOMBIE_BUILD_RIOT", &"ZOMBIE_BUILDING_RIOT", &"ZOMBIE_BOUGHT_RIOT" );
+
+    // 🛑 v1.66.1 - THE CALL v1.66.0 WAS MISSING, and it is why the bench was
+    // uncovered but the parts were nowhere on the map.
+    //
+    // Registering a buildable does NOT put anything in the world. The chain is:
+    //     think_buildables()            (_zm_buildables.gsc:2309)
+    //       -> [[ buildable.triggerthink ]]()          per included buildable
+    //       -> buildable_trigger_think -> setup_unitrigger_buildable
+    //       -> the buildable zone, which is what calls generate_piece()
+    //          (:1274) and actually spawns the dolly and the door
+    // No stub, no zone, no pieces - exactly the symptom.
+    //
+    // 🌟 think_buildables() is threaded from zm_transit_classic.gsc:108 AND
+    // NOWHERE ELSE in the whole stock dump (Buried and Die Rise thread their
+    // own from their classic/grief scripts), so survival has never run it.
+    //
+    // Threaded from HERE rather than from the location main() - which is the
+    // slot stock uses - on purpose: this way it cannot run before the
+    // registration above, so it depends on no ordering between _zm::init() and
+    // rungametypemain(). It iterates level.zombie_include_buildables, which in
+    // Diner survival contains only the riot shield, because nothing else calls
+    // include_buildable() in this mode.
+    level thread maps\mp\zombies\_zm_buildables::think_buildables();
+
+    // Real println, not a /# #/ dev block: the two stock diagnostics in this
+    // path ("ZM >> Looking for buildable", "ERROR: Missing buildable piece")
+    // are both inside developer blocks and printed nothing on the v1.66.0 boot,
+    // which is why that boot could not say whether this function had run at all.
+    // spawns.size is read straight from the structs the map ships - 3 and 3.
+    n_dolly = 0;
+    n_door = 0;
+
+    if ( isdefined( dolly.spawns ) )
+        n_dolly = dolly.spawns.size;
+
+    if ( isdefined( door.spawns ) )
+        n_door = door.spawns.size;
+
+    println( "[zm_qol] diner shield: registered - dolly spawns " + n_dolly + ", door spawns " + n_door + " (expect 3 and 3), piece_count " + level.buildable_piece_count );
 }
 
 init()
