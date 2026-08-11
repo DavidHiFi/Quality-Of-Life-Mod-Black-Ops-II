@@ -2881,13 +2881,36 @@ setteddybears()
                 //      (-0.98,0.17), near-parallel to the boards with just
                 //      enough tilt to stay off square.
                 //
+                // 🛑 v1.67.9 - THE 155/170/190 EXPERIMENT WAS THE WRONG AXIS AND
+                // IS REVERTED. *"right now it's horizontally aligned but it needs
+                // to be like vertical so it's not sideways, line it up so it fits
+                // but keep it flat"*. A zombie-blood screenshot finally showed
+                // the model clearly: its length was running LEFT-RIGHT, along the
+                // shelf face, so it spanned the whole gap between the two cans
+                // and touched both. The gap is narrow in X and deep in Y, so the
+                // body has to run INTO the shelf, not across the front of it -
+                // a 90 degree turn.
+                //
+                // yaw 190 -> 100: (cos100,sin100) = (-0.17,0.98), almost straight
+                // +Y, into the shelf. 280 would align the same axis but point the
+                // body -Y, out over the shelf edge, since the origin sits at the
+                // feet end.
+                //
+                // 📝 This lands back beside yaw 115, which is where v1.67.3 had
+                // it - and re-reading the reports, THAT ORIENTATION WAS NEVER THE
+                // COMPLAINT. Image #19 was "still floating", height only. I read
+                // a height complaint as an angle complaint and spent v1.67.6
+                // through v1.67.8 rotating away from an orientation that was
+                // already right. The lesson: when a report names one axis, do not
+                // change a different one.
+                //
                 // 📝 Both are dvars, so this is dialable in game without waiting
                 // on a build: set zmqol_bear2_diner_x / _yaw and restart the
                 // match - setteddybears() reads them when the bears spawn.
                 thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4838 ),
                                        getdvarintdefault( "zmqol_bear2_diner_y", -7978 ),
                                        getdvarintdefault( "zmqol_bear2_diner_z", -27 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 190 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 100 ),
                                        getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ),
                                        getdvarintdefault( "zmqol_bear2_diner_roll", 0 ),
                                        getdvarintdefault( "zmqol_bear2_diner_snap", 0 ), "zmqol_bear2_diner" );
