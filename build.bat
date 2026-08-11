@@ -103,6 +103,29 @@ set "PROJ_DIR=%~dp0"
 "%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$raw=$env:RAW_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $raw)){ Write-Host '    [skip] no raw\ folder - nothing shadows the mod'; exit 0 }; $n=0; @('ui_mp','ui') | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $proj $_) -Recurse -Filter *.lua -ErrorAction SilentlyContinue } | ForEach-Object { $rel=$_.FullName.Substring($proj.Length); $dst=Join-Path $raw $rel; if(Test-Path -LiteralPath $dst){ Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [sync] ' + $rel); $n++ } }; if($n -eq 0){ Write-Host '    [ok] nothing in raw\ shadows this mod' }" 2>nul
 
 echo.
+echo [7/7] Reconciling Plutonium's loose scripts\ folder...
+REM  🛑 THIS ONE COST SIX BOOTS AND FOUR CRASHES, 2026-08-11.
+REM
+REM  %%LOCALAPPDATA%%\Plutonium\storage\t6\scripts\ is loaded GLOBALLY and takes
+REM  precedence over the .gsc packed in mod.iwd - exactly like raw\ does for
+REM  .lua in step [6/6]. Something (the BO2 Mod Manager's Deploy button is the
+REM  likely candidate) had left 46 loose copies of this mod's scripts there.
+REM  They were HOURS stale, so every script fix deployed into mod.iwd was
+REM  silently ignored: a bisect dvar that "did nothing", a set of deleted files
+REM  that kept throwing their compile error, and a crash point that never moved
+REM  no matter what was changed.
+REM
+REM  Two rules, and the difference matters:
+REM    - a loose script that ALSO exists in this project is REFRESHED, so it can
+REM      never be older than what was just packed
+REM    - a loose script under scripts\zm\ that this project no longer has is
+REM      DELETED, because it can only be a leftover from an earlier deploy of
+REM      this same mod, and a deleted source file must not keep running
+REM  Anything outside scripts\zm\ is left alone - it is not ours to touch.
+set "LOOSE_DIR=%LOCALAPPDATA%\Plutonium\storage\t6\scripts"
+"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$loose=$env:LOOSE_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $loose)){ Write-Host '    [skip] no loose scripts\ folder'; exit 0 }; $s=0; $d=0; Get-ChildItem -LiteralPath $loose -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.gsc','.csc' } | ForEach-Object { $rel=$_.FullName.Substring($loose.Length+1); $src=Join-Path (Join-Path $proj 'scripts') $rel; if(Test-Path -LiteralPath $src){ Copy-Item -LiteralPath $src -Destination $_.FullName -Force; $s++ } elseif($rel -like 'zm\*'){ Remove-Item -LiteralPath $_.FullName -Force; Write-Host ('    [stale] removed ' + $rel); $d++ } }; Write-Host ('    ' + $s + ' refreshed, ' + $d + ' stale removed')" 2>nul
+
+echo.
 echo Done.
 echo   Launch Plutonium T6 ^> Zombies ^> Mods ^> %MOD_NAME%
 echo.
