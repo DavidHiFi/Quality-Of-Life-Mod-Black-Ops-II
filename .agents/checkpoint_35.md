@@ -245,3 +245,68 @@ code running:
 
 Only after that should `zmqol_ww 1` be tried. **Do not flip the default to ON until the guns
 themselves are confirmed** — an always-on crash makes the mod unbootable and hides its own cause.
+
+---
+
+## 9. ✅ THE ACTUAL WONDER-WEAPON CAUSE — AN FX THAT REFERENCES A MISSING MATERIAL. v1.71.0.
+
+§8's CRLF fix was necessary but **not** the cause; the crash reproduced identically. Both §1 and §8
+were guesses at *why* a known file was fatal. This one is a controlled measurement.
+
+### 🌟 THE DISCRIMINATOR — two fx from the same package, opposite outcomes
+
+| fx | its materials | what happens, every boot |
+|---|---|---|
+| `fx_zombie_tesla_shock_ground` | **all 4 resolve** | `Loaded fx:` at line 741, game continues for 3,900 more lines |
+| `fx_zombie_tesla_neck_spurt` | **1 of 5 MISSING** (`gfx_fxt_bio_bloodgush`) | `Loaded fx:` then dead within two lines |
+
+**An fx whose material is absent from the loaded fastfile set is fatal at load.** A missing *fx* is
+harmless (50 `Could not load fx` lines in a clean boot); a missing *material inside a loaded fx* is
+`0x80000003`.
+
+🛑 **The proof was in the log the whole time, one line ABOVE where I kept looking**:
+`Could not load material "gfx_fxt_bio_bloodgush".` — and it appears in the WORKING boot too, because
+there it is stock asking, and nothing loads an fx that needs it.
+
+### What was actually wrong with the port
+
+1. **12 materials referenced by the original 27 fx do not resolve.** 6 exist in BO2 only under `mc/`
+   or `wc/` prefixes (`mc/gfx_impact_wood01`, `mc/gfx_bullethit_snow`, `mc/gfx_crater_snow_grenade`)
+   — and **no `.efx` anywhere in the workspace references a prefixed material**, so those forms are
+   not usable from fx. The rest exist only in campaign/MP fastfiles or nowhere in the game at all.
+2. **The port was missing 36 of the 63 fx** — including every gun's own view/world/muzzle effect
+   (`fx_thundergun_view`, `fx_tesla_view`, `fx_freezegun_view`, the trails, the impacts). The SRS
+   package simply does not contain them; `Wonder_Weapons-T6ZM` does.
+
+### The fix
+
+- pulled the 36 absent fx from `Wonder_Weapons-T6ZM` → **63 total**, CRLF, existing 27 kept
+- **22 distinct missing materials substituted** with the closest present variant, each one verified
+  against the combined asset list of every fastfile this map loads. Most are exact art matches
+  (`gfx_fxt_bio_bloodgush` → `..._ds64`, `..._snow_flake_cloud_01_top` → `..._01`,
+  `gfx_fxt_smk_whisp_spiral` → `gfx_fxt_smk_whisp`); a few are near-matches
+  (`gfx_impact_wood01-03`, `gfx_crater_*` → `gfx_fxt_debris_clump`).
+
+### Pre-flight audits, all clean — the ones §4 said were never run
+
+| audit | result |
+|---|---|
+| materials referenced by all 63 fx | **0 missing** |
+| `loadfx` targets in every ported script | **56/56 resolve** — 19 mod, 37 stock |
+| the 6 weapon defs | all shipped in `mod.iwd\weapons\zm\` |
+| their gun/world models | **6/6 resolve** |
+
+⚠️ One known gap, non-fatal: `viewmodel_base_viewhands` (the generic hand model) is absent. A missing
+xmodel renders nothing rather than crashing, and zombies overrides viewhands per character anyway.
+
+### 🛑 The gate now DEFAULTS ON
+
+`zmqol_ww` unset = all three guns on. `zmqol_ww 0` turns them off; `2`/`3`/`4` isolate thundergun /
+tesla / freeze. Verified in the deployed `mod.iwd`: 63 `.efx`, `neck_spurt` no longer references the
+fatal material, gate reads `str_ww != "" &&`.
+
+### 📝 The method that should have been used seven boots ago
+
+**Parse every asset name out of every raw file being shipped and diff it against the combined
+`Unlinker --list` of the fastfiles the map actually loads.** It is one script, it runs offline in
+minutes, and it would have found this before the first boot.

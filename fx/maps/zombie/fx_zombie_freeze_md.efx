@@ -290,7 +290,7 @@ iwfx 2
 	billboardPivot 0.000000 -0.000000;
 	billboardSprite
 	{
-		"gfx_fxt_smk_whisp_spiral"
+		"gfx_fxt_smk_tendril"
 	};
 }
 
@@ -578,7 +578,7 @@ iwfx 2
 	billboardPivot 0.000000 -0.000000;
 	billboardSprite
 	{
-		"gfx_fxt_smk_whisp_spiral_add"
+		"gfx_fxt_smk_gen_add"
 	};
 }
 

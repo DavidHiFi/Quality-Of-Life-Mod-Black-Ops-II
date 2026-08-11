@@ -2684,7 +2684,7 @@ iwfx 2
 	trailRepeatDist 10;
 	billboardSprite
 	{
-		"gfx_fxt_env_water_splash2_add"
+		"gfx_fxt_env_water_splash2_ds64"
 	};
 }
 {

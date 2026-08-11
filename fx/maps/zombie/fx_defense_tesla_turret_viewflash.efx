@@ -1672,7 +1672,7 @@ iwfx 2
 	trailRepeatDist 0;
 	billboardSprite
 	{
-		"gfx_fxt_fx_distortion_splash"
+		"gfx_fxt_fx_distortion_heat"
 	};
 }
 {

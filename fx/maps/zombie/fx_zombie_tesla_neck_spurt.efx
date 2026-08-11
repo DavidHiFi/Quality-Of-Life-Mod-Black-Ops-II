@@ -206,7 +206,7 @@ iwfx 2
 	billboardPivot 0.000000 -0.000000;
 	line
 	{
-		"gfx_fxt_bio_bloodgush"
+		"gfx_fxt_bio_bloodgush_ds64"
 	};
 }
 
@@ -638,7 +638,7 @@ iwfx 2
 	billboardPivot 0.000000 -0.000000;
 	line
 	{
-		"gfx_fxt_bio_bloodgush"
+		"gfx_fxt_bio_bloodgush_ds64"
 	};
 }
 
@@ -1046,7 +1046,7 @@ iwfx 2
 	billboardPivot 0.000000 -0.000000;
 	line
 	{
-		"gfx_fxt_bio_bloodgush"
+		"gfx_fxt_bio_bloodgush_ds64"
 	};
 }
 

@@ -1879,8 +1879,8 @@ iwfx 2
 	trailRepeatDist 10;
 	decal
 	{
-		"gfx_bullethit_snow"
-		"gfx_crater_snow_grenade"
+		"gfx_fxt_debris_clump"
+		"gfx_fxt_debris_clump"
 	};
 }
 {
@@ -2452,9 +2452,9 @@ iwfx 2
 	trailRepeatDist 10;
 	decal
 	{
-		"gfx_impact_wood01"
-		"gfx_impact_wood02"
-		"gfx_impact_wood03"
+		"gfx_fxt_debris_clump"
+		"gfx_fxt_debris_clump"
+		"gfx_fxt_debris_clump"
 	};
 }
 {

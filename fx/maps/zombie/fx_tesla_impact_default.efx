@@ -2177,8 +2177,8 @@ iwfx 2
 	billboardPivot 0.000000 -0.000000;
 	decal
 	{
-		"gfx_bullethit_snow"
-		"gfx_bullethit_snow"
+		"gfx_fxt_debris_clump"
+		"gfx_fxt_debris_clump"
 	};
 }
 
