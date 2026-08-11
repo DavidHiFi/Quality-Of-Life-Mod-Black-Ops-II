@@ -30,12 +30,16 @@ try {
     # ui\ and ui_mp\ - stock keeps privateonlinegamelobby.lua under ui\ and
     # privategamelobby_project.lua under ui_mp\ - so a mod that overrides a ui\
     # file needs that folder packed too, or the override never reaches the game.
-    # 'fx' carries the T5 wonder weapons' 27 raw .efx. OpenAssetTools cannot read
-    # or write FxEffectDef at ALL, so those effects can never enter mod.ff - but
-    # Plutonium loads them straight out of mod.iwd at runtime. Measured, not
-    # assumed: the donor mod ships 61 .efx in its OWN mod.iwd while its mod.ff
-    # owns exactly one of them, and it runs on public servers.
-    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui','ui_mp','weapons')
+    # 'fx' is DELIBERATELY ABSENT - see disabled_fx\. Plutonium does load raw .efx
+    # out of mod.iwd (that part was measured and is still true), but the T5 wonder
+    # weapons' 27 files are iwfx VERSION 2 and three of them carry STOCK BO2 fx
+    # names. Core maps\mp\zombies\_zm.gsc:1193 loadfx's one of those
+    # - fx_zombie_tesla_neck_spurt - unconditionally, on every map, in every mode,
+    # so no script-side gate can reach it. Every crash boot logs
+    # "Loaded fx: ...tesla_neck_spurt" and dies two lines later; the boot that
+    # played logs "Could not load fx" for the same name. Re-add the folder ONLY
+    # with mod-private names and a format known to be T6's.
+    $folders  = @('attachmentunique','character','images','maps','scripts','ui','ui_mp','weapons')
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 
