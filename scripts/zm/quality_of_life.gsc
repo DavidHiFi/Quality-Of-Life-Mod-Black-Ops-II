@@ -2802,20 +2802,30 @@ setteddybears()
                 // works against world brushes and collision-bearing models, so
                 // for prop shelving the height still has to be dialled in.
                 //
-                // v1.67.5, the last correction: *"it's too far to the right, now
-                // totally colliding with this petrol canister, move it off to the
-                // left so it's where the second arrow is in the gap, the y coords
-                // are ok"*. Facing yaw 270 the player's right is -X, so LEFT is
-                // +X. -4850 -> -4840, which is essentially where v1.67.3 had it
-                // (-4842) - and image #19 showed that x sitting cleanly in the
-                // gap between the two cans, it was only the height that was
-                // wrong then. The extra 8 units of "right" in v1.67.4 is exactly
-                // what pushed it into the lying canister. y and z unchanged, as
-                // the user asked.
-                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4840 ),
+                // v1.67.6 - *"still too far off to the right, move it a bit to
+                // the left so it's not colliding with other objects."*
+                //
+                // 🛑 MOVING THE ORIGIN ALONE HAS NOT BEEN ENOUGH, and the reason
+                // is the POSE, not the position. Flat on its back the bear's
+                // 26-unit length lies HORIZONTALLY, pointing along its yaw. At
+                // yaw 115 that is (cos115,sin115) = (-0.42,0.91) - almost
+                // straight along +Y, which is INTO the shelf's ~20-unit depth.
+                // So most of the body was sprawling across the shelf rather than
+                // along it, and no amount of sliding x fixes an overhang in y.
+                //
+                // Yaw 115 -> 155 lays the length along the shelf instead:
+                // (cos155,sin155) = (-0.91,0.42), mostly -X with a slight tilt,
+                // which is still the "slightly on an angle" the user asked for
+                // rather than square to the boards. x also moves 14 further left
+                // (+X is left at yaw 270), -4840 -> -4826.
+                //
+                // 📝 Both are dvars, so this is dialable in game without waiting
+                // on a build: set zmqol_bear2_diner_x / _yaw and restart the
+                // match - setteddybears() reads them when the bears spawn.
+                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4826 ),
                                        getdvarintdefault( "zmqol_bear2_diner_y", -7978 ),
                                        getdvarintdefault( "zmqol_bear2_diner_z", -27 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 115 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 155 ),
                                        getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ),
                                        getdvarintdefault( "zmqol_bear2_diner_roll", 0 ),
                                        getdvarintdefault( "zmqol_bear2_diner_snap", 0 ) );
@@ -2830,7 +2840,7 @@ setteddybears()
                 // Printed so a bad placement is diagnosable from the log without
                 // another screenshot round: compare these against the .where the
                 // user reads standing next to each bear.
-                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4840 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
+                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4826 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
             }
         }
     }
