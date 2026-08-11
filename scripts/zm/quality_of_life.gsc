@@ -2786,32 +2786,39 @@ setteddybears()
                                        getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ),
                                        getdvarintdefault( "zmqol_bear1_diner_roll", 0 ) );
 
-                // v1.67.4 - BEAR 2 NOW MEASURES ITS OWN HEIGHT. *"still
-                // floating, just push it down so it's actually laying on the
-                // shelf, and position it so it fits inbetween anything in the
-                // way."* Three estimates in a row missed, so the last argument
-                // turns on the downward trace: z below is only a seed, and the
-                // shelf board's real height decides where it lands. It fails
-                // back to the seed if the shelf turns out to have no collision.
+                // 🌟 v1.67.4's TRACE ANSWERED THE HEIGHT QUESTION FOR GOOD, and
+                // the answer was "you cannot measure it". The log read:
+                //     [zm_qol] bear snap: NO usable surface under (-4850,-7978)
+                //                         - keeping z -27
+                // so that shelf is a DECORATIVE prop with no collision - a
+                // bullettrace passes straight through it. The fail-safe kept the
+                // estimated -27, and the user confirmed that height: *"it seems
+                // to be flat on the shelf"*. So z is settled at -27 by
+                // measurement of the outcome, and snap is turned back OFF here -
+                // it can only ever print that same line for this bear.
                 //
-                // The seed is also corrected downward independently, so the
-                // fallback is not a repeat of v1.67.3: the bear was floating in
-                // the middle of the gap between two shelf boards, and the player
-                // is looking DOWN at that shelf from feet z -62, which puts the
-                // board around waist height, S ~= -36, not the -24 I had. Flat
-                // on its back that is -36 + 8.69 = -27.3.
+                // 📝 Worth keeping: a shelf a player can see props resting on is
+                // not necessarily solid to a trace. Auto-snapping placement only
+                // works against world brushes and collision-bearing models, so
+                // for prop shelving the height still has to be dialled in.
                 //
-                // x moves 8 further along the player's right, to -4850: the
-                // v1.67.3 nudge cleared the standing jerry can but the arrow
-                // shows the free span sits between that can and the one lying to
-                // its right, not hard against the first.
-                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4850 ),
+                // v1.67.5, the last correction: *"it's too far to the right, now
+                // totally colliding with this petrol canister, move it off to the
+                // left so it's where the second arrow is in the gap, the y coords
+                // are ok"*. Facing yaw 270 the player's right is -X, so LEFT is
+                // +X. -4850 -> -4840, which is essentially where v1.67.3 had it
+                // (-4842) - and image #19 showed that x sitting cleanly in the
+                // gap between the two cans, it was only the height that was
+                // wrong then. The extra 8 units of "right" in v1.67.4 is exactly
+                // what pushed it into the lying canister. y and z unchanged, as
+                // the user asked.
+                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4840 ),
                                        getdvarintdefault( "zmqol_bear2_diner_y", -7978 ),
                                        getdvarintdefault( "zmqol_bear2_diner_z", -27 ),
                                        getdvarintdefault( "zmqol_bear2_diner_yaw", 115 ),
                                        getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ),
                                        getdvarintdefault( "zmqol_bear2_diner_roll", 0 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_snap", 1 ) );
+                                       getdvarintdefault( "zmqol_bear2_diner_snap", 0 ) );
 
                 thread spawnteddybear( getdvarintdefault( "zmqol_bear3_diner_x", -5583 ),
                                        getdvarintdefault( "zmqol_bear3_diner_y", -7973 ),
@@ -2823,7 +2830,7 @@ setteddybears()
                 // Printed so a bad placement is diagnosable from the log without
                 // another screenshot round: compare these against the .where the
                 // user reads standing next to each bear.
-                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4850 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
+                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -21 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4840 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -27 ) + " pitch " + getdvarintdefault( "zmqol_bear2_diner_pitch", -90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
             }
         }
     }
