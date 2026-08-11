@@ -132,14 +132,41 @@ freezegun_end_extremity_damage_fx( localclientnum, key )
     deletefx( localclientnum, self.freezegun_extremity_damage_fx_handles[localclientnum][key], false );
 }
 
+// 🛑 THE "IT STOPPED WORKING AFTER A WHILE" BUG. User, 2026-08-11: "it has none of
+// it's visual frozen fx it seemed like it was working and then at some point it
+// stopped working."
+//
+// This deleted the fx handles and left the ARRAY defined. Its partner
+// freezegun_play_all_extremity_damage_fx() guards with
+//     if ( IsDefined( self.freezegun_extremity_damage_fx_handles[localclientnum] ) )
+//         return;
+// so once an actor had been frozen once, that early-out was true forever and the
+// actor could never show the fx again.
+//
+// 🌟 AND T6 RECYCLES ZOMBIE ENTITIES. A dead zombie's entity goes back into the pool
+// and is reused for the next spawn, carrying this client-side field with it. So the
+// effect is not per-zombie, it is per-ENTITY-SLOT: the fx work until every actor in
+// the pool has been frozen once, then stop for the rest of the match. That is
+// exactly the "worked, then stopped" the user described, and it is why it looked
+// intermittent rather than broken.
+//
+// Clearing the slot is the whole fix - the guard then behaves as a
+// "currently playing?" test, which is what it was always meant to be.
 freezegun_end_all_extremity_damage_fx( localclientnum )
 {
+    if ( !IsDefined( self.freezegun_extremity_damage_fx_handles ) || !IsDefined( self.freezegun_extremity_damage_fx_handles[localclientnum] ) )
+    {
+        return;
+    }
+
     keys = getArrayKeys( self.freezegun_extremity_damage_fx_handles[localclientnum] );
 
     for ( i = 0; i < keys.size; i++ )
     {
         freezegun_end_extremity_damage_fx( localclientnum, keys[i] );
     }
+
+    self.freezegun_extremity_damage_fx_handles[localclientnum] = undefined;
 }
 
 freezegun_end_extremity_damage_fx_for_all_localclients( key )
@@ -209,9 +236,18 @@ freezegun_extremity_damage_fx(localClientNum, oldVal, newVal, bNewEnt, bInitialS
     }
 }
 
+// Same leak, same fix - freezegun_play_all_torso_damage_fx() guards on
+// IsDefined( self.freezegun_damage_torso_fx[localclientnum] ), so leaving the slot
+// defined permanently disabled the torso frost on that recycled entity.
 freezegun_end_all_torso_damage_fx( localclientnum )
 {
+    if ( !IsDefined( self.freezegun_damage_torso_fx ) || !IsDefined( self.freezegun_damage_torso_fx[localclientnum] ) )
+    {
+        return;
+    }
+
     deletefx( localclientnum, self.freezegun_damage_torso_fx[localclientnum], true );
+    self.freezegun_damage_torso_fx[localclientnum] = undefined;
 }
 
 freezegun_play_all_torso_damage_fx( localclientnum )
