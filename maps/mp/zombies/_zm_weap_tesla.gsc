@@ -30,7 +30,13 @@ init()
 
     precacheshellshock( "electrocution" );
     
-    set_zombie_var( "tesla_max_arcs",           5 );
+    // 🛑 10, NOT the port's 5. User: "in bo1 when you shoot a zombie with the
+    // wunderwaffe it can chain up to 10 zombies, same as waw zombies". The ported
+    // T5 source ships 5 and so does the reference implementation
+    // (Wonder_Weapons-T6ZM :33) - this is a deliberate deviation on the user's
+    // explicit instruction to match BO1/WaW, not a transcription error.
+    // Still dvar-backed below as scr_tesla_max_arcs, so 5 is one command away.
+    set_zombie_var( "tesla_max_arcs",           10 );
     set_zombie_var( "tesla_max_enemies_killed", 20 );
     set_zombie_var( "tesla_radius_start",       300 );
     set_zombie_var( "tesla_radius_decay",       20 );
@@ -295,9 +301,39 @@ tesla_do_damage( source_enemy, arc_num, player )
 {
     player endon( "disconnect" );
 
-    if ( arc_num > 1 )
+    // 🛑 THE DELAYED-KILL BUG. User, 2026-08-11: "in bo1 when you shoot a zombie
+    // with the wunderwaffe it can chain up to 10 zombies, same as waw zombies, and
+    // it's basically instantaneous, i just shot a few zombies in even just small
+    // hoards and sometimes it'll kill the zombie next to the one i shot and then
+    // it'll chain back to the first zombie i shot and it'll essentially be a
+    // delayed kill."
+    //
+    // The chain never actually revisits a target - tesla_get_enemies_in_area()
+    // skips anything with .zombie_tesla_hit set, and that check is intact. What the
+    // user is seeing is this WAIT. Targets are SELECTED instantly but their damage
+    // was applied on a per-arc stagger of randomfloatrange( 0.2, 0.6 ) * arc_num,
+    // so arc 2 landed 0.2-0.6s late and arc 3 up to 1.2s late. With the fx timed
+    // against the damage rather than the selection, the kills appear out of order
+    // and read as the arc bouncing backwards.
+    //
+    // 📝 This value is FAITHFUL to the port's source - the reference implementation
+    // at Wonder_Weapons-T6ZM carries the identical line (its :261) and the identical
+    // tesla_max_arcs of 5. So this is a deliberate DEVIATION from the T5 script,
+    // made on the user's explicit and repeated instruction that BO1/WaW parity is
+    // the target: "Make it on par with the real wunderwaffe... from bo1."
+    //
+    // Kept as a dvar so it is one console command to put back:
+    //   scr_tesla_arc_delay 0     instantaneous (default, BO1/WaW feel)
+    //   scr_tesla_arc_delay 1     restores the ported T5 stagger exactly
+    if ( arc_num > 1 && getdvarintdefault( "scr_tesla_arc_delay", 0 ) )
     {
         wait( randomfloatrange( 0.2, 0.6 ) * arc_num );
+    }
+    else if ( arc_num > 1 )
+    {
+        // One server frame so the arcs still resolve in order and the fx have a
+        // frame to spawn - not a gameplay delay.
+        wait 0.05;
     }
 
     if ( !IsDefined( self ) || !IsAlive( self ) )
@@ -609,7 +645,20 @@ tesla_sound_thread()
                 self thread cleanup_loop_sound(self.tesla_loop_sound);
             }
 
-            self.tesla_loop_sound PlayLoopSound( "wpn_tesla_idle", 0.25 );
+            // 🛑 THE CONSTANT HUM. User, twice: "there's this constant sound
+            // eminating from it even when i'm not shooting, that's not regular
+            // wunderwaffe behaviour."
+            //
+            // wpn_tesla_idle is a LOOP that runs for as long as the DG-2 is the
+            // active weapon - it starts on weapon_change and only stops when you
+            // switch away. The ported T5 script does this and so does the reference
+            // implementation; it is faithful, but the user has called it wrong
+            // twice, so it is OFF by default here and restorable with one command:
+            //   scr_tesla_idle_loop 0    silent while held (default)
+            //   scr_tesla_idle_loop 1    restores the ported idle hum
+            if ( getdvarintdefault( "scr_tesla_idle_loop", 0 ) )
+                self.tesla_loop_sound PlayLoopSound( "wpn_tesla_idle", 0.25 );
+
             self thread tesla_engine_sweets();
             continue;
         }
