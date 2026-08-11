@@ -510,3 +510,23 @@ xanim,zombie_dog_tesla_death_b
 xanim,zombie_dog_tesla_death_c
 xanim,zombie_dog_tesla_death_d
 xanim,zombie_dog_tesla_death_e
+
+// ============================================================================
+//  🛑 zm_qol ADDITION - THE SHELLSHOCK THE PACKAGE FORGOT TO EXPORT.
+//
+//  _zm_weap_tesla.gsc:31 calls precacheshellshock( "electrocution" ), and the
+//  package ships no shock\ folder at all. Precaching a shellshock that is not
+//  in any loaded fastfile is a HARD CRASH, not a soft "could not load" - which
+//  is exactly what killed Diner survival on v1.69.0 and v1.69.1.
+//
+//  The log pinpointed it: the last thing to succeed was
+//      Loaded fx: maps/zombie/fx_zombie_tesla_neck_spurt
+//  which is the final loadfx() in that same init, five lines above the
+//  precacheshellshock. Then 0x80000003 with no script error.
+//
+//  Black Ops 2 does not have this shellshock - BO2-Reimagined's shock\ folder
+//  carries only grief_stun_zm and zombie_stun_zm. The donor fastfile does:
+//      rawfile, shock/electrocution.shock
+//  so it resolves from there, like the techsets and xmodels.
+// ============================================================================
+rawfile,shock/electrocution.shock
