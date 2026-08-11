@@ -711,6 +711,30 @@ end
 --  same one-function override).
 -- ============================================================================
 CoD.PrivateGameLobby.ButtonStartGame = function (PrivateGameLobbyButtonPane, ClientInstance)
+	-- zm_qol: SOLO INTRO CUTSCENES (Die Rise / Mob / Buried / Origins).
+	--
+	-- ui_mp/t6/hud/loading.lua:229 decides whether to play <map>_load.webm:
+	--     not theater  AND  Dvar.party_maxplayers:get() == 1
+	--     AND map is zm_highrise / zm_prison / zm_buried / zm_tomb
+	--     AND gametype == zclassic
+	-- Three of those four already held in solo. The one that failed was
+	-- party_maxplayers, measured at "4" in the dvar dump of every solo boot
+	-- (console_zm.log.000/.001: zm_prison, zclassic, party_solo "1",
+	-- party_maxplayers "4", ui_zm_useloadingmovie "0" - the else branch).
+	--
+	-- Setting it once when the lobby opens is NOT enough: every
+	-- Engine.SetGametype() puts it back to the gametype cap, and the in-lobby
+	-- game-mode picker calls that too (selectmaplistzombie.lua:180). This is
+	-- the last point before the match launches, so nothing can undo it.
+	--
+	-- Gated on party_solo so Custom Games keeps its own player cap. GSC never
+	-- reads this dvar (grepped the 2,093-file stock dump), so there is no
+	-- gameplay-side effect; the only other LUI reader is scoreboard.lua:277,
+	-- where == 1 leaves CoD.Zombie.SoloQuestMode true, which is correct in solo.
+	if UIExpression.DvarBool(nil, "party_solo") == 1 then
+		Dvar.party_maxplayers:set(1)
+	end
+
 	Engine.Exec(ClientInstance.controller, "xpartygo")
 end
 
@@ -833,6 +857,14 @@ if zmQolMapListOk then
 				Engine.SetDvar("party_solo", 1)
 				Dvar.party_maxplayers:set(1)
 				CoD.MainLobby.InitMapDvars(ClientInstance.controller)
+				-- zm_qol: re-assert AFTER InitMapDvars. That call ends in
+				-- Engine.SetGametype(), which puts party_maxplayers back to the
+				-- gametype's cap (4 for zclassic) - so the line above is undone
+				-- one line later. Measured: console_zm.log.000/.001 are solo
+				-- zm_prison zclassic runs with party_solo "1" and
+				-- party_maxplayers "4". See ButtonStartGame for why this alone
+				-- is not enough. Additive only; the ported lines are untouched.
+				Dvar.party_maxplayers:set(1)
 				MainLobbyWidget:openMenu("PrivateOnlineGameLobby", ClientInstance.controller)
 				CoD.GameGlobeZombie.MoveToUpDirectly()
 				MainLobbyWidget:close()

@@ -369,7 +369,7 @@ sound it makes.
   `check_solo_status` on Mob and Origins. Stock tested `getnumexpectedplayers() == 1`; the engine
   reports **0** on Mods-menu launches, so `level.is_forever_solo_game` was never set and Mob's plane
   parts would not all be carried. Now `<= 1`.
-- **Solo lobby header** 🚧 *(v1.65.6, deployed — never booted)* — the Solo Play and Custom Games
+- **Solo lobby header** ✅ *(v1.65.6, confirmed in game 2026-08-11)* — the Solo Play and Custom Games
   lobbies are the SAME menu (`PrivateOnlineGameLobby`), and stock titles it `MPUI_CUSTOM_GAMES_CAPS`
   unconditionally, so Solo Play read "CUSTOM GAMES". The mod now ships that menu file with one
   branch added: `ZMUI_SOLO_PLAY_CAPS` when `CoD.isZombie` and `party_solo == 1`.
@@ -387,8 +387,25 @@ sound it makes.
     the SOLO PLAY button.
   - 🛑 `pack_iwd.ps1` did not pack `ui/` and `build.bat`'s raw-shadow sync only walked `ui_mp/`;
     both were extended, or the file would never have reached the game.
-- ❌ **Solo still has no intro cutscene** — that half also lives in the menu LUI, before the map
-  loads; no GSC hook reaches it.
+- **Solo intro cutscenes** 🚧 *(v1.65.7, deployed — never booted)* — `ui_mp/t6/hud/loading.lua:229`
+  plays `video/<map>_load.webm` only when **not theater** AND `party_maxplayers == 1` AND the map is
+  `zm_highrise` / `zm_prison` / `zm_buried` / `zm_tomb` AND gametype is `zclassic`. Three of the four
+  already held in solo; **`party_maxplayers` was the one that failed**, measured at `"4"` in the dvar
+  dump of every solo boot (`console_zm.log.000/.001`: `zm_prison`, `zclassic`, `party_solo "1"`,
+  `party_maxplayers "4"`, `ui_zm_useloadingmovie "0"`).
+  - Cause: `OpenSoloLobby_Zombie` sets it to 1 and then calls `InitMapDvars`, which ends in
+    `Engine.SetGametype()` — that puts it back to the gametype cap. The in-lobby game-mode picker
+    calls `SetGametype` too (`selectmaplistzombie.lua:180`), so a lobby-time set alone is not enough.
+  - Fix: re-assert after `InitMapDvars`, **and** in `ButtonStartGame` immediately before `xpartygo` —
+    the last point before launch. Gated on `party_solo`, so Custom Games keeps its own cap.
+  - No gameplay side-effect: `party_maxplayers` appears **nowhere** in the 2,093-file stock GSC dump.
+    The only other LUI reader is `scoreboard.lua:277`, where `== 1` leaves `CoD.Zombie.SoloQuestMode`
+    true — correct for solo.
+  - 📝 **Only four maps have an intro** — `video/` holds `zm_highrise_load.webm`,
+    `zm_prison_load.webm`, `zm_buried_load.webm`, `zm_tomb_load.webm` and nothing else. TranZit and
+    Nuketown never shipped one, which is why stock's gate lists exactly those four.
+  - `material webm_720p` (the render target) ships in `code_post_gfx.ff` and `patch_zm.ff`, so it is
+    loaded on every map.
 
 ---
 
