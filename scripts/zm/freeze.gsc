@@ -17,7 +17,9 @@ init()
     // getdvar is a true engine builtin and needs no include. Unset returns "",
     // which fails both tests below, so the default stays OFF.
     str_ww = getdvar( "zmqol_ww" );
-    if ( str_ww != "1" && str_ww != "4" )
+    if ( str_ww == "0" )
+        return;
+    if ( str_ww != "" && str_ww != "1" && str_ww != "4" )
         return;
 
     // Pulled from Buried/Origins: the freeze-over FX assets are not yet compiled into

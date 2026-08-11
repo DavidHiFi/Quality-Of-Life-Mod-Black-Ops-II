@@ -69,18 +69,42 @@ rawfile,rumble/tank_damage_heavy_h.rmb
 rawfile,rumble/tank_damage_heavy_l.rmb
 script,scripts/zm/thundergun.csc
 script,scripts/zm/thundergun.gsc
-rawfile,animtrees/zm_tomb_basic.atr
-rawfile,animtrees/zm_nuked_basic.atr
-rawfile,animtrees/zm_buried_basic.atr
-rawfile,animtrees/zm_prison_basic.atr
-rawfile,animtrees/zm_transit_basic.atr
-rawfile,animtrees/zm_highrise_basic.atr
-rawfile,animstatedefs/zm_tomb_basic.asd
-rawfile,animstatedefs/zm_nuked_basic.asd
-rawfile,animstatedefs/zm_buried_basic.asd
-rawfile,animstatedefs/zm_prison_basic.asd
-rawfile,animstatedefs/zm_transit_basic.asd
-rawfile,animstatedefs/zm_highrise_basic.asd
+// ============================================================================
+//  🛑 THE 6 ANIMTREES AND 6 ANIMSTATEDEFS ARE NOT SHIPPED. THIS IS THE CRASH.
+//
+//  MEASURED: the fourth crash happened with zmqol_ww unset, i.e. ALL THREE GUNS
+//  GATED OFF - only 2 raw fx loaded instead of 17, so no registration script ran
+//  - and it still died at the identical point. That exonerates every line of the
+//  ported script layer and leaves only assets that load unconditionally at map
+//  init. These twelve are exactly that.
+//
+//  Black Ops 2 ships NO animtrees/*.atr or animstatedefs/*.asd as rawfile assets
+//  at all - checked zm_transit, zm_transit_patch, common_zm and patch_zm, none
+//  carries zm_transit_basic. So these were not overriding a stock rawfile; they
+//  were introducing an asset class the map does not otherwise have, and mod.ff
+//  loads before the map.
+//
+//  This project has already been here: zone_source/mod_locations.zone records
+//  that shipping an animtree without its runtime scriptmodelsuseanimtree() call
+//  made "every map die on load". Same class of failure, same symptom.
+//
+//  COST, stated plainly: zombies play no wonder-weapon reaction animation - no
+//  thundergun fall/getup, no freeze shatter pose. They take full damage and die
+//  normally, which is the same degradation the package README already accepts
+//  for every special enemy. The guns themselves are unaffected.
+// ============================================================================
+// rawfile,animtrees/zm_tomb_basic.atr
+// rawfile,animtrees/zm_nuked_basic.atr
+// rawfile,animtrees/zm_buried_basic.atr
+// rawfile,animtrees/zm_prison_basic.atr
+// rawfile,animtrees/zm_transit_basic.atr
+// rawfile,animtrees/zm_highrise_basic.atr
+// rawfile,animstatedefs/zm_tomb_basic.asd
+// rawfile,animstatedefs/zm_nuked_basic.asd
+// rawfile,animstatedefs/zm_buried_basic.asd
+// rawfile,animstatedefs/zm_prison_basic.asd
+// rawfile,animstatedefs/zm_transit_basic.asd
+// rawfile,animstatedefs/zm_highrise_basic.asd
 script,scripts/zm/zm_tomb/anims_thundergun.gsc
 script,scripts/zm/zm_nuked/anims_thundergun.gsc
 script,scripts/zm/zm_buried/anims_thundergun.gsc
