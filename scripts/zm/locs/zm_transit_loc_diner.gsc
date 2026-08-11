@@ -616,7 +616,19 @@ zmqol_semtex_wallbuy_origin()
 	//
 	// So -5176 (v1.68.0/68.1) was already within a unit of flush. The position was
 	// never really the problem - see the yaw note in zmqol_add_semtex_wallbuy().
-	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5175 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
+	//
+	// 🌟 -5175 -> -5177 (v1.69.12), TWO UNITS PAST THE WALL FACE, AND THAT IS
+	// DELIBERATE. The user's report on the flush build was "ever so slightly off the
+	// wall". semtex_bag has NO FLAT BACK - it is a rounded pouch. Vertex histogram of
+	// its 1065 verts along CoD Y: only 2.3% sit behind Y=0 and 10% behind Y=0.5, so
+	// mounting the origin exactly on the wall face leaves the taper standing proud
+	// and a sliver of daylight behind it. Sinking the origin 2 units puts the 41% of
+	// the model at Y<2.0 at or inside the surface, which closes the gap, while 3.9 of
+	// its 6.1 units of depth still stand off the wall.
+	// 📝 The buried part is inside solid brush, so over-sinking is invisible while
+	// under-sinking is the reported defect. If it now reads as SUNKEN, come back to
+	// -5176; if a gap remains, -5178.
+	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5177 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
 }
 
 zmqol_add_semtex_wallbuy()
