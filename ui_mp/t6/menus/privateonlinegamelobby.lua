@@ -61,5 +61,91 @@ LUI.createMenu.PrivateOnlineGameLobby = function (controller)
 	menu:addTitle(title)
 	menu.panelManager.panels.buttonPane.titleText = title
 
+	-- zm_qol: see the SOLO INTRO CUTSCENES block below. The lobby's own
+	-- New() has just put the party size back to the gametype cap, so this is
+	-- the first moment it can be corrected.
+	zmQolForceSoloPartySize("lobby")
+
 	return menu
+end
+
+
+-- ============================================================================
+--  zm_qol: SOLO INTRO CUTSCENES  (Die Rise / Mob / Buried / Origins)
+--
+--  ui_mp/t6/hud/loading.lua:229 plays video/<map>_load.webm only when:
+--      not theater
+--      AND Dvar.party_maxplayers:get() == 1
+--      AND map is zm_highrise / zm_prison / zm_buried / zm_tomb
+--      AND gametype == zclassic
+--  Three of those already hold in solo. party_maxplayers is the one that does
+--  not: it reads "4" in the dvar dump of every solo boot.
+--
+--  🛑 WHY v1.65.7 DID NOT WORK. It set the dvar from
+--  CoD.PrivateGameLobby.ButtonStartGame, and that function is called by
+--  NOTHING - the string does not occur in any stock LUI file, nor anywhere in
+--  Plutonium's raw\ tree. The real handler is Button_StartMatch, wired by
+--  stock privategamelobby.lua as
+--      startMatchButton:registerEventHandler("button_action",
+--                                            CoD.PrivateGameLobby.Button_StartMatch)
+--  (read out of the shipped bytecode's constant table, in order).
+--
+--  🛑 AND THE DVAR IS NOT THE AUTHORITY. The same constant table shows stock
+--  calling, in sequence:
+--      Engine.SetGametype( ... )
+--      Engine.PartySetMaxPlayerCount( CoD.Zombie.GameTypeGroups[gt].maxPlayers )
+--  so the party system writes party_maxplayers back to 4 for zclassic. Setting
+--  the dvar alone is fighting a mirror; PartySetMaxPlayerCount is the setter.
+--  It is a genuine stock binding - stock calls it from privategamelobby.lua,
+--  switchlobbies.lua, publicgamelobby.lua and selectstartloczombie.lua.
+--
+--  WHERE THIS HAS TO LIVE. Not privategamelobby_project.lua: that file is
+--  require()d BY privategamelobby.lua, so it runs first and privategamelobby.lua
+--  would overwrite any Button_StartMatch defined there. This file requires
+--  privategamelobby.lua, so it runs AFTER - the wrap below is the only ordering
+--  that survives. The button captures the handler when the menu is built, which
+--  is later still, so it captures the wrapper.
+--
+--  Called from two places, because either one alone can be undone: once when
+--  the lobby is created, and once from Button_StartMatch, the last point before
+--  the match launches. Gated on party_solo so Custom Games keeps its own cap.
+--
+--  No gameplay side-effect: party_maxplayers appears NOWHERE in the 2,093-file
+--  stock GSC dump. The only other LUI reader is scoreboard.lua:277, where == 1
+--  leaves CoD.Zombie.SoloQuestMode true - correct for solo.
+-- ============================================================================
+function zmQolForceSoloPartySize(tag)
+	if UIExpression.DvarBool(nil, "party_solo") ~= 1 then
+		return
+	end
+
+	local before = Dvar.party_maxplayers:get()
+
+	if Engine.PartySetMaxPlayerCount ~= nil then
+		Engine.PartySetMaxPlayerCount(1)
+	end
+
+	Dvar.party_maxplayers:set(1)
+
+	-- Probe, so a bad boot still answers the question instead of costing a
+	-- blind round. quality_of_life.gsc prints this to the console at map init.
+	-- pcall because creating a fresh dvar from LUI is not something this
+	-- project has done before, and a raw error here would hard-crash the menu.
+	pcall(Engine.SetDvar, "zmqol_loadmovie_probe",
+		tag .. " solo=1"
+		.. " before=" .. tostring(before)
+		.. " after=" .. tostring(Dvar.party_maxplayers:get())
+		.. " map=" .. tostring(Dvar.ui_mapname:get())
+		.. " gt=" .. tostring(Dvar.ui_gametype:get()))
+end
+
+local zmQolStockStartMatch = CoD.PrivateGameLobby.Button_StartMatch
+
+if zmQolStockStartMatch ~= nil then
+	-- varargs: the handler's exact signature is not documented anywhere this
+	-- project can read, and forwarding blind cannot get it wrong.
+	CoD.PrivateGameLobby.Button_StartMatch = function (...)
+		zmQolForceSoloPartySize("start")
+		return zmQolStockStartMatch(...)
+	end
 end

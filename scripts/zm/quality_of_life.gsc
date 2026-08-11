@@ -233,8 +233,35 @@ zmqol_restore_perk_bottles_on_survival()
     [[ level.custom_vending_precaching ]]();
 }
 
+// ============================================================================
+//  zm_qol: SOLO INTRO CUTSCENE PROBE
+//
+//  The menu LUI (ui/t6/menus/privateonlinegamelobby.lua, zmQolForceSoloPartySize)
+//  stashes what it saw into "zmqol_loadmovie_probe" just before the match
+//  launches. The loading-movie decision itself happens in LUI, before any map
+//  loads, so no GSC hook can observe it directly - but the dvar survives into
+//  the game, and this prints it to console_zm.log.
+//
+//  Why a probe at all: the recent boot logs' dvar dumps are TRUNCATED (337
+//  lines, alphabetically short of party_*), so party_maxplayers cannot be read
+//  back from them. Without this, a failed boot tells us nothing.
+//
+//  Reads "before=" (what the party system had) and "after=" (what we set).
+//  Diagnostic only - delete once the cutscene is confirmed working.
+// ============================================================================
+zmqol_loadmovie_probe()
+{
+    probe = getdvar( "zmqol_loadmovie_probe" );
+
+    if ( isdefined( probe ) && probe != "" )
+        println( "[zm_qol] loadmovie probe: " + probe );
+    else
+        println( "[zm_qol] loadmovie probe: <unset> - the menu hook did not run" );
+}
+
 init()
 {
+    zmqol_loadmovie_probe();
     zmqol_restore_perk_bottles_on_survival();
     zmqol_register_divetonuke_visionset();
     zmqol_register_vulture_visionset();

@@ -710,31 +710,16 @@ end
 --  Technique confirmed against a real working mod (BO2-Reimagined ships the
 --  same one-function override).
 -- ============================================================================
+-- 🛑 zm_qol 2026-08-11: THIS FUNCTION IS NEVER CALLED. "ButtonStartGame" does
+-- not appear in ANY stock LUI file (grepped every file in BO2-Raw-files\ui and
+-- \ui_mp) nor anywhere in Plutonium's raw\ tree. Stock wires the button as
+--     startMatchButton:registerEventHandler("button_action",
+--                                           CoD.PrivateGameLobby.Button_StartMatch)
+-- read out of privategamelobby.lua's constant table. So the instant-start
+-- override above has never actually run, and whatever start behaviour is seen
+-- in game is stock's. Left in place rather than removed: it is pre-existing and
+-- inert, and removing it is a separate change from the one in flight.
 CoD.PrivateGameLobby.ButtonStartGame = function (PrivateGameLobbyButtonPane, ClientInstance)
-	-- zm_qol: SOLO INTRO CUTSCENES (Die Rise / Mob / Buried / Origins).
-	--
-	-- ui_mp/t6/hud/loading.lua:229 decides whether to play <map>_load.webm:
-	--     not theater  AND  Dvar.party_maxplayers:get() == 1
-	--     AND map is zm_highrise / zm_prison / zm_buried / zm_tomb
-	--     AND gametype == zclassic
-	-- Three of those four already held in solo. The one that failed was
-	-- party_maxplayers, measured at "4" in the dvar dump of every solo boot
-	-- (console_zm.log.000/.001: zm_prison, zclassic, party_solo "1",
-	-- party_maxplayers "4", ui_zm_useloadingmovie "0" - the else branch).
-	--
-	-- Setting it once when the lobby opens is NOT enough: every
-	-- Engine.SetGametype() puts it back to the gametype cap, and the in-lobby
-	-- game-mode picker calls that too (selectmaplistzombie.lua:180). This is
-	-- the last point before the match launches, so nothing can undo it.
-	--
-	-- Gated on party_solo so Custom Games keeps its own player cap. GSC never
-	-- reads this dvar (grepped the 2,093-file stock dump), so there is no
-	-- gameplay-side effect; the only other LUI reader is scoreboard.lua:277,
-	-- where == 1 leaves CoD.Zombie.SoloQuestMode true, which is correct in solo.
-	if UIExpression.DvarBool(nil, "party_solo") == 1 then
-		Dvar.party_maxplayers:set(1)
-	end
-
 	Engine.Exec(ClientInstance.controller, "xpartygo")
 end
 
@@ -862,8 +847,10 @@ if zmQolMapListOk then
 				-- gametype's cap (4 for zclassic) - so the line above is undone
 				-- one line later. Measured: console_zm.log.000/.001 are solo
 				-- zm_prison zclassic runs with party_solo "1" and
-				-- party_maxplayers "4". See ButtonStartGame for why this alone
-				-- is not enough. Additive only; the ported lines are untouched.
+				-- party_maxplayers "4". Additive only; the ported lines are
+				-- untouched. NOT sufficient on its own - the lobby's own New()
+				-- resets it again a moment later, which is why the real work is
+				-- in privateonlinegamelobby.lua (zmQolForceSoloPartySize).
 				Dvar.party_maxplayers:set(1)
 				MainLobbyWidget:openMenu("PrivateOnlineGameLobby", ClientInstance.controller)
 				CoD.GameGlobeZombie.MoveToUpDirectly()
