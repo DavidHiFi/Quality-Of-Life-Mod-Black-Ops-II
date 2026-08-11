@@ -12,8 +12,13 @@ init()
     //  the cause is now narrowed by elimination, not by more guessing.
     //  MUST stay identical to the twin file.
     // ============================================================
-    n_ww = getdvarintdefault( "zmqol_ww", 0 );
-    if ( n_ww != 1 && n_ww != 3 )
+    // getdvar, NOT getdvarintdefault: that one lives in mapsmp_utility, which
+    // these scripts do not include, and using it here threw
+    //     Unresolved external: "getdvarintdefault" with 2 parameters
+    // getdvar is a true engine builtin and needs no include. Unset returns "",
+    // which fails both tests below, so the default stays OFF.
+    str_ww = getdvar( "zmqol_ww" );
+    if ( str_ww != "1" && str_ww != "3" )
         return;
 
     // Buried and Origins stay off permanently -- those two are at the engine's bit/clientfield

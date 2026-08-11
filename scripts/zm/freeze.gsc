@@ -11,8 +11,13 @@ init()
     //  the cause is now narrowed by elimination, not by more guessing.
     //  MUST stay identical to the twin file.
     // ============================================================
-    n_ww = getdvarintdefault( "zmqol_ww", 0 );
-    if ( n_ww != 1 && n_ww != 4 )
+    // getdvar, NOT getdvarintdefault: that one lives in mapsmp_utility, which
+    // these scripts do not include, and using it here threw
+    //     Unresolved external: "getdvarintdefault" with 2 parameters
+    // getdvar is a true engine builtin and needs no include. Unset returns "",
+    // which fails both tests below, so the default stays OFF.
+    str_ww = getdvar( "zmqol_ww" );
+    if ( str_ww != "1" && str_ww != "4" )
         return;
 
     // Pulled from Buried/Origins: the freeze-over FX assets are not yet compiled into
