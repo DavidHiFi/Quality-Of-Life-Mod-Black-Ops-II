@@ -2678,16 +2678,46 @@ setteddybears()
                 // which is "back" from where they stood. Confirmed that bearing
                 // is right: their .where (-5672,-7893) to the bear's spawn
                 // (-5593,-7964) is (79,-71), i.e. the same heading.
+                // v1.67.2, second pass. Both corrections are height/orientation
+                // only - neither bear moved horizontally.
+                //
+                // 🌟 THE ARITHMETIC, from zombie_teddybear_lod0.glb's real
+                // bounds (x -5.32..5.32, y -3.46..22.66 up, z -8.69..8.71):
+                // whatever axis ends up vertical decides how far the origin has
+                // to sit above the surface, because the origin is NOT centred.
+                //     upright      bottom is the 3.46 base   -> origin = S + 3.46
+                //     on its side  the 5.32 half-width       -> origin = S + 5.32
+                //     flat on back the 8.69 half-depth       -> origin = S + 8.69
+                // Both standing heights were confirmed correct in game on
+                // v1.67.0, so each surface S is known exactly and the laid-down
+                // origins fall straight out of it - no estimating.
+                //
+                // BEAR 1, workshop table - *"on the wrong angle, lay it down
+                // flat not on it's side like that floating. Make it asymetric
+                // and not looking all funky."* Flat on its back is PITCH, not
+                // roll: roll tips it sideways, which is what looked funky. So
+                // pitch -90, roll back to 0. Table surface S = -24 - 3.46 =
+                // -27.46, so flat-on-back origin = -27.46 + 8.69 = -18.8 -> -19.
+                // Yaw goes 84 -> 110 so it lies at a casual angle to the table
+                // edge rather than square to it - the "asymmetric" ask.
+                //
+                // BEAR 2, shelf - *"floating inside the box room, it needs to be
+                // sitting properly on the shelf"*. Orientation was right, height
+                // was not: v1.67.1 lifted it 4 when the roll only costs 1.86.
+                // Shelf surface S = -18 - 3.46 = -21.46, so on-its-side origin =
+                // -21.46 + 5.32 = -16.1. Set to -17 rather than -16: a bear
+                // sunk one unit into a shelf board is invisible, one floating a
+                // unit above it is not.
                 thread spawnteddybear( getdvarintdefault( "zmqol_bear1_diner_x", -3685 ),
                                        getdvarintdefault( "zmqol_bear1_diner_y", -7452 ),
-                                       getdvarintdefault( "zmqol_bear1_diner_z", -20 ),
-                                       getdvarintdefault( "zmqol_bear1_diner_yaw", 84 ),
-                                       getdvarintdefault( "zmqol_bear1_diner_pitch", 0 ),
-                                       getdvarintdefault( "zmqol_bear1_diner_roll", 90 ) );
+                                       getdvarintdefault( "zmqol_bear1_diner_z", -19 ),
+                                       getdvarintdefault( "zmqol_bear1_diner_yaw", 110 ),
+                                       getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ),
+                                       getdvarintdefault( "zmqol_bear1_diner_roll", 0 ) );
 
                 thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4830 ),
                                        getdvarintdefault( "zmqol_bear2_diner_y", -7978 ),
-                                       getdvarintdefault( "zmqol_bear2_diner_z", -14 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_z", -17 ),
                                        getdvarintdefault( "zmqol_bear2_diner_yaw", 90 ),
                                        getdvarintdefault( "zmqol_bear2_diner_pitch", 0 ),
                                        getdvarintdefault( "zmqol_bear2_diner_roll", 90 ) );
@@ -2702,7 +2732,7 @@ setteddybears()
                 // Printed so a bad placement is diagnosable from the log without
                 // another screenshot round: compare these against the .where the
                 // user reads standing next to each bear.
-                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -20 ) + " roll " + getdvarintdefault( "zmqol_bear1_diner_roll", 90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4830 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -14 ) + " roll " + getdvarintdefault( "zmqol_bear2_diner_roll", 90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
+                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -19 ) + " pitch " + getdvarintdefault( "zmqol_bear1_diner_pitch", -90 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4830 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -17 ) + " roll " + getdvarintdefault( "zmqol_bear2_diner_roll", 90 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5583 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7973 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
             }
         }
     }
