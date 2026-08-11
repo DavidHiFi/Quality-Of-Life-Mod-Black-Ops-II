@@ -602,12 +602,30 @@ zmqol_semtex_wallbuy_origin()
 	// Twin of zm_expanded.csc::zmqol_semtex_wallbuy_origin(). Same dvars, same
 	// defaults - if these ever disagree the two sides register different
 	// clientfield names and everyone is dropped at load.
-	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5176 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
+	//
+	// 🌟 x = -5172 IS THE WALL'S ROOM-SIDE FACE, MEASURED (v1.69.10). The doorway
+	// beside this spot is entity auto2279, model p_rus_door_white_plain_right, at
+	// (-5178,-7842.1,-64) yaw 270. That model's bounds are local X 0..60 (panel
+	// width, hinged at 0), local Z 0..102 (height), local Y -3.05..6.01 - a 9.06
+	// unit span, which is the frame, i.e. the wall thickness. At yaw 270 local +Y
+	// maps to world +X, so the wall occupies x -5181.05 .. -5171.99 and its room
+	// side is x = -5172. The -5176 that shipped in v1.68.0/68.1 was FOUR UNITS
+	// INSIDE that face, and semtex_bag only stands 5.87 units off its own back
+	// plane, so ~1.9 units showed - the "literally inside the wall" the user saw.
+	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5172 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
 }
 
 zmqol_add_semtex_wallbuy()
 {
 	v_origin = zmqol_semtex_wallbuy_origin();
+	// 🌟 YAW 90 IS CORRECT, and now it is measured rather than argued. semtex_bag's
+	// bounds are local X -6.04..6.04 (width), local Z -8.61..11.32 (height), local
+	// Y -5.87..0.22 - the ONE-SIDED axis, so its flat mounting face is local +Y ~ 0
+	// and the body hangs toward local -Y. Mounted on a wall whose normal is world
+	// +X, local -Y has to point +X, which is yaw 90. (Axis mapping confirmed off
+	// two known models: zombie_vending_jugg is 99.7 long on glTF Y - that is CoD Z,
+	// up - and t6_wpn_smg_mp5_world is 31.9 long on glTF X - that is CoD X, the
+	// barrel. So glTF X,Y,Z = CoD X, Z, Y.)
 	v_angles = ( 0, getdvarintdefault( "zmqol_semtex_diner_yaw", 90 ), 0 );
 
 	s_model = spawnstruct();

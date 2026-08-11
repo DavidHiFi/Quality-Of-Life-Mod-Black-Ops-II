@@ -9,9 +9,9 @@ Keep 34 §1 (Plutonium's loose `scripts\` folder), §2, §4, §5. Keep 33 §1 an
 
 | item | state |
 |---|---|
-| **Wonder-weapon crash** | ✅ **root-caused** — the raw `.efx`. Fix shipped v1.69.9, 🚧 not yet booted |
+| **Wonder-weapon crash** | ✅ **FIXED AND CONFIRMED IN GAME** on v1.69.9 — the user booted, no crash |
 | **Zombie Blood ignoreme hold** (v1.68.1) | 🚧 deployed, never booted |
-| **Semtex wall buy angle** (v1.68.1) | 🚧 deployed, never booted |
+| **Semtex wall buy position** (v1.69.10) | 🚧 deployed, not yet booted — 3rd attempt, but the 1st measured. See §5 |
 | **Frametimes** | 🛑 still open, `qol_perf_probe` still never run |
 
 ---
@@ -86,3 +86,54 @@ assets and the ownership rule was filed under fastfiles.
 🌟 **The rule is about NAMES, not about fastfiles.** Any asset a mod ships under a stock name is
 claimed globally, whatever the container. Grep the stock gsc-dump for every asset name a port
 introduces, before the first boot.
+
+---
+
+## 5. THE DINER SEMTEX — two wrong guesses, then a measurement
+
+| version | what shipped | what the user saw |
+|---|---|---|
+| v1.68.0 | x -5176, yaw **0** | *"wrong angle but seem to be in the right position"* |
+| v1.68.1 | x -5176, yaw **90** | *"literally inside the wall"* |
+| v1.69.10 | x **-5172**, yaw 90 | 🚧 not yet booted |
+
+**Both earlier attempts changed the yaw and never questioned the position.** v1.68.1's reasoning was
+explicitly *"measured from a wall-buy already on a diner wall"* — but what it measured was the MP5K's
+yaw, and then **assumed** which way that wall ran. The assumption was the error.
+
+### 🌟 The two measurements that settled it
+
+**1. The model's own bounds say the yaw.** `semtex_bag` local X -6.04..6.04 (width), local Z
+-8.61..11.32 (height), local Y **-5.87..0.22** — the one-sided axis. So its flat mounting face is
+local +Y ≈ 0 and the body hangs toward local -Y. For a wall whose normal is world +X, local -Y must
+point +X: **yaw 90**. It was already right.
+
+**2. The doorway model says the wall plane.** Entity `auto2279`,
+`p_rus_door_white_plain_right`, at `(-5178,-7842.1,-64)` yaw 270. Bounds: local X 0..60 (panel,
+hinged at 0), local Z 0..102 (height), local Y **-3.05..6.01** — a 9.06-unit span, the frame, i.e.
+the wall thickness. At yaw 270 local +Y → world +X, so the wall occupies **x -5181.05 .. -5171.99**
+and its room-side face is **x = -5172**.
+
+x -5176 was **4 units inside that face**, and the bag stands only 5.87 units off its own back plane,
+so ~1.9 units showed. That is exactly the sliver in the screenshot.
+
+### 📝 The axis convention, worth keeping — OAT's GLB export is `glTF X,Y,Z = CoD X, Z, Y`
+
+Confirmed off two models whose real shape is known: `zombie_vending_jugg` is 99.7 long on glTF Y (a
+perk machine is ~100 tall → glTF Y is CoD Z, up), and `t6_wpn_smg_mp5_world` is 31.9 long on glTF X
+(the barrel → glTF X is CoD X, forward). **Any placement question is now measurable**: dump the
+xmodel, read the accessor min/max, map through that.
+
+### 📝 Why this could not be tuned live
+
+`zmqol_semtex_diner_x` is read on both sides to build the wallbuy's clientfield NAME
+(`_zm_weapons.csc:218`). Changing it mid-game desynchronises the two sides. It is a restart-only
+dvar, which is exactly why measuring beat nudging here.
+
+### ⚠️ Residual risk
+
+The 9.06-unit local-Y span is read as frame-and-wall-thickness. If part of it is really a door knob
+protruding into the room, the true face is nearer -5178 and the bag will now float ~4-6 units proud.
+The observed symptom rules the face out at -5178 (at -5176 the bag would have stood 2 units proud and
+been plainly visible), so -5172 is the consistent reading — but a small float is the failure mode to
+look for, not a re-bury.

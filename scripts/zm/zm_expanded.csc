@@ -296,8 +296,11 @@ struct_class_init()
 // ============================================================================
 zmqol_semtex_wallbuy_origin()
 {
-	// Twin of zm_transit_loc_diner.gsc::zmqol_semtex_wallbuy_origin().
-	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5176 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
+	// Twin of zm_transit_loc_diner.gsc::zmqol_semtex_wallbuy_origin(). x = -5172 is
+	// the wall's room-side face, measured from the doorway model - see the server
+	// copy for the full derivation. These two MUST stay identical: the clientfield
+	// name is built from the origin.
+	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5172 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
 }
 
 zmqol_client_add_struct( s_struct )
