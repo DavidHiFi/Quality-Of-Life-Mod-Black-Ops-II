@@ -300,7 +300,7 @@ zmqol_semtex_wallbuy_origin()
 	// the wall's room-side face, measured from the doorway model - see the server
 	// copy for the full derivation and for why v1.69.10's -5172 was 3 units out.
 	// These two MUST stay identical: the clientfield name is built from the origin.
-	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5177 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
+	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5176 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
 }
 
 zmqol_client_add_struct( s_struct )

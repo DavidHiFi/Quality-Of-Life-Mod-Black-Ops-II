@@ -628,7 +628,7 @@ zmqol_semtex_wallbuy_origin()
 	// 📝 The buried part is inside solid brush, so over-sinking is invisible while
 	// under-sinking is the reported defect. If it now reads as SUNKEN, come back to
 	// -5176; if a gap remains, -5178.
-	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5177 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
+	return ( getdvarintdefault( "zmqol_semtex_diner_x", -5176 ), getdvarintdefault( "zmqol_semtex_diner_y", -7925 ), getdvarintdefault( "zmqol_semtex_diner_z", -14 ) );
 }
 
 zmqol_add_semtex_wallbuy()
