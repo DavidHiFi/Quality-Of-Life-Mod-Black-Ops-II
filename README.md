@@ -77,7 +77,24 @@ source folders is built or don't-touch.
 - **Prone at a perk machine = +100 points** (once per machine, every map).
 - **Diner as a Survival location** on TranZit, ported from BO2-Reimagined. Treyarch left
   the map data in the game but never shipped it as a Survival start. This is the only
-  added location — `scripts\zm\locs\` holds exactly one location script.
+  added location — `scripts\zm\locs\` holds exactly one location script. It now carries a
+  full set of its own:
+  - **Pack-a-Punch** on the roof, reachable by the restored hatch climb.
+  - **Its wall buys turned back on** — the MP5K inside and the Galvaknuckles on the roof are
+    tagged `zclassic_transit` in the stock map, so Survival spawned neither.
+  - **A Semtex wall buy** by the exit door. The map ships exactly one Semtex struct and it
+    lives in Town, so this one is *created*, on both the server and the client — a wall buy
+    is a clientfield, and a one-sided one drops every player at load.
+  - **The buildable riot shield.** The parts and their spawns were always in the map; what
+    was missing is that TranZit only registers buildables in Classic. Its part models, HUD
+    icons and craft sounds ship in `mod.ff` — all of them are in the *Classic-only* fastfile
+    that Survival never loads.
+  - **The three teddy bears and the secret song**, matching Bus Depot, Farm and Town. Diner
+    was the last Survival location without them.
+- **Solo Play looks like Solo Play.** The lobby header read "CUSTOM GAMES" because Solo and
+  Custom Games are the same menu, and the **Classic intro cutscenes** (Die Rise, Mob, Buried,
+  Origins) never played because the game gates them on a party size the lobby kept resetting.
+  Both fixed in the menu LUI.
 - **Tombstone's HUD icon fixed** — stock ships it with the badge frame upside down
   relative to every other perk. Uses BO2-Reimagined's corrected 64x64 icon.
 - Hitmarkers, on-screen counters, high-round fix, Cold-War round HUD, no perk limit,
