@@ -2589,6 +2589,79 @@ setteddybears()
                 thread spawnteddybear( 8449, -5350, 48, 127 );
                 thread spawnteddybear( 8125, -6730, 117, 19 );
             }
+            // ================================================================
+            //  DINER  -  v1.67.0, the last survival location without the egg
+            //
+            //  User, 2026-08-11: *"add the 3 teddy bears around the map in Diner
+            //  survival same as the ones that were added to bus depot, farm and
+            //  town ... This way all the standalone survival maps will have the
+            //  3 teddy bear interact easter egg song."*
+            //
+            //  🌟 NOTHING HAD TO BE BUILT OR SHIPPED, and that was verified per
+            //  asset rather than assumed - the four things this easter egg needs
+            //  are all already loaded on Diner survival:
+            //      xmodel zombie_teddybear   -> zm_transit.ff          (loaded)
+            //      zmb_meteor_loop           -> zmb_survival_transit.all
+            //      zmb_meteor_activate       -> zmb_survival_transit.all
+            //      mus_zmb_secret_song       -> zmb_patch.all, i.e. patch_zm.ff,
+            //                                   which loads on EVERY map
+            //  That last one was worth checking rather than trusting: the song
+            //  is in NO transit bank, classic or survival. It resolves only
+            //  because patch_zm carries it - as "carrion", TranZit's own secret
+            //  song. Diner therefore gets the same track as Bus Depot, Farm and
+            //  Town, which is the parity the request asks for.
+            //
+            //  So this is three coordinates on a system that already works, not
+            //  a port. The proximity loop, the interact sound, the level-scoped
+            //  3-of-3 counter and the song all come from spawnteddybear() and
+            //  play_secret_song() above, untouched.
+            //
+            //  🛑 THE POSITIONS ARE DERIVED, NOT MEASURED, AND ARE TUNABLE.
+            //  The user gave a `.where` and a screenshot arrow per bear, but
+            //  `.where` reports where the PLAYER stood, not where the bear goes.
+            //  Each default below is that reading pushed forward along the yaw
+            //  they were facing, onto the surface the arrow pointed at:
+            //
+            //    1 workshop table   player (-3679,-7392,-58) yaw 264 -> ~60 fwd
+            //    2 shelf by the riot-shield bench
+            //                       player (-4830,-7918,-62) yaw 270 -> ~60 fwd
+            //    3 roof corner      player (-5661,-7913,227) yaw 323 -> ~85 fwd
+            //
+            //  Each bear faces back toward where the player stood (yaw + 180).
+            //  Heights are the surface the bear sits ON, so they are the numbers
+            //  most likely to want a nudge - a shelf especially, where a
+            //  downward trace would snap to the wrong tier.
+            //
+            //  Every value is a dvar with the derived default, exactly the
+            //  pattern the Diner Pack-a-Punch uses (zmqol_pap_diner_*), which
+            //  took three rounds of nudging to settle. Anything off can be fixed
+            //  from the console in seconds instead of costing a rebuild:
+            //      zmqol_bear1_diner_x / _y / _z / _yaw   (workshop table)
+            //      zmqol_bear2_diner_*                    (shelf)
+            //      zmqol_bear3_diner_*                    (roof corner)
+            // ================================================================
+            else if ( getdvar( "ui_zm_mapstartlocation" ) == "diner" )
+            {
+                thread spawnteddybear( getdvarintdefault( "zmqol_bear1_diner_x", -3685 ),
+                                       getdvarintdefault( "zmqol_bear1_diner_y", -7452 ),
+                                       getdvarintdefault( "zmqol_bear1_diner_z", -24 ),
+                                       getdvarintdefault( "zmqol_bear1_diner_yaw", 84 ) );
+
+                thread spawnteddybear( getdvarintdefault( "zmqol_bear2_diner_x", -4830 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_y", -7978 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_z", -18 ),
+                                       getdvarintdefault( "zmqol_bear2_diner_yaw", 90 ) );
+
+                thread spawnteddybear( getdvarintdefault( "zmqol_bear3_diner_x", -5593 ),
+                                       getdvarintdefault( "zmqol_bear3_diner_y", -7964 ),
+                                       getdvarintdefault( "zmqol_bear3_diner_z", 227 ),
+                                       getdvarintdefault( "zmqol_bear3_diner_yaw", 143 ) );
+
+                // Printed so a bad placement is diagnosable from the log without
+                // another screenshot round: compare these against the .where the
+                // user reads standing next to each bear.
+                println( "[zm_qol] diner bears: 1(" + getdvarintdefault( "zmqol_bear1_diner_x", -3685 ) + "," + getdvarintdefault( "zmqol_bear1_diner_y", -7452 ) + "," + getdvarintdefault( "zmqol_bear1_diner_z", -24 ) + ") 2(" + getdvarintdefault( "zmqol_bear2_diner_x", -4830 ) + "," + getdvarintdefault( "zmqol_bear2_diner_y", -7978 ) + "," + getdvarintdefault( "zmqol_bear2_diner_z", -18 ) + ") 3(" + getdvarintdefault( "zmqol_bear3_diner_x", -5593 ) + "," + getdvarintdefault( "zmqol_bear3_diner_y", -7964 ) + "," + getdvarintdefault( "zmqol_bear3_diner_z", 227 ) + ")" );
+            }
         }
     }
 }

@@ -59,7 +59,7 @@ that the cutscene is confirmed.
 ---
 
 
-## 🧸 QUEUED — THE THREE TEDDY BEARS ON DINER (user, 2026-08-11)
+## 🧸 SHIPPED v1.67.0 — THE THREE TEDDY BEARS ON DINER. DEPLOYED, NOT YET BOOTED.
 
 > *"time to add the 3 teddy bears around the map in Diner survival same as the ones that were
 > added to bus depot, farm and town, the sound effect that eminates from them when you're close,
@@ -67,7 +67,7 @@ that the cutscene is confirmed.
 > interacting with all 3. This way all the standalone survival maps will have the 3 teddy bear
 > interact easter egg song."*
 
-**NOT STARTED.** Queued behind the Pack-a-Punch regression (v1.66.3), which is in flight.
+**Built.** The Pack-a-Punch regression it was queued behind is ✅ CONFIRMED FIXED by the user on v1.66.3 ("pack machine is visible again"). Positions are dvar-tunable - see the code comment in `quality_of_life.gsc::setteddybears()`.
 
 ### The three placements, from the user's own `.where` lines + screenshots
 
