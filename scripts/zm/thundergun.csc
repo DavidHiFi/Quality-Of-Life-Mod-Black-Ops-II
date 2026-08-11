@@ -16,9 +16,12 @@ init()
     // getdvar is a true engine builtin and needs no include. Unset returns "",
     // which fails both tests below, so the default stays OFF.
     str_ww = getdvar( "zmqol_ww" );
-    if ( str_ww == "0" )
-        return;
-    if ( str_ww != "" && str_ww != "1" && str_ww != "2" )
+    // v1.69.8: DEFAULT IS OFF. Unset gives "", which fails both tests, so a
+    // normal launch loads the mod with no wonder weapon code running at all.
+    // This is the first build where that is actually true - until v1.69.7 the
+    // gate itself was being shadowed by Plutonium's loose scripts folder, so
+    // every "guns off" test was really a guns-on test.
+    if ( str_ww != "1" && str_ww != "2" )
         return;
 
     // MUST match the server gate in thundergun.gsc.
