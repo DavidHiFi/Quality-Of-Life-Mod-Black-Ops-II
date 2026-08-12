@@ -2612,3 +2612,68 @@ registered last on **both** sides, binary-searched per map, gives exact headroom
 loss. It is deliberately not built yet — it can itself cause `EXE_CLIENT_FIELD_MISMATCH` if the two
 sides ever disagree, and it is not worth that risk until the scope above is known.
 
+
+### ✅ SCOPE MEASURED 2026-08-13 (second session) — TRANZIT CLASSIC IS THE ONLY BROKEN MAP
+
+User booted all five classic maps on v1.77.0. **Die Rise ✅, Mob ✅, Buried ✅, Origins ✅
+(one cosmetic oddity: dark red box-like textures in the start room — separate item, queued).
+TranZit ✗**, identical error, identical build (r5344).
+
+🛑 **THIS DISPROVES THE ACCOUNTING, NOT JUST REFINES IT.** Three independent contradictions:
+
+1. **Buried classic boots.** Stock 63 toplayer bits, and the mod adds at least Zombie Blood
+   (`powerup_zombie_blood` 2 + `visionset_lerp` 3→4) plus Deadshot (+2), Tombstone (+2) and
+   Electric Cherry (+1) — **≥71 registered bits, successfully**. The `toplayer` ceiling is
+   therefore **> 64**, and `ERROR_CATALOGUE.md` §2's "[inferred] 64" is now known WRONG.
+   Do not quote 64 again.
+2. **Origins classic boots** at ~66-69 by the same method. TranZit's full source-derived
+   accounting is **65**. A map at 65 cannot fail while a map at 71 succeeds.
+3. Working the ceiling backwards from each failure gives **43** (TranZit, a 1-bit request refused
+   ⇒ exactly 0 free) and **~55** (Mob's old `visionset_slot` failure). Mutually inconsistent, and
+   both below Buried's stock 63.
+
+⇒ **There is an unaccounted, TranZit-specific consumer of `toplayer` bits, worth roughly 20.**
+Searched and NOT found in: the mod's own `registerclientfield` calls (all of `scripts/`, `maps/`,
+`clientscripts/` — the full list is short), weapon includes (no Paralyzer / Time Bomb / gas mask),
+buildables (the Diner shield is gated on `ui_zm_mapstartlocation == "diner"`, so it is off in
+classic), and powerups (`bonus_points_player` is confirmed 0 bits).
+
+### ✅ TWO THINGS THAT *ARE* NOW EXACT
+
+**1. The vsmgr widening on TranZit is exactly +5, not "±2 to ±4".**
+The model was validated by reproducing stock TranZit's four dumped widths from source:
+visionset info.size 2 (default + `zm_power_high_low`, 7 steps) → slot 1, lerp 3 ✓;
+overlay (default + `zm_transit_burn` + `zm_ai_avogadro_electrified` + `zm_ai_screecher_blur`)
+→ slot 2, lerp 4 ✓. Mod adds 3 visionsets (divetonuke, zombie blood, whos_who) and 2 overlays
+(vulture stink 31 steps, zombie blood 15) ⇒ visionset_slot 1→3, visionset_lerp 3→4,
+overlay_slot 2→3, overlay_lerp 4→5. **+5.**
+
+**2. 🌟 THE FOUR VSMGR FIELDS REGISTER *LAST*, SO THE ERROR UNDERSTATES THE HOLE.**
+`_visionset_mgr::init()` does `onfinalizeinitialization_callback( ::finalize_clientfields )`
+(`_visionset_mgr.gsc:16`) — they land after every other registration. At the instant
+`vulture_perk_toplayer` failed, **none of the 15 bits those four fields need was registered yet.**
+
+> **Freeing exactly 7 bits would NOT have booted TranZit.** It would have failed a moment later
+> at `visionset_slot` — which is *literally the error Mob gave in v1.65.2*. The requirement at
+> that point is **7 + 15 = 22 bits**, not 7.
+
+📝 Corollary for every future "it doesn't fit" call: the field named in the error is whoever asked
+last *among those that had already asked*. Everything vsmgr owns asks after all of them.
+
+### ▶️ NEXT — cheapest instrument first, no build
+
+`developer 1` + `developer_script 1`, then boot TranZit classic. Per `ERROR_CATALOGUE.md` §8 every
+GSC runtime error is currently swallowed; this has never once been run. If Plutonium prints the
+clientfield table or the registration sequence, it hands us the ~20 unaccounted bits directly and
+no probe needs building.
+
+📝 If that yields nothing, the probe is justified and now well-scoped: a dvar-gated dummy
+`toplayer` field of N bits on **both** sides (both halves read the same dvar in the same process,
+so they cannot disagree), default N=0 so shipping behaviour is unchanged, binary-searched on a map
+that boots. That gives the exact ceiling; a second dvar taking Vulture off TranZit gives the exact
+deficit. **Neither is a fix and neither ships enabled.**
+
+📝 Not yet ruled out as the eventual fix, and it degrades nothing: TranZit's `allplayers` set uses
+**25 bits** and the busiest map in all 48 dumps uses 28, so a mod-added field could likely be moved
+out of `toplayer` entirely. Behaviour-identical, implementation-relocated. Only worth designing
+once the size of the hole is known.

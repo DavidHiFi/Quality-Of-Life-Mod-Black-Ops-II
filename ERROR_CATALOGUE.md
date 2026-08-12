@@ -66,14 +66,38 @@ registered field and its width — total them with `awk '$1=="<set>"{s+=$4}'`):
 | `scriptmover` | **32 / 32** — zero free | +4 for `vulture_perk_scriptmover` failed instantly |
 | `actor` | **31 / 32** — one free | +2 for `vulture_perk_actor` filled it, so stock's 1-bit `zone_capture_zombie` errored |
 
-**[inferred]** `toplayer` is 64. Max stock observed is 63 (Buried classic). Mob classic stock is
-only **50**, so the Mob overflow was caused by the mod's own toplayer additions on top — not by
-stock being near a 64 ceiling. Do not quote 64 as measured.
+🛑 **`toplayer` is NOT 32, and it is NOT 64 either. Corrected 2026-08-13 — the old "[inferred] 64"
+was wrong and had been quoted in three checkpoints.** Max stock observed is 63 (Buried classic),
+and on 2026-08-13 the user booted **Buried classic under this mod**, which adds at least Zombie
+Blood (`powerup_zombie_blood` 2 + `visionset_lerp` 3→4), Deadshot (+2), Tombstone (+2) and Electric
+Cherry (+1) on top — **≥71 bits registered successfully.** So the ceiling is **> 64, exact value
+still unmeasured.** Quote it as "unknown, >71 seen to work", never as a number.
+
+📝 Mob classic stock is only **50**, so the Mob overflow was caused by the mod's own additions on
+top — not by stock being near any ceiling. The risk model is **how much the mod ADDS**, not the
+stock total.
 
 ### 📝 The field named in the error is whichever asks LAST
 
 It is often a *stock* field, not yours. Read it as "someone before me used the space", never "this
 field is broken". Time has been lost twice assuming otherwise.
+
+### 🌟 The four vsmgr fields ask after EVERYONE, so the error understates the hole
+
+`_visionset_mgr::init()` registers its finalizer with `onfinalizeinitialization_callback(
+::finalize_clientfields )` (`_visionset_mgr.gsc:16`), so `visionset_slot`, `visionset_lerp`,
+`overlay_slot` and `overlay_lerp` are the **last** four fields registered on any map.
+
+**Consequence: freeing exactly the N bits named in an earlier field's error is never enough.** The
+load simply fails again at `visionset_slot` a moment later — which is exactly what happened on Mob
+in v1.65.2. Add the four vsmgr widths to whatever the error asked for, and free *that*.
+
+Their widths are computable and exact — no estimating:
+`slot = getminbitcountfornum( info.size - 1 )`, `lerp = max( getminbitcountfornum( lerp_step_count ) )`
+across all registered infos, and the lerp field is skipped entirely when that max is 1
+(`_visionset_mgr.gsc:204-224`). Enumerate the infos with
+`grep -rn "vsmgr_register_info(" reference/gsc-dump` plus the mod's own calls, then **check the
+result against the map's dumped widths** — if it reproduces stock, the model is right.
 
 ### 📝 Treyarch hit this wall too
 
@@ -84,8 +108,14 @@ Without that cut Origins would be at 36/32 on its own.
 ### ✅ Pre-flight check
 
 Before adding **any** clientfield, total that set for the **fullest map it will run on** using the
-dumps above, and confirm `stock + mod additions + new field <= 32`. Zero free bits means no
-narrower encoding rescues it.
+dumps above, and confirm `stock + mod additions + new field <= 32` (`actor`, `scriptmover`). Zero
+free bits means no narrower encoding rescues it.
+
+⚠️ For `toplayer` this check currently CANNOT be completed, and saying so is the honest answer.
+The source-derived accounting has been shown to disagree with reality: it totals TranZit classic at
+65 (fails) while Buried classic runs at ≥71 (boots). **Roughly 20 bits of TranZit's real usage are
+unaccounted for.** Until that is measured in game, treat any `toplayer` arithmetic as indicative
+only and never issue a verdict from it.
 
 ---
 
