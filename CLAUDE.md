@@ -218,10 +218,36 @@ Two traps that cost a full round of in-game testing each (checkpoint 5 §2, §4)
 
 ### Where the stock LUI actually lives
 
-`ui_zm.ff` contains **no** `.lua` at all. **`patch_ui_zm.ff` holds all 48 LUI files** —
-`Unlinker --include-assets rawfile -o <dir> patch_ui_zm.ff`. They are compiled **LuaJIT bytecode**,
-not source: grep only matches their constant tables, and editing them needs a decompiler. Treat
-stock LUI layout as read-only and adjust from the mod's own `ui_mp\` overrides instead.
+🛑 **This section used to say "`patch_ui_zm.ff` holds all 48 LUI files". That is WRONG and it cost a
+wrong verdict** — checkpoint 39 §6 declared the Origins generator dial engine-drawn and unmovable
+after searching only that fastfile. `patch_ui_zm.ff` holds **50 rawfiles and they are all lobby and
+menu screens** (`privategamelobby`, `selectmapzombie`, …). **There is no in-game HUD LUI in it.**
+
+The real map, all via `Unlinker --include-assets rawfile -o <dir> <ff>`:
+
+| fastfile | what it holds |
+|---|---|
+| `patch_ui_zm.ff` | lobby / menu screens only — **not** the HUD |
+| `patch_zm.ff` | the bulk of the in-game HUD: `ui_mp/t6/hud/*`, `ui_mp/t6/zombie/*` (round status, perks, powerups, dpad, objectivewaypoint …) |
+| `common_zm.ff` | a handful more |
+| **`<map>_patch.ff`** | 🌟 **map-specific HUD LUI.** `zm_tomb_patch.ff` owns the Origins capture wheel (`capturezonewheeltombdisplay.lua`), the widget that positions it (`hudcraftablestombzombie.lua`) and the mid-screen capture meter (`tombcapturezonedisplay.lua`). **Always check the map's own patch fastfile before concluding something is engine-drawn.** |
+| `ui_zm.ff` | no `.lua` at all ✅ (that part was right) |
+
+They ship as compiled **modified Lua 5.1** bytecode — `unluac` cannot read it — so grep only matches
+constant tables. But the game **does** load raw `.lua` source out of `mod.iwd`'s `ui_mp\`, which is
+how the Death Machine powerup icon works today, so a stock LUI file *can* be overridden.
+
+**How to override one safely** (the method used for the dial, 2026-08-13):
+1. Get a decompile from `BO2-Reimagined` if it ships that file — but it carries **their** layout
+   edits, so it is a starting point, not the answer.
+2. Dump the shipped bytecode and decode its **constant table** — type `04` = string
+   (`int32` length, then bytes), type `03` = **4-byte float**, type `01` = bool. Constants appear in
+   order of first use, so they pin down every literal in the file.
+3. Check each number in the decompile against that table, and byte-scan for any literal you doubt
+   (a float that is absent from the file was never in stock).
+4. `luaparse` (npm, `luaVersion: '5.1'`) parse-checks the result offline.
+5. Confirm the file landed **inside** the deployed `mod.iwd`, and that nothing in
+   `%LOCALAPPDATA%\Plutonium\storage\t6\raw\ui_mp\` shadows it.
 
 ### Traps, all of them found the hard way
 
