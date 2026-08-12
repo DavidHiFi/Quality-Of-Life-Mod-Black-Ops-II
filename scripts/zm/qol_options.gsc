@@ -77,7 +77,61 @@ init()
     level thread qol_opt_round_clock();
     level thread qol_opt_no_power();
     level thread qol_opt_lod_fix();
+    level thread qol_opt_roundcounter_master();
     level thread qol_opt_connect_loop();
+}
+
+// ============================================================================
+//  qol_opt_roundcounter_master  -  ".hud off" reaches the round chalk too
+//
+//  v1.87.1. The BOCW round counter (quality_of_life.gsc::round_hud()) was the
+//  one HUD element ".hud off" did not hide - it is still visible as the chalk
+//  mark in the top right of the user's screenshot.
+//
+//  🛑 IT CANNOT BE DRIVEN FROM qol_opt_hud_watcher(). Two reasons:
+//    1. It is a SERVER hudelem (createservericon / createserverfontstring),
+//       one shared element rather than one per player, so a per-player watcher
+//       would have every player writing the same element.
+//    2. It is ANIMATION-driven, not tick-driven - round_hud() runs
+//       fadeovertime / scaleovertime / moveovertime sequences at each round
+//       change. Writing its alpha on a timer would fight those animations.
+//
+//  So this only ever writes while the HUD is switched OFF, plus exactly once on
+//  the off->on edge to put it back. While the HUD is on it never touches the
+//  element, and the round animation is left completely alone.
+// ============================================================================
+qol_opt_roundcounter_master()
+{
+    level endon( "end_game" );
+
+    n_prev = 1;
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        n_on = getdvarintdefault( "hud_master", 1 );
+
+        if ( !isdefined( level.zmqol_roundcounter ) )
+        {
+            n_prev = n_on;
+            continue;
+        }
+
+        if ( !n_on )
+        {
+            //  Re-asserted every pass, not once: round_hud() sets alpha back to
+            //  1 at every round transition, so a single write would be undone
+            //  by the next round.
+            level.zmqol_roundcounter.alpha = 0;
+        }
+        else if ( !n_prev )
+        {
+            level.zmqol_roundcounter.alpha = 1;
+        }
+
+        n_prev = n_on;
+    }
 }
 
 // ============================================================================
@@ -765,16 +819,24 @@ qol_opt_hud_watcher()
         }
 
         self qol_opt_show( self.qol_hud_timer, b_master && ( b_all || getdvarintdefault( "hud_timer", 1 ) ) );
-        self qol_opt_show( self.zombietext,    b_master && ( b_all || getdvarintdefault( "hud_remaining", 1 ) ) );
-        //  The shield bar is a two-element array, created on demand by
-        //  quality_of_life.gsc::shield_hud() and stashed as qol_hud_shield[0..1].
-        //  It has no dvar of its own, so hud_master is the only thing that ever
-        //  hides it.
-        if ( isdefined( self.qol_hud_shield ) )
-        {
-            for ( i = 0; i < self.qol_hud_shield.size; i++ )
-                self qol_opt_show( self.qol_hud_shield[i], b_master );
-        }
+
+        // ====================================================================
+        //  🛑 TWO ELEMENTS ARE DELIBERATELY NOT TOUCHED HERE, AND v1.85.0 GOT
+        //  BOTH WRONG. Same rule as the health HUD below: whatever repaints an
+        //  element every tick is the ONLY thing allowed to write its alpha.
+        //
+        //  self.zombietext - quality_of_life.gsc::zombiecounter() writes
+        //  `alpha = 1` four times a second. Writing 0 from here made the counter
+        //  visibly flash on and off, which is what the user reported. That loop
+        //  now reads hud_master / hud_all / hud_remaining itself.
+        //
+        //  self.qol_hud_shield - shield_hud() CREATES AND DESTROYS its two
+        //  elements rather than fading them, and its background is deliberately
+        //  alpha 0.5. qol_opt_show() only knows 0 and 1, so restoring it from
+        //  here would have turned that dark backing plate fully opaque - the
+        //  exact "thick white border" bug this file already documents for the
+        //  health bar. shield_hud() takes its own destroy path on hud_master 0.
+        // ====================================================================
 
         //  🛑 The health HUD is deliberately NOT touched here. quality_of_life's
         //  own health loop already owns its alpha (it restores it the instant it

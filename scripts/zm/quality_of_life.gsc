@@ -592,6 +592,12 @@ round_hud()
     roundcounter.color = ( 0.75, 0, 0 );
     roundcounter.alpha = 1;
     roundcounter.hidewheninmenu = 1;
+
+    //  v1.87.1 - stashed so the ".hud off" enforcement thread can reach it.
+    //  This is a SERVER hudelem (createservericon/createserverfontstring), shared
+    //  by everyone, so it is stashed on level rather than on a player - the
+    //  per-player watcher in qol_options cannot own it.
+    level.zmqol_roundcounter = roundcounter;
     while ( true )
     {
         level waittill( "end_of_round" );
@@ -631,6 +637,10 @@ round_hud()
                 roundcounter.color = ( 1, 1, 0.25 );
                 break;
         }
+        //  Re-stashed: the default branch above DESTROYS and re-creates the
+        //  element, so the level handle would otherwise point at a dead one.
+        level.zmqol_roundcounter = roundcounter;
+
         roundcounter fadeovertime( 0.8 );
         roundcounter.alpha = 1;
         roundcounter.color = ( 0.75, 0, 0 );
@@ -1201,6 +1211,32 @@ zombiecounter()
             continue;
         }
 
+        // ====================================================================
+        //  🛑 THIS LOOP OWNS THIS ELEMENT'S ALPHA. NOTHING ELSE MAY WRITE IT.
+        //
+        //  v1.87.1 - the user reported the zombie counter "flashing on and off"
+        //  after ".hud off". Two threads were fighting over it 4x a second:
+        //  qol_options' watcher wrote alpha 0, and the `alpha = 1` that used to
+        //  sit here wrote it straight back.
+        //
+        //  This is the SAME failure the health HUD already carries a warning
+        //  about ("Two threads writing the same five elements is what produced
+        //  the white bar, so there is exactly one owner now"), and the fix is
+        //  the same: the loop that repaints the element every tick reads the
+        //  dvars itself, and qol_opt_hud_watcher no longer touches it.
+        //
+        //  📝 It was never purely a .hud bug - setting `hud_remaining 0` would
+        //  have flashed it in exactly the same way on any build since the
+        //  watcher existed. .hud off simply made it easy to hit.
+        // ====================================================================
+        if ( !getdvarintdefault( "hud_master", 1 ) ||
+             !( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_remaining", 1 ) ) )
+        {
+            self.zombietext.alpha = 0;
+            wait 0.25;
+            continue;
+        }
+
         self.zombietext.alpha = 1;
 
         //  One array walk per tick instead of two, and the value is only pushed
@@ -1331,6 +1367,20 @@ shield_hud()
         {
             self qol_shield_hud_destroy();
             wait 0.5;
+            continue;
+        }
+
+        //  v1.87.1 - ".hud off" takes the SAME path as "no shield": the two
+        //  elements are destroyed, not faded. That matters. The background is
+        //  deliberately alpha 0.5, and qol_options' qol_opt_show() only knows 0
+        //  and 1 - hiding this from there and restoring it would have left the
+        //  dark backing plate fully opaque. Destroying is also what hands the
+        //  slots back to the client's hudelem pool while the HUD is switched
+        //  off, which is the right thing to do anyway.
+        if ( !getdvarintdefault( "hud_master", 1 ) )
+        {
+            self qol_shield_hud_destroy();
+            wait 0.25;
             continue;
         }
 

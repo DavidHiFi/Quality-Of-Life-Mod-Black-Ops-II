@@ -3078,3 +3078,41 @@ the top. Vertical was never the problem: it has measured 3px in every screenshot
 
 📝 Method worth keeping: the user's screenshots are pixel-scannable with System.Drawing. Two
 positions at different settings give the true scale of any HUD anchor without a single guess.
+
+### 🛑 v1.87.1 — `.hud off` was a PARTIAL feature. Three defects, one reported. NOT verified.
+
+User: *"the zombie counter specifically keeps flashing on and off."* Correct, and the audit found
+two more that were shipped in v1.85.0 and never noticed.
+
+**1. Zombie counter flashing — TWO OWNERS.** `qol_opt_hud_watcher` wrote `alpha = 0` while
+`zombiecounter()` wrote `alpha = 1`, both 4x a second. This is the **exact** failure the health HUD
+already carries a warning about — *"Two threads writing the same five elements is what produced the
+white bar, so there is exactly one owner now"* — and the rule was not applied when hud_master was
+added. `zombiecounter()` now reads `hud_master` / `hud_all` / `hud_remaining` itself and the watcher
+does not touch the element.
+
+📝 **Never purely a `.hud` bug**: `hud_remaining 0` would have flashed it identically on any build
+since the watcher existed. `.hud off` just made it trivial to hit.
+
+**2. Shield bar — v1.85.0 would have CORRUPTED it on restore.** Its background is deliberately
+`alpha 0.5`; `qol_opt_show()` only knows 0 and 1, so hiding and restoring it from the watcher would
+have left that dark backing plate fully opaque — the same "thick white border" bug this project
+already hit once on the health bar. `shield_hud()` now takes its own **destroy** path on
+`hud_master 0`, which also returns the two slots to the client hudelem pool.
+
+**3. The BOCW round chalk was never hidden at all.** Visible in the user's `.hud off` screenshot as
+the red mark top-right. It cannot be driven from `qol_opt_hud_watcher`: it is a **server** hudelem
+(one shared element, not one per player) and it is **animation**-driven, so a per-tick alpha write
+would fight `round_hud()`'s fade/scale/move sequences. New `qol_opt_roundcounter_master()` writes
+only while the HUD is off — re-asserted every pass, because `round_hud()` restores alpha at every
+round transition — plus once on the off→on edge. While the HUD is on it never touches it.
+
+⚠️ **STILL NOT COVERED, stated rather than left to be discovered:** transient mod-drawn elements —
+hitmarkers, the perk pop-up, the area-name notifier and the `.help` panel — are hudelems, so they
+still draw on top of a hidden HUD when they fire. LUI (points/ammo/round/perks) is fully hidden by
+`hud_visible 0`. If the user wants those silenced too it is a separate pass.
+
+🌟 **RULE, now hit three times in this project — write it down:** *an element repainted on a timer
+may only have its alpha written by that timer's own loop.* Anything else fights it at the loop
+frequency and shows up as flashing. When adding a new master switch, the switch goes INSIDE each
+owning loop, never into a second thread.
