@@ -3162,3 +3162,38 @@ runtime no-op. **Nothing was re-owned from a map, and nothing came from multipla
 adapted not bulk-copied, and **never** porting its `is_in_box = 0` lines that pull stock guns out of
 the box. Then stage 3 (zone declarations), 4 (sound aliases + strings), 5 (per-map wiring, Origins
 booted first for the weapon-count ceiling).
+
+### 🌟 STAGE 2 GROUNDWORK — THE DELIVERY PATH IS PROVEN, AND IT IS NOT WHAT THE SCOPING ASSUMED
+
+Before porting a single def, the question "how does a weapon actually reach the game here" was
+settled by measurement rather than assumed:
+
+| | |
+|---|---|
+| `mod.ff` weapon assets | **99** |
+| `mod.iwd` raw `weapons/` | 85, **every one also in mod.ff** |
+| `mod.iwd` raw `weapons/zm/` | 6 — `thundergun_zm`, `tesla_gun_zm`, `freezegun_zm` and their `_upgraded` |
+| those 6 in `mod.ff`? | ❌ **NO** — `weapon, thundergun_zm` is absent from the asset list |
+
+🌟 **So Plutonium loads raw weapon defs straight out of `mod.iwd`, and this mod already depends on
+it for three wonder weapons that demonstrably work in game.** A new weapon does NOT need a
+`weapon,<name>` line in the zone.
+
+**The recipe, therefore:**
+1. Raw def into `weapons/zm/<name>` → packed into `mod.iwd` by `pack_iwd.ps1` (`weapons` is already
+   in its folder list).
+2. Its **assets** — xmodel, xanim, material, image — declared in `zone_source\mod_locations.zone` so
+   the Linker bakes them into `mod.ff` from `common_mp.ff`. This is the half the raw file cannot do:
+   `mod.ff` currently carries 255 xmodels and 1,651 xanims and none of them are the MP weapons'.
+3. `mod_wonderweapons.zone` + `ww_donor` is the working precedent for exactly this split — a raw def
+   in `weapons/zm/` plus its assets declared into `mod.ff`.
+
+📝 Also confirmed: `zone_assets\` has **no `weapons\` folder**, and the only 4 `weapon,` lines in
+`mod_locations.zone` are perk bottles resolved out of `--load`ed map fastfiles. Declaring
+`weapon,sig556_zm` would resolve nothing — MP's asset is named `sig556`, not `sig556_zm`.
+
+▶️ **NEXT, in this order:** copy the ~26 defs (10 weapons + `_upgraded` + the `vector_extclip`,
+`crossbow_explosive_bolt`, `titus6_explosive_dart`, `gl_sig556`, `sf_sa58` variants) into
+`weapons/zm/`, adapted; then the asset blocks from
+`BO2-Reimagined\zone_source\includes\common_mp.zone` into `mod_locations.zone`; then sound; then
+strings; then per-map wiring with Origins booted first.
