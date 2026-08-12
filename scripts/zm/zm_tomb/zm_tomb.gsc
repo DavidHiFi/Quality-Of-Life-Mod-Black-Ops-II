@@ -606,6 +606,8 @@ zmqol_tomb_mp40_stalker_wallbuys()
     a_stubs   = level._unitriggers.trigger_stubs;
     n_mp40    = 0;
     n_wb      = 0;
+    n_live    = 0;
+    a_mine    = [];
     str_where = "";
 
     for ( i = 0; i < a_stubs.size; i++ )
@@ -645,10 +647,146 @@ zmqol_tomb_mp40_stalker_wallbuys()
         a_stubs[i].hint_string = str_hint;
         a_stubs[i].cost        = n_cost;
 
+        //  v1.79.0 - THE STUB IS NOT WHAT THE PURCHASE READS. See the block
+        //  above zmqol_mp40_push_to_live_triggers() for the full mechanism.
+        n_live += a_stubs[i] zmqol_mp40_push_to_live_triggers();
+
+        a_mine[ a_mine.size ] = a_stubs[i];
         n_mp40++;
     }
 
-    println( "[zm_qol] origins mp40: retagged " + n_mp40 + " mp40 wallbuy stub(s) to mp40_stalker_zm; " + n_wb + " wallbuy stub(s) total; mp40 at " + str_where );
+    println( "[zm_qol] origins mp40: retagged " + n_mp40 + " mp40 wallbuy stub(s) to mp40_stalker_zm; " + n_wb + " wallbuy stub(s) total; corrected " + n_live + " already-live trigger(s); mp40 at " + str_where );
+
+    level thread zmqol_mp40_watch_triggers( a_mine );
+}
+
+// ============================================================================
+//  zmqol_mp40_push_to_live_triggers  -  the wall-buy hands out the OLD gun
+//
+//  User, 2026-08-13: *"still didn't get the box variant from the wallbuy, the
+//  mp40 adjustable stock"*, and separately *"i don't know when/why you removed
+//  this"*.
+//
+//  📝 IT WAS NEVER REMOVED. `git log -S zmqol_tomb_mp40_stalker_wallbuys` returns
+//  exactly ONE commit - 30b05a8, the one that ADDED it - and the thread is still
+//  started at zm_tomb.gsc:58. Nothing deleted it; it has simply never worked
+//  reliably.
+//
+//  🌟 THE MECHANISM, verified in stock source. `zombie_weapon_upgrade` exists in
+//  TWO places and the prompt and the purchase read DIFFERENT ones:
+//
+//      prompt    self.stub.zombie_weapon_upgrade    _zm_weapons.gsc:1120
+//      PURCHASE  self.zombie_weapon_upgrade         _zm_weapons.gsc:1975, 2043
+//                                                   and the give at :2088-2094
+//
+//  The trigger gets its own copy when it is built, and only then:
+//
+//      copy_zombie_keys_onto_trigger( trig, stub )      _zm_unitrigger.gsc:624
+//          trig.zombie_weapon_upgrade = stub.zombie_weapon_upgrade;   // :629
+//
+//  and once built it is NOT rebuilt while it lives - build_trigger_from_
+//  unitrigger_stub() is only reached when `!isdefined( closest[index].trigger )`
+//  (:471). So a wall-buy whose trigger already existed when the retag ran keeps
+//  the old weapon on the trigger while advertising the new one on the stub.
+//  Rewriting only the stub cannot fix that trigger.
+//
+//  🛑 HONEST STATUS: the two-copy split is VERIFIED from source. That it is what
+//  is happening in THIS failure is NOT yet proven - the retag runs ~2s in, and
+//  whether any of the three triggers exists that early depends on where the
+//  player has walked. That is exactly why the watcher below ships alongside: it
+//  reports divergence directly instead of leaving it inferred. If the next log
+//  shows `corrected 0` and the watcher never reports a mismatch, this mechanism
+//  is NOT the cause and the search moves elsewhere - say so rather than
+//  quietly assuming the fix worked.
+//
+//  This correction is safe regardless of whether it is the cause: it only makes
+//  the trigger agree with the stub, which stock itself does on every build.
+//
+//  Stock's own back-pointers are used rather than a search: `stub.trigger` for
+//  a shared trigger (:619) and `stub.playertrigger[ entnum ]` for a per-player
+//  one (:616), walked with getarraykeys exactly as stock does at :149-153.
+// ============================================================================
+zmqol_mp40_push_to_live_triggers()
+{
+    n = 0;
+
+    if ( isdefined( self.trigger ) )
+    {
+        self.trigger.zombie_weapon_upgrade = self.zombie_weapon_upgrade;
+
+        if ( isdefined( self.trigger.weapon_upgrade ) )
+            self.trigger.weapon_upgrade = self.zombie_weapon_upgrade;
+
+        n++;
+    }
+
+    if ( isdefined( self.playertrigger ) )
+    {
+        keys = getarraykeys( self.playertrigger );
+
+        for ( k = 0; k < keys.size; k++ )
+        {
+            if ( !isdefined( self.playertrigger[ keys[k] ] ) )
+                continue;
+
+            self.playertrigger[ keys[k] ].zombie_weapon_upgrade = self.zombie_weapon_upgrade;
+
+            if ( isdefined( self.playertrigger[ keys[k] ].weapon_upgrade ) )
+                self.playertrigger[ keys[k] ].weapon_upgrade = self.zombie_weapon_upgrade;
+
+            n++;
+        }
+    }
+
+    return n;
+}
+
+// ============================================================================
+//  zmqol_mp40_watch_triggers  -  READ-ONLY. Proves or kills the theory above.
+//
+//  Every 2s for 5 minutes, for each retagged stub: if a live trigger exists and
+//  its weapon disagrees with its stub's, say so once. A trigger built AFTER the
+//  retag copies the corrected stub and must agree - so any mismatch printed here
+//  is a trigger that outlived the retag, which is the mechanism, in the log,
+//  rather than in an argument.
+//
+//  It also corrects what it finds. That makes it a safety net as well as a
+//  probe, and costs nothing: writing a value that already matches is a no-op.
+// ============================================================================
+zmqol_mp40_watch_triggers( a_stubs )
+{
+    level endon( "end_game" );
+
+    if ( !isdefined( a_stubs ) || a_stubs.size == 0 )
+        return;
+
+    n_ticks    = 0;
+    n_reported = 0;
+
+    while ( n_ticks < 150 )
+    {
+        for ( i = 0; i < a_stubs.size; i++ )
+        {
+            if ( !isdefined( a_stubs[i] ) || !isdefined( a_stubs[i].trigger ) )
+                continue;
+
+            if ( !isdefined( a_stubs[i].trigger.zombie_weapon_upgrade ) )
+                continue;
+
+            if ( a_stubs[i].trigger.zombie_weapon_upgrade == a_stubs[i].zombie_weapon_upgrade )
+                continue;
+
+            println( "[zm_qol] origins mp40 WATCH: live trigger says " + a_stubs[i].trigger.zombie_weapon_upgrade + " but stub says " + a_stubs[i].zombie_weapon_upgrade + " - correcting" );
+
+            a_stubs[i] zmqol_mp40_push_to_live_triggers();
+            n_reported++;
+        }
+
+        wait 2;
+        n_ticks++;
+    }
+
+    println( "[zm_qol] origins mp40 WATCH: done, " + n_reported + " divergence(s) seen in 5 min" );
 }
 
 zmqol_tomb_no_native_wunderfizz()
