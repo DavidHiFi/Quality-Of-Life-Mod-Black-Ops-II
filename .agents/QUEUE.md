@@ -2507,3 +2507,108 @@ hide.
 3. **Origins blows the weapon ceiling.** ~204 assets against a bound that is only known to be ≥178.
    → Ship in map order with Origins tested first, and be ready to gate it off Origins.
 
+
+## 🔴 IN FLIGHT 2026-08-13 — TRANZIT CLASSIC FAILS AT LOAD (toplayer clientfield overflow)
+
+**User:** *"all the survival modes seem to work, but i booted up tranzit and got that error. make sure
+all classic maps don't run into any crashes/errors."*
+
+    Trying to assign 1 bits for netfield vulture_perk_toplayer
+    but Client Field Set toplayer is out of space.
+
+**NOTHING SHIPPED. No fix guessed.** Everything below is separated into measured / derived / unknown.
+
+### 🛑 THE RULE THAT GOVERNS THIS FIX (user, 2026-08-13)
+
+> *"if you have to make compromises or leave certain elements in a scuffed state then don't even
+> bother; either try to find a way to keep something in or if you literally cannot due to limitations
+> then don't even dignify asking me questions like that, no scuffed additions or features with
+> missing elements, it's either vulture aid with everything working perfectly as intact just like
+> normal, or not at all. Period. And this goes for any addition to the mod."*
+
+**A menu of degraded variants is not a question to ask — it is three wrong answers.** Find a way to
+keep it whole; if it genuinely cannot be whole, it is absent there and that call is made here, not by
+the user. 📝 An earlier draft of this session offered exactly such a menu (keep Vulture but cut the
+stink meter / Zombie Blood / Fire Sale). That was wrong and was withdrawn.
+
+### ✅ MEASURED — what the boot log actually proves
+
+`console_zm.log` (copied before reading, per checkpoint 36), 21,515 lines, build **r5344**:
+
+| | |
+|---|---|
+| map / mode | `ui_mapname zm_transit`, `g_gametype zclassic` |
+| where it dies | immediately after `GSC Executed "scripts/zm/zm_transit/zm_transit::init()"` |
+| session before it | Diner survival ✅, Town survival ✅, **Nuketown ✅ (twice)**, then TranZit classic ✗ |
+| field list in the log | **none** — the table only prints on a MISMATCH, and this is an out-of-space |
+
+🌟 **The error is a precise instrument.** A **1-bit** request failed, so the set had **exactly 0 free
+bits** at that instant. Vulture's still-outstanding `toplayer` demand at that point is
+`vulture_perk_toplayer` 1 + `sndVultureStink` 1 + `vulture_perk_disease_meter` 5 = **7 bits**
+(+2 more for `perk_vulture` if `perks_register_clientfield` had not already run — not established).
+
+**So TranZit classic is short by 7 bits, or 9. This holds no matter what the true ceiling is**, which
+is why it is the one number worth trusting here.
+
+### 🛑 THIS KILLS THE OBVIOUS FIX BEFORE IT WAS WRITTEN
+
+The established remedy for this exact error — drop `vulture_perk_disease_meter`, 5 bits, the trick
+already used on Mob (`zmqol_vulture_has_disease_meter()` returns 0 for `zm_prison`) — **frees 5 and
+the shortfall is 7.** It would not have booted. Worth recording precisely because it is the move any
+reading of the code history would have suggested.
+
+### ⚠️ DERIVED, NOT MEASURED — the full accounting, and why it is NOT good enough to rule on
+
+Stock TranZit classic is **38 bits / 19 fields**
+(`clientfields_zm_transit_zclassic_transit.txt`). Applying the mod's transformations, each traced to
+a line of source:
+
+| change | bits | source |
+|---|---|---|
+| `deadshot_perk` dropped | **−1** | `init_client_flags()` sets `disable_deadshot_clientfield = 1` |
+| `perk_additional_primary_weapon`, `perk_dead_shot` | +4 | `perks_register_clientfield()`, `bits=2` (TranZit has `emp_grenade_zm`) |
+| `perk_chugabud` | +1 | same |
+| `perk_electric_cherry` | +1 | stock `_zm_perk_electric_cherry.gsc:50` |
+| `perk_dive_to_nuke` | +2 | mod's `_zm_perk_divetonuke.gsc:83`, `bits=2` |
+| `perk_vulture` + `vulture_perk_toplayer` + `sndVultureStink` + `vulture_perk_disease_meter` | +9 | mod's `_zm_perk_vulture.gsc:99/108/112/255` |
+| `clientfield_whos_who_audio` + `_filter` | +2 | `quality_of_life.gsc:7147-7148` |
+| `powerup_zombie_blood` | +2 | `add_zombie_powerup` → `_zm_powerups.gsc:449` |
+| `powerup_fire_sale` | +2 | `include_powerup( "fire_sale" )`, `quality_of_life.gsc:6270` |
+| `visionset_slot` / `visionset_lerp` / `overlay_slot` / `overlay_lerp` widenings | **+2 to +6** | `_visionset_mgr.gsc:221-224`, widths are `getminbitcountfornum(size-1)` |
+
+**Total ≈ 64, with the uncertainty (±2 to ±4) concentrated entirely in the four widening fields** —
+and the shortfall being explained is 7. 📝 Blood Money is confirmed **0 bits** (the 7-argument
+`add_zombie_powerup` call never reaches `client_field_name`).
+
+🛑 **THE UNCERTAINTY IS LARGER THAN THE THING BEING DECIDED, SO NO VERDICT IS ISSUED HERE.**
+Declaring "Vulture cannot be whole on TranZit classic" from an accounting that is ±4 on a 7-bit
+question would be the no-guessing rule broken in the other direction. The ceiling itself is
+**inferred at 64, never measured** (`ERROR_CATALOGUE.md` §2 says so explicitly).
+
+### ❓ UNKNOWN — the other four classic maps, and this is the cheapest thing to settle
+
+| map | stock classic toplayer | native cover | risk |
+|---|---|---|---|
+| **Nuketown** | — | — | ✅ **booted clean this session** |
+| **TranZit** | 38 | no Vulture, no PhD, no Mule Kick, no Deadshot | 🛑 **CONFIRMED BROKEN** |
+| Die Rise | 29 | ships Who's Who | low-moderate |
+| Mob | 50 | meter already dropped there | **high** |
+| Buried | **63** | ships Vulture natively, so the mod adds none of its 9 bits | **high** — last confirmed on v1.64.0, and Zombie Blood has landed since |
+| Origins | 61 | Vulture already off (`zmqol_vulture_enabled()`) | **high** — same caveat |
+
+🌟 **The pattern is not "high stock total" — it is "how much the mod has to ADD".** Buried carries 63
+stock bits and boots because it already owns Vulture; TranZit carries 38 and fails because it owns
+almost none of what the mod turns on.
+
+### ▶️ NEXT STEP — four boots, no build, no code
+
+Boot **Die Rise, Mob, Buried and Origins in CLASSIC**. Each either loads or prints one line naming a
+field and a set. That defines the real scope, and every one of those lines is another exact
+0-free-bits measurement like the TranZit one. **Nothing should be designed until that is known** —
+a fix aimed only at TranZit is worthless if three other maps need one too.
+
+📝 An exact instrument exists if it comes to it: a dvar-gated dummy `toplayer` field of N bits
+registered last on **both** sides, binary-searched per map, gives exact headroom with no feature
+loss. It is deliberately not built yet — it can itself cause `EXE_CLIENT_FIELD_MISMATCH` if the two
+sides ever disagree, and it is not worth that risk until the scope above is known.
+
