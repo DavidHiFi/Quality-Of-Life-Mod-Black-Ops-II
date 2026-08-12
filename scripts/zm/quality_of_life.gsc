@@ -450,6 +450,10 @@ init()
     precacheshader( "specialty_tombstone_zombies" );
     level thread vpa_onplayerconnect();
 
+    //  v1.85.0 - stock's solo_tombstone_removal(), applied on every map rather
+    //  than the two TranZit scripts that call it. See zmqol_tombstone_allowed().
+    level thread zmqol_solo_tombstone_removal();
+
     // ".dm" used to be its own listener here. It is now one of the power-up chat
     // commands in zmqol_dev_command_listener() - see zmqol_powerup_alias(). Two
     // listeners both consuming "say" would have spawned two Death Machines.
@@ -987,7 +991,14 @@ first_spawn()
         //  go back to the pool for things like Origins' generator ring.
         //  zmqol_perf_probe() takes the same path as hud_all 0 - the five
         //  elements are DESTROYED, not just faded, so the loop costs nothing.
+        //  v1.85.0 - hud_master (".hud off") is checked here too, and FIRST,
+        //  because it must beat hud_all. Same reason the rest of this block
+        //  lives here rather than in qol_options' watcher: this loop rewrites
+        //  the alpha every 0.1s and would undo an external hide within a frame.
+        //  Taking the destroy path also hands the five slots back to the pool,
+        //  which is the right thing to do while the HUD is switched off anyway.
         if ( zmqol_perf_probe() ||
+             !getdvarintdefault( "hud_master", 1 ) ||
              !( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_health_bar", 1 ) ) )
         {
             self qol_health_hud_destroy();
@@ -1119,7 +1130,7 @@ timer()
     timer.aligny = "top";
     timer.horzalign = "left";
     timer.vertalign = "user_top";
-    timer.x = 5;
+    timer.x = -45;   // == healthbar_bg / playername / zombietext: the mod's left column
     timer.y = -2;
     timer.fontscale = 1.4;
     timer.alpha = 0;
@@ -3258,6 +3269,43 @@ zmqol_dev_command_listener()
                 player iprintln( "^2[zm_qol] godmode ON" );
             }
         }
+        else if ( cmd == "hud" )
+        {
+            // ================================================================
+            //  .hud on / .hud off  -  the master HUD switch          (v1.85.0)
+            //
+            //  Console twin: `hud_master 0|1`, registered in qol_options::init()
+            //  like every other command here - see the commands-are-dvars rule.
+            //  This branch only writes the dvar; qol_options::qol_opt_hud_watcher
+            //  is the single place that acts on it, so the chat command and the
+            //  console command cannot drift or fight each other.
+            //
+            //  Bare ".hud" toggles, which is what every other switch here does.
+            // ================================================================
+            b_on = !getdvarintdefault( "hud_master", 1 );
+
+            if ( tokens.size > 1 )
+            {
+                str_arg = tolower( tokens[1] );
+
+                if ( str_arg == "on" || str_arg == "1" )
+                    b_on = 1;
+                else if ( str_arg == "off" || str_arg == "0" )
+                    b_on = 0;
+                else
+                {
+                    player iprintln( "^3[zm_qol] usage: ^7.hud on ^3| ^7.hud off" );
+                    continue;
+                }
+            }
+
+            setdvar( "hud_master", b_on );
+
+            if ( b_on )
+                player iprintln( "^2[zm_qol] HUD ON" );
+            else
+                player iprintln( "^1[zm_qol] HUD OFF ^7- .hud on to bring it back" );
+        }
         else if ( cmd == "ghost" )
         {
             // self.ignoreme is the stock "AI does not target me" flag - it is what
@@ -3611,7 +3659,8 @@ zmqol_map_perks()
     if ( isdefined( level.zombiemode_using_deadshot_perk ) && level.zombiemode_using_deadshot_perk )
         a_perks[a_perks.size] = "specialty_deadshot";
 
-    if ( isdefined( level.zombiemode_using_tombstone_perk ) && level.zombiemode_using_tombstone_perk )
+    //  v1.85.0 - and not in solo; see zmqol_tombstone_allowed().
+    if ( isdefined( level.zombiemode_using_tombstone_perk ) && level.zombiemode_using_tombstone_perk && zmqol_tombstone_allowed() )
         a_perks[a_perks.size] = "specialty_scavenger";
 
     if ( isdefined( level.zombiemode_using_chugabud_perk ) && level.zombiemode_using_chugabud_perk )
@@ -4472,7 +4521,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance, melee stops)   ^3.fog ^7on/off";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
-    a_lines[a_lines.size] = "^3.giveperks^7/^3.removeperks ^7  ^3.nozmspawns ^7spawns";
+    a_lines[a_lines.size] = "^3.giveperks^7/^3.removeperks ^7  ^3.nozmspawns ^7spawns   ^3.hud ^7on/off";
     //  One line, not two - see the budget note above. The alias list has to be
     //  discoverable somewhere or the per-perk commands may as well not exist,
     //  so it rides on the same line as the syntax rather than getting its own.
@@ -4480,7 +4529,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
     a_lines[a_lines.size] = "^5console: ^3fly night_mode rapid_fire character coop_pause no_power lod_fix";
     a_lines[a_lines.size] = "^5console: ^3hud_all hud_timer hud_health_bar hud_remaining hud_zone";
-    a_lines[a_lines.size] = "^5console: ^3hud_round_timer hud_color ^7\"1 1 1\"  ^3hud_color_health";
+    a_lines[a_lines.size] = "^5console: ^3hud_round_timer hud_master hud_color ^7\"1 1 1\"  ^3hud_color_health";
 
     // 🛑 The tail of this panel is GENERATED, not typed - user: "make sure that
     // the .help command always is updated to show all the custom added chat
@@ -6138,6 +6187,71 @@ zmqol_register_vulture_visionset()
         return;
 
     maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, 31, 1 );
+}
+
+// ============================================================================
+//  zmqol_tombstone_allowed  -  NO TOMBSTONE IN SOLO                 (v1.85.0)
+//
+//  User, 2026-08-13: *"in solo play remove tombstone cola as that perk is
+//  intended for multiplayer games, and it makes no sense to have that perk
+//  available when playing solo."*
+//
+//  🌟 TREYARCH AGREED, AND SHIPPED THE CODE. This is not a house rule invented
+//  here - stock has a function for it, by this name:
+//
+//      maps\mp\zm_transit_utility.gsc:205
+//      solo_tombstone_removal()
+//      {
+//          if ( getnumexpectedplayers() > 1 )
+//              return;
+//
+//          level notify( "tombstone_removed" );
+//          level thread maps\mp\zombies\_zm_perks::perk_machine_removal( "specialty_scavenger" );
+//      }
+//
+//  It is threaded from zm_transit_classic.gsc:103 and zm_transit_standard_town
+//  .gsc:36 - and NOWHERE ELSE. So stock removes it in solo on TranZit Classic
+//  and Town survival only; Die Rise and Buried keep offering a perk that cannot
+//  do anything for a solo player. This mod also hands it out through the
+//  Wunderfizz on every map, which stock never did. Hence: same rule, applied
+//  everywhere, using stock's own removal call rather than a lookalike.
+//
+//  🛑 THE TEST IS getnumexpectedplayers(), COPIED FROM STOCK'S OWN LINE.
+//  Not flag( "solo_game" ) - that is not set until players have connected, and
+//  this has to answer during init. This build's own boot log confirms the
+//  builtin reports correctly here: `[zm_qol] solo status: expected=1`.
+//
+//  🛑 AND IT DELIBERATELY DOES NOT TOUCH level.zombiemode_using_tombstone_perk.
+//  That flag gates registerclientfield( "toplayer", "perk_tombstone" ) on BOTH
+//  halves, and zm_expanded.csc has no way to ask how many players are expected -
+//  so gating the flag would desync the two sides and drop everyone with
+//  EXE_CLIENT_FIELD_MISMATCH. The 2 bits stay registered and simply go unused,
+//  which costs nothing. AVAILABILITY is what changes, not registration.
+// ============================================================================
+zmqol_tombstone_allowed()
+{
+    return getnumexpectedplayers() > 1;
+}
+
+// ----------------------------------------------------------------------------
+//  Stock's solo_tombstone_removal(), applied on every map instead of two.
+//  Threaded from init(); stock threads its copy from the map's main(), so this
+//  runs strictly later and the machines are certainly spawned by now. The extra
+//  network frame is so the notify cannot land before _zm_perks::init() has
+//  threaded turn_tombstone_on() - that thread carries
+//  `level endon( "tombstone_removed" )` and is what the notify is aimed at.
+// ----------------------------------------------------------------------------
+zmqol_solo_tombstone_removal()
+{
+    if ( zmqol_tombstone_allowed() )
+        return;
+
+    wait_network_frame();
+
+    level notify( "tombstone_removed" );
+    level thread maps\mp\zombies\_zm_perks::perk_machine_removal( "specialty_scavenger" );
+
+    println( "[zm_qol] tombstone: solo game (expected=" + getnumexpectedplayers() + ") - machine removed and perk withheld" );
 }
 
 perks()

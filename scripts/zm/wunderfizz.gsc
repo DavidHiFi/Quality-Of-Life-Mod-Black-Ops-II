@@ -1375,7 +1375,18 @@ getPerks()
 	{
 		perks[perks.size] = "specialty_deadshot";
 	}
-	if ( isDefined( level.zombiemode_using_tombstone_perk ) && level.zombiemode_using_tombstone_perk )
+	//  v1.85.0 - NO TOMBSTONE IN SOLO. Without this the machine removal in
+	//  quality_of_life.gsc::zmqol_solo_tombstone_removal() would be pointless,
+	//  because the Wunderfizz hands the perk out on every map regardless of
+	//  whether a machine exists - which stock never did.
+	//
+	//  🛑 The test is INLINED rather than calling
+	//  quality_of_life::zmqol_tombstone_allowed(), which is where the full
+	//  reasoning lives. It is one builtin call and no dependency; a cross-script
+	//  `scripts\zm\quality_of_life::` reference resolves at SCRIPT LOAD time on
+	//  every map, so getting it wrong breaks all of them at once. Not a trade
+	//  worth making to deduplicate one comparison. Keep the two in step.
+	if ( isDefined( level.zombiemode_using_tombstone_perk ) && level.zombiemode_using_tombstone_perk && getnumexpectedplayers() > 1 )
 	{
 		perks[perks.size] = "specialty_scavenger";
 	}

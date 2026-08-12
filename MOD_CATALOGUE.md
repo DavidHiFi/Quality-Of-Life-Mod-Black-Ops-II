@@ -88,13 +88,14 @@ Prefix `.` `!` or `/`. Verified against every `cmd == "…"` branch in
 | `.nozmspawns` | | stop zombie spawning; existing zombies remain |
 | `.giveperks` / `.removeperks` | | all perks on this map, on or off |
 | `.give<perk>` / `.remove<perk>` | | one perk — `jug speed dtap stam mule revive deadshot phd tombstone whoswho cherry vulture` |
+| `.hud on` / `.hud off` | | master HUD switch - also hides the GAME's own hud (points, ammo, round, perks) via `setclientuivisibilityflag( "hud_visible" )`. Console twin `hud_master` |
 | `.powerups` | | list every power-up registered on this map |
 | `.powerup <name>` / `.drop <name>` | | spawn one. Every power-up is also its own command; short forms `.dm .nuke .maxammo .insta .dp .carp .sale` |
 
 ## 2b. Console dvars 📄
 
 `fly` · `night_mode` · `rapid_fire` · `character` ⚠️ *(reported to do nothing)* · `coop_pause` ·
-`no_power` · `lod_fix` · `hud_all` · `hud_timer` · `hud_health_bar` · `hud_remaining` ·
+`no_power` · `lod_fix` · `hud_master` · `hud_all` · `hud_timer` · `hud_health_bar` · `hud_remaining` ·
 `hud_zone` · `hud_round_timer` · `hud_color "1 1 1"` · `hud_color_health` ·
 `sv_deathmachine_duration` · `sv_deathmachine_powerup` · `redhitmarkers` ·
 `disable_player_quotes` · `r_sky_intensity_factor0` · `anim_pap_camo_buried` /

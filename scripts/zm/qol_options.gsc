@@ -45,6 +45,11 @@ init()
     qol_opt_dvar( "disable_player_quotes", "1" );
     qol_opt_dvar( "coop_pause",            "0" );
 
+    //  v1.85.0 - THE MASTER SWITCH, driven by ".hud on" / ".hud off".
+    //  hud_all forces the individual hud_* options ON; hud_master overrides the
+    //  lot in the other direction, including the game's OWN LUI hud (points,
+    //  ammo, round, perk icons) which no hud_* dvar has ever reached. 1 = normal.
+    qol_opt_dvar( "hud_master",       "1" );
     qol_opt_dvar( "hud_all",          "0" );
     qol_opt_dvar( "hud_timer",        "1" );
     //  v1.84.0 - ON by default. The user asked for the round timer to be shown
@@ -716,12 +721,60 @@ qol_opt_hud_watcher()
     //  the value actually differs from the default.
     str_prev_color = "1 1 1";
 
+    //  -1 so the first pass always writes the LUI flag once, whatever hud_master
+    //  says. Seeding it to 1 would leave the flag unset on a player who joined
+    //  with hud_master already 0.
+    n_prev_master = -1;
+    n_tick = 0;
+
     for ( ;; )
     {
         b_all = getdvarintdefault( "hud_all", 0 );
 
-        self qol_opt_show( self.qol_hud_timer, b_all || getdvarintdefault( "hud_timer", 1 ) );
-        self qol_opt_show( self.zombietext,    b_all || getdvarintdefault( "hud_remaining", 1 ) );
+        // ====================================================================
+        //  v1.85.0 - hud_master, the ".hud off" switch.
+        //
+        //  🛑 IT MUST BEAT hud_all, so it is applied as a multiplier on every
+        //  branch below rather than as another `||` term. ".hud off" means off.
+        //
+        //  🌟 setclientuivisibilityflag( "hud_visible", 0 ) is what actually
+        //  takes the GAME's hud down - points, ammo, round, perk icons, the
+        //  power-up row. None of those are hudelems this mod owns, so no hud_*
+        //  dvar has ever been able to touch them. This is not a guess: it is the
+        //  exact call stock uses to hide the hud behind the intro screen, and
+        //  quality_of_life.gsc::fade_out_intro_screen_zm_instant() sets the very
+        //  same flag back to 1 when the blackscreen lifts.
+        //
+        //  Written ONLY on change. It is a reliable client command, and firing
+        //  one every 0.25s is how you earn EXE_SERVERCOMMANDOVERFLOW.
+        // ====================================================================
+        //  🛑 AND IT HAS TO BE RE-ASSERTED, not just written once. Stock sets
+        //  "hud_visible" back to 1 from several places during normal play -
+        //  _globallogic_player.gsc:79, _globallogic.gsc:1197 and _zm.gsc:5300 -
+        //  so a spawn or a round transition would quietly undo ".hud off".
+        //  Re-written every 2s, and ONLY while the switch is off, which is a
+        //  state the user asked for explicitly. At the normal setting this costs
+        //  exactly one write, on the first pass.
+        b_master = getdvarintdefault( "hud_master", 1 );
+        n_tick++;
+
+        if ( b_master != n_prev_master || ( !b_master && n_tick % 8 == 0 ) )
+        {
+            n_prev_master = b_master;
+            self setclientuivisibilityflag( "hud_visible", b_master );
+        }
+
+        self qol_opt_show( self.qol_hud_timer, b_master && ( b_all || getdvarintdefault( "hud_timer", 1 ) ) );
+        self qol_opt_show( self.zombietext,    b_master && ( b_all || getdvarintdefault( "hud_remaining", 1 ) ) );
+        //  The shield bar is a two-element array, created on demand by
+        //  quality_of_life.gsc::shield_hud() and stashed as qol_hud_shield[0..1].
+        //  It has no dvar of its own, so hud_master is the only thing that ever
+        //  hides it.
+        if ( isdefined( self.qol_hud_shield ) )
+        {
+            for ( i = 0; i < self.qol_hud_shield.size; i++ )
+                self qol_opt_show( self.qol_hud_shield[i], b_master );
+        }
 
         //  🛑 The health HUD is deliberately NOT touched here. quality_of_life's
         //  own health loop already owns its alpha (it restores it the instant it
@@ -730,8 +783,8 @@ qol_opt_hud_watcher()
         //  bar, so there is exactly one owner now: that loop reads hud_health_bar
         //  and hud_color_health itself.
 
-        self qol_opt_zone_hud( b_all || getdvarintdefault( "hud_zone", 0 ) );
-        self qol_opt_round_timer_hud( b_all || getdvarintdefault( "hud_round_timer", 1 ) );
+        self qol_opt_zone_hud( b_master && ( b_all || getdvarintdefault( "hud_zone", 0 ) ) );
+        self qol_opt_round_timer_hud( b_master && ( b_all || getdvarintdefault( "hud_round_timer", 1 ) ) );
 
         //  Colour is only re-applied when the string actually changes. Writing
         //  .color every tick on every element would be a lot of needless work
@@ -855,7 +908,7 @@ qol_opt_round_timer_hud( b_on )
         self.qol_hud_roundtimer.aligny = "top";
         self.qol_hud_roundtimer.horzalign = "left";
         self.qol_hud_roundtimer.vertalign = "user_top";
-        self.qol_hud_roundtimer.x = 5;      // == timer.x
+        self.qol_hud_roundtimer.x = -45;    // == timer.x
         self.qol_hud_roundtimer.y = 12;     // == timer.y (-2) + one 14px row
         self.qol_hud_roundtimer.hidewheninmenu = 1;
 

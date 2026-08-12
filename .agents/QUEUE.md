@@ -2957,3 +2957,57 @@ by hand, same `horzalign`/`vertalign`/`x`, differing only in `y` (-2 and 12).
   suspect and `hud_round_timer 0` is the instant test.
 - **Origins draws its quest/craftable HUD in the top-left** (`topLeftScaleContainer` from y=0,
   `hudcraftablestombzombie.lua`). The timers may sit over it there. Not checked in game.
+
+---
+
+### ✅ v1.85.0 — timers to the real left edge, `.hud on|off`, no Tombstone in solo. NOT verified.
+
+**1. Timers were not actually at the left.** `horzalign "left"` is not the screen edge in this HUD -
+it carries an inset. The mod's own left column is **x = -45**, used by `healthbar_bg`, `playername`
+and `zombietext`, all of which sit where the user expects. Both timers now use the same value, so
+they line up with the health bar / name column instead of floating inboard.
+
+**2. `.hud on` / `.hud off`** — master switch. Console twin `hud_master`, registered in
+`qol_options::init()` per the commands-are-dvars rule; the chat branch only writes the dvar and
+`qol_opt_hud_watcher` is the single place that acts on it, so the two cannot fight.
+
+🌟 **It hides the GAME's hud too, not just the mod's.** `setclientuivisibilityflag( "hud_visible", 0 )`
+takes down points, ammo, round, perk icons and the power-up row — none of which are hudelems this mod
+owns, so no `hud_*` dvar has ever reached them. Verified mechanism: it is the exact call stock uses
+to hide the hud behind the intro screen, and `fade_out_intro_screen_zm_instant()` sets the same flag
+back to 1 when the blackscreen lifts.
+
+🛑 **It must be RE-ASSERTED, and this was nearly missed.** Stock writes `hud_visible 1` from
+`_globallogic_player.gsc:79`, `_globallogic.gsc:1197` and `_zm.gsc:5300` during normal play, so a
+spawn or round transition would quietly undo `.hud off`. Re-written every 2s, and only while the
+switch is off. At the normal setting it costs exactly one write, on the first pass — writing a
+reliable client command every tick is how you earn `EXE_SERVERCOMMANDOVERFLOW`.
+
+Covers: game timer, round timer, zombie counter, zone HUD, the shield bar (which had no dvar of its
+own and could not be hidden before), and the health HUD — the last checked inside
+`quality_of_life.gsc`'s own health loop, because that loop rewrites alpha every 0.1s and would undo
+an external hide within a frame.
+
+**3. No Tombstone in solo.** User: *"that perk is intended for multiplayer games."*
+
+🌟 **Treyarch agreed and shipped the code** — `zm_transit_utility.gsc:205 solo_tombstone_removal()`,
+`if ( getnumexpectedplayers() > 1 ) return;` then `level notify( "tombstone_removed" )` and
+`_zm_perks::perk_machine_removal( "specialty_scavenger" )`. It is threaded from
+`zm_transit_classic.gsc:103` and `zm_transit_standard_town.gsc:36` **and nowhere else**, so stock
+does this on TranZit Classic and Town only. This mod also hands the perk out through the Wunderfizz
+on every map, which stock never did. Same rule now applies everywhere, using stock's own call.
+
+🛑 **`level.zombiemode_using_tombstone_perk` is deliberately NOT touched.** It gates
+`registerclientfield( "toplayer", "perk_tombstone" )` on both halves and `zm_expanded.csc` cannot ask
+how many players are expected — gating the flag would desync the sides and drop everyone with
+`EXE_CLIENT_FIELD_MISMATCH`. The 2 bits stay registered and go unused. **Availability changed,
+registration untouched.**
+
+Gated: `zmqol_map_perks()` (which is what `.giveperks` walks) and `wunderfizz.gsc::getPerks()`.
+`zmqol_all_specialties()` is NOT gated — it feeds the perk-slot HUD watcher and must still see every
+specialty. `.givetombstone` still works: naming the perk explicitly is a deliberate act.
+
+⚠️ **To check on the first boot:** that the Tombstone machine is actually gone in solo on Die Rise
+and Buried (stock never removed it there, so this path has no precedent on those maps), and that
+`.hud on` comes back cleanly — with the HUD off, `iprintln` feedback is hidden too, so the confirming
+line will not be visible until the HUD returns.
