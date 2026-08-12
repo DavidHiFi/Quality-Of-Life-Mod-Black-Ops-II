@@ -6,17 +6,18 @@
 > reverted between releases; some are deployed but not yet verified in game. Expect bugs,
 > and expect things to move. It is playable, not final.
 >
-> ### 🛑 Known issue in this release
+> ### Vulture Aid is not on every map
 >
-> **TranZit in Classic mode does not load.** It exits to the menu with
+> **Vulture Aid is absent on Origins and on TranZit**, and that is deliberate. Both maps
+> run out of per-player network field space, which is fatal at load rather than cosmetic —
+> TranZit Classic used to refuse to start entirely with
 > `Trying to assign 1 bits for netfield vulture_perk_toplayer but Client Field Set toplayer
-> is out of space` — the map runs out of per-player network field space once the mod adds
-> Vulture Aid on top of everything else it enables there. **Every other map loads and plays:
-> Nuketown, Die Rise, Mob of the Dead, Buried and Origins in Classic, and all Survival modes
-> including TranZit's.** The cause is measured and the fix is in progress; it is not a
-> mistake in your install and nothing you can configure will work around it.
+> is out of space`. The perk cannot be shipped complete on either map, so it is not shipped
+> there at all rather than shipped broken. **Both maps keep the other eleven perks**, and
+> Vulture Aid is unchanged on Nuketown, Die Rise and Mob of the Dead (Buried has it natively).
 
-A Plutonium T6 (Black Ops II) Zombies mod: **all weapons + all perks on every map**,
+A Plutonium T6 (Black Ops II) Zombies mod: **all weapons on every map, and all twelve perks
+on every map that can physically take them** (see the note above),
 the **BO2 Death Machine** power-up, **Diner as a Survival location**, and a stack of
 QoL tweaks. All gameplay is plain GSC you can edit — no compiling, no linker.
 

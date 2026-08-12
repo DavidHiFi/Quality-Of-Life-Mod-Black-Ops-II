@@ -7443,6 +7443,53 @@ zmqol_vulture_enabled()
     if ( map == "zm_tomb" )     // cannot be complete here - see above
         return 0;
 
+    // ========================================================================
+    //  v1.83.0 - VULTURE IS OFF ON TRANZIT. Same rule, different set.
+    //
+    //  🛑 THIS IS THE FIX FOR THE ONLY MAP THE MOD COULD NOT BOOT, and the user
+    //  had to report it twice because it was filed as "known" instead of open:
+    //
+    //      Trying to assign 1 bits for netfield vulture_perk_toplayer
+    //      but Client Field Set toplayer is out of space.
+    //
+    //  WHY THE ERROR NAMES THIS FIELD, AND WHY THAT IS THE ANSWER. The boot log
+    //  puts the COM_ERROR *after* every init() has run - after
+    //  `GSC Executed "scripts/zm/zm_transit/zm_transit::init()"` - so bits are
+    //  assigned when the clientfield system finalizes, walking the registration
+    //  order. The field the error names is therefore the exact point at which
+    //  the running total crosses the ceiling: everything registered BEFORE
+    //  vulture_perk_toplayer fits, and Vulture's block is the overflow.
+    //
+    //  WHAT TURNING IT OFF HERE GIVES BACK ON TRANZIT - 10 toplayer bits:
+    //        vulture_perk_toplayer        1
+    //        sndVultureStink              1
+    //        vulture_perk_disease_meter   5
+    //        perk_vulture                 2
+    //        overlay_lerp 5 -> 4          1   (the 31-step vulture_stink_overlay
+    //                                          is the widest overlay the mod
+    //                                          adds; without it the next widest
+    //                                          is zombie blood at 15 steps)
+    //  plus 2 actor, 4 scriptmover, 1 zbarrier and 1 world bit it no longer asks
+    //  for. Every one of those is gated on this function, which is why the list
+    //  lives in one place.
+    //
+    //  🛑 WHY NOT SHRINK SOMETHING INSTEAD. vulture_perk_disease_meter's 5 bits
+    //  could be moved to `allplayers`, where TranZit uses 25 of 32. That is a
+    //  tune of a stock field, which this project does not do, and it frees 5
+    //  where 10 are needed. Narrowing the perk fields is not available either -
+    //  they are 2 bits wide because TranZit ships emp_grenade_zm, which is
+    //  stock's own rule in perks_register_clientfield().
+    //
+    //  📝 TranZit keeps 11 perks. getPerks() gates Vulture on
+    //  level._custom_perks[ "specialty_nomotionsensor" ], defined only by the
+    //  enable path this guards, so the Wunderfizz list drops by itself.
+    //
+    //  🛑 The client twin is zm_expanded.csc::zmqol_vulture_enabled(). Both must
+    //  agree or every player is dropped with EXE_CLIENT_FIELD_MISMATCH.
+    // ========================================================================
+    if ( map == "zm_transit" )  // toplayer is out of space here - see above
+        return 0;
+
     return 1;
 }
 

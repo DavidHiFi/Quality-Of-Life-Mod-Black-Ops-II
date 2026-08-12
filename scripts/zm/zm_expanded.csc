@@ -895,6 +895,25 @@ zmqol_vulture_enabled()
 	if ( map == "zm_tomb" )
 		return 0;
 
+	//  🛑 EXACT TWIN of the zm_transit branch in
+	//  quality_of_life.gsc::zmqol_vulture_enabled() - the full reasoning lives
+	//  there. v1.83.0: Vulture is OFF on TranZit because its toplayer set is out
+	//  of space, which is the error that stopped TranZit classic booting at all:
+	//
+	//      Trying to assign 1 bits for netfield vulture_perk_toplayer
+	//      but Client Field Set toplayer is out of space.
+	//
+	//  Bits are assigned at finalize in registration order, so the field named
+	//  in the error is exactly where the total crosses the ceiling. Dropping
+	//  Vulture here returns 10 toplayer bits (1 + 1 + 5 + 2, plus overlay_lerp
+	//  narrowing 5 -> 4 once the 31-step vulture_stink_overlay is gone).
+	//
+	//  If this and the server twin ever disagree, the sets differ in width
+	//  between server and client and every player is dropped with
+	//  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+	if ( map == "zm_transit" )
+		return 0;
+
 	return 1;
 }
 

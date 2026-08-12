@@ -2845,3 +2845,69 @@ minutes, and logs `progress / obj / contested / player_controlled / inzone`.
 📝 Standing lead, not acted on: the only logged difference between the two boots was
 `connected=0` vs `connected=1` at map-init — i.e. the player was already connected in the good
 boot. Connect **order**, not the intro wait. Do not act on it before the probe reports.
+
+---
+
+### 🛑 TRANZIT CLASSIC — FIXED IN v1.83.0 BY TAKING VULTURE OFF TRANZIT. Deployed, NOT verified.
+
+User, 2026-08-13, after it failed AGAIN: *"this error should've been fixed earlier ... after fixing
+any errors catalogued you should wipe the error for good."* Correct, and the process failure is
+mine: it was filed as a catalogued known-issue and reported as "no action" instead of being treated
+as an open bug.
+
+**The measurement that had never been taken — stock `toplayer` totals, per map:**
+
+| map | stock toplayer bits |
+|---|---|
+| **zm_transit** | **38** |
+| zm_highrise | 33 |
+| zm_prison | 50 |
+| zm_tomb | 61 |
+| zm_buried | 63 |
+
+TranZit has the *most* stock headroom of any classic map, so the overflow is entirely mod-added.
+
+**Why the error names `vulture_perk_toplayer`, and why that is the answer.** The boot log puts the
+COM_ERROR *after* every `init()` (`GSC Executed "scripts/zm/zm_transit/zm_transit::init()"` is the
+last line before it) — bits are assigned when the clientfield system finalizes, walking registration
+order. So the named field is exactly where the running total crosses the ceiling: everything before
+it fits, and Vulture's block is the overflow.
+
+**Fix:** `zm_transit` added to `zmqol_vulture_enabled()` on **both** halves — the one map list every
+site asks. Frees **10 toplayer bits**: `vulture_perk_toplayer` 1, `sndVultureStink` 1,
+`vulture_perk_disease_meter` 5, `perk_vulture` 2, plus `overlay_lerp` narrowing 5→4 once the
+31-step `vulture_stink_overlay` is gone. Also gives back 2 actor, 4 scriptmover, 1 zbarrier, 1 world.
+
+**Precedent this follows:** checkpoint 31 — Mob hit the identical error class and **removing 3 bits
+was enough**. 10 is over three times the largest shortfall this project has ever had to clear, and
+checkpoint 31 named Vulture as the lever for exactly this situation. Origins already excludes it.
+
+⚠️ **Residual risk, stated plainly:** the exact ceiling is still unmeasured, so "10 is enough" is an
+inference from the Mob precedent, not a measurement. If it still fails, the error will name a
+`visionset_slot`/`overlay_slot` field and that gives the next exact number. Next lever after Vulture
+would be Who's Who (3 bits) or one of the three mod powerups (2 each).
+
+✅ Verified in the DEPLOYED files, not assumed: `map == "zm_transit"` present in
+`quality_of_life.gsc` inside `mod.iwd` **and** in `zm_expanded.csc` extracted back out of the
+deployed `mod.ff` (`Unlinker --include-assets script`). Both halves shipped — a one-sided change
+here is EXE_CLIENT_FIELD_MISMATCH, which would be worse than the overflow.
+
+### 📥 FOUND WHILE FIXING THE ABOVE — a STALE `scripts/zm/zm_expanded.gsc` ships inside `mod.ff`
+
+**There is no `zm_expanded.gsc` in the source tree** (only `zm_expanded.csc`), yet `mod.ff` carries
+one — 22 KB, the pre-merge server script from before the 17-module merge into
+`quality_of_life.gsc` — and **it executes on every map**: `GSC Executed "scripts/zm/zm_expanded::main()"`.
+This is CLAUDE.md §8's "mod.ff silently re-ships the donor's original scripts" trap.
+
+Its `main()` does four `replaceFunc`s and calls its own `perks()`. **All four are re-replaced by
+`quality_of_life.gsc::main()`**, so it is not currently changing behaviour — checked, not assumed.
+
+🛑 But its `perks()` calls `_zm_perk_divetonuke::enable_divetonuke_perk_for_level()` on TranZit,
+Nuketown, Die Rise, Mob and Buried, and `quality_of_life.gsc::perks()` calls it **again** on the
+same five maps. The mod's own comment above the Origins branch calls double-enabling a perk a
+`"Attempt to register ClientField ... already registered"` fatal risk. It has not fired, so
+something is guarding it — but this is a live double-call that nobody intended.
+
+▶️ Remove it by staging an empty/absent `scripts/zm/zm_expanded.gsc` so the Linker stops copying the
+donor's, or drop it from `mod_base.zone`. **Do NOT bundle this with anything else** — it changes
+what executes on all five maps.
