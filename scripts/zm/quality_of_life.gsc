@@ -7160,6 +7160,8 @@ zmqol_enable_whoswho()
     registerclientfield( "toplayer", "clientfield_whos_who_audio",             5000, 1, "int" );
     registerclientfield( "toplayer", "clientfield_whos_who_filter",            5000, 1, "int" );
 
+    zmqol_cf_staircase();
+
     level.whos_who_client_setup = 1;
 
     // Gates the zm_whos_who visionset. Stock registers it inside
@@ -7355,6 +7357,58 @@ zmqol_whoswho_verify()
 //  the three maps where the perk already works).
 //
 //  Each map loses exactly one visual and keeps the perk.
+// ============================================================================
+//  🔬🛑 zmqol_cf_staircase  -  TEMPORARY MEASUREMENT, v1.79.1. **REVERT IT.**
+//
+//  WHAT IT MEASURES: exactly how many `toplayer` bits are free on TranZit at the
+//  end of normal registration. It registers 1-bit fields named zmqol_probe_1,
+//  zmqol_probe_2, ... in order until one does not fit. The load then dies with
+//
+//      Trying to assign 1 bits for netfield zmqol_probe_<N> ...
+//
+//  and **H = N - 1 free bits**, from ONE boot. That is why a staircase rather
+//  than a single dvar-sized field: a failed registration is fatal, so it cannot
+//  be probed incrementally inside one game, and binary-searching a fixed width
+//  would have cost four builds and four boots.
+//
+//  🌟 HOW TO READ THE RESULT. With Vulture off (which is the state of this
+//  build) TranZit boots, so the four vsmgr fields still fit afterwards and they
+//  cost 14 bits here (visionset_slot 3 + visionset_lerp 4 + overlay_slot 3 +
+//  overlay_lerp 4 - no 31-step stink overlay without Vulture). Turning Vulture
+//  back on costs 9 non-finalize bits AND widens overlay_lerp 4->5, so it needs
+//  9 + 15 = 24 where 14 is already spoken for:
+//
+//        VULTURE FITS WHOLE ON TRANZIT  <=>  H >= 24
+//
+//  So H is not a curiosity, it is the whole decision. Anything from 14 to 23
+//  says how many bits must be found elsewhere; 24+ says something other than
+//  arithmetic is wrong and the accounting is still lying.
+//
+//  24 probes is deliberately the exact size of that threshold. If all 24 fit,
+//  the load dies at `visionset_slot` instead - which still answers the question,
+//  because it means H >= 24.
+//
+//  🛑 SYMMETRY IS THE ONLY THING THAT CAN GO WRONG HERE, so it is not left to
+//  chance. Bit offsets are assigned in registration ORDER, so the two halves
+//  must register identical names, widths and versions in identical sequence or
+//  every player is dropped with EXE_CLIENT_FIELD_MISMATCH. The call sites were
+//  chosen for that reason: immediately after `clientfield_whos_who_filter` on
+//  BOTH sides. Those two Who's Who fields already register consecutively in
+//  `toplayer` on both halves and Who's Who works in game today - which is
+//  empirical proof that the two sites are equivalently ordered, rather than an
+//  assumption that they are. Same loop, same bounds, same names on both sides.
+//
+//  🛑 TRANZIT ONLY. Every other map is untouched and must stay that way.
+// ============================================================================
+zmqol_cf_staircase()
+{
+    if ( getDvar( "mapname" ) != "zm_transit" )
+        return;
+
+    for ( i = 1; i <= 24; i++ )
+        registerclientfield( "toplayer", "zmqol_probe_" + i, 5000, 1, "int" );
+}
+
 zmqol_vulture_enabled()
 {
     map = getDvar( "mapname" );
