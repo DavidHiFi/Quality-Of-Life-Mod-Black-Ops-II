@@ -3059,3 +3059,22 @@ frametime question is still open.
 
 📝 The `.help` panel was kept at **15 lines**, not 16 — the console note was folded onto the existing
 `hud_round_timer` line. That panel has a hard budget and has been silently truncated before.
+
+### ✅ v1.87.0 — timers finally in the corner. The scale was wrong, and two samples caught it.
+
+| `timer.x` | measured text left edge (2000px-wide grab) |
+|---|---|
+| -45 | 46px |
+| -56 | 21px |
+| **-64** | **~3px (predicted)** |
+
+🛑 **v1.86.0's arithmetic used an ASSUMED scale and that is why it undershot.** It took 2000/640 =
+3.125 px per unit because hudelems are nominally a 640x480 space. The second sample says the real
+figure is 25px / 11 units = **2.27 px per unit** — there is further scaling in between. One
+measurement plus a theory is not a measurement.
+
+-64 is 8 units past -56 ⇒ 21 - 18 ≈ 3px from the left, matching the 3px the text already sits from
+the top. Vertical was never the problem: it has measured 3px in every screenshot since v1.85.0.
+
+📝 Method worth keeping: the user's screenshots are pixel-scannable with System.Drawing. Two
+positions at different settings give the true scale of any HUD anchor without a single guess.

@@ -1130,13 +1130,22 @@ timer()
     timer.aligny = "top";
     timer.horzalign = "left";
     timer.vertalign = "user_top";
-    //  v1.86.0 - the true top-left corner, MEASURED not guessed. At x -45 the
-    //  text landed 46px from the left on a 2000px-wide grab (same column as
-    //  healthbar_bg / playername / zombietext). 2000/640 = 3.125 px per unit, so
-    //  46px = 14.7 units and horzalign "left" actually starts ~60 units in.
-    //  -56 leaves a deliberate ~4-unit margin instead of sitting flush, which
-    //  matches the 3px the text already sits from the top.
-    timer.x = -56;
+    //  v1.87.0 - the true top-left corner, from TWO measured points rather than
+    //  one measurement plus an assumed scale.
+    //
+    //  Pixel-scanned from the user's own 2000x1125 screenshots, top-left corner:
+    //        x = -45  ->  text at 46px from the left
+    //        x = -56  ->  text at 21px
+    //  so the real scale is 25px / 11 units = 2.27 px per unit.
+    //
+    //  🛑 NOT 3.125. v1.86.0 assumed 2000/640 because hudelems are nominally a
+    //  640x480 space; the second sample disproved it - there is further scaling
+    //  in between. That assumption is why -56 undershot. Two points beat one
+    //  point and a theory.
+    //
+    //  -64 is 8 units past -56, i.e. 21 - 18 = ~3px from the left edge, which
+    //  matches the 3px the text already sits from the top. Square in the corner.
+    timer.x = -64;
     timer.y = -2;
     timer.fontscale = 1.4;
     timer.alpha = 0;
