@@ -2677,3 +2677,72 @@ deficit. **Neither is a fix and neither ships enabled.**
 **25 bits** and the busiest map in all 48 dumps uses 28, so a mod-added field could likely be moved
 out of `toplayer` entirely. Behaviour-identical, implementation-relocated. Only worth designing
 once the size of the hole is known.
+
+### 📥 QUEUED — ORIGINS MP40 WALLBUY HANDS OUT THE PLAIN GUN (root cause FOUND, not yet fixed)
+
+User, 2026-08-13: *"the mp40 wallbuy doesn't get the adjustable stock now for some reason, that was
+working a while ago fine after i requested it."*
+
+**The retag is NOT the problem any more — it is working.** Newest `console_zm.log`:
+
+    [zm_qol] origins mp40: retagged 3 mp40 wallbuy stub(s) to mp40_stalker_zm; 23 wallbuy stub(s)
+    total; mp40 at mp40_zm(3237,-424,195) mp40_zm(-517,4498,-285) mp40_zm(-643,695,199)
+
+All three mapents structs found and rewritten. (Older logs `.007`/`.008` show the old `0 of 0`
+failure, so v1.59.2/v1.59.3 did fix what they were aimed at.)
+
+### 🌟 ROOT CAUSE — THE STUB IS NOT WHAT THE PURCHASE READS
+
+`zmqol_tomb_mp40_stalker_wallbuys()` rewrites `stub.zombie_weapon_upgrade`. But there are **two
+copies of that field**, and the buy path reads the other one:
+
+| reader | field | stock line |
+|---|---|---|
+| the PROMPT (hint + cost) | `self.stub.zombie_weapon_upgrade` | `_zm_weapons.gsc:1120` |
+| **the PURCHASE** | `self.zombie_weapon_upgrade` — **on the TRIGGER** | `_zm_weapons.gsc:1975, 2043` |
+
+The trigger gets its copy **once, at spawn**:
+
+    copy_zombie_keys_onto_trigger( trig, stub )     // _zm_unitrigger.gsc:625
+        trig.zombie_weapon_upgrade = stub.zombie_weapon_upgrade;   // :630
+
+🛑 **Unitriggers are proximity-spawned and despawned.** So a wall-buy whose trigger was created
+*before* the retag (which runs after a `wait 2`) keeps `mp40_zm` on the trigger for as long as that
+trigger lives — while its prompt, read from the stub, correctly says the stalker gun. Buy it and you
+get the plain MP40.
+
+⇒ **This is the whole intermittency, and it is why the feature keeps "coming back".** Nothing
+regressed between versions. Whether you get the right gun depends on whether that particular
+wall-buy's trigger happened to spawn before or after the retag on that boot — i.e. on where you
+walked. The three No Man's Land / village wall-buys are the ones most likely to be spawned early.
+
+### ▶️ THE FIX WHEN ITS TURN COMES (do NOT start while TranZit is in flight)
+
+Rewrite **both** copies: after retagging each stub, also walk the live triggers and set
+`.zombie_weapon_upgrade` on any whose `.stub` is one of the three, so already-spawned triggers are
+corrected too. Then it cannot depend on spawn order.
+
+🔮 Pre-mortem before building it:
+1. The trigger list is not `trigger_stubs` — find the real live-trigger array in `_zm_unitrigger`
+   and confirm it, do not assume a name.
+2. `copy_zombie_keys_onto_trigger` copies **more than one key** (`:625-630` is a block, only the
+   relevant line is quoted above) — read all of them and check none of the others also names the
+   weapon, or the fix is half done.
+3. Triggers respawn on proximity, so a corrected trigger may be destroyed and re-created from the
+   stub. That is fine **only because the stub is already correct** — verify that ordering holds
+   rather than assuming it.
+
+### 📥 ALSO QUEUED — the generator ring, and what is now known
+
+Origins textures were the user's own images folder ✅ CLOSED — not the mod.
+
+The ring: `Could not load material "waypoint_circle_arrow"` appears on **every** Origins boot in the
+retained history (4 of 4) and on **no** non-Origins boot (0 of 7). **The mod does not cause it** —
+`Unlinker --list mod.ff` (4,186 assets) owns nothing matching `waypoint` or `faction_cdc`. Lead, not
+verdict; the ring may not use that material at all.
+
+📝 The in-code capture probe ran, printed `6 zone(s) registered`, and then logged **nothing** for its
+full 5-minute window. Its reads are safe (`ent_flag_init` at `zm_tomb_capture_zones.gsc:530`,
+`n_current_progress` at `:521`), so this is real data rather than a silently dead thread — but the
+user may simply not have reached a generator inside the window. **Next Origins run: capture a
+generator inside the first 5 minutes**, and note whether it completes while the ring is missing.
