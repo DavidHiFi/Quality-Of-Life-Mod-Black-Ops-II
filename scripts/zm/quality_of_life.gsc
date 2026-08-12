@@ -7359,6 +7359,39 @@ zmqol_vulture_enabled()
 {
     map = getDvar( "mapname" );
 
+    // ========================================================================
+    //  🔬 MEASUREMENT DVAR, v1.78.0 - `zmqol_vulture 0` forces the perk off
+    //  everywhere. DEFAULT 1, so shipped behaviour is byte-identical to v1.77.0.
+    //
+    //  WHY IT EXISTS. TranZit classic dies at `vulture_perk_toplayer`, and the
+    //  source-derived bit accounting cannot be trusted to size the hole: it
+    //  totals TranZit at 65 while Buried classic runs at >=71 and boots. About
+    //  28 bits of TranZit's real usage are unexplained, and every offline
+    //  search for them came back empty (the mod's own registerclientfield
+    //  calls, weapon includes, buildables, powerups, the replaced/ folder).
+    //
+    //  This dvar buys ONE number that no amount of reading can produce: does
+    //  TranZit classic load with Vulture absent?
+    //    - loads  => Vulture alone is the overflow, deficit <= 10 bits
+    //                (its 9 + the overlay_lerp 4->5 its 31-step stink forces)
+    //    - fails  => the next error names the next field, which is another
+    //                exact zero-free-bits measurement, and Vulture is not the
+    //                whole story
+    //
+    //  🛑 IT IS A PROBE, NOT A FIX, AND NOT A SHIPPED OPTION. Nothing decides
+    //  to leave Vulture off anywhere on the strength of this dvar; it exists to
+    //  size the problem. No degraded variant gets shipped either way.
+    //
+    //  🛑 THE CLIENT TWIN IS zm_expanded.csc::zmqol_vulture_enabled() AND IT
+    //  READS THE SAME DVAR WITH THE SAME DEFAULT. Both halves run in one
+    //  process here, so they cannot observe different values - but if the two
+    //  lines ever drift apart the toplayer/actor sets differ in width between
+    //  server and client and every player is dropped with
+    //  EXE_CLIENT_FIELD_MISMATCH. Change neither without the other.
+    // ========================================================================
+    if ( !getdvarintdefault( "zmqol_vulture", 1 ) )
+        return 0;
+
     if ( map == "zm_buried" )   // ships the perk itself
         return 0;
 

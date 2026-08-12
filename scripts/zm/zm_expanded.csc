@@ -870,6 +870,15 @@ zmqol_vulture_enabled()
 {
 	map = getDvar( "mapname" );
 
+	//  🔬 MEASUREMENT DVAR, v1.78.0 - EXACT TWIN of the line in
+	//  quality_of_life.gsc::zmqol_vulture_enabled(), same dvar, same default of
+	//  1, so shipped behaviour is unchanged. The full reasoning for why this
+	//  probe exists lives there. Both halves run in one process, so they read
+	//  one value - but they must be changed together regardless, because a
+	//  disagreement here is EXE_CLIENT_FIELD_MISMATCH on every map.
+	if ( !getdvarintdefault( "zmqol_vulture", 1 ) )
+		return 0;
+
 	if ( map == "zm_buried" )
 		return 0;
 
