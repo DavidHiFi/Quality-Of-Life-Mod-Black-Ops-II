@@ -804,7 +804,13 @@ qol_opt_zone_hud( b_on )
     if ( !isdefined( self.qol_hud_zone ) )
     {
         self.qol_hud_zone = self createfontstring( "hudsmall", 1.2 );
-        self.qol_hud_zone setpoint( "LEFT", "BOTTOM_LEFT", -45, -19 );
+
+        //  -19 -> -24, v1.77.0. Moves in lockstep with the zombie counter
+        //  (quality_of_life.gsc::zombiecounter(), -7 -> -12) so the 12-unit gap
+        //  between the two is unchanged. Both shifted up by 5, the height of the
+        //  shield bar that now sits below them. Move one without the other and
+        //  they overlap.
+        self.qol_hud_zone setpoint( "LEFT", "BOTTOM_LEFT", -45, -24 );
         self.qol_hud_zone.hidewheninmenu = 1;
     }
 

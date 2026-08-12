@@ -1130,7 +1130,20 @@ zombiecounter()
     level endon( "end_game" );
     flag_wait( "initial_blackscreen_passed" );
     self.zombietext = createfontstring( "hudsmall", 1.2 );
-    self.zombietext setpoint( "LEFT", "BOTTOM_LEFT", -45, -7 );
+
+    //  y -7 -> -12, v1.77.0. The shield bar (v1.75.0) now occupies -0.5..4.5,
+    //  which used to be the empty clearance under this counter, so the text was
+    //  sitting on top of it. THE MOVE IS EXACTLY THE BAR'S OWN HEIGHT, NOT AN
+    //  EYEBALLED NUDGE: qol_shield_hud_create()'s background is setshader(
+    //  "white", 104, 5 ) at y 2 with aligny "middle", so it is 5 units tall and
+    //  flush on the player bar (y 7, same 5 tall, 4.5..9.5). Shifting every
+    //  element above the bars up by that same 5 preserves every pre-existing gap
+    //  exactly, whatever the font's real pixel height turns out to be - which is
+    //  why this needs no measurement of the text itself.
+    //  🛑 The optional zone readout below the counter moves with it, in
+    //  qol_options.gsc::qol_opt_zone_hud() (-19 -> -24). If only one of the two
+    //  moves they collide.
+    self.zombietext setpoint( "LEFT", "BOTTOM_LEFT", -45, -12 );
     self.zombietext.hidewheninmenu = 1;
 
     //  🛑 PERF, v1.65.3 - THE LABEL WAS SET INSIDE THE LOOP, FOUR TIMES A SECOND,
@@ -8411,18 +8424,43 @@ an_onplayerspawned()
     }
 }
 
+//  🛑 v1.77.0 - ONE LOOP PER PLAYER, AND IT ENDS.
+//
+//  This was threaded from an_onplayerspawned()'s `waittill( "spawned_player" )`
+//  loop with no guard and no endon, so EVERY respawn started ANOTHER copy and
+//  none of them ever stopped - not on death, not on disconnect, not at end of
+//  game. N spawns meant N loops all watching the same self.currentzone and all
+//  able to fire a notifier in the same frame.
+//
+//  That is not the duplicate the user reported (see show_grief_hud_msg below for
+//  that one, which is certain from the code) but it is a second, independent way
+//  to get two notifiers at once, and it is a thread leak either way.
 zonecheck()
 {
+    self endon( "disconnect" );
+    level endon( "end_game" );
+
+    if ( isdefined( self.qol_zonecheck_running ) && self.qol_zonecheck_running )
+        return;
+
+    self.qol_zonecheck_running = 1;
+
     while ( true )
     {
-        if ( self.currentzone != self get_zone_name() )
+        str_zone = self get_zone_name();
+
+        if ( self.currentzone != str_zone )
         {
-            if ( !issubstr( self get_zone_name(), "_" ) )
+            //  Zones with no friendly name still read as e.g. "zone_diner_roof";
+            //  those are skipped, and deliberately do NOT update currentzone, so
+            //  crossing an unnamed zone and coming back does not re-announce.
+            if ( !issubstr( str_zone, "_" ) )
             {
-                self.currentzone = self get_zone_name();
-                grief_reset_message( self get_zone_name(), "" );
+                self.currentzone = str_zone;
+                self grief_reset_message( str_zone, "" );
             }
         }
+
         wait 0.2;
     }
 }
@@ -8898,26 +8936,95 @@ get_zone_name()
     return name;
 }
 
+//  🛑 v1.77.0 - THIS IS PER-PLAYER NOW, AND IT USED NOT TO BE.
+//
+//  Despite the name, this whole chain is private to the zone notifier: the ONLY
+//  caller of grief_reset_message() is zonecheck(), and the ONLY caller of
+//  show_grief_hud_msg() is this function. Both verified by grep across the tree.
+//  The names are inherited from the 17-module merge; they are kept so the diff
+//  stays readable, but nothing about grief reaches here.
+//
+//  It walked get_players() and pushed the message to EVERYONE, so in co-op one
+//  player crossing into "Bus Depot" announced "Bus Depot" on all four screens -
+//  wrong for the other three, who are somewhere else. self.currentzone is
+//  already per-player, so the announcement had no business being global.
+//
+//  📝 `player playsound( sound )` sat OUTSIDE the foreach, so it ran on whatever
+//  `player` the loop happened to leave behind - and is called with "" from the
+//  one caller, so it never played anything anyway. Now it is guarded and on self.
 grief_reset_message( setmsg, sound )
 {
-    msg = setmsg;
-    players = get_players();
+    self endon( "disconnect" );
+
     if ( isdefined( level.hostmigrationtimer ) )
     {
         while ( isdefined( level.hostmigrationtimer ) )
             wait 0.05;
+
         wait 4;
     }
-    foreach ( player in players )
-        player thread show_grief_hud_msg( msg );
-    player playsound( sound );
+
+    self thread show_grief_hud_msg( setmsg );
+
+    if ( isdefined( sound ) && sound != "" )
+        self playsound( sound );
 }
 
+//  Retires the notifier currently on screen, if any. Called before a new one is
+//  drawn, so there is never more than one alive per player.
+//
+//  Order matters: the notify has to reach the waiting threads BEFORE the element
+//  goes away. "qol_replaced" ends show_grief_hud_msg's own timing thread (which
+//  is mid-`wait` and would otherwise come back to fade a destroyed element) and
+//  "death" ends show_grief_hud_msg_cleanup, which already endons exactly that.
+qol_zone_notifier_clear()
+{
+    if ( !isdefined( self.qol_zone_notifier ) )
+        return;
+
+    e_old = self.qol_zone_notifier;
+    self.qol_zone_notifier = undefined;
+
+    if ( !isdefined( e_old ) )
+        return;
+
+    e_old notify( "qol_replaced" );
+    e_old notify( "death" );
+    e_old destroy();
+}
+
+//  🛑 v1.77.0 - THE OVERLAPPING ZONE NOTIFIERS. Root cause, certain from the code.
+//
+//  User, 2026-08-13: *"if i were to go back and fourth for example into 2
+//  different zones in origins and keep spamming back and fourth... the text will
+//  become stacked into eachother with 2 or more inside one another."*
+//
+//  Each call did an unconditional newclienthudelem() and then held that element
+//  for 3.25s + 1s of fade = 4.25 SECONDS before destroying it. Nothing referenced
+//  the element that was already on screen, so a zone change inside that 4.25s
+//  window simply drew a second element at the identical centre position - same
+//  x, same y, same font - and the two texts rendered through each other. Cross
+//  four zone borders quickly and there are four.
+//
+//  🌟 FIXED BY RETIRING THE OLD ONE, NOT BY A COOLDOWN, and that choice is
+//  deliberate. The user offered either. A cooldown is wrong here because the
+//  message is a statement of where you ARE: suppressing the new one leaves the
+//  PREVIOUS zone's name on screen while you stand somewhere else, which is a
+//  worse bug than the overlap. Retiring the outgoing element means the newest
+//  zone always wins and exactly one is ever alive.
+//
+//  📝 The 3.25s hold and 1s fades are untouched - a single, uncontested notifier
+//  still reads exactly as it does today.
 show_grief_hud_msg( msg, msg_parm, offset, cleanup_end_game )
 {
     self endon( "disconnect" );
     while ( isdefined( level.hostmigrationtimer ) )
         wait 0.05;
+
+    //  Take the outgoing one down BEFORE the new element exists, so the two are
+    //  never on screen together even for a frame.
+    self qol_zone_notifier_clear();
+
     notifier_hudmsg = newclienthudelem( self );
     notifier_hudmsg.alignx = "center";
     notifier_hudmsg.aligny = "middle";
@@ -8934,6 +9041,17 @@ show_grief_hud_msg( msg, msg_parm, offset, cleanup_end_game )
     notifier_hudmsg.color = ( 1, 1, 1 );
     notifier_hudmsg.hidewheninmenu = 1;
     notifier_hudmsg.font = "default";
+
+    //  Publish it, then bind this thread's lifetime to it. qol_zone_notifier_clear()
+    //  notifies "qol_replaced" before destroying, so if another zone change lands
+    //  during either wait below, this thread ends here instead of waking up to
+    //  fade and destroy an element that is already gone.
+    //  🛑 A DISTINCT EVENT, not "death", on purpose: this function notifies
+    //  "death" itself at the end, and endon-ing that would kill the thread on its
+    //  own notify before the destroy could run.
+    self.qol_zone_notifier = notifier_hudmsg;
+    notifier_hudmsg endon( "qol_replaced" );
+
     if ( cleanup_end_game && isdefined( cleanup_end_game ) )
     {
         level endon( "end_game" );
@@ -8953,6 +9071,13 @@ show_grief_hud_msg( msg, msg_parm, offset, cleanup_end_game )
     notifier_hudmsg.alpha = 0;
     notifier_hudmsg.fontscale = 2;
     wait 1;
+
+    //  Ran its full life uninterrupted, so release the handle - but only if it is
+    //  still OURS. Belt and braces: the "qol_replaced" endon above should already
+    //  have ended this thread if a newer notifier took over.
+    if ( isdefined( self.qol_zone_notifier ) && self.qol_zone_notifier == notifier_hudmsg )
+        self.qol_zone_notifier = undefined;
+
     notifier_hudmsg notify( "death" );
     if ( isdefined( notifier_hudmsg ) )
         notifier_hudmsg destroy();
