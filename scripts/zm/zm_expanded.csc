@@ -911,7 +911,19 @@ zmqol_vulture_enabled()
 	//  If this and the server twin ever disagree, the sets differ in width
 	//  between server and client and every player is dropped with
 	//  EXE_CLIENT_FIELD_MISMATCH before the map starts.
-	if ( map == "zm_transit" )
+	//  v1.84.0 - CLASSIC ONLY. EXACT TWIN of the server test; the survival and
+	//  grief locations are also `zm_transit` and they have room for the perk.
+	//  Stock toplayer bits, measured per configuration: zclassic+transit 38,
+	//  zgrief 28, zstandard 27. Classic has 11 fewer spare bits than any
+	//  survival location and Vulture needs 10.
+	//
+	//  🛑 ui_zm_mapstartlocation, not g_gametype: that one is a server dvar and
+	//  this must give the identical answer on both halves. This file already
+	//  reads ui_zm_mapstartlocation in four places - see the comment above
+	//  zmqol_wallbuy_match_string() for why it is the dvar that is safe this
+	//  early. If the two halves ever disagree here, every player is dropped
+	//  with EXE_CLIENT_FIELD_MISMATCH before the map starts.
+	if ( map == "zm_transit" && getdvar( "ui_zm_mapstartlocation" ) == "transit" )
 		return 0;
 
 	return 1;

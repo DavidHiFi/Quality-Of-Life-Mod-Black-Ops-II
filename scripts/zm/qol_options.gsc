@@ -6,8 +6,10 @@
 //  rework, the bank/perma-perk/fridge/box patches, the round-255 and points
 //  changes, the strat tester. Those are gameplay changes; this file is options.
 //
-//  Everything here is OFF by default except disable_player_quotes, so a fresh
-//  install plays exactly as it did before any of this existed.
+//  Every GAMEPLAY option here is OFF by default, so a fresh install plays
+//  exactly as it did before any of this existed. The HUD readouts are the
+//  exception and always were: hud_timer, hud_health_bar and hud_remaining ship
+//  on, and hud_round_timer joined them in v1.84.0 at the user's request.
 //
 //  🛑 THREE THINGS WERE VERIFIED AGAINST THE SHIPPED GAME BEFORE BEING WRITTEN,
 //  because each is the class of bug that has already cost this project a
@@ -45,7 +47,9 @@ init()
 
     qol_opt_dvar( "hud_all",          "0" );
     qol_opt_dvar( "hud_timer",        "1" );
-    qol_opt_dvar( "hud_round_timer",  "0" );
+    //  v1.84.0 - ON by default. The user asked for the round timer to be shown
+    //  under the game counter, not left behind a switch they have to find.
+    qol_opt_dvar( "hud_round_timer",  "1" );
     qol_opt_dvar( "hud_health_bar",   "1" );
     qol_opt_dvar( "hud_remaining",    "1" );
     qol_opt_dvar( "hud_zone",         "0" );
@@ -727,7 +731,7 @@ qol_opt_hud_watcher()
         //  and hud_color_health itself.
 
         self qol_opt_zone_hud( b_all || getdvarintdefault( "hud_zone", 0 ) );
-        self qol_opt_round_timer_hud( b_all || getdvarintdefault( "hud_round_timer", 0 ) );
+        self qol_opt_round_timer_hud( b_all || getdvarintdefault( "hud_round_timer", 1 ) );
 
         //  Colour is only re-applied when the string actually changes. Writing
         //  .color every tick on every element would be a lot of needless work
@@ -838,8 +842,21 @@ qol_opt_round_timer_hud( b_on )
 
     if ( !isdefined( self.qol_hud_roundtimer ) )
     {
+        //  v1.84.0 - SITS DIRECTLY UNDER THE GAME TIMER, TOP-LEFT.
+        //
+        //  🛑 EVERY FIELD BELOW MIRRORS quality_of_life.gsc::timer() ON PURPOSE.
+        //  This used to be setpoint( "TOP", "TOP", 0, 14 ), which resolves y
+        //  against vertalign "top" while the game timer resolves against
+        //  "user_top" - two different origins, so the two elements were never
+        //  actually 14 apart and would drift with the safe-area setting. Same
+        //  horzalign, same vertalign, same x; only y differs, by one row.
         self.qol_hud_roundtimer = self createfontstring( "hudsmall", 1.2 );
-        self.qol_hud_roundtimer setpoint( "TOP", "TOP", 0, 14 );
+        self.qol_hud_roundtimer.alignx = "left";
+        self.qol_hud_roundtimer.aligny = "top";
+        self.qol_hud_roundtimer.horzalign = "left";
+        self.qol_hud_roundtimer.vertalign = "user_top";
+        self.qol_hud_roundtimer.x = 5;      // == timer.x
+        self.qol_hud_roundtimer.y = 12;     // == timer.y (-2) + one 14px row
         self.qol_hud_roundtimer.hidewheninmenu = 1;
 
         if ( isdefined( level.qol_round_start_time ) )

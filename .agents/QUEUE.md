@@ -2911,3 +2911,49 @@ something is guarding it — but this is a live double-call that nobody intended
 ▶️ Remove it by staging an empty/absent `scripts/zm/zm_expanded.gsc` so the Linker stops copying the
 donor's, or drop it from `mod_base.zone`. **Do NOT bundle this with anything else** — it changes
 what executes on all five maps.
+
+---
+
+### ✅ v1.84.0 — Vulture back on TranZit's SURVIVALS; timers moved top-left. Deployed, NOT verified.
+
+**1. v1.83.0's gate was too wide and cost the survivals a perk.** User: *"the perk limit has been
+dropped to 11 for diner, and presumably the other survival maps as well, those maps were working
+fine with all 12 perks."* Right — every TranZit survival and grief location is also `zm_transit`,
+so a map-name-only test caught all of them.
+
+🌟 **Measured, per configuration, from the per-map dumps — stock `toplayer` bits:**
+
+| config | bits |
+|---|---|
+| `zclassic` + `transit` | **38** ← the only one that overflows |
+| `zgrief` (all 7 locations) | 28 |
+| `zstandard` (all 7 locations) | 27 |
+| `dr_zcleansed` | 24 |
+
+Classic carries **11 more stock bits** than any survival location. Vulture needs 10. That is
+precisely why the survivals ran twelve perks happily while classic could not load — and it is the
+number that should have been checked before v1.83.0 shipped.
+
+Gate is now `map == "zm_transit" && getdvar( "ui_zm_mapstartlocation" ) == "transit"`, on both
+halves. **`ui_zm_mapstartlocation` and not `g_gametype`**: the failing boot log printed both
+(`struct_class_init - gametype=zclassic location=transit`), but `g_gametype` is a server dvar and
+this test must give the same answer inside `zm_expanded.csc`. The client already reads
+`ui_zm_mapstartlocation` in four places, and the note above `zmqol_wallbuy_match_string()` documents
+why that dvar is the safe one this early.
+
+**2. Timers moved top-left, round timer on by default.** The round timer already existed —
+`qol_options.gsc::qol_opt_round_timer_hud()` behind `hud_round_timer`, default 0 — so this moved
+what was there rather than drawing a second one.
+
+🛑 **The two were never really stacked.** The game timer is `vertalign "user_top"`; the round timer
+was `setpoint( "TOP", "TOP", 0, 14 )`, i.e. `vertalign "top"`. Different origins, so the 14 between
+them was not a real gap and would drift with the safe-area setting. Both now set the same six fields
+by hand, same `horzalign`/`vertalign`/`x`, differing only in `y` (-2 and 12).
+
+⚠️ **Two things to look at on the first boot:**
+- `hud_round_timer` defaulting on costs **one more permanent hudelem per player**. This file's own
+  header records that the client allowance is finite and already silently truncated the `.help`
+  panel. One element should be fine; if anything on-demand starts failing to draw, this is the first
+  suspect and `hud_round_timer 0` is the instant test.
+- **Origins draws its quest/craftable HUD in the top-left** (`topLeftScaleContainer` from y=0,
+  `hudcraftablestombzombie.lua`). The timers may sit over it there. Not checked in game.

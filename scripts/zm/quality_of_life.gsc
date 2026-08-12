@@ -1103,13 +1103,24 @@ first_spawn()
 timer()
 {
     self endon( "disconnect" );
+    //  v1.84.0 - TOP-LEFT, was top-centre. User, 2026-08-13: *"move the game
+    //  counter to the top left of the screen, and have the current round timer
+    //  below it"*.
+    //
+    //  🛑 THE ANCHOR HERE AND IN qol_options.gsc::qol_opt_round_timer_hud()
+    //  MUST STAY IDENTICAL. The round timer sits QOL_TIMER_ROW_H below this one
+    //  and the two only stack if they resolve their y against the same edge.
+    //  The round timer used to be a setpoint( "TOP", "TOP", 0, 14 ), which is
+    //  vertalign "top", while this element is "user_top" - different origins, so
+    //  the 14 between them was never a real gap. Both are now set the same way,
+    //  by hand, so the offset means what it says.
     timer = newclienthudelem( self );
-    timer.alignx = "center";
+    timer.alignx = "left";
     timer.aligny = "top";
-    timer.horzalign = "center";
+    timer.horzalign = "left";
     timer.vertalign = "user_top";
-    timer.x = timer.x - 1;
-    timer.y = timer.y + -2;
+    timer.x = 5;
+    timer.y = -2;
     timer.fontscale = 1.4;
     timer.alpha = 0;
     timer.hidewheninmenu = 1;
@@ -7487,7 +7498,42 @@ zmqol_vulture_enabled()
     //  🛑 The client twin is zm_expanded.csc::zmqol_vulture_enabled(). Both must
     //  agree or every player is dropped with EXE_CLIENT_FIELD_MISMATCH.
     // ========================================================================
-    if ( map == "zm_transit" )  // toplayer is out of space here - see above
+    //  v1.84.0 - AND ONLY ON CLASSIC. The survival locations keep all twelve.
+    //
+    //  User, 2026-08-13: *"the perk limit has been dropped to 11 for diner, and
+    //  presumably the other survival maps as well, those maps were working fine
+    //  with all 12 perks."* Correct - v1.83.0 gated on the map name alone, and
+    //  every TranZit survival and grief location is also `zm_transit`, so they
+    //  all lost a perk they had room for.
+    //
+    //  🌟 MEASURED, from the per-map dumps in
+    //  Black Ops 2 Grand Resources\...\Clientfields\ - stock toplayer bits for
+    //  every shipped zm_transit configuration:
+    //
+    //        38   zclassic  transit      <- the only one that overflows
+    //        28   zgrief    (all 7 locations)
+    //        27   zstandard (all 7 locations: diner, town, farm, power,
+    //                        cornfield, tunnel, transit)
+    //        24   dr_zcleansed
+    //
+    //  Classic carries ELEVEN more stock bits than any survival location, which
+    //  is exactly why the survivals were running twelve perks happily while
+    //  classic could not load at all. Vulture needs 10. The survivals have room.
+    //
+    //  🛑 WHY ui_zm_mapstartlocation AND NOT g_gametype. The failing boot log
+    //  printed both, from replaced\utility.gsc::struct_class_init:
+    //        [zm_qol] struct_class_init - gametype=zclassic location=transit
+    //  so either would identify it - but `g_gametype` is a server dvar and this
+    //  test has to give the SAME answer inside zm_expanded.csc. The client half
+    //  already reads `ui_zm_mapstartlocation` in four places, and the comment
+    //  above zmqol_wallbuy_match_string() documents why that dvar in particular
+    //  is safe here: `_zm::init()` has not assigned level.scr_zm_* yet at this
+    //  point, and both sides read this very dvar later, so they always agree.
+    //
+    //  📝 zstandard/zgrief at location "transit" are not reachable from the
+    //  menus, and at 27-28 bits they would have had room anyway; they fall on
+    //  the safe side of this test, which is the direction to err in.
+    if ( map == "zm_transit" && getdvar( "ui_zm_mapstartlocation" ) == "transit" )
         return 0;
 
     return 1;
