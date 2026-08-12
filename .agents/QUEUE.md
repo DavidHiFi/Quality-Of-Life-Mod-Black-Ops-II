@@ -2746,3 +2746,36 @@ full 5-minute window. Its reads are safe (`ent_flag_init` at `zm_tomb_capture_zo
 `n_current_progress` at `:521`), so this is real data rather than a silently dead thread — but the
 user may simply not have reached a generator inside the window. **Next Origins run: capture a
 generator inside the first 5 minutes**, and note whether it completes while the ring is missing.
+
+### ✅ DONE 2026-08-13 — Origins MP40 wallbuy (v1.79.0), user-confirmed in game
+The live-trigger correction was the fix. Feature was never removed — one commit ever touched it.
+
+### 📥 QUEUED — move Origins' generator-status dial from top-right to top-left
+
+User, 2026-08-13: *"whenever you complete a generator by default, it flashes the generators and
+what's completed on the top right, which overlays the round indicator... could you make it so that
+hud icon is on the top left not the top right?"* Purely a visual-consistency fix; it collides with
+the mod's own round indicator.
+
+🛑 **FEASIBILITY IS NOT ESTABLISHED — check this BEFORE promising it.** The dial is **not drawn by
+GSC or CSC**. `clientscripts/mp/zm_tomb_capture_zones.csc:19-32` registers the fields and then hands
+them to the engine:
+
+    registerclientfield( "world", "zone_capture_hud_generator_" + struct.script_int, 14000, 2, "int", undefined, 0 );
+    setupclientfieldcodecallbacks( "world", 1, "zone_capture_hud_generator_" + struct.script_int );
+
+The callback is `undefined` and `setupclientfieldcodecallbacks` routes it to **engine code**. So
+there is no script-side draw call to reposition, and the widget's placement almost certainly lives
+in **LUI** (`patch_ui_zm.ff`, all 48 files, compiled bytecode) or in the engine itself.
+
+▶️ First step when this comes up, and it is a research step not a code step:
+1. `Unlinker --include-assets rawfile -o <dir> patch_ui_zm.ff` and search the 48 LUI files for the
+   generator/capture widget and its anchor.
+2. If it is LUI, [[t6_lui_bytecode_format]] applies — a single function CAN be patched from a file
+   the mod already overrides, and `luaparse` validates syntax offline.
+3. If it is engine-drawn with no LUI anchor, **it cannot be moved**, and the honest answer is to say
+   so rather than approximate it by hiding the real dial and drawing a lookalike. A lookalike is
+   exactly the compromise this project does not ship.
+
+⚠️ Do not "solve" this by moving the mod's own round indicator instead unless the user asks — they
+asked for the generator dial to move.
