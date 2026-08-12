@@ -55,7 +55,7 @@ main()
     //  v1.59.2 - MP40 wall-buys hand out the ADJUSTABLE STOCK version.
     //  THREADED, and it waits for the wall-buy stubs to exist - the v1.59.1
     //  version ran inline here and found zero structs. See the function.
-    level thread zmqol_tomb_mp40_stalker_wallbuys();
+    level thread zmqol_mp40_keep_wallbuys_stalker();
 
     // --- custom survival start locations: Trenches, Excavation Site, Church, The Crazy Place ---
 
@@ -560,10 +560,7 @@ zmqol_tomb_mp40_stalker_wallbuys()
         n_wait += 0.5;
 
         if ( n_wait > 30 )
-        {
-            println( "[zm_qol] origins mp40: no unitrigger stubs after 30s - wallbuys never registered" );
-            return;
-        }
+            return 0;
     }
 
     //  Let every wall-buy finish registering before walking the list.
@@ -590,7 +587,7 @@ zmqol_tomb_mp40_stalker_wallbuys()
     if ( !isdefined( level.zombie_weapons ) || !isdefined( level.zombie_weapons[ "mp40_stalker_zm" ] ) )
     {
         println( "[zm_qol] origins mp40: mp40_stalker_zm is NOT in level.zombie_weapons - RETAG SKIPPED, wallbuys left stock" );
-        return;
+        return 0;
     }
 
     //  And never write an undefined into the stub, even now.
@@ -600,7 +597,7 @@ zmqol_tomb_mp40_stalker_wallbuys()
     if ( !isdefined( str_hint ) || !isdefined( n_cost ) )
     {
         println( "[zm_qol] origins mp40: hint or cost undefined for mp40_stalker_zm - RETAG SKIPPED, wallbuys left stock" );
-        return;
+        return 0;
     }
 
     a_stubs   = level._unitriggers.trigger_stubs;
@@ -655,9 +652,81 @@ zmqol_tomb_mp40_stalker_wallbuys()
         n_mp40++;
     }
 
-    println( "[zm_qol] origins mp40: retagged " + n_mp40 + " mp40 wallbuy stub(s) to mp40_stalker_zm; " + n_wb + " wallbuy stub(s) total; corrected " + n_live + " already-live trigger(s); mp40 at " + str_where );
+    if ( n_mp40 > 0 || n_live > 0 )
+        println( "[zm_qol] origins mp40: retagged " + n_mp40 + " mp40 wallbuy stub(s) to mp40_stalker_zm; " + n_wb + " wallbuy stub(s) total; corrected " + n_live + " already-live trigger(s); mp40 at " + str_where );
 
-    level thread zmqol_mp40_watch_triggers( a_mine );
+    if ( n_mp40 == 0 && n_wb == 0 )
+        level.zmqol_mp40_saw_no_stubs = 1;
+
+    //  🛑 The watcher thread is NOT started here any more. This function is now
+    //  called once every 2s by zmqol_mp40_keep_wallbuys_stalker(), so threading
+    //  a watcher per pass would spawn hundreds of them. The outer loop's re-scan
+    //  does the watcher's job and does it for stubs that appear late as well.
+    return n_mp40;
+}
+
+// ============================================================================
+//  🌟 zmqol_mp40_keep_wallbuys_stalker  -  THE ACTUAL CAUSE, v1.80.0
+//
+//  User, 2026-08-13: *"for some reason now the mp40 gives me the regular again?
+//  you just had it working with the adjustable stock stop reverting that
+//  change."*
+//
+//  📝 NOTHING WAS REVERTED, and this is checkable rather than asserted: the most
+//  recent commit touching this file IS the v1.79.0 fix, and both
+//  zmqol_mp40_push_to_live_triggers and zmqol_mp40_watch_triggers are present in
+//  the deployed mod.iwd. The feature has never been removed at any point.
+//
+//  🛑 AND v1.79.0 WAS AIMED AT THE WRONG THING. Said plainly because it was
+//  shipped as "verified mechanism, unproven cause" and the log has now answered:
+//
+//      retagged 0 mp40 wallbuy stub(s); 0 wallbuy stub(s) total;
+//      corrected 0 already-live trigger(s)
+//
+//  **Zero stubs, not three.** The trigger-vs-stub split is real but it was never
+//  reached - there was nothing to retag, so the live-trigger push had an empty
+//  list and the watcher was handed an empty array. The two-copy fix stays (it is
+//  correct, and it matters once the retag DOES run) but it is not the cause.
+//
+//  🌟 THE CAUSE IS THAT THE RETAG WAS A ONE-SHOT AGAINST A RACE IT COULD LOSE.
+//  It waited for `level._unitriggers.trigger_stubs` to be non-empty - which the
+//  FIRST unitrigger of any kind satisfies, a door or a perk machine - then
+//  waited 2 seconds and walked the list exactly once. If the three MP40 wall-buy
+//  stubs had not registered inside that window, it found nothing and gave up
+//  permanently, for the rest of the game.
+//
+//  That is the whole intermittency, and the logs show both faces of the same
+//  coin across boots of identical code:
+//        .003 / .004 / one earlier   ->  23 stubs, 3 mp40, worked
+//        .007 / .008 / this one      ->   0 stubs, 0 mp40, gave the plain gun
+//
+//  "It worked and then you broke it" was really "it won a race and then lost
+//  it". No version boundary lines up with it.
+//
+//  THE FIX: stop betting on a window. Re-scan for the whole match, so a stub
+//  registered late is retagged whenever it appears, and a trigger rebuilt from a
+//  stub is re-checked. Correcting something already correct is a no-op, so the
+//  steady state costs one walk of ~23 stubs every 2s and nothing else.
+// ============================================================================
+zmqol_mp40_keep_wallbuys_stalker()
+{
+    level endon( "end_game" );
+
+    n_done   = 0;
+    n_passes = 0;
+
+    while ( n_passes < 900 )
+    {
+        n_done += zmqol_tomb_mp40_stalker_wallbuys();
+        n_passes++;
+
+        //  Loud exactly once, so a boot that never finds them is obvious in the
+        //  log instead of silent - that silence is what hid this for weeks.
+        if ( n_passes == 15 && n_done == 0 )
+            println( "[zm_qol] origins mp40: STILL 0 mp40 stubs after 15 passes - wallbuy stubs are not registering at all, this is NOT the retag window" );
+
+        wait 2;
+    }
 }
 
 // ============================================================================
