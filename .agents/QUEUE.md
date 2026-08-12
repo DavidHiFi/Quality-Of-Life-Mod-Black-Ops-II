@@ -2779,3 +2779,69 @@ in **LUI** (`patch_ui_zm.ff`, all 48 files, compiled bytecode) or in the engine 
 
 ⚠️ Do not "solve" this by moving the mod's own round indicator instead unless the user asks — they
 asked for the generator dial to move.
+
+---
+
+### ✅ DONE 2026-08-13 (v1.82.0) — Origins generator dial moved left. DEPLOYED, NOT VERIFIED.
+
+User asked again (the earlier cancellation is reversed): the six-wedge generator wheel at
+top-right sits on top of the mod's BOCW round indicator.
+
+🛑 **CHECKPOINT 39 §6 WAS WRONG — the dial is NOT engine-drawn.** That verdict came from
+searching `patch_ui_zm.ff`, which holds **lobby/menu LUI only** (50 rawfiles, all lobby). The
+dial lives in **`zm_tomb_patch.ff`**:
+
+| file | role |
+|---|---|
+| `ui_mp/t6/zombie/capturezonewheeltombdisplay.lua` | the wheel widget itself |
+| `ui_mp/t6/zombie/hudcraftablestombzombie.lua` | **positions it** — this is the one overridden |
+| `ui_mp/t6/zombie/tombcapturezonedisplay.lua` | `TCZWaypoint`, the **mid-screen capture meter** |
+
+Fix = one number. `local f1_local12` is the container's inset from the right edge
+(`setLeftRight(false, true, -width - inset, -inset)`); stock 10 → **240**. Nothing else moves.
+
+**Reconstruction is verified, not trusted.** Body from BO2-Reimagined commit `7a8dfbfd`, then
+every numeric constant checked against the constant tables of the *shipped* bytecode dumped from
+`zm_tomb_patch.ff` with OpenAssetTools. main chunk `10,3000,5000,500,0,1,2,6,50`;
+`CraftablesTombArea` `0,4,90,100,10,120` — all matched.
+
+⚠️ **One disclosed uncertainty:** `TabletTopStart`. Reimagined has `ChalkSize + 94`, but that
+commit is titled *"Origins: move tablet HUD up"* and the float 94 is **absent from the shipped
+bytecode** (byte-scan for `00 00 BC 42`, zero hits; no numeric constant between the `ChalkSize`
+and `OneInchIconWidth` strings). Shipped as the bare term. Affects **only** the bottom-left One
+Inch Punch tablet icon, never the wheel.
+
+⚠️ **Residual risk to watch on the first boot:** every other zm_qol LUI override replaces a file
+from `patch_zm.ff` (global). This is the first from a **map DLC** fastfile. Path-based override is
+the expectation and Reimagined ships the same path, but it is unproven here. If the wheel does not
+move AND nothing else breaks, that is the thing that failed.
+
+### 🛑 ORIGINS CAPTURE METER — intro-hold theory FALSIFIED, probe REPAIRED (v1.82.0)
+
+`console_zm.log` held both of the user's Origins games back to back:
+
+| | line 4694 (game A) | line 8800 (game B) |
+|---|---|---|
+| `intro: held` | **1.6s** | **1.6s** |
+| meter drew | ❌ | ✅ |
+| `solo status` | `connected=0` | `connected=1` |
+
+Identical hold, opposite outcomes ⇒ **`zmqol_intro_hold_time()` is not the cause.** Reverted to
+0.05 everywhere; Origins no longer pays 1.55s of black screen for nothing.
+
+🌟 **THE PROBE COULD NEVER PRINT.** `zm_tomb.gsc` walked `level.zone_capture.zones[i]` numerically,
+but `init_capture_zone()` builds it **string-keyed**
+(`level.zone_capture.zones[self.script_noteworthy] = self`). `.size` returns 6 — which is why every
+boot logged `6 zone(s) registered` — while every `[i]` is undefined. **Ten Origins boots, zero
+data.** Now iterates `foreach ( str_key, zone in ... )`, runs for the whole match instead of 5
+minutes, and logs `progress / obj / contested / player_controlled / inzone`.
+
+▶️ **NEXT: one Origins game, capture a generator, then send `console_zm.log` AND
+`mods\zm_qol\games_mp.log`.** The probe lines decide it:
+- progress climbs + `obj` is a real index → server is fine, failure is client-side LUI
+- `obj=unset` while contested → the objective is never assigned, server-side
+- progress never moves → the capture think thread is not running at all
+
+📝 Standing lead, not acted on: the only logged difference between the two boots was
+`connected=0` vs `connected=1` at map-init — i.e. the player was already connected in the good
+boot. Connect **order**, not the intro wait. Do not act on it before the probe reports.

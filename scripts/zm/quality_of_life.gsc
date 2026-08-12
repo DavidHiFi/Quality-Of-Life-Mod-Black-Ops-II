@@ -9297,7 +9297,8 @@ fade_out_intro_screen_zm_instant( hold_black_time, fade_out_time, destroyed_afte
     level.introscreen fadeovertime( fade_out_time );
     level.introscreen.alpha = 0;
 
-    // 🛑 ORIGINS PAYS STOCK'S FULL 1.6s. See zmqol_intro_hold_time() below.
+    // Stock waits a hardcoded 1.6s here; this mod cuts it. Origins used to pay
+    // stock's full 1.6 as a test - that test failed, see zmqol_intro_hold_time().
     wait( zmqol_intro_hold_time() );
 
     level.passed_introscreen = 1;
@@ -9331,12 +9332,12 @@ fade_out_intro_screen_zm_instant( hold_black_time, fade_out_time, destroyed_afte
 //  zmqol_intro_hold_time  -  how long to sit on black after the fade
 //
 //  Stock maps\mp\zombies\_zm::fade_out_intro_screen_zm waits a hardcoded 1.6s
-//  here. This mod cut it to 0.05 to kill dead time at the start of every game,
-//  and that shortcut is kept - EXCEPT on Origins, which pays stock's full 1.6.
+//  here. This mod cuts it to 0.05 to kill dead time at the start of every game,
+//  on every map including Origins.
 //
-//  🛑 WHY ORIGINS IS DIFFERENT, and what is actually known vs suspected.
+//  WHAT IS KNOWN ABOUT THE ORIGINS CAPTURE RING, kept because it stays true:
 //
-//  KNOWN: the generator capture ring intermittently does not draw. It is NOT a
+//  KNOWN: the generator capture meter intermittently does not draw. It is NOT a
 //  hudelem (checkpoint 17 said so and was wrong) and it is NOT a clientfield -
 //  it is the OBJECTIVE/waypoint system, zm_tomb_capture_zones.gsc:1506:
 //        objective_setprogress( self.n_objective_index, self.n_current_progress / 100 );
@@ -9344,40 +9345,39 @@ fade_out_intro_screen_zm_instant( hold_black_time, fade_out_time, destroyed_afte
 //  still completes; only the display is missing. Confirmed by the user
 //  2026-08-06: "nothing drew at all".
 //
+//  KNOWN (new, 2026-08-13): the widget is LUI, not engine code. It is
+//  TCZWaypoint in ui_mp/t6/zombie/tombcapturezonedisplay.lua, inheriting
+//  ObjectiveWaypoint, and it is selected by the objective's NAME string
+//  (ZM_TOMB_OBJ_CAPTURE_1 / _2 / RECAPTURE_*). That whole file ships in
+//  zm_tomb_patch.ff.
+//
 //  KNOWN: no commit has ever successfully targeted this. The one that tried
 //  (0aa9f46, "free hudelems for the generator ring") aimed at the hudelem pool,
 //  which checkpoint 18 established the ring does not use. So "it worked last
 //  release and broke this release" is not a regression - it is the same
 //  unfixed intermittent race landing differently on different boots.
 //
-//  SUSPECTED, and this is the change: these three lines
-//        level.passed_introscreen = 1;
-//        players[i] setclientuivisibilityflag( "hud_visible", 1 );
-//        flag_set( "initial_blackscreen_passed" );
-//  all fire 1.55s earlier than Treyarch ever ran them. Origins is the map that
-//  hangs the most off that flag - initial_round_wait_func() waits on it, and
-//  everything downstream of start_zombie_round_logic (including the per-zone
-//  capture threads that own the objective) is sequenced behind it. An
-//  intermittent, presentation-only failure on exactly the map with the deepest
-//  chain off that flag is the shape of a startup race, and this was already the
-//  leading theory in checkpoint 18 - it was simply never acted on.
+//  🛑 FALSIFIED 2026-08-13 - THE HOLD IS NOT THE CAUSE, AND IS NOW REVERTED.
 //
-//  🛑 THIS IS A TEST AS MUCH AS A FIX, and it is deliberately falsifiable. The
-//  probe in zm_tomb\zm_tomb.gsc now logs whether the SERVER side is advancing
-//  while nothing draws. Next boot says which it is:
-//    - ring draws          -> the race was real, this is the fix, keep it
-//    - progress advances,  -> server fine, purely client-side; the intro timing
-//      still no ring          is NOT the cause and this hold should be reverted
-//    - progress never      -> server side, and the objective is a red herring
-//      advances
+//  It shipped as a deliberately falsifiable test, and the evidence killed it.
+//  console_zm.log holds BOTH of the user's Origins games back to back:
+//        line 4694  [zm_qol] intro: held 1.6s ...   -> ring did NOT draw
+//        line 8800  [zm_qol] intro: held 1.6s ...   -> ring DID draw
+//  Identical hold, identical build, opposite outcomes. A constant cannot
+//  explain a variable, so the startup-race theory is dead and the 1.55s of
+//  extra black screen on Origins was buying nothing. Back to 0.05 everywhere.
 //
-//  Costs 1.55s of black screen on one map, and nothing anywhere else.
+//  What the same A/B DOES show, kept here so it is not lost: the one logged
+//  difference between the two boots was
+//        game A  solo status: expected=1 connected=0   -> no ring
+//        game B  solo status: expected=1 connected=1   -> ring
+//  i.e. the player was already connected at map-init time in the good boot and
+//  not in the bad one. That is a lead about connect ORDER, not about this wait,
+//  and it is not enough to act on. The repaired probe in zm_tomb\zm_tomb.gsc
+//  (the old one could never print - see its header) is what settles it.
 // ============================================================================
 zmqol_intro_hold_time()
 {
-    if ( getdvar( "mapname" ) == "zm_tomb" )
-        return 1.6;   // stock
-
     return 0.05;
 }
 

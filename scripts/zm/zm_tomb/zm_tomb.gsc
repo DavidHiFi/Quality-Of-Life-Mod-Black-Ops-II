@@ -933,42 +933,44 @@ zmqol_probe_capture_zones()
 
     println( "[zm_qol] capture probe: " + level.zone_capture.zones.size + " zone(s) registered" );
 
+    // 🛑 THE OLD LOOP COULD NEVER PRINT, AND THAT IS WHY TEN ORIGINS BOOTS
+    //    PRODUCED ONLY THE HEADER LINE ABOVE.
+    //
+    //    It walked `level.zone_capture.zones[i]` with a numeric i. Stock builds
+    //    that array STRING-KEYED - zm_tomb_capture_zones.gsc:init_capture_zone()
+    //    ends with
+    //        level.zone_capture.zones[self.script_noteworthy] = self;
+    //    so `.size` reports 6 (hence "6 zone(s) registered" every boot) while
+    //    every [i] lookup returns undefined and hits the `continue`. Zero data
+    //    from every run. Fixed by iterating with foreach over the real keys.
     a_last = [];
-    n_ticks = 0;
 
-    while ( n_ticks < 600 )
+    for ( ;; )
     {
-        for ( i = 0; i < level.zone_capture.zones.size; i++ )
+        foreach ( str_key, zone in level.zone_capture.zones )
         {
-            zone = level.zone_capture.zones[i];
-
             if ( !isdefined( zone ) || !isdefined( zone.n_current_progress ) )
                 continue;
 
-            if ( !isdefined( a_last[i] ) || a_last[i] != zone.n_current_progress )
-            {
-                str_name = "?";
+            if ( isdefined( a_last[str_key] ) && a_last[str_key] == zone.n_current_progress )
+                continue;
 
-                if ( isdefined( zone.script_noteworthy ) )
-                    str_name = zone.script_noteworthy;
+            // The objective index IS the ring - the mid-screen capture meter is
+            // LUI's TCZWaypoint (ui_mp/t6/zombie/tombcapturezonedisplay.lua),
+            // which inherits ObjectiveWaypoint and is picked by OBJECTIVE NAME
+            // (ZM_TOMB_OBJ_CAPTURE_1). So if progress climbs while obj is a real
+            // index and the zone is contested, the server did everything it is
+            // supposed to and the failure is purely client-side.
+            str_obj = "unset";
 
-                // The objective index IS the ring. If progress is climbing and
-                // obj is a real index with the zone contested, the server has
-                // done everything it is supposed to and a missing ring is
-                // purely client-side - which falsifies the intro-timing fix in
-                // quality_of_life.gsc::zmqol_intro_hold_time().
-                str_obj = "unset";
+            if ( isdefined( zone.n_objective_index ) )
+                str_obj = "" + zone.n_objective_index;
 
-                if ( isdefined( zone.n_objective_index ) )
-                    str_obj = "" + zone.n_objective_index;
-
-                println( "[zm_qol] capture probe: zone " + i + " (" + str_name + ") progress " + zone.n_current_progress + " obj=" + str_obj + " contested=" + zone ent_flag( "zone_contested" ) + " inzone=" + zone maps\mp\zm_tomb_capture_zones::get_players_in_capture_zone().size );
-                a_last[i] = zone.n_current_progress;
-            }
+            println( "[zm_qol] capture probe: zone " + str_key + " progress " + zone.n_current_progress + " obj=" + str_obj + " contested=" + zone ent_flag( "zone_contested" ) + " player_controlled=" + zone ent_flag( "player_controlled" ) + " inzone=" + zone maps\mp\zm_tomb_capture_zones::get_players_in_capture_zone().size );
+            a_last[str_key] = zone.n_current_progress;
         }
 
         wait 0.5;
-        n_ticks++;
     }
 }
 
