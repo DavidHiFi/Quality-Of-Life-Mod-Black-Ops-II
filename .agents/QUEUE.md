@@ -2377,3 +2377,133 @@ get theirs. 📝 The pro7 donor `mod.ff` carries **2 `camo` assets** — check t
 they may already be exactly this.
 
 ---
+
+## 📥 QUEUED 2026-08-12 — 15 MP/CAMPAIGN WEAPONS INTO THE BOX (`multiplayer&campaignweaponstozombieslist.txt`)
+
+> *"add the rest of the weapons from multiplayer into zombies into the box… Only add the ones in
+> this list that are already apart of existing mods in your workspace (If in order to add any of the
+> listed weapons you'd need to do it fresh then don't bother)… i know the bo2 reimagined mod has
+> some of these… but some of them replace existing weapons, i want to keep the original weapons but
+> just add these new ones to the box… keep the games limitations in mind per map."*
+
+**QUEUED behind v1.76.0's boot. Nothing built. Scoping below is complete and every line is measured.**
+
+### 🌟 THE PIPELINE ALREADY EXISTS — this is an extension, not new machinery
+
+`zm_qol\weapons\` holds **85 full weapon defs** (~21 KB each) plus 6 wonder-weapon defs in
+`weapons\zm\`, and the built `mod.ff` carries **99 `weapon` assets**. The mod already ports weapons
+across maps through `added_weapons()` in each per-map script (`zm_buried.gsc:79-168` is the model).
+📝 An early read of this said "only 6 weapon defs" — that listed `weapons\zm\` and missed the 85 in
+`weapons\` root. Corrected.
+
+### THE VERDICT ON ALL 15 — measured, not assumed
+
+**Method:** `Unlinker --list` over all 13 zombies fastfiles → **235 distinct ZM `weapon` assets**;
+the same over the built `mod.ff`; then a whole-workspace filename search for the gaps.
+
+| # | user's name | real internal name | verdict |
+|---|---|---|---|
+| 13 | M16 | `m16_zm` | ✅ **ALREADY SHIPPED** — in `mod.ff`, and `include_weapon("m16_zm")` (in_box defaults to 1) on Mob + Origins |
+| 16 | Dragunov | — | ❌ **no such BO2 weapon.** Nearest is the SVU-AS (`svu_zm`), which the mod already ships and boxes |
+| 5 | XPR-50 | `xpr50` | ❌ **exists in NO workspace mod** → out by the user's own rule |
+| 12 | TAC-45 | `tac45` | ❌ same |
+| 1 | SWAT-556 | 🛑 **`sig556_zm`**, NOT `xm8_zm` | 🟡 portable — Reimagined has base + upgraded |
+| 2 | FAL-OSW | 🛑 **`sa58_zm`**, NOT `fnfal_zm` | 🟡 portable |
+| 3 | MK 48 | `mk48_zm` | 🟡 portable |
+| 4 | QBB LSW | `qbb95_zm` | 🟡 portable |
+| 6 | MP7 | `mp7_zm` | 🟡 portable |
+| 7 | Vector K10 | `vector_zm` + `vector_extclip_zm` | 🟡 portable |
+| 8 | MSMC | `insas_zm` | 🟡 portable |
+| 14 | Peacekeeper | `peacekeeper_zm` | 🟡 portable |
+| 11 | Crossbow | `crossbow_zm` + `crossbow_explosive_bolt_zm` | 🟡 portable |
+| 15 | Titus-6 | `titus6_zm` + `titus6_explosive_dart_zm` | 🟡 portable |
+| 9 | Bouncing Betty | `bouncingbetty_zm` | ⚠️ portable but it is **equipment, not a box gun** — needs the user's call |
+
+**So: 10 box weapons + Bouncing Betty are in scope. 4 of the 15 are already done or impossible.**
+
+### 🛑 TWO NAME TRAPS THAT WOULD HAVE SHIPPED THE WRONG GUN
+
+Both were caught by dumping the real defs out of `zm_transit.ff`, not by recall.
+
+1. **SWAT-556 is `sig556`, not `xm8`.** `xm8_zm` is the **M8A1** (`gunModel t6_wpn_ar_xm8_view`,
+   `displayName WEAPON_XM8`) and the mod already ships it. Reimagined's `sig556_zm` carries
+   `ZOMBIE_WEAPON_SIG556` → *"Hold [{+activate}] for SWAT-556"*, PaP name **"FBI-667"**.
+2. **The stock zombies FAL is NOT the FAL-OSW.** `fnfal_zm` is `t6_wpn_ar_fal_view` /
+   `ZMWEAPON_FNFAL`; the FAL-OSW is `sa58_zm` / `t6_wpn_ar_sa58_view`, PaP **"WN OTW"**. Different
+   model, different string. Reimagined declares 130 `viewmodel_sa58_*` anims from MP and **zero**
+   `viewmodel_fal_*`, because the FAL's own assets are already in the ZM fastfiles. Two guns.
+
+### 🛑 THE "REPLACES EXISTING WEAPONS" WORRY IS REAL, AND IT IS ONE LINE
+
+`BO2-Reimagined\scripts\zm\_zm_reimagined.gsc:2237-2239`:
+
+    if (isdefined(level.zombie_weapons["fnfal_zm"]))
+        level.zombie_weapons["fnfal_zm"].is_in_box = 0;
+
+Reimagined **pulls the stock FAL out of the box** to make room for the FAL-OSW. **Do not port that
+line.** Same shape to watch for on `sig556` vs `xm8`. Port the additions, never the removals.
+
+### WHAT EACH WEAPON ACTUALLY COSTS — the recipe is Reimagined's own zone file
+
+🌟 **None of the 11 exist in any zombies fastfile.** Checked every viewmodel
+(`t6_wpn_ar_sig556_view`, `t6_wpn_smg_msmc_view`, …) against all 13 ZM lists **and** `mod.ff`:
+**zero hits.** So every one needs its MP assets linked into `mod.ff`.
+
+`BO2-Reimagined\zone_source\includes\common_mp.zone` (1,189 lines) is the exact per-weapon asset
+list, sourced from `common_mp.ff` / `patch_mp.ff`. MSMC's block (`:178-219`) is representative:
+2 view/world xmodels + 2 attachment xmodels + 4 camo materials + ~30 `viewmodel_msmc_*` xanims.
+`sa58` needs **130** anims.
+
+**Sound is fully covered and already routed.** `BO2-Reimagined\soundbank\mod.all.aliases.csv`
+(1,481 rows) carries **36-49 `wpn_<name>_*` alias rows per weapon** — 49 insas, 49 vector, 49
+sig556, 48 sa58, 47 qbb95, 44 crossbow, 41 mk48, 37 peacekeeper, 36 mp7, 14 titus. Rows point at
+`raw\sound\wpn\...`, so payloads come out of the MP banks by the same
+`Unlinker --include-assets soundbank --search-path "<BO2>\sound"` route already used for
+`zmqol_ann_*`. 🛑 Per [[t6-soundbank-facts]] **a missing alias is silent, never an error** — so every
+row has to be confirmed present in the rebuilt bank, not assumed.
+
+**Strings are routed too:** `zone_assets\english\localizedstrings\mod.str` already exists.
+
+### ⚠️ THE ONE LIMIT THAT COULD BLOCK THIS — weapon count per map
+
+Native vs. under this mod (`|map ff ∪ mod.ff|`):
+
+| map | native | with mod | +11 weapons (~26 assets) |
+|---|---|---|---|
+| Nuketown | 100 | 145 | ~171 |
+| TranZit | 109 | 156 | ~182 |
+| Die Rise | 110 | 151 | ~177 |
+| Mob | 88 | 152 | ~178 |
+| Buried | 109 | 158 | ~184 |
+| **Origins** | **129** | **178** | **~204** |
+
+Stock's own maximum is Origins at 129, and **the mod already runs Origins at 178 and boots**, so the
+ceiling is **≥ 178** — but the upper bound is unknown, exactly like the clientfield ceiling was.
+**Origins is the map at risk and the one to boot first.** This is the residual risk to state, not
+hide.
+
+### ORDER OF WORK WHEN IT STARTS
+
+1. `build_ff.bat` gains `--load` for `common_mp.ff` / `patch_mp.ff` (or `common_patch_mp.ff`).
+   🛑 **Append them LAST** — first-load-wins decides the donor for shared assets, the v1.62.6 shader
+   bug. Then **re-audit the full asset list: additions only, nothing re-owned**
+   ([[t6-oat-load-order-decides-asset-copy]], [[t6-modff-asset-ownership-trap]]).
+2. Copy the weapon defs into `weapons\`, **adapted not bulk-copied** — Reimagined carries its own
+   balance changes.
+3. Declare each weapon's xmodel/material/xanim block in `zone_source\mod_locations.zone`.
+4. Dump the MP sound payloads + alias rows into `soundbank\mod.all.aliases.additions.csv`.
+5. Add the strings to `mod.str` (display name, PaP name, wallbuy/box hint).
+6. `added_weapons()` per map: `include_weapon(x)` + `include_weapon(x_upgraded, 0)` +
+   `add_zombie_weapon(...)`, plus the `.csc` twin. **Additions only — never `is_in_box = 0`.**
+7. Boot **Origins first** for the weapon-count ceiling.
+
+### 🔮 PRE-MORTEM — three ways this fails, before any of it is written
+
+1. **Silent audio.** An alias row that does not resolve to a payload is silent with no error, so the
+   gun fires mute. → Confirm every `wpn_<name>_*` row round-trips through the rebuilt bank.
+2. **The ownership trap fires on a shared MP asset.** Loading `common_mp.ff` puts MP copies of
+   generic materials/anims in front of the ZM ones for **every** map. → Full asset diff after
+   linking; anything re-owned gets hashed against the ZM copy before it ships.
+3. **Origins blows the weapon ceiling.** ~204 assets against a bound that is only known to be ≥178.
+   → Ship in map order with Origins tested first, and be ready to gate it off Origins.
+

@@ -1,5 +1,11 @@
 # Quality Of Life
 
+> ## ⚠️ WORK IN PROGRESS
+>
+> **This mod is unfinished and under active development.** Features land, change and get
+> reverted between releases; some are deployed but not yet verified in game. Expect bugs,
+> and expect things to move. It is playable, not final.
+
 A Plutonium T6 (Black Ops II) Zombies mod: **all weapons + all perks on every map**,
 the **BO2 Death Machine** power-up, **Diner as a Survival location**, and a stack of
 QoL tweaks. All gameplay is plain GSC you can edit — no compiling, no linker.
