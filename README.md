@@ -5,6 +5,16 @@
 > **This mod is unfinished and under active development.** Features land, change and get
 > reverted between releases; some are deployed but not yet verified in game. Expect bugs,
 > and expect things to move. It is playable, not final.
+>
+> ### 🛑 Known issue in this release
+>
+> **TranZit in Classic mode does not load.** It exits to the menu with
+> `Trying to assign 1 bits for netfield vulture_perk_toplayer but Client Field Set toplayer
+> is out of space` — the map runs out of per-player network field space once the mod adds
+> Vulture Aid on top of everything else it enables there. **Every other map loads and plays:
+> Nuketown, Die Rise, Mob of the Dead, Buried and Origins in Classic, and all Survival modes
+> including TranZit's.** The cause is measured and the fix is in progress; it is not a
+> mistake in your install and nothing you can configure will work around it.
 
 A Plutonium T6 (Black Ops II) Zombies mod: **all weapons + all perks on every map**,
 the **BO2 Death Machine** power-up, **Diner as a Survival location**, and a stack of

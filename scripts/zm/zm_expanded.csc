@@ -764,8 +764,6 @@ zmqol_enable_whoswho()
 	registerclientfield( "toplayer", "clientfield_whos_who_audio", 5000, 1, "int", ::zmqol_whoswho_audio, 0 );
 	registerclientfield( "toplayer", "clientfield_whos_who_filter", 5000, 1, "int", ::zmqol_whoswho_filter, 0 );
 
-	zmqol_cf_staircase();
-
 	// 🛑 THE zm_whos_who VISIONSET IS NOT REGISTERED HERE. It cannot be - see the
 	// long block at the end of perks_register_clientfield() below, which is the
 	// one place in this script that runs inside the visionset manager's window.
@@ -868,23 +866,6 @@ zmqol_whoswho_audio( localclientnum, oldval, newval, bnewent, binitialsnap, fiel
 //  zmqol_init_vulture_trimmed() below.
 //
 //  The full reasoning is in quality_of_life.gsc above zmqol_vulture_enabled().
-//  🔬🛑 TEMPORARY MEASUREMENT, v1.79.1. **REVERT IT**, together with its twin in
-//  quality_of_life.gsc::zmqol_cf_staircase(), where the full reasoning lives.
-//
-//  EXACT TWIN: same loop, same bounds, same names, same width, same version, and
-//  called from the same place in the sequence - immediately after
-//  `clientfield_whos_who_filter` on both halves. Bit offsets are assigned in
-//  registration order, so any difference between these two functions is
-//  EXE_CLIENT_FIELD_MISMATCH on TranZit. Change neither without the other.
-zmqol_cf_staircase()
-{
-	if ( getDvar( "mapname" ) != "zm_transit" )
-		return;
-
-	for ( i = 1; i <= 24; i++ )
-		registerclientfield( "toplayer", "zmqol_probe_" + i, 5000, 1, "int", undefined, 0 );
-}
-
 zmqol_vulture_enabled()
 {
 	map = getDvar( "mapname" );
@@ -896,14 +877,6 @@ zmqol_vulture_enabled()
 	//  one value - but they must be changed together regardless, because a
 	//  disagreement here is EXE_CLIENT_FIELD_MISMATCH on every map.
 	if ( !getdvarintdefault( "zmqol_vulture", 1 ) )
-		return 0;
-
-	//  🔬🛑 TEMPORARY MEASUREMENT BUILD — v1.78.1 — **REVERT THIS BLOCK**, and
-	//  revert it together with its twin in
-	//  quality_of_life.gsc::zmqol_vulture_enabled(), where the full reasoning
-	//  lives. The console would not create the dvar above, so the probe is
-	//  hard-coded for exactly one boot of TranZit. Nothing ships this way.
-	if ( map == "zm_transit" )
 		return 0;
 
 	if ( map == "zm_buried" )
