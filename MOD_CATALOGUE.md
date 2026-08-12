@@ -94,6 +94,13 @@ Prefix `.` `!` or `/`. Verified against every `cmd == "…"` branch in
 
 ## 2b. Console dvars 📄
 
+🌟 **Every chat command is also a dvar** (v1.86.0) — same name, no `.` prefix, and ANY non-empty
+value fires it: `round 100`, `p 5000`, `pack 1`. A value is required, because GSC can only register
+a dvar, never a real console command — bare `pack` just prints the dvar. `qol "<line>"` takes a whole
+command line and so covers the alias families: `qol "givejug"`, `qol "maxammo"`.
+⚠️ A name that is already an ENGINE console command (`god`, `drop`, `reload`) runs the engine's
+version instead of the mod's — the console resolves commands before dvars.
+
 `fly` · `night_mode` · `rapid_fire` · `character` ⚠️ *(reported to do nothing)* · `coop_pause` ·
 `no_power` · `lod_fix` · `hud_master` · `hud_all` · `hud_timer` · `hud_health_bar` · `hud_remaining` ·
 `hud_zone` · `hud_round_timer` · `hud_color "1 1 1"` · `hud_color_health` ·

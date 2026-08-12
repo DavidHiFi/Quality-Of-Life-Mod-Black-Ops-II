@@ -908,7 +908,7 @@ qol_opt_round_timer_hud( b_on )
         self.qol_hud_roundtimer.aligny = "top";
         self.qol_hud_roundtimer.horzalign = "left";
         self.qol_hud_roundtimer.vertalign = "user_top";
-        self.qol_hud_roundtimer.x = -45;    // == timer.x
+        self.qol_hud_roundtimer.x = -56;    // == timer.x, see the note there
         self.qol_hud_roundtimer.y = 12;     // == timer.y (-2) + one 14px row
         self.qol_hud_roundtimer.hidewheninmenu = 1;
 

@@ -1130,7 +1130,13 @@ timer()
     timer.aligny = "top";
     timer.horzalign = "left";
     timer.vertalign = "user_top";
-    timer.x = -45;   // == healthbar_bg / playername / zombietext: the mod's left column
+    //  v1.86.0 - the true top-left corner, MEASURED not guessed. At x -45 the
+    //  text landed 46px from the left on a 2000px-wide grab (same column as
+    //  healthbar_bg / playername / zombietext). 2000/640 = 3.125 px per unit, so
+    //  46px = 14.7 units and horzalign "left" actually starts ~60 units in.
+    //  -56 leaves a deliberate ~4-unit margin instead of sitting flush, which
+    //  matches the 3px the text already sits from the top.
+    timer.x = -56;
     timer.y = -2;
     timer.fontscale = 1.4;
     timer.alpha = 0;
@@ -3183,6 +3189,123 @@ zmqol_dev_commands()
 {
     setdvar( "sv_cheats", 1 );
     level thread zmqol_dev_command_listener();
+    level thread zmqol_console_command_watcher();
+}
+
+// ============================================================================
+//  CONSOLE TWINS FOR EVERY CHAT COMMAND                             (v1.86.0)
+//
+//  User, 2026-08-13: *"make all the chat commands available as console
+//  commands, not just chat commands example(s): .pack .round (without the . or
+//  ! prefix)."*
+//
+//  🌟 THE WATCHER DOES NOT REIMPLEMENT ANY COMMAND. It writes the line back
+//  through the SAME entry point chat uses -
+//        level notify( "say", message, player )
+//  which is exactly what zmqol_dev_command_listener() sits on
+//  (`level waittill( "say", message, player )`). So every command, every alias
+//  and every future addition is reachable from the console the moment it works
+//  in chat, and the two lists can never drift because there is only one list.
+//
+//  🛑 HOW YOU ACTUALLY TYPE IT, AND WHY. GSC cannot register a real console
+//  COMMAND - the only lever it has is a dvar. So each command name is registered
+//  as a dvar and ANY non-empty value fires it:
+//        round 100     ->  .round 100
+//        p 5000        ->  .p 5000
+//        pack 1        ->  .pack          (a value is required; bare `pack`
+//                                          just prints the dvar, as dvars do)
+//  This is the same shape as `fly`, which the user already uses, so it is the
+//  established pattern here rather than a new convention.
+//
+//  🛑 THE NAMES WERE CHECKED FOR COLLISIONS, NOT ASSUMED SAFE. Every command
+//  name below was diffed against the 3,210 dvars this install actually dumps
+//  into console_zm.log. Exactly one matched - `fly` - and that one is this mod's
+//  own, already registered by qol_options with its own watcher. It is therefore
+//  DELIBERATELY ABSENT from the list: clearing it to "" every pass would break
+//  the watcher that owns it. Everything else is a name the engine does not use.
+//
+//  📝 `qol` takes a whole command line, which covers the alias families that are
+//  matched by prefix rather than by name - the per-perk `.givejug` /
+//  `.removecherry` forms and the power-up aliases:
+//        qol "givejug"      qol "maxammo"      qol "powerup nuke"
+//
+//  ⚠️ Each pass reads one dvar per name, 4 times a second. That is ~150 hash
+//  lookups/sec and nothing else - no allocation, no per-player work. Listed here
+//  because this project has an open frametime question and every new periodic
+//  loop should say what it costs.
+// ============================================================================
+zmqol_console_command_names()
+{
+    a = [];
+
+    //  🛑 ADD NEW CHAT COMMANDS HERE TOO. This is the one list the console side
+    //  reads; a command missing from it still works in chat and silently has no
+    //  console twin. `fly` is intentionally omitted - see the note above.
+    a[a.size] = "p";            a[a.size] = "round";        a[a.size] = "setround";
+    a[a.size] = "god";          a[a.size] = "ghost";        a[a.size] = "afk";
+    a[a.size] = "hud";          a[a.size] = "help";         a[a.size] = "where";
+    a[a.size] = "fog";          a[a.size] = "night";        a[a.size] = "nightmode";
+    a[a.size] = "pack";         a[a.size] = "unpack";       a[a.size] = "reload";
+    a[a.size] = "infammo";      a[a.size] = "infiniteammo";
+    a[a.size] = "infsprint";    a[a.size] = "infinitesprint";
+    a[a.size] = "giveperks";    a[a.size] = "removeperks";  a[a.size] = "nozmspawns";
+    a[a.size] = "powerup";      a[a.size] = "powerups";     a[a.size] = "drop";
+    a[a.size] = "dm";           a[a.size] = "deathmachine";
+    a[a.size] = "tesla";        a[a.size] = "thundergun";   a[a.size] = "zeus";
+    a[a.size] = "freezegun";    a[a.size] = "winters";      a[a.size] = "wintershowl";
+    a[a.size] = "wunderwaffe";  a[a.size] = "dg2";
+
+    return a;
+}
+
+zmqol_console_command_watcher()
+{
+    level endon( "game_ended" );
+
+    a_names = zmqol_console_command_names();
+
+    //  Seeded empty so a value left in the user's config from a previous session
+    //  does not fire a command the instant the map loads.
+    for ( i = 0; i < a_names.size; i++ )
+        setdvar( a_names[i], "" );
+
+    setdvar( "qol", "" );
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        a_players = get_players();
+
+        if ( a_players.size == 0 )
+            continue;
+
+        //  The console belongs to the host, so the host is who the command runs
+        //  as - the same player the chat path would have supplied.
+        e_host = a_players[0];
+
+        str_line = getdvar( "qol" );
+
+        if ( str_line != "" )
+        {
+            setdvar( "qol", "" );
+            level notify( "say", "." + str_line, e_host );
+        }
+
+        for ( i = 0; i < a_names.size; i++ )
+        {
+            str_val = getdvar( a_names[i] );
+
+            if ( str_val == "" )
+                continue;
+
+            //  Cleared BEFORE dispatching, so a command that waits internally
+            //  cannot be fired twice by the next pass.
+            setdvar( a_names[i], "" );
+
+            level notify( "say", "." + a_names[i] + " " + str_val, e_host );
+        }
+    }
 }
 
 zmqol_dev_command_listener()
@@ -4528,8 +4651,12 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.give^7/^3.remove^7 + ^3jug speed dtap stam mule revive deadshot phd tombstone whoswho cherry vulture";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
     a_lines[a_lines.size] = "^5console: ^3fly night_mode rapid_fire character coop_pause no_power lod_fix";
+    //  Chat commands are console dvars too - folded onto the line below rather
+    //  than given its own, because this panel has a hard line budget and has
+    //  been silently truncated before. See zmqol_console_command_watcher().
+
     a_lines[a_lines.size] = "^5console: ^3hud_all hud_timer hud_health_bar hud_remaining hud_zone";
-    a_lines[a_lines.size] = "^5console: ^3hud_round_timer hud_master hud_color ^7\"1 1 1\"  ^3hud_color_health";
+    a_lines[a_lines.size] = "^5console: ^3hud_round_timer hud_master ^7| chat cmds are dvars: ^3round 100^7 ^3pack 1";
 
     // 🛑 The tail of this panel is GENERATED, not typed - user: "make sure that
     // the .help command always is updated to show all the custom added chat

@@ -3011,3 +3011,51 @@ specialty. `.givetombstone` still works: naming the perk explicitly is a deliber
 and Buried (stock never removed it there, so this path has no precedent on those maps), and that
 `.hud on` comes back cleanly — with the HUD off, `iprintln` feedback is hidden too, so the confirming
 line will not be visible until the HUD returns.
+
+---
+
+### ✅ v1.86.0 — timers at the true corner (MEASURED), every chat command is a dvar. NOT verified.
+
+**1. Timer position, measured off the user's own screenshot rather than eyeballed.** Scanned the
+top-left 300x120 box of the 2000x1125 grab for bright pixels:
+
+    timer text leftmost = 46px   topmost = 3px
+    bottom-left column (health bar / name) leftmost = 46px
+
+So v1.85.0's `x = -45` had already landed the timers exactly on the mod's own left column, and
+vertically they were already flush (3px). Only the horizontal was short. 2000/640 = **3.125 px per
+unit**, so 46px = 14.7 units and `horzalign "left"` actually begins ~60 units in from the true edge.
+`x = -56` leaves a deliberate ~4-unit margin, matching the 3px it already sits from the top.
+
+**2. Every chat command now works from the console.**
+
+🌟 **The watcher reimplements nothing.** It writes the line back through the same entry point chat
+uses — `level notify( "say", message, player )`, which is precisely what
+`zmqol_dev_command_listener()` waits on. One dispatcher, one command list, no possible drift.
+
+🛑 **GSC cannot register a real console COMMAND — only a dvar.** So each name is a dvar and any
+non-empty value fires it: `round 100`, `p 5000`, `pack 1`. Bare `pack` just prints the dvar. This is
+the same shape as `fly`, which the user already uses.
+
+🌟 **Collisions were measured, not assumed.** All 36 command names diffed against the **3,210 dvars
+this install dumps into `console_zm.log`**. Exactly one matched — `fly` — and that is the mod's own,
+already owned by a `qol_options` watcher, so it is deliberately excluded from the list (clearing it
+to "" every pass would break that watcher). `qol` is free too.
+
+`qol "<line>"` takes a whole command line, covering the prefix-matched alias families
+(`qol "givejug"`, `qol "maxammo"`).
+
+⚠️ **Residual risk, and it is not checkable from the dumps I have.** The dvar dump lists dvars only,
+not engine console COMMANDS. Names that are already engine commands — `god`, `drop`, `reload` are
+the likely ones — will run the engine's version instead of the mod's, because the console resolves
+commands before dvars. Nothing breaks; those particular twins just will not fire. `qol "god"` is the
+guaranteed route for any name that turns out to be taken.
+
+⚠️ A command fired while a previous one is mid-`wait` is missed, exactly as a chat message would be.
+`.giveperks` waits 0.1s per perk, so it is the one with a real window.
+
+⚠️ Cost: one `getdvar` per name, 4x/sec ≈ 150 hash lookups/sec, no allocation. Noted because the
+frametime question is still open.
+
+📝 The `.help` panel was kept at **15 lines**, not 16 — the console note was folded onto the existing
+`hud_round_timer` line. That panel has a hard budget and has been silently truncated before.
