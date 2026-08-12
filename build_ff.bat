@@ -314,6 +314,7 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\patch_zm.ff" ^
   --load "%BO2_DIR%\zone\all\common_mp.ff" ^
   --load "%BO2_DIR%\zone\all\patch_mp.ff" ^
+  --load "%BO2_DIR%\zone\all\common_patch_mp.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^

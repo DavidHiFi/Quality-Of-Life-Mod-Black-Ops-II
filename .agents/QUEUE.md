@@ -3197,3 +3197,47 @@ it for three wonder weapons that demonstrably work in game.** A new weapon does 
 `weapons/zm/`, adapted; then the asset blocks from
 `BO2-Reimagined\zone_source\includes\common_mp.zone` into `mod_locations.zone`; then sound; then
 strings; then per-map wiring with Origins booted first.
+
+### ✅ STAGES 2+3 DONE (v1.88.0) — 9 weapons' defs and assets are in. NOT yet obtainable in game.
+
+**Shipping 9:** SWAT-556 (`sig556`), FAL-OSW (`sa58`), MK 48, QBB LSW (`qbb95`), MP7,
+Vector K10 (`vector`), MSMC (`insas`), Peacekeeper, Crossbow — 24 raw defs including `_upgraded`,
+`gl_sig556_upgraded`, `sf_sa58_upgraded`, `vector_extclip`, `crossbow_explosive_bolt`.
+
+🛑 **TWO DROPPED BY THE "PERFECT OR NOT AT ALL" RULE — my call, not a question:**
+
+| dropped | why, measured |
+|---|---|
+| **Titus-6** | `camo,camo_titus6` and `material,hud_monsoon_titus_arrow` exist in **no fastfile in this install**. Reimagined sources them from `zone_source\dependencies\camo_materials.ff`, and **its repo ships an empty dependencies folder**. A Titus-6 with no camo is a visible defect. |
+| **Bouncing Betty** | its 20 `viewmodel_mine_tc6_*` anims and `hud_bounce_betty_256` are absent everywhere in the workspace. |
+
+Already settled earlier: XPR-50 / TAC-45 in no workspace mod (user ruled out), M16 already shipped
+and boxed, "Dragunov" is not a BO2 weapon.
+
+**🌟 THE ASSET LIST WAS DERIVED FROM THE DEFS, NOT TYPED.** `extract_assets.ps1` parses each
+`\key\value\` def and maps `gunModel`/`worldModel`/`attach*Model`→xmodel, every `*Anim`→xanim,
+`hudIcon`/`killIcon`/…→material, the effect fields→fx, `camo`→camo. That is why the gap analysis is
+trustworthy: nothing was guessed from model-name patterns.
+
+**Sourcing needed two more loads**, both appended after the ZM commons so nothing is re-owned:
+`common_patch_mp.ff` (Peacekeeper — 105 assets, absent from `common_mp.ff`) and, briefly,
+Reimagined's prebuilt `weapons!exptitus6_sp.ff` — since removed with the Titus-6.
+
+✅ **Link audit:** 329 declared → **4,201 → 4,712 assets, 511 added, ZERO removed.** Zero removals
+is the safety property that matters: no existing asset changed name, was dropped, or was converted,
+so nothing was re-owned. The extra 182 over the 329 declared are dependencies the Linker pulled in
+behind materials (images, techsets). 0 errors, same 34 sound warnings.
+
+⚠️ **THE WEAPONS ARE NOT OBTAINABLE YET, AND THE GAME IS FUNCTIONALLY UNCHANGED.** Nothing calls
+`include_weapon` / `add_zombie_weapon` for them, so no box on any map offers them. This is a
+deliberate safe intermediate state, not a half-shipped feature.
+
+▶️ **REMAINING — stages 4 and 5:**
+1. **Sound.** ~350 `wpn_<name>_*` alias rows from `BO2-Reimagined\soundbank\mod.all.aliases.csv`
+   into `soundbank\mod.all.aliases.additions.csv`, payloads out of the MP banks via
+   `Unlinker --include-assets soundbank --search-path "<BO2>\sound"`. 🛑 A missing alias is
+   **silent, never an error** — every row must be confirmed to round-trip through the rebuilt bank.
+2. **Strings** — display name, PaP name, box hint into `zone_assets\english\localizedstrings\mod.str`.
+3. **Per-map wiring** — `added_weapons()`: `include_weapon(x)` + `include_weapon(x_upgraded, 0)` +
+   `add_zombie_weapon(...)`, plus the `.csc` twin. **Additions only, never `is_in_box = 0`.**
+4. **Boot Origins FIRST** — the weapon-count ceiling is only known to be ≥178.
