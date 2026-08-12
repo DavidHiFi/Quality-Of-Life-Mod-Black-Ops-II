@@ -3116,3 +3116,49 @@ still draw on top of a hidden HUD when they fire. LUI (points/ammo/round/perks) 
 may only have its alpha written by that timer's own loop.* Anything else fights it at the loop
 frequency and shows up as flashing. When adding a new master switch, the switch goes INSIDE each
 owning loop, never into a second thread.
+
+---
+
+## 🔨 IN FLIGHT — THE 15 MP/CAMPAIGN WEAPONS. Stage 1 of 5 done (v1.87.2).
+
+User, 2026-08-13: *"ok add the weapons from the .txt file i requested to add"*. The scoping above
+(📥 QUEUED 2026-08-12) stands and is being executed in its documented order.
+
+### ✅ STAGE 1 — MP fastfiles linked into mod.ff, ownership audited. NOT yet user-verified.
+
+Prerequisites confirmed first: `common_mp.ff` (38.4 MB, 9,297 assets, OAT reads it with 0 errors)
+and `patch_mp.ff` are present, and **all 11 weapon defs exist in `BO2-Reimagined\weapons\zm\`**.
+
+🔴 **THE OWNERSHIP TRAP FIRED ON THE FIRST ATTEMPT AND THE A/B CAUGHT IT.** Appending only the two
+MP loads, with nothing new declared, did **not** produce an identical build — 4,185 → 4,201 assets:
+
+    fx, impacts/fx_flesh_hit_splat      + 10 blood_spatter images
+    material, mc|wc/gfx_impact_blood_spatter01..03
+    techniqueset, effect_q01e8072       (was ",effect_q01e8072", a bare reference)
+
+`mod_base.zone` has always DECLARED that fx, and no loaded fastfile carried it, so it shipped as an
+unresolved reference and the game used `common_zm.ff`'s copy at runtime. `common_mp.ff` carries it —
+so the **MP** blood fx suddenly resolved, and since mod.ff loads ahead of the map it would have
+overridden the zombies one **on every map**. Same shape as the v1.62.7 Electric Cherry blob.
+
+**Fix: `common_zm.ff` + `patch_zm.ff` loaded immediately BEFORE the MP pair.** `common_zm.ff` owns
+`fx_flesh_hit_splat`, both blood_spatter material sets and `effect_q01e8072` (confirmed by
+`Unlinker --list`), so every name the two games share now resolves from the ZOMBIES copy and the MP
+files supply only what no zombies fastfile has at all.
+
+✅ **Final audit of the shipped build — measured, not assumed:**
+
+| check | result |
+|---|---|
+| assets sourced from `common_mp` / `patch_mp` | **0** |
+| assets sourced from `common_zm` / `patch_zm` | 18, every one a reference→real conversion |
+| net asset change | 4,185 → 4,201 |
+| link result | 0 errors, same 34 sound warnings as before |
+
+The 18 are assets `common_zm.ff` already loads on every map, so mod.ff owning an identical copy is a
+runtime no-op. **Nothing was re-owned from a map, and nothing came from multiplayer.**
+
+▶️ **STAGE 2 NEXT:** port the 10 weapon defs out of `BO2-Reimagined\weapons\zm\` into `weapons\`,
+adapted not bulk-copied, and **never** porting its `is_in_box = 0` lines that pull stock guns out of
+the box. Then stage 3 (zone declarations), 4 (sound aliases + strings), 5 (per-map wiring, Origins
+booted first for the weapon-count ceiling).

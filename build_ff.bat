@@ -247,6 +247,48 @@ REM  differ on EVERY map, so no single donor is right for all of them. mod.ff ha
 REM  always overridden them globally; this only changes which map they happen to
 REM  match. The real repair is to stop owning them at all - QUEUE §0f item 4.
 REM
+REM  🌟 THE TWO MULTIPLAYER FASTFILES ARE LOADED **DEAD LAST**, ON PURPOSE.
+REM
+REM  They are here for the MP weapons the user asked for (SWAT-556, FAL-OSW,
+REM  MK 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, Titus-6) -
+REM  none of those weapons' assets exist in ANY zombies fastfile, so their
+REM  xmodels, materials and xanims can only come from common_mp.ff / patch_mp.ff.
+REM
+REM  Last is the whole point. common_mp.ff carries 9,297 assets and MP has its own
+REM  copies of a great many generic names that zombies also uses. First-load-wins,
+REM  so putting these last means an MP copy is only ever taken when NO zombies
+REM  fastfile above offers that asset at all - i.e. only for the genuinely new
+REM  weapon assets. Anything shared keeps its zombies donor, unchanged.
+REM
+REM  🔴 AND THE FIRST ATTEMPT AT THIS CAUGHT THE OWNERSHIP TRAP RED-HANDED.
+REM
+REM  Appending ONLY the two MP files, with nothing new declared, did NOT produce
+REM  an identical build: 4,185 -> 4,201 assets. Sixteen appeared, and every one of
+REM  them was blood-impact:
+REM
+REM      fx, impacts/fx_flesh_hit_splat        + 10 blood_spatter images
+REM      material, mc|wc/gfx_impact_blood_spatter01..03
+REM      techniqueset, effect_q01e8072   (was ",effect_q01e8072" - a bare
+REM                                       reference with no data - now real)
+REM
+REM  Cause: mod_base.zone has always DECLARED that fx, and until now no --load'ed
+REM  fastfile carried it, so it shipped as an unresolved reference and the game
+REM  used common_zm.ff's copy at runtime. common_mp.ff carries it, so the MP
+REM  version suddenly resolved - and because mod.ff loads ahead of the map, that
+REM  MP blood fx would have overridden the zombies one ON EVERY MAP. That is
+REM  exactly the shape of the v1.62.7 Electric Cherry blob bug.
+REM
+REM  🛑 THE FIX IS THE TWO ZOMBIES COMMON FILES, LOADED FIRST. common_zm.ff owns
+REM  fx_flesh_hit_splat, both blood_spatter material sets and effect_q01e8072 -
+REM  confirmed with Unlinker --list. Putting it ahead of common_mp.ff means every
+REM  name zombies and multiplayer share resolves from the ZOMBIES copy, and the MP
+REM  files are left to supply only what no zombies fastfile has at all: the new
+REM  weapons' own xmodels, materials and xanims.
+REM
+REM  📝 Re-run that A/B if this order is ever touched: dump the asset list, change
+REM  the loads, dump again, and account for EVERY line that moves. See
+REM  [[t6-oat-load-order-decides-asset-copy]] and [[t6-modff-asset-ownership-trap]].
+REM
 REM  🛑 Do NOT put REM lines between the caret-continued --load arguments below.
 REM  cmd does not treat them as comments there - they are passed to the Linker as
 REM  arguments, and it fails with: Could not find zone definition file for
@@ -268,6 +310,10 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\so_zclassic_zm_transit.ff" ^
   --load "%PROJ%\zone_source\ww_donor\mod.ff" ^
   --load "%PROJ%\zone_source\pro7_donor\mod.ff" ^
+  --load "%BO2_DIR%\zone\all\common_zm.ff" ^
+  --load "%BO2_DIR%\zone\all\patch_zm.ff" ^
+  --load "%BO2_DIR%\zone\all\common_mp.ff" ^
+  --load "%BO2_DIR%\zone\all\patch_mp.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^
