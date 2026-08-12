@@ -7392,6 +7392,36 @@ zmqol_vulture_enabled()
     if ( !getdvarintdefault( "zmqol_vulture", 1 ) )
         return 0;
 
+    // ========================================================================
+    //  🔬🛑 TEMPORARY MEASUREMENT BUILD — v1.78.1 — **REVERT THIS BLOCK**
+    //
+    //  The dvar above could not be delivered. Three separate boots with it typed
+    //  at the console produced no `zmqol_vulture` entry anywhere in the game's
+    //  own dvar dump (3,135 dvars listed, and that dump is comprehensive — the
+    //  mod's runtime-set `zmqol_loadmovie_probe` shows up in it fine). The
+    //  console will not create a dvar that nothing has registered yet, so the
+    //  probe never ran. Hard-coding it removes the delivery step entirely.
+    //
+    //  WHAT THIS BUYS: one boot of TranZit with Vulture absent.
+    //    - loads  => Vulture alone is the overflow; deficit <= 10 bits (its 9,
+    //                plus overlay_lerp 4->5 which its 31-step stink overlay
+    //                forces). Next build measures the exact headroom.
+    //    - fails  => the error names the next field, another exact
+    //                zero-free-bits reading, and Vulture is not the whole story.
+    //
+    //  ⚠️ This also takes Vulture off TranZit's SURVIVAL modes, which currently
+    //  work. That is accepted for a probe build and is the reason this must not
+    //  outlive the measurement.
+    //
+    //  🛑 NOT A FIX, NOT A DECISION, AND NOTHING SHIPS THIS WAY. The rule stands:
+    //  Vulture is whole on TranZit or it is absent there, and that call gets made
+    //  from a measurement, not from this block existing.
+    //
+    //  🛑 Twin in zm_expanded.csc::zmqol_vulture_enabled(). Revert BOTH together.
+    // ========================================================================
+    if ( map == "zm_transit" )
+        return 0;
+
     if ( map == "zm_buried" )   // ships the perk itself
         return 0;
 

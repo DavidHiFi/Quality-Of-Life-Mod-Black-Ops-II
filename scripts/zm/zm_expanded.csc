@@ -879,6 +879,14 @@ zmqol_vulture_enabled()
 	if ( !getdvarintdefault( "zmqol_vulture", 1 ) )
 		return 0;
 
+	//  🔬🛑 TEMPORARY MEASUREMENT BUILD — v1.78.1 — **REVERT THIS BLOCK**, and
+	//  revert it together with its twin in
+	//  quality_of_life.gsc::zmqol_vulture_enabled(), where the full reasoning
+	//  lives. The console would not create the dvar above, so the probe is
+	//  hard-coded for exactly one boot of TranZit. Nothing ships this way.
+	if ( map == "zm_transit" )
+		return 0;
+
 	if ( map == "zm_buried" )
 		return 0;
 
