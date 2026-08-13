@@ -289,6 +289,14 @@ REM  📝 Re-run that A/B if this order is ever touched: dump the asset list, ch
 REM  the loads, dump again, and account for EVERY line that moves. See
 REM  [[t6-oat-load-order-decides-asset-copy]] and [[t6-modff-asset-ownership-trap]].
 REM
+REM  🌟 zone_source\fx_donor\mod.ff is LAST, and that placement is the whole
+REM  safety argument for it. It is the fastfile of the "T5 Winter's Howl Port"
+REM  module, added so mod_freezefx.zone can reach the 19 fx MATERIALS the ported
+REM  .efx draw with - four of which the Winter's Howl muzzle flash needs and
+REM  three of which exist in NO retail fastfile at all. Being last, first-load-
+REM  wins means it can only supply a name that nothing above it offers, so no
+REM  shared asset changes owner. A/B the asset list if this ever moves.
+REM
 REM  🛑 Do NOT put REM lines between the caret-continued --load arguments below.
 REM  cmd does not treat them as comments there - they are passed to the Linker as
 REM  arguments, and it fails with: Could not find zone definition file for
@@ -315,6 +323,7 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\common_mp.ff" ^
   --load "%BO2_DIR%\zone\all\patch_mp.ff" ^
   --load "%BO2_DIR%\zone\all\common_patch_mp.ff" ^
+  --load "%PROJ%\zone_source\fx_donor\mod.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^

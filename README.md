@@ -114,12 +114,12 @@ source folders is built or don't-touch.
   `give_thundergun 1`, `give_wunderwaffe 1`, `give_wintershowl 1` — or in chat,
   `.thundergun`, `.wunderwaffe`, `.wintershowl`. `zmqol_ww 0` turns all three off.
   🛑 **Known gaps, honestly:** the Wunderwaffe's view-model lights are still too
-  bright, and **all three fire with no muzzle flash, and the Winter's Howl has no
-  freeze fx at all** — measured, not guessed: every fx name these weapons ask for
-  (`fx_freezegun_view`, `fx_thundergun_view`, `fx_tesla_view`, the whole
-  `weapon/freeze_gun/` set, `fx_zombie_freeze_torso`/`_md`) is absent from **all
-  191 fastfiles** of a retail Black Ops II install, so they can never play. A
-  fix is planned; nothing speculative has been shipped for it. Pack-a-Punch camos are **fixed in v1.76.0 but not yet confirmed in game**:
+  bright. **The Winter's Howl's missing effects are fixed in v1.91.0 but not yet
+  confirmed in game** — the effects themselves always shipped (as raw `.efx` in
+  `mod.iwd`), but **19 of the materials they draw with were not reachable on any
+  map**, so half the muzzle flash and most of the freeze visuals rendered
+  nothing. Measured against a full index of all 191 retail fastfiles; v1.91.0
+  adds those 19 materials and 12 textures to `mod.ff`. Pack-a-Punch camos are **fixed in v1.76.0 but not yet confirmed in game**:
   the camo assets were already in `mod.ff` and the upgraded defs' `camo` field was
   empty (v1.75.0), but the real blocker was that all three camo assets were
   missing **slot 3** — stock asks for camo index 39 on every map except MotD (40)

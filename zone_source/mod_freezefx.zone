@@ -1,0 +1,115 @@
+// ============================================================================
+//  mod_freezefx.zone  -  the materials the ported wonder-weapon .efx need.
+//
+//  🛑 READ THIS BEFORE CHANGING ANYTHING HERE.
+//
+//  THE BUG THIS FIXES (user report 2026-08-14: "the winters howl is missing
+//  visual effects when i shoot").
+//
+//  The .efx themselves were never the problem and are NOT missing - all 14
+//  freeze effects have shipped as raw files in mod.iwd\fx\ since the port
+//  landed, exactly as mod_wonderweapons.zone's header says (OAT cannot read or
+//  write FxEffectDef, so an .efx can only travel raw). What was missing is the
+//  MATERIALS those effects draw with.
+//
+//  An .efx is plain text (`iwfx 2`) and names its materials directly. Measured
+//  by extracting every quoted "gfx_*" from all 14 and testing each against
+//  (a) this mod.ff, (b) common_zm.ff / patch_zm.ff, (c) each map's own
+//  fastfile, using a full 191-fastfile asset index:
+//
+//      Winter's Howl muzzle flash   4 of 8 materials unavailable on Diner
+//      Tesla gun view fx            1 of 11  - and the tesla LOOKS FINE
+//
+//  That contrast is the diagnosis. A missing material does not kill the whole
+//  effect, it kills the elements that use it - so the tesla survives losing one
+//  and the Winter's Howl loses half its flash. 19 materials in total were
+//  unreachable across the 14 effects; this file declares all 19.
+//
+//  🌟 EIGHT TECHNIQUESETS AND MOST IMAGES WERE ALREADY HERE. Only 11 images are
+//  new. Checked one by one against the mod.ff asset dump - do not add
+//  techniqueset lines here, mod_base.zone already carries every one of them
+//  (effect_w77q49e8, effect_842ee834, particlecloud_w7046j83, effect_8f63534j,
+//  effect_q01e8072, effect_50567j38, effect_3z0w0424, distortion_81587199).
+//
+//  WHERE THE ASSETS COME FROM
+//
+//  18 of the 19 resolve from zone_source\fx_donor\mod.ff - the fastfile of the
+//  "T5 Winter's Howl Port" module that shipped these effects, which carries the
+//  T5-matched copies. It is --load'ed LAST in build_ff.bat, so first-load-wins
+//  means it can only ever supply a name that NO zombies fastfile above it
+//  offers. Nothing shared changes owner. The 19th, gfx_fxt_bio_bloodtrail,
+//  comes from so_zclassic_zm_buried.ff, which was already in the load list.
+//
+//  🛑 A FASTFILE CARRIES IMAGE HEADERS, NOT PIXELS. The 11 new images each have
+//  their .iwi staged in zone_assets\images\, which build.bat copies into
+//  images\ and pack_iwd.ps1 packs into mod.iwd. Remove one and that effect
+//  draws black instead of not at all - which is worse. See CLAUDE.md §8.
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+//  Images - the 11 that no fastfile this mod loads already carried.
+//  Pixels: zone_assets\images\<name>.iwi, all from the donor's cmn_all.iwd so
+//  header and payload are guaranteed to agree on format and dimensions.
+// ---------------------------------------------------------------------------
+image,fxt_debris_ice
+image,fxt_env_snow_flake_cloud_01
+image,fxt_env_snow_flake_cloud_02
+image,fxt_env_snow_flakes
+image,fxt_env_water_droplets
+image,fxt_env_water_plume_dense
+image,fxt_fx_distortion_ring_warp
+image,fxt_fx_distortion_shc_wave
+image,fxt_fx_thundergun_ring
+image,fxt_smk_swirl
+image,fxt_smk_whisp_spiral
+
+// ---------------------------------------------------------------------------
+//  Materials - the 19 the .efx ask for and could not reach.
+//  Annotated with the effect that needs each, so a future reader can tell what
+//  breaks if one is dropped.
+// ---------------------------------------------------------------------------
+
+//  Winter's Howl MUZZLE FLASH (fx_freezegun_view / _world / _ug_view /
+//  _ug_world). These four are the user-visible bug: half the flash.
+material,gfx_fxt_fx_distortion_ring_warp
+material,gfx_fxt_smk_whisp_spiral
+material,gfx_fxt_env_snow_flakes
+material,gfx_fxt_fx_thundergun_ring
+
+//  Projectile trail (fx_trail_freezegun_geotail, fx_trail_freezegun_ring_emit)
+material,gfx_fxt_env_water_droplets_add
+
+//  Freeze-over on the zombie (fx_zombie_freeze_torso, fx_zombie_freeze_md)
+material,gfx_fxt_smk_whisp_spiral_add
+material,gfx_fxt_smk_whisp_spiral_add_z5
+material,gfx_fxt_smk_whisp_spiral_z120
+
+//  Shatter / crumple / ice chunks (fx_freezegun_shatter, fx_freezegun_crumple,
+//  fx_freezegun_crumple_ice)
+material,gfx_fxt_debris_gib_ice
+material,gfx_fxt_debris_fine_clump
+material,gfx_fxt_env_water_mist
+material,gfx_fxt_fx_distortion_shc_wave
+material,gfx_fxt_smk_spiral
+material,gfx_fxt_smk_tendril_add
+
+//  Upgraded impact explosion (fx_exp_freezegun_impact)
+material,gfx_fxt_env_snow_flake_cloud_01_top
+material,gfx_fxt_env_snow_flake_cloud_02_top
+material,gfx_fxt_env_water_plume_dense_add
+material,gfx_fxt_env_water_plume_dense_z120_gr
+
+//  Blood streak trail (fx_trail_freezegun_blood_streak). The only one NOT from
+//  the fx donor - so_zclassic_zm_buried.ff has it, and its image
+//  fxt_bio_bloodtrail was already in mod.ff.
+material,gfx_fxt_bio_bloodtrail
+
+// ---------------------------------------------------------------------------
+//  📝 ONE IMAGE ARRIVES WITHOUT BEING DECLARED HERE: fxt_smk_tendril.
+//  gfx_fxt_smk_tendril_add (resolved from zm_tomb) references it, so the Linker
+//  pulls its header in and mod.ff now owns that name on every map. It is a
+//  stock image, so its pixels would come from the game's .ipak anyway - but its
+//  .iwi is staged in zone_assets\images\ alongside the other eleven so the
+//  header and the pixels are guaranteed to be the same copy. Verified by the
+//  before/after asset audit: 4,829 -> 4,860, 31 added, ZERO removed, nothing
+//  changed owner.

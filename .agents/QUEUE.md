@@ -3665,3 +3665,64 @@ They are unstarted work, exactly as checkpoint 44 §3 lists them (XPR-50 = the `
 job; Titus-6 = the `SynarxisReimagined` donor the user authorised on 2026-08-13). README already
 says the Titus-6 is deliberately absent; it does NOT yet say anything about the XPR-50, and it
 should once one of them lands.
+
+## 🛑 B9 — CORRECTED, SAME DAY, AND THEN FIXED IN v1.91.0
+
+**The B9 entry above is wrong on its central point and is kept only for the retail-index
+measurement, which stands.** What it got wrong:
+
+> ❌ *"every fx name these weapons ask for is absent from retail, so they can never play"*
+
+Absent from **retail** — true, and irrelevant. **This mod ships the effects itself.**
+`H:\Claude\Projects Sources\zm_qol\fx\` has carried all 14 freeze `.efx` (and 46 more) since the
+port landed, and the deployed `mod.iwd` contains 60 of them. `mod_wonderweapons.zone`'s own header
+says so in as many words — *"OAT cannot read or write FxEffectDef... the effects ship as raw .efx
+inside mod.iwd"* — and B9 was written without reading it. **The workspace had the answer and the
+check that would have caught it was one `Test-Path` on the project's own `fx\` folder.**
+
+### The real cause: the effects loaded, their MATERIALS did not
+
+An `.efx` is plain text (`iwfx 2`) and names its materials by name. Extracting every quoted `gfx_*`
+from all 14 and testing each against this `mod.ff`, `common_zm`/`patch_zm`, and each map's own
+fastfile:
+
+| effect set | materials unavailable on Diner |
+|---|---|
+| Winter's Howl muzzle flash (`fx_freezegun_view`/`_world`) | **4 of 8** |
+| Tesla gun view fx | **1 of 11** — and the tesla looks fine |
+
+🌟 **That contrast is the whole diagnosis, and it also proves the failure mode: a missing material
+does not kill an effect, it kills the elements that use it.** The tesla survives losing one; the
+Winter's Howl loses half its flash and effectively shows nothing.
+
+**19 materials were unreachable across the 14 effects.** Not one of them was ever declared —
+`mod_wonderweapons.zone` shipped the weapon's own art and none of the fx art.
+
+### v1.91.0 — what shipped
+
+- `zone_source\mod_freezefx.zone` (new, `include`d from `mod.zone`) — 11 image + 19 material
+  declarations, annotated with which effect needs each.
+- `zone_source\fx_donor\mod.ff` (new) — the "T5 Winter's Howl Port" module's fastfile, `--load`ed
+  **LAST** so first-load-wins lets it supply only names nothing above it offers. 18 of 19 resolve
+  from it; `gfx_fxt_bio_bloodtrail` came from `so_zclassic_zm_buried.ff`, already in the list.
+- 12 `.iwi` staged into `zone_assets\images\` (a fastfile carries headers, not pixels).
+- All 8 techniquesets the materials need were **already** in `mod_base.zone`. None added.
+
+**A/B audit, as `build_ff.bat` demands whenever the load order is touched: 4,829 → 4,860 assets,
+31 added, ZERO removed, nothing changed owner.** The 31 are the 19 materials + 11 declared images +
+`fxt_smk_tendril`, which `gfx_fxt_smk_tendril_add` drags in; its `.iwi` is staged too.
+
+Deployed, hash-matched, and confirmed present inside the deployed `mod.iwd` (12/12 new `.iwi`) and
+`mod.ff` (all 4 muzzle materials). **NOT YET VERIFIED IN GAME.**
+
+### Pre-mortem — three ways this still fails
+
+1. **The materials were never the cause.** Countered by the tesla A/B above, but that is inference
+   from one comparison, not a boot. If the flash is still absent, the next probe is `developer 1` +
+   `console_zm.log` while firing — a material or fx load failure prints there.
+2. **`chr_shock_hb1`** is named by all four muzzle `.efx` and matches **no asset of any type** in
+   retail or in either donor. It sits next to a `light;` element, so it is probably a light def.
+   Nothing can supply it; if the flash is dim rather than absent, this is the first suspect.
+3. **`fxt_env_snow_flake_cloud_01/02.iwi` are 176 bytes each.** That is plausible for a tiny
+   particle-cloud lookup texture and both came from the donor with their own headers, but if the
+   upgraded impact explosion draws black, check these two first.
