@@ -268,6 +268,7 @@ init()
     zmqol_register_zombie_blood_visionsets();
     zmqol_dev_commands();
     zmqol_box_wonder_weapon_weights_init();
+    zmqol_mp_weapons_init();
     level thread zmqol_stranded_zombie_probe();
     level thread zmqol_round_dvar_watch();
     level thread zmqol_credits_banner();
@@ -5544,6 +5545,107 @@ zmqol_ww_give_dvar_watch()
 //  9 wonder-weapon entries: a specific gun goes 3.8% -> 9.4% per spin, and
 //  P(never seeing it in 40 spins) drops from 21% to 2%.
 // ============================================================================
+// ============================================================================
+//  THE 9 PORTED MULTIPLAYER WEAPONS - BOX REGISTRATION       (v1.89.0)
+// ----------------------------------------------------------------------------
+//  SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper and
+//  the Crossbow. Their raw defs live in weapons\zm\ (Plutonium loads those
+//  straight out of mod.iwd) and their 511 assets are baked into mod.ff. This
+//  function is what actually puts them in the box - without it the defs and
+//  assets ship and the game is functionally unchanged, which is exactly the
+//  state v1.88.0 was in.
+//
+//  🛑 WHY A ROOT SCRIPT AND NOT SIX added_weapons(). These 9 go on EVERY map,
+//  and the three wonder weapons already prove a root-script init() registers a
+//  weapon successfully on every map (freeze.gsc:36-44, and the user has pulled
+//  them from the box). Six per-map copies would be six places to drift.
+//
+//  🛑 include_weapon() MUST COME FIRST. add_zombie_weapon() opens with
+//      if ( isdefined( level.zombie_include_weapons ) &&
+//           !isdefined( level.zombie_include_weapons[weapon_name] ) ) return;
+//  (_zm_weapons.gsc:523) - so a missing include_weapon makes the whole
+//  registration a SILENT no-op. And struct.is_in_box is read straight from
+//  include_weapon's flag (:558), which is why the upgraded halves pass 0: they
+//  must exist as weapons but must never be a box result on their own.
+//
+//  🌟 EVERY VALUE HERE IS TREYARCH'S OR REIMAGINED'S, NOT INVENTED:
+//    - the display refs are each def's own displayName field, and all nine were
+//      confirmed to already resolve on a zombies map by dumping the localize
+//      asset of every en_*.ff a zombies map loads. Only WEAPON_PEACEKEEPER had
+//      to be shipped (DLC weapon, its string is in the MP patch zone only).
+//    - the costs are BO2-Reimagined's for these same nine weapons.
+//    - the vox packs are stock's OWN class mapping from _zm_audio.gsc:123-140:
+//      "smg" -> wpck_smg, "assault"/"mg" -> wpck_mg, and - note - stock maps
+//      "crossbow" -> wpck_launcher, so the crossbow uses that and not wpck_explo.
+//    - the 8th argument is create_vox, NOT an in-box flag. Verified against the
+//      real signature, add_zombie_weapon( weapon_name, upgrade_name, hint, cost,
+//      weaponvo, weaponvoresp, ammo_cost, create_vox ) at _zm_weapons.gsc:521.
+//      Stock passes 1 alongside a wpck_* pack; that is what is copied here.
+//
+//  📝 THE ATTACHMENT AND PROJECTILE VARIANTS are included with in_box = 0. They
+//  are reachable only through Pack-a-Punch attachments or as a projectile, never
+//  as a box result, but they must be included or the weapon they belong to
+//  cannot resolve them.
+//
+//  🛑 THE CLIENT TWIN IS zm_expanded.csc::zmqol_mp_weapons_init() AND IT MUST
+//  LIST THE SAME WEAPONS. clientscripts _zm_weapons::include_weapon builds
+//  level._included_weapons / _display_box_weapons, which drives what the client
+//  will draw over the box.
+//
+//  Bounded and reversible, per the "every feature is also a dvar" rule:
+//      zmqol_mp_weapons 0   registers none of them (stock box)
+//      zmqol_mp_weapons 1   DEFAULT
+// ============================================================================
+zmqol_mp_weapons_enabled()
+{
+    return getdvarintdefault( "zmqol_mp_weapons", 1 );
+}
+
+zmqol_mp_weapons_init()
+{
+    if ( !zmqol_mp_weapons_enabled() )
+        return;
+
+    // base, upgraded, display ref, cost, vox pack
+    zmqol_add_mp_weapon( "sig556_zm",      "sig556_upgraded_zm",      &"WEAPON_SIG556",             1200, "wpck_mg" );
+    zmqol_add_mp_weapon( "sa58_zm",        "sa58_upgraded_zm",        &"WEAPON_SA58",               1000, "wpck_mg" );
+    zmqol_add_mp_weapon( "mk48_zm",        "mk48_upgraded_zm",        &"WEAPON_MK48",               1000, "wpck_mg" );
+    zmqol_add_mp_weapon( "qbb95_zm",       "qbb95_upgraded_zm",       &"WEAPON_QBB95",              1000, "wpck_mg" );
+    zmqol_add_mp_weapon( "mp7_zm",         "mp7_upgraded_zm",         &"WEAPON_MP7",                1000, "wpck_smg" );
+    zmqol_add_mp_weapon( "vector_zm",      "vector_upgraded_zm",      &"WEAPON_VECTOR",             1200, "wpck_smg" );
+    zmqol_add_mp_weapon( "insas_zm",       "insas_upgraded_zm",       &"WEAPON_INSAS",              1000, "wpck_smg" );
+    zmqol_add_mp_weapon( "peacekeeper_zm", "peacekeeper_upgraded_zm", &"WEAPON_PEACEKEEPER",        1000, "wpck_smg" );
+    zmqol_add_mp_weapon( "crossbow_zm",    "crossbow_upgraded_zm",    &"WEAPON_CROSSBOW_EXPLOSIVE", 1000, "wpck_launcher" );
+
+    // Reachable only via a PaP attachment or as a projectile - never a box
+    // result, but they must be included or their owner cannot resolve them.
+    zmqol_include_variant( "vector_extclip_zm" );
+    zmqol_include_variant( "vector_extclip_upgraded_zm" );
+    zmqol_include_variant( "gl_sig556_upgraded_zm" );
+    zmqol_include_variant( "sf_sa58_upgraded_zm" );
+    zmqol_include_variant( "crossbow_explosive_bolt_zm" );
+    zmqol_include_variant( "crossbow_explosive_bolt_upgraded_zm" );
+
+    println( "[zm_qol] mp_weapons: 9 registered for the box on " + getdvar( "mapname" ) );
+}
+
+zmqol_add_mp_weapon( str_base, str_upgraded, str_hint, n_cost, str_vox )
+{
+    precacheitem( str_base );
+    precacheitem( str_upgraded );
+
+    include_weapon( str_base );          // in_box defaults to 1
+    include_weapon( str_upgraded, 0 );   // exists, but never a box result
+
+    add_zombie_weapon( str_base, str_upgraded, str_hint, n_cost, str_vox, "", undefined, 1 );
+}
+
+zmqol_include_variant( str_weapon )
+{
+    precacheitem( str_weapon );
+    include_weapon( str_weapon, 0 );
+}
+
 zmqol_box_wonder_weapon_weights_init()
 {
     // Chain, never clobber. Buried assigns this same pointer (zm_buried.gsc:375);
@@ -7830,10 +7932,56 @@ zmqol_vulture_enabled()
     //  is safe here: `_zm::init()` has not assigned level.scr_zm_* yet at this
     //  point, and both sides read this very dvar later, so they always agree.
     //
-    //  📝 zstandard/zgrief at location "transit" are not reachable from the
-    //  menus, and at 27-28 bits they would have had room anyway; they fall on
-    //  the safe side of this test, which is the direction to err in.
-    if ( map == "zm_transit" && getdvar( "ui_zm_mapstartlocation" ) == "transit" )
+    // ========================================================================
+    //  v1.89.0 - AND THE GAMETYPE TOO. 🛑 THIS CORRECTS A WRONG CLAIM THAT
+    //  SHIPPED IN v1.84.0's COMMENT HERE, WHICH READ:
+    //
+    //      "zstandard/zgrief at location "transit" are not reachable from the
+    //       menus ... they fall on the safe side of this test"
+    //
+    //  THE FIRST HALF IS FALSE. **Bus Depot is `zstandard` at location
+    //  `transit`** and it is on the survival menu. The user played it
+    //  2026-08-13 and the boot log printed both configurations back to back:
+    //
+    //      [zm_qol] struct_class_init - gametype=zclassic  location=transit
+    //      [zm_qol] struct_class_init - gametype=zstandard location=transit
+    //
+    //  So the location-only test caught Bus Depot as well and took a perk it
+    //  had room for - the SAME defect as v1.83.0, which cost every TranZit
+    //  survival a perk, just narrowed to the one location that shares classic's
+    //  name. Bus Depot is 27 stock toplayer bits; classic is 38. Vulture needs
+    //  10. Only classic overflows.
+    //
+    //  🛑 ui_gametype, and it is as safe as the dvar beside it - VERIFIED, not
+    //  assumed. zmqol_wallbuy_match_string() reads these TWO dvars together, on
+    //  BOTH halves (zm_expanded.csc:439 and locs\loc_common.gsc:157), at
+    //  struct_class_init time - strictly earlier than this - and the wallbuys
+    //  it drives work today. Its comment records why: _zm::init() has not
+    //  assigned level.scr_zm_* yet this early, and both sides read these very
+    //  same dvars later, so they cannot disagree.
+    //
+    //  📝 zgrief at transit now keeps Vulture too, correctly - 28 stock bits.
+    //
+    //  🛑 The client twin is zm_expanded.csc::zmqol_vulture_enabled(). Both
+    //  must test BOTH dvars or the sets differ in width between server and
+    //  client and every player is dropped with EXE_CLIENT_FIELD_MISMATCH.
+    // ========================================================================
+    //  🛑 THE TEST IS INVERTED ON PURPOSE - it asks "is this NOT a survival or
+    //  grief game", not "is this classic". The two are equivalent for every
+    //  value the menus can produce, but they fail in OPPOSITE directions if
+    //  ui_gametype is somehow not readable this early:
+    //
+    //      == "zclassic"     unset -> Vulture ON on classic  -> WILL NOT BOOT
+    //      != "zstandard"    unset -> Vulture OFF on classic -> boots, and only
+    //      && != "zgrief"             Bus Depot loses a perk
+    //
+    //  The second is a cosmetic loss on one location; the first is the crash
+    //  this whole branch exists to prevent. Err toward the map that boots.
+    str_gametype = getdvar( "ui_gametype" );
+
+    if ( map == "zm_transit" &&
+         getdvar( "ui_zm_mapstartlocation" ) == "transit" &&
+         str_gametype != "zstandard" && str_gametype != "zgrief" )
         return 0;
 
     return 1;

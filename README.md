@@ -90,6 +90,17 @@ source folders is built or don't-touch.
   (`zmb_vox_ann_death_machine`, Die Rise's bank) was recorded by Treyarch and **never wired up
   anywhere in the game** — zero references across all 2,093 stock scripts. All three are
   re-shipped in the mod's own sound bank and routed through the stock announcer path.
+- **Nine multiplayer weapons added to the mystery box on every map** — the
+  **SWAT-556**, **FAL OSW**, **Mk 48**, **QBB LSW**, **MP7**, **Vector K10**, **MSMC**,
+  **Peacekeeper** and **Crossbow**, each with its Pack-a-Punch upgrade (FBI-667, WN OTW,
+  HtMk 4800, RCC MTX, Matter Penetrator 700, Matrix K1000, Modern Sub Machine Catastrophe,
+  Warmonger, Awful Lawton). Nothing is a stand-in: their models, animations, camos and icons
+  are the real assets baked into `mod.ff`, and their fire audio — including the `_decay`,
+  `_dist` and `_LFE` layers and the Pack-a-Punch shot — ships in the mod's own sound bank.
+  `zmqol_mp_weapons 0` turns them all off.
+  🛑 **Two were deliberately left out:** the **Titus-6** (its camo and HUD arrow material
+  exist in no fastfile in a retail install) and the **Bouncing Betty** (its viewmodel anims
+  and HUD icon likewise). Shipping either would mean a visibly broken weapon, so neither ships.
 - **Three Black Ops 1 wonder weapons in the mystery box** — the **Thundergun**,
   **Wunderwaffe DG-2** and **Winter's Howl**, each with its Pack-a-Punch upgrade
   (Zeus Cannon / DG-3 JZ / Winter's Fury). They fire, chain, freeze and knock back

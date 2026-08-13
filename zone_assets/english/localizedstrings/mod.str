@@ -25,4 +25,59 @@ LANG_ENGLISH        "Winter's Howl"
 REFERENCE           ZOMBIE_WEAPON_FREEZEGUN_UPGRADED
 LANG_ENGLISH        "Winter's Fury"
 
+// ============================================================================
+//  v1.89.0 - THE 9 PORTED MULTIPLAYER WEAPONS.
+//
+//  Only 11 of the 22 display refs these weapons use need shipping. The other
+//  11 already resolve on a zombies map - VERIFIED by dumping the localize asset
+//  of every en_*.ff a zombies map loads (en_code_post_gfx_zm, en_common_zm,
+//  en_patch_zm, en_ui_zm, en_<map>, the dlc loads and the so_z* transit set)
+//  and matching each REFERENCE. "SWAT-556", "FAL OSW", "Mk 48", "QBB LSW",
+//  "MP7", "Vector K10", "MSMC", "Crossbow", "Grenade Launcher", "Semtex" and
+//  "Awful Lawton" are all already there, so re-declaring them would put a
+//  second definition in front of the map that owns it for no gain.
+//
+//  🛑 THE TEXT IS NOT INVENTED. The base names are Treyarch's own, read out of
+//  the MP language fastfiles; the Pack-a-Punch names are BO2-Reimagined's, read
+//  out of english\localizedstrings\reimagined.str. Nothing here was typed from
+//  memory.
+//
+//  📝 WEAPON_PEACEKEEPER is the one BASE name that must ship: the Peacekeeper is
+//  a DLC weapon and its string lives in the MP patch language zone only, which
+//  no zombies map loads.
+// ============================================================================
+
+REFERENCE           WEAPON_PEACEKEEPER
+LANG_ENGLISH        "Peacekeeper"
+
+REFERENCE           ZMWEAPON_SIG556_UPGRADED
+LANG_ENGLISH        "FBI-667"
+
+REFERENCE           ZMWEAPON_SA58_UPGRADED
+LANG_ENGLISH        "WN OTW"
+
+REFERENCE           ZMWEAPON_MK48_UPGRADED
+LANG_ENGLISH        "HtMk 4800"
+
+REFERENCE           ZMWEAPON_QBB95_UPGRADED
+LANG_ENGLISH        "RCC MTX"
+
+REFERENCE           ZMWEAPON_MP7_UPGRADED
+LANG_ENGLISH        "Matter Penetrator 700"
+
+REFERENCE           ZMWEAPON_VECTOR_UPGRADED
+LANG_ENGLISH        "Matrix K1000"
+
+REFERENCE           ZMWEAPON_VECTOR_EXTCLIP
+LANG_ENGLISH        "Vector K10 Extended Clip"
+
+REFERENCE           ZMWEAPON_VECTOR_EXTCLIP_UPGRADED
+LANG_ENGLISH        "Matrix K1000 Extended Clip"
+
+REFERENCE           ZMWEAPON_INSAS_UPGRADED
+LANG_ENGLISH        "Modern Sub Machine Catastrophe"
+
+REFERENCE           ZMWEAPON_PEACEKEEPER_UPGRADED
+LANG_ENGLISH        "Warmonger"
+
 ENDMARKER

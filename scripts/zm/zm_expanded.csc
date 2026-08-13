@@ -59,7 +59,65 @@ main()
 	// CLIENT HALF OF BLOOD MONEY - see the block below.
 	zmqol_enable_blood_money();
 
+	// CLIENT HALF OF THE 9 PORTED MULTIPLAYER WEAPONS - see the block below.
+	zmqol_mp_weapons_init();
+
 	perks();
+}
+
+// ============================================================================
+//  zmqol_mp_weapons_init  (CLIENT)  -  EXACT TWIN of the same function in
+//                                      scripts\zm\quality_of_life.gsc
+//
+//  🛑 THE LIST MUST MATCH THE SERVER'S EXACTLY, including the in_box flags. The
+//  client's include_weapon (clientscripts\mp\zombies\_zm_weapons.csc:138) builds
+//  level._included_weapons and level._display_box_weapons, which is what the
+//  client uses to decide what to draw over the magic box. A weapon the server
+//  can hand out but the client never included shows as a box result the client
+//  cannot render.
+//
+//  📝 The client half takes NO cost, hint or vox pack - those are server-only
+//  concepts (add_zombie_weapon does not exist client-side). Only the name and
+//  the in_box flag cross the boundary, which is why this is a shorter list
+//  rather than a different one.
+//
+//  Same dvar gate as the server, same default, for the same reason the Vulture
+//  pair reads one dvar on both halves: the two must never disagree.
+// ============================================================================
+zmqol_mp_weapons_init()
+{
+	if ( !getdvarintdefault( "zmqol_mp_weapons", 1 ) )
+		return;
+
+	// the nine that go in the box
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sig556_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sa58_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "mk48_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "qbb95_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "mp7_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "vector_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "insas_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "peacekeeper_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_zm" );
+
+	// their upgraded halves - included, but never a box result
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sig556_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sa58_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "mk48_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "qbb95_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "mp7_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "vector_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "insas_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "peacekeeper_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_upgraded_zm", 0 );
+
+	// attachment and projectile variants - same six as the server half
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "vector_extclip_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "vector_extclip_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "gl_sig556_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sf_sa58_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_explosive_bolt_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_explosive_bolt_upgraded_zm", 0 );
 }
 
 // ============================================================================
@@ -923,7 +981,30 @@ zmqol_vulture_enabled()
 	//  zmqol_wallbuy_match_string() for why it is the dvar that is safe this
 	//  early. If the two halves ever disagree here, every player is dropped
 	//  with EXE_CLIENT_FIELD_MISMATCH before the map starts.
-	if ( map == "zm_transit" && getdvar( "ui_zm_mapstartlocation" ) == "transit" )
+	//  v1.89.0 - AND THE GAMETYPE TOO. EXACT TWIN of the server test; the full
+	//  reasoning lives in quality_of_life.gsc::zmqol_vulture_enabled().
+	//
+	//  🛑 v1.84.0's comment claimed zstandard/zgrief at location "transit" were
+	//  not reachable from the menus. FALSE - **Bus Depot is `zstandard` at
+	//  location `transit`**, and the location-only test took a perk it had room
+	//  for (27 stock toplayer bits vs classic's 38; Vulture needs 10).
+	//
+	//  ui_gametype is as safe as the dvar beside it: zmqol_wallbuy_match_string()
+	//  in THIS file (line ~439) already reads both together at struct_class_init
+	//  time, strictly earlier than this, and its wallbuys work.
+	//
+	//  If this and the server twin ever disagree, the sets differ in width
+	//  between server and client and every player is dropped with
+	//  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+	//  🛑 INVERTED ON PURPOSE - EXACT TWIN of the server test. Asking "is this
+	//  NOT survival/grief" instead of "is this classic" means an unreadable
+	//  ui_gametype leaves Vulture OFF on classic (boots, Bus Depot loses a perk)
+	//  rather than ON (will not boot at all). Err toward the map that boots.
+	str_gametype = getdvar( "ui_gametype" );
+
+	if ( map == "zm_transit" &&
+	     getdvar( "ui_zm_mapstartlocation" ) == "transit" &&
+	     str_gametype != "zstandard" && str_gametype != "zgrief" )
 		return 0;
 
 	return 1;
