@@ -47,6 +47,7 @@ init()
     level thread zmqol_hide_native_wunderfizz();
     level thread zmqol_probe_capture_zones();
     level thread zmqol_capture_objectives_fix();
+    level thread zmqol_capture_hud_nudge();
     zmqol_register_survival_visionset();
     level thread zmqol_power_up_all_generators();
     level thread zmqol_disable_staff_relay_switches();
@@ -154,7 +155,7 @@ zmqol_capture_objectives_fix()
     n_pass = 0;
     n_skipped = 0;
 
-    while ( n_pass + n_skipped < 20 )
+    while ( n_pass + n_skipped < 6 )
     {
         wait 1;
 
@@ -183,6 +184,33 @@ zmqol_any_zone_capturing()
     }
 
     return 0;
+}
+
+zmqol_capture_hud_nudge()
+{
+    level endon( "end_game" );
+
+    if ( !is_classic() )
+        return;
+
+    for (;;)
+    {
+        level waittill( "connected", player );
+        player thread zmqol_capture_hud_nudge_player();
+    }
+}
+
+zmqol_capture_hud_nudge_player()
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+    self waittill( "spawned_player" );
+    flag_wait( "initial_blackscreen_passed" );
+    wait 8;
+    self setclientuivisibilityflag( "hud_visible", 0 );
+    wait 0.05;
+    self setclientuivisibilityflag( "hud_visible", 1 );
+    println( "[zm_qol] capture hud: visibility nudged - the scoreboard trick, done in script" );
 }
 
 zmqol_capture_objectives_on_connect()

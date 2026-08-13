@@ -250,6 +250,7 @@ init()
     level thread zmqol_hide_native_wunderfizz();
     level thread zmqol_probe_capture_zones();
     level thread zmqol_capture_objectives_fix();
+    level thread zmqol_capture_hud_nudge();
     zmqol_register_survival_visionset();
     level thread zmqol_power_up_all_generators();
     level thread zmqol_disable_staff_relay_switches();
@@ -603,13 +604,15 @@ zmqol_capture_objectives_fix()
     //  only reaches what exists at that instant, so the objective was announced to
     //  a HUD that had not been built yet.
     //
-    //  Six seconds simply was not long enough. The window now runs 20 seconds so
-    //  declares keep landing well after the menu is up, and the capture guard
-    //  below still prevents any of them touching a ring that is already live.
+    //  🛑 v1.90.10 - THE 20-SECOND WINDOW IS REVERTED TO 6. It did NOT fix the
+    //  ring, and it made loading choppy in solo: 20 declare_objectives() calls
+    //  landing across the intro cutscene is real work at the worst moment.
+    //  Re-declaring more was treating the symptom. See zmqol_capture_hud_nudge()
+    //  below for the actual mechanism.
     n_pass = 0;
     n_skipped = 0;
 
-    while ( n_pass + n_skipped < 20 )
+    while ( n_pass + n_skipped < 6 )
     {
         wait 1;
 
@@ -642,6 +645,63 @@ zmqol_any_zone_capturing()
     }
 
     return 0;
+}
+
+//  zmqol_capture_hud_nudge  -  THE ACTUAL FIX FOR THE GENERATOR RING (v1.90.10)
+//
+//  🌟 The user's own finding is the whole diagnosis: the ring is missing, and it
+//  appears the moment the scoreboard is opened and released. Nothing about the
+//  generator changes in between - the probe proves the server side is already
+//  perfect (progress ramps 0->100, contested=1, inzone=1, obj=0).
+//
+//  Opening/closing the scoreboard fires hud_update_bit_<BIT_SCOREBOARD_OPEN>.
+//  Origins' HUD registers CoD.CraftablesTomb.UpdateVisibility against that bit
+//  AND against BIT_HUD_VISIBLE (hudcraftablestombzombie.lua). So the widget was
+//  built before the objective was announced, and only a visibility-bit event
+//  makes it re-evaluate and draw. The scoreboard is simply the one such event a
+//  player can trigger by hand.
+//
+//  So: fire that same event once from script, after the HUD exists and the
+//  objectives have been declared. This is the scoreboard press, done for them.
+//
+//  📝 setclientuivisibilityflag( "hud_visible", 0/1 ) is VERIFIED STOCK, not
+//  assumed - zm_nuked.gsc:1321, _zm.gsc:250 and :5300, _zm_gametype.gsc:985 and
+//  _globallogic_player.gsc:79/:260 all call it on a player, and "hud_visible" is
+//  the flag backing BIT_HUD_VISIBLE.
+//
+//  One frame off then on. Done once per player per match, well after the
+//  blackscreen, so there is nothing on screen to flicker at that moment.
+zmqol_capture_hud_nudge()
+{
+    level endon( "end_game" );
+
+    if ( !is_classic() )
+        return;
+
+    for ( ;; )
+    {
+        level waittill( "connected", player );
+        player thread zmqol_capture_hud_nudge_player();
+    }
+}
+
+zmqol_capture_hud_nudge_player()
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+
+    self waittill( "spawned_player" );
+
+    //  Past the blackscreen, and past the 6 declare passes above, so the
+    //  objective definitely exists by the time the HUD is asked to re-read it.
+    flag_wait( "initial_blackscreen_passed" );
+    wait 8;
+
+    self setclientuivisibilityflag( "hud_visible", 0 );
+    wait 0.05;
+    self setclientuivisibilityflag( "hud_visible", 1 );
+
+    println( "[zm_qol] capture hud: visibility nudged - the scoreboard trick, done in script" );
 }
 
 zmqol_capture_objectives_on_connect()
