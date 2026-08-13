@@ -3433,3 +3433,32 @@ mod's `.iwi` and a clean install *with no custom texture pack* may render the ic
 rather than falling back to stock. Plutonium's search order between `mod.iwd\images\` and
 `storage\t6\images\` has **not** been verified offline; the user's report only proves mod.iwd
 currently wins. **Do not ship this on the assumption of a fallback — prove the order first.**
+
+## B6 — CORRECTION, 2026-08-14: NOT a mod regression. Not the mod's fault at all.
+
+The user identified the cause themselves: they had installed an "AI upscaled cutscenes" pack over
+`<BO2>\video\`. They deleted that folder and ran Steam's *Verify integrity of game files*.
+
+**Measured after that repair:**
+- `<BO2>\video\` = 122 files (44 `.bik`, 77 `.webm`, 1 stock Treyarch `buildSettingsLocal.json`),
+  **all** written at the same verify timestamp. No leftovers, no orphan duplicates
+  (`default.bik`/`default.webm` is stock shipping both forms).
+- **No T6 video anywhere under Plutonium storage** — nothing is shadowing the game's copies.
+  (The `.bik` hits under `storage\t4\` and `t5\` are WaW/BO1 custom maps, unrelated.)
+
+🛑 **There is NOTHING to roll back, and rolling back would BREAK it.** The entire cutscene history
+in this repo is two commits, both 2026-08-11, both **confirmed working in game by the user**:
+
+| commit | version | what |
+|---|---|---|
+| `86f9fc6` | v1.65.7 | solo classic intro cutscenes play again |
+| `99451b0` | v1.65.8 | hook the REAL start-match handler (`Button_StartMatch`) |
+
+Nothing since has touched cutscenes. Those two commits are *why* solo gets a cutscene at all —
+reverting them returns to the pre-v1.65.7 state where solo played **no** cutscene. The user's
+request was made believing a newer fix existed; it does not.
+
+**Current symptom after their repair: audio plays (Samantha, Shepherd of Fire), picture black.**
+Since the video files and the mod's cutscene code are both now accounted for, the next step is the
+clean A/B from checkpoint 43 §4c — boot Origins solo **with the mod off**. If it is still black,
+no mod code is involved and this leaves the queue.
