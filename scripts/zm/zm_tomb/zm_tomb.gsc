@@ -568,18 +568,60 @@ zmqol_capture_objectives_fix()
 
     //  Covers the HOST, who is normally already connected before this thread
     //  starts and therefore never fires a "connected" notify to listen for.
-    //  Six passes over the first six seconds - a generator cannot be captured
-    //  that early, so no in-progress ring can be disturbed.
+    //
+    //  🛑 v1.90.7 - THE ORIGINAL COMMENT HERE WAS AN ASSUMPTION AND IT WAS WRONG.
+    //  It read "a generator cannot be captured that early, so no in-progress ring
+    //  can be disturbed". Stock's own source says otherwise:
+    //
+    //      declare_objectives()            zm_tomb_capture_zones.gsc:82
+    //          objective_add( 0, "invisible", ... )
+    //
+    //  while the thing that MAKES the ring appear is, at :1696-1698,
+    //          objective_state( self.n_objective_index, "active" )
+    //
+    //  and a normal generator always takes index 0 (:1558). So every re-declare
+    //  resets objective 0 to "invisible" - i.e. this fix could HIDE the very ring
+    //  it was added to restore, whenever it lands mid-capture. That matches the
+    //  user's report exactly: missing early in the match, fine later on.
+    //
+    //  The re-declare is now skipped while any zone holds an objective index,
+    //  which is precisely the window in which it would be destructive.
     n_pass = 0;
+    n_skipped = 0;
 
-    while ( n_pass < 6 )
+    while ( n_pass + n_skipped < 6 )
     {
         wait 1;
+
+        if ( zmqol_any_zone_capturing() )
+        {
+            n_skipped++;
+            continue;
+        }
+
         maps\mp\zm_tomb_capture_zones::declare_objectives();
         n_pass++;
     }
 
-    println( "[zm_qol] capture objectives: re-declared " + n_pass + " time(s) after connect" );
+    println( "[zm_qol] capture objectives: re-declared " + n_pass + " time(s), skipped " + n_skipped + " (capture in progress)" );
+}
+
+//  True while any capture zone currently owns an objective index - stock assigns
+//  it on acquire and clears it on release (zm_tomb_capture_zones.gsc:1548/:1715),
+//  so this is exactly "a ring is live right now". Written defensively because it
+//  runs before the capture system may have registered anything.
+zmqol_any_zone_capturing()
+{
+    if ( !isdefined( level.zone_capture ) || !isdefined( level.zone_capture.zones ) )
+        return 0;
+
+    foreach ( zone in level.zone_capture.zones )
+    {
+        if ( isdefined( zone.n_objective_index ) )
+            return 1;
+    }
+
+    return 0;
 }
 
 zmqol_capture_objectives_on_connect()
@@ -592,6 +634,14 @@ zmqol_capture_objectives_on_connect()
 
         player waittill( "spawned_player" );
         wait 0.05;
+
+        //  v1.90.7 - same guard as above. A co-op player connecting while someone
+        //  else is mid-capture must not blank that player's ring.
+        if ( zmqol_any_zone_capturing() )
+        {
+            println( "[zm_qol] capture objectives: connect re-declare SKIPPED - a capture is live" );
+            continue;
+        }
 
         maps\mp\zm_tomb_capture_zones::declare_objectives();
         println( "[zm_qol] capture objectives: re-declared for a connecting player" );
