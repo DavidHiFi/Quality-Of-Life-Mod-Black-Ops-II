@@ -94,10 +94,15 @@ source folders is built or don't-touch.
   **SWAT-556**, **FAL OSW**, **Mk 48**, **QBB LSW**, **MP7**, **Vector K10**, **MSMC**,
   **Peacekeeper** and **Crossbow**, each with its Pack-a-Punch upgrade (FBI-667, WN OTW,
   HtMk 4800, RCC MTX, Matter Penetrator 700, Matrix K1000, Modern Sub Machine Catastrophe,
-  Warmonger, Awful Lawton). Nothing is a stand-in: their models, animations, camos and icons
-  are the real assets baked into `mod.ff`, and their fire audio — including the `_decay`,
-  `_dist` and `_LFE` layers and the Pack-a-Punch shot — ships in the mod's own sound bank.
+  Warmonger, Awful Lawton). Nothing is a stand-in: their models, animations and camos are the
+  real assets baked into `mod.ff`, and their fire audio — including the `_decay`, `_dist` and
+  `_LFE` layers and the Pack-a-Punch shot — ships in the mod's own sound bank. The SWAT-556's
+  grenade launcher and the FAL OSW's select-fire work on the Pack-a-Punched versions.
   `zmqol_mp_weapons 0` turns them all off.
+  ⚠️ **Two gaps on these nine, still open:** they have **no reload sounds** (T6 drives reload
+  audio from animation notetracks rather than from the weapon file, so the alias import that
+  covered firing could not have caught them), and their **kill-feed icons are missing**, so a
+  kill with one shows a blank icon in the feed. Both are cosmetic; neither affects handling.
   🛑 **Two were deliberately left out:** the **Titus-6** (its camo and HUD arrow material
   exist in no fastfile in a retail install) and the **Bouncing Betty** (its viewmodel anims
   and HUD icon likewise). Shipping either would mean a visibly broken weapon, so neither ships.
