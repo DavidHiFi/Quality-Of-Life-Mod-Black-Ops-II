@@ -3726,3 +3726,79 @@ Deployed, hash-matched, and confirmed present inside the deployed `mod.iwd` (12/
 3. **`fxt_env_snow_flake_cloud_01/02.iwi` are 176 bytes each.** That is plausible for a tiny
    particle-cloud lookup texture and both came from the donor with their own headers, but if the
    upgraded impact explosion draws black, check these two first.
+
+## ✅ B10a — THE XPR-50 IS IN THE BOX. Built in v1.92.0, NOT YET BOOTED.
+
+User, "next in the queue", 2026-08-14, skipping ahead of v1.91.0's verification (stated to them).
+
+### Why it was "missing" twice: the name
+
+Defs are `as50_zm` / `as50_upgraded_zm`; art is `t6_wpn_sniper_xpr50_*` / `viewmodel_xpr50_*`;
+HUD icon is `menu_mp_weapons_as50`. Searching "xpr" finds no def, searching "as50" finds no art.
+[[t6-asset-vs-def-name-mismatch]] again.
+
+### 🛑 The ownership trap does NOT apply here, and that was measured
+
+Every asset the two defs name was tested against the full 191-fastfile index. **All exist; NONE
+appears in any zombies fastfile** — they are in `common_mp.ff`, `common_patch_mp.ff`,
+`code_post_gfx_mp.ff` and campaign levels only. `mod.ff` can therefore own them without shadowing
+anything a map carries.
+
+**A/B audit: 4,860 → 4,919, 59 added, ZERO removed.** The 59 are 23 xanims, 8 xmodels (the 6
+declared plus the vzoom scope pair the Linker pulled in), the weapon/scope/camo materials and their
+images, 2 attachmentuniques, `camo_xpr50` and the new localize entry. Two worth naming:
+- `mtl_weapon_camo_zombies_3` — `mod.ff` already owned `_1`, `_2`, `_attach`, `_attach_1`; `_3` is
+  the next slot in a series this mod already owns, and it is in **no** zombies fastfile.
+- `scope_overlay_xpr50` — patch_zm.ff also has it, so `mod.ff` now wins. Confined to this weapon by
+  name; noted rather than fixed.
+
+### One new `--load`: `code_post_gfx_mp.ff`
+
+For `menu_mp_weapons_as50` only. No fastfile already in the list OWNS it — `common_mp.ff` carries
+it as a bare reference (`material, ,menu_mp_weapons_as50`, note the leading comma, the false
+negative recorded in checkpoint 44). Placed after both zombies commons so first-load-wins keeps
+every shared name on its zombies copy.
+
+### 🌟 THE COMPLETENESS AUDIT CAUGHT A REAL DEFECT — the PaP gun would have fired SILENTLY
+
+Walking the six points found that all nine existing ported weapons ship
+`wpn_<name>_fire_plr_pap` + `_npc_pap`, and the XPR-50 had **neither**. v1.90.5's foley pass landed
+`wpn_as50_fire_plr/npc` and seven `fly_as50_*` but not the Pack-a-Punch pair. A missing alias is
+**silent, never an error**, so this would have shipped as "the packed XPR-50 makes no sound" and
+nobody would have seen a log line. Both rows added (they point at the shared
+`raw\sound\wpn\pap\pap_shot_st...wav` payload that already ships) and **verified to round-trip: all
+five `as50` fire aliases confirmed inside the rebuilt, deployed `mod.all.sabl`.**
+
+| audit point | result |
+|---|---|
+| functionality | `include_weapon` + `add_zombie_weapon` (server) and the `.csc` twin; cost 1000, vox key `"sniper"` |
+| visual fx | all 4 fx the defs name (`fx_muz_snpr_flash_1p/3p`, `fx_zombie_heavy_flash_base_ug`, `fx_rifle`) already in `mod.ff` AND in zombies fastfiles |
+| sound fx | fire + `_pap` + 7 foley shipped; `prj_crack` is stock — ballista/dsr50/svu use it |
+| anims / models | the real 23 xanims + 8 xmodels, no stand-ins |
+| client half | `zm_expanded.csc::zmqol_mp_weapons_init()` updated in the same change |
+| no regressions | A/B zero removed; both binaries hash-matched to source after deploy |
+
+🛑 **The Pack-a-Punch attachment row is load-bearing, not cosmetic.** `as50_upgraded_zm` has
+`attachments = defaultattachment` / `attachmentUniques = au_as50_none` — the same shape as
+`sig556_upgraded_zm`. v1.89.3 recorded that a weapon of that shape with no row in the attachment
+table **froze the game hard on firing**. `zone_assets\zm\pap_attach_qol.csv` gains
+`as50_upgraded_zm,vzoom` (Reimagined's choice, and `vzoom` is what every stock zombies sniper gets);
+`au_as50_none` and `au_as50_vzoom` both declared, both real in `common_mp.ff`.
+
+### Residual risks, in order
+
+1. **Weapon-count ceiling.** This is box weapon 10 on top of the 9. The ceiling is only known to be
+   ≥178. **Boot Origins first** — it has the most stock weapons.
+2. **Kill-feed / HUD icon may be blank.** `menu_mp_weapons_as50`'s pixels are not shipped as an
+   `.iwi`; they have to come from the game's `.ipak`. `mod.ff` already owns many `menu_mp_weapons_*`
+   headers with no `.iwi` and those display, so this is expected to work — but it is the same class
+   as the blank kill-feed icons the README already admits for the other nine.
+3. **Reload is silent**, exactly like the other ten — the open foley gap, not new here.
+
+### ▶️ STILL OPEN: the Titus-6 (B10b)
+
+Not started. The recorded blocker is that `camo_titus6` and `hud_monsoon_titus_arrow` exist in no
+fastfile in this install, and Reimagined's `zone_source\dependencies\` ships empty. 🛑 **Re-run that
+check against the new full 191-fastfile index before accepting it** — the XPR-50's `camo_xpr50` was
+found this way and the `menu_mp_weapons_as50` false negative shows the old sweeps were not reliable.
+The user authorised `SynarxisReimagined` as a donor for it on 2026-08-13.

@@ -1,0 +1,112 @@
+// ============================================================================
+//  mod_xpr50.zone  -  the XPR-50 sniper (asset name `as50`), weapon 10 of the
+//  MP/campaign port. User request, 2026-08-14: "the xpr ... still aren't in the
+//  box".
+//
+//  🌟 IT IS STORED UNDER ITS DEVELOPMENT NAME. The weapon defs are `as50_zm` /
+//  `as50_upgraded_zm`, the art is `t6_wpn_sniper_xpr50_*` and `viewmodel_xpr50_*`,
+//  and the HUD icon is `menu_mp_weapons_as50`. Searching for "xpr" alone finds
+//  no def and searching for "as50" alone finds no art - which is exactly why
+//  this weapon was twice reported as "not in the game". See
+//  [[t6-asset-vs-def-name-mismatch]].
+//
+//  🛑 WHY THE OWNERSHIP TRAP DOES NOT FIRE HERE, MEASURED NOT ASSUMED.
+//  Every asset below was tested against a full index of all 191 fastfiles in
+//  zone\all. Result: each one exists, and each one appears in ZERO zombies
+//  fastfiles - only in common_mp.ff / common_patch_mp.ff / code_post_gfx_mp.ff
+//  and campaign levels. mod.ff loads ahead of every map, so what it owns it
+//  ships everywhere; that is only dangerous for a name a zombies map also
+//  carries, and none of these is. Nothing can be re-owned.
+//
+//  📝 TWO ASSETS THE DEFS NAME ARE DELIBERATELY NOT DECLARED:
+//    - `scope_overlay_xpr50`  already in patch_zm.ff, so it resolves on every
+//      map at runtime. Declaring it would take ownership for no gain.
+//    - `hud_mp_firerate_single`  already in mod.ff (mod_base.zone).
+//
+//  📝 SOUND IS ALREADY DONE. v1.90.5's foley pass landed `wpn_as50_*` and the
+//  seven `fly_as50_*` rows; `wpn_as50_fire_plr` was verified inside the rebuilt
+//  mod.all.sabl. Nothing audio is needed here.
+//
+//  📝 STRINGS: `WEAPON_AS50` ("XPR-50") is ALREADY resolvable on a zombies map -
+//  it is in en_code_post_gfx_zm.ff and en_patch_zm.ff, confirmed by dumping the
+//  localize asset of both. Only the Pack-a-Punch name needed shipping, and it
+//  is in mod.str.
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+//  View / world models, and the magazine attachment models the def names.
+// ---------------------------------------------------------------------------
+xmodel,t6_wpn_sniper_xpr50_view
+xmodel,t6_wpn_sniper_xpr50_world
+xmodel,t6_wpn_sniper_xpr50_scope_view
+xmodel,t6_wpn_sniper_xpr50_scope_world
+xmodel,t6_attach_mag_xpr50_view
+xmodel,t6_attach_mag_xpr50_world
+
+// ---------------------------------------------------------------------------
+//  All 23 view-model animations the two defs reference. Derived from the defs
+//  by parsing every \key\value\ pair and taking every key ending in "Anim" -
+//  not typed from a naming pattern.
+// ---------------------------------------------------------------------------
+xanim,viewmodel_xpr50_idle
+xanim,viewmodel_xpr50_fire
+xanim,viewmodel_xpr50_reload
+xanim,viewmodel_xpr50_reload_empty
+xanim,viewmodel_xpr50_pullout
+xanim,viewmodel_xpr50_pullout_quick
+xanim,viewmodel_xpr50_putaway
+xanim,viewmodel_xpr50_putaway_quick
+xanim,viewmodel_xpr50_first_raise
+xanim,viewmodel_xpr50_ads_up
+xanim,viewmodel_xpr50_ads_down
+xanim,viewmodel_xpr50_sprint_in
+xanim,viewmodel_xpr50_sprint_loop
+xanim,viewmodel_xpr50_sprint_out
+xanim,viewmodel_xpr50_crawl_in
+xanim,viewmodel_xpr50_crawl_out
+xanim,viewmodel_xpr50_crawl_forward
+xanim,viewmodel_xpr50_crawl_back
+xanim,viewmodel_xpr50_crawl_left
+xanim,viewmodel_xpr50_crawl_right
+xanim,viewmodel_xpr50_d2p_in
+xanim,viewmodel_xpr50_d2p_loop
+xanim,viewmodel_xpr50_d2p_out
+
+// ---------------------------------------------------------------------------
+//  HUD icon (hudIcon / killIcon / ammoCounterIcon all point at this one).
+//
+//  🛑 THIS IS WHY build_ff.bat NOW --load's code_post_gfx_mp.ff. No other
+//  fastfile in the load list OWNS this material - common_mp.ff carries it only
+//  as a bare reference (`material, ,menu_mp_weapons_as50`, the leading comma).
+//  A previous sweep read that leading comma as "not present" and wrongly
+//  reported the icon as unobtainable; match on the NAME, never on the
+//  "class, name" form.
+// ---------------------------------------------------------------------------
+material,menu_mp_weapons_as50
+
+// ---------------------------------------------------------------------------
+//  Pack-a-Punch camo. Unlike the Titus-6's `camo_titus6`, which exists in no
+//  fastfile in this install and is why that weapon is still held back,
+//  `camo_xpr50` is real and sits in common_mp.ff + common_patch_mp.ff, both
+//  already loaded.
+// ---------------------------------------------------------------------------
+camo,camo_xpr50
+
+// ---------------------------------------------------------------------------
+//  🛑 ATTACHMENT UNIQUES - THESE TWO ARE LOAD-BEARING, NOT COSMETIC.
+//
+//  as50_upgraded_zm has `attachments = defaultattachment` and
+//  `attachmentUniques = au_as50_none`, the same shape as sig556_upgraded_zm.
+//  v1.89.3 recorded what happens when a weapon of that shape is Pack-a-Punched
+//  with no row in the attachment table: the game froze hard on firing, with the
+//  console log ending mid-line. So zone_assets\zm\pap_attach_qol.csv gains
+//  `as50_upgraded_zm,vzoom` (Reimagined's own choice, and `vzoom` is what every
+//  stock zombies sniper gets), and both uniques must be present for it.
+//
+//  🛑 attachmentunique resolves ONLY from a fastfile - a raw file in mod.iwd is
+//  invisible to the game. See [[t6-fastfile-only-asset-classes]] and the
+//  v1.89.1 note in mod_locations.zone, which shipped 13 of these raw and had
+//  none of them load.
+// ---------------------------------------------------------------------------
+attachmentunique,au_as50_none
+attachmentunique,au_as50_vzoom

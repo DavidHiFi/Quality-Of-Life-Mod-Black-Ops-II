@@ -80,4 +80,21 @@ LANG_ENGLISH        "Modern Sub Machine Catastrophe"
 REFERENCE           ZMWEAPON_PEACEKEEPER_UPGRADED
 LANG_ENGLISH        "Warmonger"
 
+// ============================================================================
+//  v1.92.0 - THE XPR-50 (asset name `as50`), weapon 10.
+//
+//  Only the Pack-a-Punch name ships. The BASE name WEAPON_AS50 ("XPR-50")
+//  already resolves on a zombies map - it is present in BOTH en_patch_zm.ff and
+//  en_code_post_gfx_zm.ff, confirmed by dumping the localize asset of each with
+//  the Unlinker and matching the REFERENCE. Re-declaring it would put a second
+//  definition in front of the fastfile that owns it for no gain.
+//
+//  🛑 The text below is BO2-Reimagined's, read out of
+//  english\localizedstrings\reimagined.str - not typed from memory, same rule
+//  as the eleven above.
+// ============================================================================
+
+REFERENCE           ZMWEAPON_AS50_UPGRADED
+LANG_ENGLISH        "Xtreme Pain Releaser 5000"
+
 ENDMARKER

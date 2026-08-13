@@ -89,7 +89,7 @@ zmqol_mp_weapons_init()
 	if ( !getdvarintdefault( "zmqol_mp_weapons", 1 ) )
 		return;
 
-	// the nine that go in the box
+	// the ten that go in the box
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sig556_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sa58_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "mk48_zm" );
@@ -99,6 +99,7 @@ zmqol_mp_weapons_init()
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "insas_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "peacekeeper_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "as50_zm" );
 
 	// their upgraded halves - included, but never a box result
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sig556_upgraded_zm", 0 );
@@ -110,6 +111,7 @@ zmqol_mp_weapons_init()
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "insas_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "peacekeeper_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "as50_upgraded_zm", 0 );
 
 	// attachment and projectile variants - same six as the server half
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "vector_extclip_zm", 0 );

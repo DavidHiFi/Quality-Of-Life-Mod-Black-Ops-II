@@ -289,6 +289,12 @@ REM  📝 Re-run that A/B if this order is ever touched: dump the asset list, ch
 REM  the loads, dump again, and account for EVERY line that moves. See
 REM  [[t6-oat-load-order-decides-asset-copy]] and [[t6-modff-asset-ownership-trap]].
 REM
+REM  🌟 code_post_gfx_mp.ff is here for exactly ONE asset: the XPR-50's HUD icon
+REM  material menu_mp_weapons_as50, which no fastfile already in this list OWNS
+REM  (common_mp.ff carries it only as a bare reference - note the leading comma
+REM  in "material, ,menu_mp_weapons_as50"). It sits after both zombies commons
+REM  so first-load-wins keeps every shared name on its zombies copy. A/B'd.
+REM
 REM  🌟 zone_source\fx_donor\mod.ff is LAST, and that placement is the whole
 REM  safety argument for it. It is the fastfile of the "T5 Winter's Howl Port"
 REM  module, added so mod_freezefx.zone can reach the 19 fx MATERIALS the ported
@@ -323,6 +329,7 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\common_mp.ff" ^
   --load "%BO2_DIR%\zone\all\patch_mp.ff" ^
   --load "%BO2_DIR%\zone\all\common_patch_mp.ff" ^
+  --load "%BO2_DIR%\zone\all\code_post_gfx_mp.ff" ^
   --load "%PROJ%\zone_source\fx_donor\mod.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^

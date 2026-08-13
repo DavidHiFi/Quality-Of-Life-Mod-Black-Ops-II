@@ -5986,6 +5986,21 @@ zmqol_mp_weapons_init()
     zmqol_add_mp_weapon( "peacekeeper_zm", "peacekeeper_upgraded_zm", &"WEAPON_PEACEKEEPER",        1000, "wpck_smg" );
     zmqol_add_mp_weapon( "crossbow_zm",    "crossbow_upgraded_zm",    &"WEAPON_CROSSBOW_EXPLOSIVE", 1000, "wpck_launcher" );
 
+    //  v1.92.0 - the XPR-50, weapon 10. User request, 2026-08-14.
+    //
+    //  🌟 The def is `as50_zm` and the art is `xpr50` - see mod_xpr50.zone.
+    //
+    //  Cost 1000 is BO2-Reimagined's for this weapon, the same source as the
+    //  nine above. The vox key is "sniper" and that is STOCK'S OWN, not a
+    //  guess: _zm_audio.gsc:130 registers "sniper" -> wpck_sniper, and stock
+    //  passes the bare "sniper" for the barretm82 on several maps. There is no
+    //  wpck_as50 - the XPR-50 was never a zombies weapon - so a weapon-specific
+    //  pack in the shape of wpck_dsr50 / wpck_m82a1 / wpck_svuas cannot exist.
+    //
+    //  📝 WEAPON_AS50 is NOT shipped in mod.str: it already resolves from
+    //  en_patch_zm.ff and en_code_post_gfx_zm.ff. Only the PaP name is ours.
+    zmqol_add_mp_weapon( "as50_zm",        "as50_upgraded_zm",        &"WEAPON_AS50",               1000, "sniper" );
+
     // Reachable only via a PaP attachment or as a projectile - never a box
     // result, but they must be included or their owner cannot resolve them.
     zmqol_include_variant( "vector_extclip_zm" );
@@ -5995,7 +6010,7 @@ zmqol_mp_weapons_init()
     zmqol_include_variant( "crossbow_explosive_bolt_zm" );
     zmqol_include_variant( "crossbow_explosive_bolt_upgraded_zm" );
 
-    println( "[zm_qol] mp_weapons: 9 registered for the box on " + getdvar( "mapname" ) );
+    println( "[zm_qol] mp_weapons: 10 registered for the box on " + getdvar( "mapname" ) );
 }
 
 zmqol_add_mp_weapon( str_base, str_upgraded, str_hint, n_cost, str_vox )

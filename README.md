@@ -90,20 +90,25 @@ source folders is built or don't-touch.
   (`zmb_vox_ann_death_machine`, Die Rise's bank) was recorded by Treyarch and **never wired up
   anywhere in the game** — zero references across all 2,093 stock scripts. All three are
   re-shipped in the mod's own sound bank and routed through the stock announcer path.
-- **Nine multiplayer weapons added to the mystery box on every map** — the
+- **Ten multiplayer weapons added to the mystery box on every map** — the
   **SWAT-556**, **FAL OSW**, **Mk 48**, **QBB LSW**, **MP7**, **Vector K10**, **MSMC**,
-  **Peacekeeper** and **Crossbow**, each with its Pack-a-Punch upgrade (FBI-667, WN OTW,
-  HtMk 4800, RCC MTX, Matter Penetrator 700, Matrix K1000, Modern Sub Machine Catastrophe,
-  Warmonger, Awful Lawton). Nothing is a stand-in: their models, animations and camos are the
+  **Peacekeeper**, **Crossbow** and **XPR-50**, each with its Pack-a-Punch upgrade (FBI-667,
+  WN OTW, HtMk 4800, RCC MTX, Matter Penetrator 700, Matrix K1000, Modern Sub Machine
+  Catastrophe, Warmonger, Awful Lawton, Xtreme Pain Releaser 5000). Nothing is a stand-in:
+  their models, animations and camos are the
   real assets baked into `mod.ff`, and their fire audio — including the `_decay`, `_dist` and
   `_LFE` layers and the Pack-a-Punch shot — ships in the mod's own sound bank. The SWAT-556's
   grenade launcher and the FAL OSW's select-fire work on the Pack-a-Punched versions.
   `zmqol_mp_weapons 0` turns them all off.
-  ⚠️ **Two gaps on these nine, still open:** they have **no reload sounds** (T6 drives reload
+  ⚠️ **Two gaps on these ten, still open:** they have **no reload sounds** (T6 drives reload
   audio from animation notetracks rather than from the weapon file, so the alias import that
   covered firing could not have caught them), and their **kill-feed icons are missing**, so a
   kill with one shows a blank icon in the feed. Both are cosmetic; neither affects handling.
-  🛑 **Two were deliberately left out:** the **Titus-6** (its camo and HUD arrow material
+  📝 **The XPR-50 is new in v1.92.0 and not yet confirmed in game.** It is stored under its
+  development name `as50`, which is why it was twice reported as absent from the game — the
+  defs are `as50_*` and the art is `xpr50_*`. It ships its own HUD icon material, its
+  Pack-a-Punch camo and variable-zoom scope, and both Pack-a-Punch fire sounds.
+  🛑 **Two are still left out:** the **Titus-6** (its camo and HUD arrow material
   exist in no fastfile in a retail install) and the **Bouncing Betty** (its viewmodel anims
   and HUD icon likewise). Shipping either would mean a visibly broken weapon, so neither ships.
 - **Three Black Ops 1 wonder weapons in the mystery box** — the **Thundergun**,
