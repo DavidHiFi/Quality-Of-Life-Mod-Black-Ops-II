@@ -1072,3 +1072,26 @@ xmodel,t6_wpn_smg_peacekeeper_world
 xmodel,t6_wpn_smg_vector_view
 xmodel,t6_wpn_smg_vector_world
 xmodel,viewmodel_hands_no_model
+
+// ============================================================================
+//  v1.89.2 - THE TWO ATTACHMENTS THE PACK-A-PUNCHED WEAPONS CRASHED WITHOUT
+// ----------------------------------------------------------------------------
+//  Firing a Pack-a-Punched ported weapon froze the game hard - no GSC error,
+//  the console log simply ended mid-line. The upgraded defs are the only half
+//  of each pair that carries an `attachments` field, which is why the base
+//  weapon fired fine and only the upgraded one died.
+//
+//  Of the 8 attachments those defs name, six were already in mod.ff as
+//  dependencies. These two were not:
+//      holo            <- qbb95_upgraded_zm
+//      steadyaim_smg   <- vector_upgraded_zm, vector_extclip_upgraded_zm
+//  steadyaim_smg is the Vector's, which is the weapon the user froze on.
+//
+//  🛑 ,defaultattachment IS NOT MISSING and must not be added here - it is
+//  already declared at mod_base.zone:476. Its real asset name carries a LEADING
+//  COMMA (the Unlinker prints it as `attachment, ,defaultattachment`), so a
+//  naive lookup for "defaultattachment" reports a false absence. That false
+//  positive cost one wrong diagnosis; check the raw listing, not a built key.
+// ============================================================================
+attachment,holo
+attachment,steadyaim_smg
