@@ -3241,3 +3241,51 @@ deliberate safe intermediate state, not a half-shipped feature.
 3. **Per-map wiring** — `added_weapons()`: `include_weapon(x)` + `include_weapon(x_upgraded, 0)` +
    `add_zombie_weapon(...)`, plus the `.csc` twin. **Additions only, never `is_in_box = 0`.**
 4. **Boot Origins FIRST** — the weapon-count ceiling is only known to be ≥178.
+
+---
+
+## 🔴 TITUS-6 — THE "PERMANENT" DROP IS OVERTURNED (queued 2026-08-13, user request)
+
+**Checkpoint 40 §5 and the v1.88.0 queue entry both say the Titus-6 was dropped PERMANENTLY. That
+verdict was wrong and is retracted.** It rested on one measurement — that `camo,camo_titus6` and
+`material,hud_monsoon_titus_arrow` "exist in no fastfile in this install", with Reimagined sourcing
+them from a `zone_source\dependencies\camo_materials.ff` that its public repo ships empty.
+
+The user has now pointed at a fastfile nobody had looked in: their friend's mod,
+`%LOCALAPPDATA%\Plutonium\storage\t6\mods\SynarxisReimagined\` (mod.ff, 6,913 assets). **Both
+blockers are in it**, verified by `Unlinker --list`:
+
+    camo, camo_titus6                       <- blocker 1, RESOLVED
+    material, hud_monsoon_titus_arrow       <- blocker 2, RESOLVED
+    image, hud_monsoon_titus
+    xmodel, t6_wpn_titus_view / t6_wpn_titus_world
+    material, mc/mtl_t6_wpn_titus  + its 4 images
+    material, mc/mtl_t6_attach_optic_titus_reticle + image
+    fx, weapon/titus/fx_muz_titus_bolt
+    xanim, viewmodel_titus_gl_*             (12+, incl. _from_masterkey)
+
+and their `mod.iwd` carries the raw defs: `titus6_zm`, `titus6_upgraded_zm`, `mk_titus6_zm`,
+`mk_titus6_upgraded_zm`, `titus6_explosive_dart_zm`, `titus6_explosive_dart_upgraded_zm`.
+
+🛑 **DECISION NEEDED FROM THE USER BEFORE ANY WORK — this is the one thing that blocks it now.**
+Sourcing these means `--load`ing **another person's mod** as an asset donor. `AI_CONTEXT.md` rule 7
+forbids importing from other mods, and the single standing exception is `BO2-Reimagined/`. A friend
+saying "my mod has it" is not the same as agreeing their build may be used as a donor. Two clean
+routes, user's call:
+  a. **Ask the friend for `zone_source\dependencies\camo_materials.ff`** (or whatever supplies
+     `camo_titus6` in their build). That is the file Reimagined *intends* to be there, so this stays
+     inside the sanctioned exception and needs no import from their mod.ff.
+  b. Explicit permission to `--load` `SynarxisReimagined\mod.ff` as a donor.
+
+📝 Route (a) is the better one and should be offered first.
+
+▶️ **THEN, and only then**, the ordinary weapon-port sequence applies, plus the two lessons this
+   session cost:
+   1. defs into `weapons\zm\` (6 files), assets into `mod_locations.zone`.
+   2. 🌟 **`attachmentunique` is FASTFILE-ONLY** — ERROR_CATALOGUE §11. If any titus def carries an
+      `attachmentUniques` field, the record must be DECLARED, not dropped in the raw folder.
+   3. 🌟 **Check every `altWeapon` for an `_mp` name.** `titus6_zm` has a masterkey/GL alt
+      (`viewmodel_titus_gl_from_masterkey` is in the anim list) and `mk_titus6_zm` is clearly that
+      alt weapon — exactly the shape that broke the SIG556 and SA58 in v1.89.6.
+   4. Sound: the Titus is a launcher; confirm each alias round-trips. A missing alias is SILENT.
+   5. Boot Origins first (weapon-count ceiling only known to be >=178).
