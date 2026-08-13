@@ -3462,3 +3462,62 @@ request was made believing a newer fix existed; it does not.
 Since the video files and the mod's cutscene code are both now accounted for, the next step is the
 clean A/B from checkpoint 43 §4c — boot Origins solo **with the mod off**. If it is still black,
 no mod code is involved and this leaves the queue.
+
+## 🌟 B7 — THE GENERATOR RING: ROOT CAUSE FOUND, 2026-08-14 (after v1.90.11)
+
+**v1.90.11 works but flashes the HUD.** User: *"the ring showed but it flashed for a brief
+moment... just make the ring behave like the stock vanilla base game so it's not being hidden or
+modified, my mod shouldn't be doing that i never asked you for you hide that."* The hide/show
+hack is to be removed.
+
+### The mechanism, read out of the LUI (not inferred)
+
+The ring lives in **`tombcapturezonedisplay.lua`** — a DIFFERENT file from the one v1.90.8
+A/B-tested (`hudcraftablestombzombie.lua`), which is why that test came back clean and misled
+three attempts.
+
+- `CoD.GametypeBase.new()` (`gametypebase.lua:23`) ends with **`f1_local0:setAlpha(0)`**.
+- `LUI.createMenu.TombCaptureZoneDisplay` ends with **`f1_local0.visible = nil`**.
+- The ONLY thing that ever writes alpha 1 is `CoD.TCZWaypoint.UpdateVisibility`, which runs on
+  `hud_update_bit_*` events or on `hud_update_refresh` → `CoD.GametypeBase.Refresh`.
+
+So **the ring's menu is created invisible and needs an incoming HUD event to ever show.** The
+waypoint child is created correctly by `createObjectiveIfNeeded`; the parent is simply at alpha 0.
+
+This explains every previous failure at once: the server side was always perfect, re-declaring
+objectives (v1.90.2/.7/.9) could never matter, and the mod's own lua was never the culprit.
+The scoreboard press works because `BIT_SCOREBOARD_OPEN` → `UpdateVisibility` → `setAlpha(1)`.
+
+### 🛑 Why there is NO script-side fix
+
+`setclientuivisibilityflag` is the only GSC lever, and stock uses exactly four flag names
+(measured over the whole gsc-dump): `hud_visible` (26), `g_compassShowEnemies` (12),
+`killcam_nemesis` (6), `radar_client` (5). Of those, the ring's menu registers **only**
+`BIT_HUD_VISIBLE` — the one that hides the rest of the HUD. **The flash is unavoidable from GSC.**
+
+📝 `BIT_PLAYER_DEAD` would have been perfect — registered by 11 zombie HUD menus and tested in
+**none** of their visibility conditions, so it is a pure "re-evaluate" carrier with no hide. But
+there is no script-settable flag name for it.
+
+### The fix has to be client-side, and Reimagined's copy is NOT safe to ship as-is
+
+Verified `BO2-Reimagined/ui_mp/t6/zombie/tombcapturezonedisplay.lua` against the stock bytecode
+dumped from `zone/all/zm_tomb_patch.ff`:
+
+| check | result |
+|---|---|
+| string constants | 22/23 match. **`transition_complete_snap_out` is ABSENT from stock** — Reimagined ADDED that handler, and it calls `setAlpha(0)` |
+| numeric literals (float32 byte-scan) | 15/17 present. **`74` and `-101` ABSENT** — both in `CoD.TCZRoamingZombies` (`baseWaypointZOffset`, `setPriority`) |
+
+So a wholesale copy would import at least three Reimagined behaviour changes, one of which
+(`TransitionCompleteSnapOut`) would actively fight the fix.
+
+### 🛑 THE UNMEASURED VARIABLE — does VANILLA show the ring?
+
+Never tested. If vanilla Origins solo also has no ring until the scoreboard is pressed, this is
+base-game/Plutonium behaviour, the mod is not at fault, and "behave like vanilla" means removing
+the hack and leaving it. If vanilla DOES show it, the mod suppresses an early HUD event and that
+suppression is the real bug to find — no new file ownership needed either way.
+
+**Next action: boot Origins with the mod OFF and look at generator 1.** Nothing else should ship
+before that answer; it decides which of two completely different fixes is correct.
