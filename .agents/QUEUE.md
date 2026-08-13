@@ -3562,3 +3562,106 @@ Same vanilla boot that answers B7: press ESC, open Options, and photograph the t
 "Game" tab and the subtitles row are missing there too, this is Plutonium and leaves the queue.
 Nothing in this project can be the cause on the evidence above; the boot is to confirm what the
 user is actually looking at, not to test a fix.
+
+## 🌟 B9 — WINTER'S HOWL HAS NO FX. ROOT-CAUSED, AND THE REAL ASSETS ARE IN THE WORKSPACE
+
+User, 2026-08-14: *"the winters howl is missing visual effects when i shoot"*.
+
+### The measurement: those fx do not exist in Black Ops II. At all.
+
+Indexed **every asset in all 191 fastfiles** of `zone\all\` (370,096 rows, 17,056 of them `fx`)
+with `Unlinker --list`, then searched it. Index method is worth reusing; it took ~3 minutes.
+
+| fx the port asks for | where it is referenced | in retail BO2 |
+|---|---|---|
+| `weapon/muzzleflashes/fx_freezegun_view` | `weapons/zm/freezegun_zm` → `viewFlashEffect` **and** `worldFlashEffect` | **0 fastfiles** |
+| `weapon/muzzleflashes/fx_freezegun_ug_view` | `freezegun_upgraded_zm` | **0** |
+| `weapon/freeze_gun/fx_freezegun_shatter` | `_zm_weap_freezegun.csc:30` | **0** |
+| `weapon/freeze_gun/fx_freezegun_crumple` | `:31` | **0** |
+| `weapon/freeze_gun/fx_freezegun_smoke_cloud` | `:32` | **0** |
+| `maps/zombie/fx_zombie_freeze_torso` | `:33` | **0** |
+| `maps/zombie/fx_zombie_freeze_md` | `:34` | **0** |
+| `weapon/freeze_gun/fx_exp_freezegun_impact` | `:35` | **0** |
+| `weapon/freeze_gun/fx_trail_freezegun_blood_streak` | `:37` | **0** |
+| `trail/fx_trail_blood_streak` | `:38` | 2 ✅ |
+| `weapon/bullet/fx_flesh_gib_fatal_01` | `:39` | 2 ✅ |
+
+**A search for any fx whose name contains "freeze", across all 191 fastfiles, returns nothing.**
+So every freeze-specific visual — muzzle flash, ice impact, freeze-over, shatter, crumple, smoke —
+can never play. The only two that resolve are the generic blood-streak and gib fx.
+
+🛑 **This is not Winter's Howl-specific.** All three ported wonder weapons name muzzle fx that exist
+nowhere — `fx_thundergun_view`/`_world`, `fx_tesla_view`/`_world` are all 0/0 too, in the game and
+in `mod.ff`. **None of the three has ever had a muzzle flash.** `zone_source\mod_wonderweapons.zone`
+declares **zero** `fx,` assets, and neither donor (`zone_source\base\mod.ff`, 111 fx;
+`zone_source\ww_donor\mod.ff`, 143 fx) carries a single wonder-weapon fx.
+
+📝 Corrects README's *"Winter's Howl's freeze fx can stop appearing during sustained rapid fire"*.
+They do not stop appearing; they were never there.
+
+### 🌟 THE REAL T6-FORMAT ASSETS ARE ALREADY ON THIS MACHINE
+
+`H:\Claude\T6-Declassified-Public\mods\zm_t6_t6d_module_t5_wpn_zmb_freezegun\` — a Plutonium T6
+mod ("^3T5 ^5Winter's Howl ^4Port", v0.1.8, by Cawldwink & GabsPuN). Its **`mod.ff` contains zero
+fx assets**; it ships all fourteen as **raw `.efx` inside `mod.iwd`**:
+
+```
+fx/weapon/muzzleflashes/fx_freezegun_view.efx      fx_freezegun_world.efx
+fx/weapon/muzzleflashes/fx_freezegun_ug_view.efx   fx_freezegun_ug_world.efx
+fx/weapon/freeze_gun/fx_freezegun_shatter.efx      fx_freezegun_crumple.efx
+fx/weapon/freeze_gun/fx_freezegun_crumple_ice.efx  fx_freezegun_smoke_cloud.efx
+fx/weapon/freeze_gun/fx_exp_freezegun_impact.efx   fx_trail_freezegun_geotail.efx
+fx/weapon/freeze_gun/fx_trail_freezegun_blood_streak.efx  fx_trail_freezegun_ring_emit.efx
+fx/maps/zombie/fx_zombie_freeze_md.efx             fx_zombie_freeze_torso.efx
+```
+
+🌟 **So T6 loads raw `.efx` out of `mod.iwd\fx\` — no fastfile entry needed.** That is how this
+module works and it has no other route. Same shape as the raw `.gsc`/`.lua` path already used here.
+**Strong precedent, NOT yet proven by a boot** — that is the first thing to test, with one file.
+
+### What the muzzle flash actually needs (read out of the .efx, format `iwfx 2`, plain text)
+
+`fx_freezegun_view.efx` references six materials plus one attached fx:
+
+| material | in a zombies fastfile | already in zm_qol `mod.ff` |
+|---|---|---|
+| `gfx_fxt_light_flare_cool` | 7 | ✅ **yes** |
+| `gfx_fxt_fx_distortion_heat` | 1 | no |
+| `gfx_fxt_fx_distortion_ring_warp` | 1 | no |
+| `gfx_fxt_lensflare_diamond` | 1 | no |
+| `gfx_fxt_light_flare_star` | 5 | no |
+| `gfx_fxt_smk_whisp_spiral` | **0** — only `blackout.ff`, `haiti.ff`, `karma.ff`, `mp_paintball.ff` | no |
+| attachment `weapon/freeze_gun/fx_trail_freezegun_geotail` | n/a — ships as `.efx` above | n/a |
+
+📝 `"chr_shock_hb1"` also appears in that .efx and matches **no asset of any type** in retail. Likely
+a T5 leftover; expected to be ignored, but confirm it does not fault the fx loader.
+
+### PLAN, smallest provable step first
+
+1. **One `.efx`, one boot.** Ship only `fx/weapon/muzzleflashes/fx_freezegun_view.efx` in `mod.iwd`
+   and fire the gun. That single test answers "does raw `.efx` load?" and "does a missing material
+   fault or just draw nothing?" — nothing else should change in that build.
+2. If it loads: add the four remaining materials + `gfx_fxt_smk_whisp_spiral` to `mod.ff`, with
+   their `.iwi` pixels into `images\` (a fastfile carries image HEADERS only — see CLAUDE.md §8).
+   🛑 Re-read the `--load` ORDER warning in `build_ff.bat` first: `gfx_fxt_smk_whisp_spiral` exists
+   only in campaign/MP fastfiles, so pulling it in means `mod.ff` OWNS that name on every map.
+3. Then the impact/freeze-over set, which additionally wants `p_zombie_ice_chunk_01/02` and the
+   `fx_char_gib_chunk_*` xmodels the module also ships.
+4. Only then revisit the Thundergun and Tesla muzzle flashes, same way.
+
+**Nothing shipped for this yet — deliberately. It is an asset-ownership job and the queue rule is
+one change at a time.**
+
+## B10 — XPR-50 AND TITUS-6 ARE NOT IN THE BOX BECAUSE THEY WERE NEVER ADDED
+
+User, 2026-08-14: *"the xpr and titus 6 still aren't in the box"*. Measured in the tree — this is
+not a regression and not a bug:
+
+- `weapons/zm/` contains **no** `as50*`, `xpr*`, `titus*` or `exptitus*` def.
+- `zone_source\*.zone` declares **none** of them.
+- `scripts\zm\*.gsc` references **none** of them.
+
+They are unstarted work, exactly as checkpoint 44 §3 lists them (XPR-50 = the `as50` asset-rename
+job; Titus-6 = the `SynarxisReimagined` donor the user authorised on 2026-08-13). README already
+says the Titus-6 is deliberately absent; it does NOT yet say anything about the XPR-50, and it
+should once one of them lands.
