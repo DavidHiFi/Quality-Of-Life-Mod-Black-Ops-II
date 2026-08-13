@@ -1159,6 +1159,12 @@ timer()
     timer.x = -64;
     timer.y = -2;
     timer.fontscale = 1.4;
+    //  v1.90.6 - yellow, user 2026-08-14. Must be set here as well as in
+    //  qol_options' watcher: that watcher seeds its previous-value to the dvar
+    //  default and so deliberately does nothing on its first pass, which would
+    //  leave this element on the engine default (white) if creation didn't set
+    //  it. Console override: hud_color_timer "r g b".
+    timer.color = ( 1, 1, 0 );
     timer.alpha = 0;
     timer.hidewheninmenu = 1;
     flag_wait( "initial_blackscreen_passed" );
@@ -5571,7 +5577,11 @@ zmqol_velocity_set( b_on )
         self.zmqol_vel_hud.vertalign = "bottom";
         self.zmqol_vel_hud.x = 0;
         self.zmqol_vel_hud.y = -62;
-        self.zmqol_vel_hud.color = ( 1, 1, 1 );
+        //  v1.90.6 - yellow, user 2026-08-14. Sole owner: nothing else writes
+        //  this element's .color (it is deliberately absent from the hud_color
+        //  tint list in qol_options::qol_opt_hud_watcher), so setting it here
+        //  once is enough and cannot be repainted behind our back.
+        self.zmqol_vel_hud.color = ( 1, 1, 0 );
         self.zmqol_vel_hud.alpha = 1;
         self.zmqol_vel_hud.hidewheninmenu = 1;
         self.zmqol_vel_hud.sort = 10;

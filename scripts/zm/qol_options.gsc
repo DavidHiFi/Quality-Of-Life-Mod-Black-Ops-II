@@ -60,6 +60,16 @@ init()
     qol_opt_dvar( "hud_zone",         "0" );
     qol_opt_dvar( "hud_color",        "1 1 1" );
     qol_opt_dvar( "hud_color_health", "1 1 1" );
+    //  v1.90.6 - the two stacked top-left timers get their own colours, user
+    //  2026-08-14: game time yellow, round timer light blue.
+    //
+    //  🛑 They had to come OUT of the shared hud_color tint list to do this.
+    //  qol_opt_hud_watcher() repaints from one dvar on change, so a colour set
+    //  at creation was guaranteed to be flattened back to white on the very
+    //  first pass - the same single-owner rule as the health bar above.
+    //  hud_color still owns zombietext and the zone name.
+    qol_opt_dvar( "hud_color_timer",       "1 1 0" );
+    qol_opt_dvar( "hud_color_round_timer", "0.4 0.75 1" );
 
     //  Read by quality_of_life::get_pack_a_punch_weapon_options(). Default 1
     //  keeps the animated camo exactly where this mod already had it.
@@ -812,6 +822,12 @@ qol_opt_hud_watcher()
     //  the user reported and never asked for. Nothing may be recoloured until
     //  the value actually differs from the default.
     str_prev_color = "1 1 1";
+    //  v1.90.6 - same contract as str_prev_color: seeded to the dvar default so
+    //  the first pass is a no-op. The elements are created already carrying
+    //  these colours (timer() in quality_of_life.gsc and qol_opt_round_timer_hud
+    //  below), so the watcher only ever has to act on a real console change.
+    str_prev_color_timer = "1 1 0";
+    str_prev_color_round = "0.4 0.75 1";
 
     //  -1 so the first pass always writes the LUI flag once, whatever hud_master
     //  says. Seeding it to 1 would leave the flag unset on a player who joined
@@ -898,11 +914,35 @@ qol_opt_hud_watcher()
 
             if ( isdefined( v_color ) )
             {
-                self qol_opt_tint( self.qol_hud_timer, v_color );
+                //  v1.90.6 - qol_hud_timer and qol_hud_roundtimer are NO LONGER
+                //  tinted from hud_color; they have their own dvars below so the
+                //  user's yellow / light blue survive a hud_color change.
                 self qol_opt_tint( self.zombietext, v_color );
                 self qol_opt_tint( self.qol_hud_zone, v_color );
-                self qol_opt_tint( self.qol_hud_roundtimer, v_color );
             }
+        }
+
+        //  The two stacked top-left timers, each with its own colour dvar.
+        str_color_timer = getdvar( "hud_color_timer" );
+
+        if ( str_color_timer != str_prev_color_timer )
+        {
+            str_prev_color_timer = str_color_timer;
+            v_color = qol_opt_parse_color( str_color_timer );
+
+            if ( isdefined( v_color ) )
+                self qol_opt_tint( self.qol_hud_timer, v_color );
+        }
+
+        str_color_round = getdvar( "hud_color_round_timer" );
+
+        if ( str_color_round != str_prev_color_round )
+        {
+            str_prev_color_round = str_color_round;
+            v_color = qol_opt_parse_color( str_color_round );
+
+            if ( isdefined( v_color ) )
+                self qol_opt_tint( self.qol_hud_roundtimer, v_color );
         }
 
         wait 0.25;
@@ -1010,6 +1050,10 @@ qol_opt_round_timer_hud( b_on )
         self.qol_hud_roundtimer.vertalign = "user_top";
         self.qol_hud_roundtimer.x = -64;    // == timer.x, see the note there
         self.qol_hud_roundtimer.y = 12;     // == timer.y (-2) + one 14px row
+        //  v1.90.6 - light blue, user 2026-08-14. Set at creation for the same
+        //  reason as the game timer's yellow: the watcher no-ops on its first
+        //  pass. Console override: hud_color_round_timer "r g b".
+        self.qol_hud_roundtimer.color = ( 0.4, 0.75, 1 );
         self.qol_hud_roundtimer.hidewheninmenu = 1;
 
         if ( isdefined( level.qol_round_start_time ) )
