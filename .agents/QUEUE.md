@@ -3338,6 +3338,14 @@ Start here, and measure before theorising:
 
 ---
 
+## ✅ `.jumpingjacks` ON DIE RISE — FIXED IN v1.90.4 (deployed 2026-08-14, NOT YET BOOTED)
+
+**ANSWERED:** `leaper_spawn_logic()` never reads its first parameter, so `level.enemy_dog_spawns`
+was irrelevant as well as zstandard-only. Guard now tests `level.leaper_spawners` +
+`level.active_zone_names`. See commit `cd15d6e`. Original entry kept below for the trail.
+
+### (original entry)
+
 ## 🔴 `.jumpingjacks` DOES NOTHING ON DIE RISE — ROOT-CAUSED, NOT FIXED (2026-08-14)
 
 Queued behind the v1.90.3 reliable-command fix per the one-at-a-time rule. **Not started.**
