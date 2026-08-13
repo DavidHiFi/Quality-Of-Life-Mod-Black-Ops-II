@@ -1118,3 +1118,44 @@ attachment,steadyaim_smg
 //  whole game at it changes nothing for any stock weapon.
 // ============================================================================
 stringtable,zm/pap_attach_qol.csv
+
+// ============================================================================
+//  v1.89.5 - THE 13 ATTACHMENTUNIQUES, AS FASTFILE ASSETS THIS TIME
+// ----------------------------------------------------------------------------
+//  🛑 THE ACTUAL CAUSE OF THE PACK-A-PUNCH CRASH, MEASURED IN THE RUNTIME LOG.
+//  console_zm.log prints, once per weapon, at map load:
+//      Couldn't find attachmentunique 'au_mp7_dualclip'
+//      Couldn't find attachmentunique 'au_mp7_none'
+//      ... 13 lines, EXACTLY the 13 the nine upgraded defs name, and ZERO
+//      lines for any of the 89 stock au_* the mod already ships.
+//  The upgraded def is the only half of each pair with an `attachmentUniques`
+//  field, so a Pack-a-Punched weapon is built pointing at a record that does
+//  not exist, and the first shot dereferences it: 0xC0000005.
+//
+//  🛑 WHY v1.89.1 DID NOT FIX THIS. It put all 13 in the raw `attachmentunique\`
+//  folder and confirmed them inside the deployed mod.iwd - both true, and
+//  irrelevant. RAW IS NOT THE DELIVERY PATH FOR THIS ASSET TYPE. All 13 are
+//  verified present in the deployed mod.iwd and the engine still cannot find
+//  them. The 89 that work are FASTFILE assets: mod_base.zone declares 91
+//  `attachmentunique,` lines and mod_locations.zone declared none. The raw
+//  folder is what the Linker was fed from, not what the game reads.
+//
+//  Resolvable with no new --load: all 13 are in common_mp.ff, and the three
+//  peacekeeper ones in common_patch_mp.ff - both already loaded, last, for the
+//  weapon port. No zombies fastfile owns any of these names (checked against
+//  common_zm, patch_zm, zm_transit, zm_tomb, zm_buried: 0 matches), so mod.ff
+//  owning them cannot re-own anything.
+// ============================================================================
+attachmentunique,au_mp7_none
+attachmentunique,au_mp7_dualclip
+attachmentunique,au_vector_none
+attachmentunique,au_vector_steadyaim
+attachmentunique,au_sig556_none
+attachmentunique,au_sig556_gl
+attachmentunique,au_sa58_none
+attachmentunique,au_sa58_sf
+attachmentunique,au_qbb95_none
+attachmentunique,au_qbb95_holo
+attachmentunique,au_peacekeeper_none
+attachmentunique,au_peacekeeper_grip
+attachmentunique,au_peacekeeper_reflex
