@@ -3335,3 +3335,42 @@ Start here, and measure before theorising:
    `zone_assets\maps\...` (799 lines, compiled into mod.ff). The raw one carries the user's
    tuning (`tesla_max_arcs` 10, the arc-delay dvar); the staged one still has the port's 5.
    Reconcile them before doing boss work, or a fix may land in the copy that does not run.
+
+---
+
+## 🔴 `.jumpingjacks` DOES NOTHING ON DIE RISE — ROOT-CAUSED, NOT FIXED (2026-08-14)
+
+Queued behind the v1.90.3 reliable-command fix per the one-at-a-time rule. **Not started.**
+
+**What the user saw** (Die Rise, zclassic, round 100):
+`[zm_qol] the jumpingjacks spawner is not running on this map`
+
+That string is `quality_of_life.gsc:5483`, printed when `level.zmqol_boss_spawn_func` returns 0.
+The only two ways `zm_highrise.gsc:101 zmqol_spawn_jumpingjacks()` returns 0 are its two guards.
+
+🌟 **IT IS THE `level.enemy_dog_spawns` GUARD, AND THE REASON IS THE GAMETYPE.**
+
+    _zm_ai_dogs.gsc:83   level.enemy_dog_spawns = getentarray( "zombie_spawner_dog_init", "targetname" );
+
+and the only caller of `_zm_ai_dogs::init()` is **`gametypes_zm\zstandard.gsc:27`**.
+`gametypes_zm\zclassic.gsc` never calls it and never sets that array — verified by grep over the
+stock dump. The user was on **zclassic** (`games_mp.log`: `g_gametype\zclassic`), so
+`level.enemy_dog_spawns` is undefined, the guard trips, and nothing spawns.
+
+`level.leaper_spawners` is **not** the problem: `_zm_ai_leaper::init()` calls
+`leaper_spawner_init()` (`:77`), and `zm_highrise.gsc:182` registers that init into
+`level.custom_ai_type` on every gametype.
+
+▶️ **Before fixing, settle the one open question:** stock's own leaper-round spawner
+(`_zm_ai_leaper.gsc:645`) reads `level.enemy_dog_spawns` too, yet jumping-jack rounds do work in
+Die Rise classic. So either something else populates it on that map, or `leaper_spawn_logic()`
+tolerates an undefined array. **Find out which before touching the guard** — the answer decides
+whether the fix is "drop the guard" or "populate the array ourselves":
+
+    Unlinker --include-assets mapents ... zm_highrise.ff   -> does "zombie_spawner_dog_init" exist on Die Rise?
+
+If those entities exist, mirroring `_zm_ai_dogs.gsc:83`'s one getentarray on Die Rise is the whole
+fix. If they do not, `leaper_spawn_logic` must already cope and the guard is simply wrong.
+
+🛑 Do not "fix" this by deleting the guard without answering that — passing an undefined array into
+`leaper_spawn_logic()` is exactly the silent-failure shape this project keeps getting caught by.
