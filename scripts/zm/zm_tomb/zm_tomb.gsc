@@ -249,6 +249,7 @@ init()
 {
     level thread zmqol_hide_native_wunderfizz();
     level thread zmqol_probe_capture_zones();
+    level thread zmqol_capture_objectives_fix();
     zmqol_register_survival_visionset();
     level thread zmqol_power_up_all_generators();
     level thread zmqol_disable_staff_relay_switches();
@@ -493,6 +494,110 @@ zmqol_tomb_perk_is_stock( str_perk )
 //  🛑 NOT verified in game yet.
 // ============================================================================
 // ============================================================================
+// ============================================================================
+//  zmqol_capture_objectives_fix  -  THE GENERATOR CAPTURE RING, FIXED  (v1.90.2)
+//
+//  User, 2026-08-13: "on origins during powering up a generator, the progress
+//  overlay is still absent, fix it as well for good."
+//
+//  🌟 THE PROBE ALREADY ANSWERED THIS. zmqol_probe_capture_zones() below had
+//  been running for several boots and 299 of its lines were sitting in today's
+//  logs unread. They say the server side is PERFECT:
+//
+//      [zm_qol] capture probe: 6 zone(s) registered
+//      ... zone generator_church progress 5      obj=0 contested=1 inzone=1
+//      ... zone generator_church progress 13.3333 obj=0 contested=1 inzone=1
+//      ... (smooth ramp) ...
+//      ... zone generator_church progress 100    obj=unset contested=0 inzone=1
+//
+//  Progress climbs, the zone is contested, the player is detected inside it, and
+//  n_objective_index is a real index. The probe's own header states the
+//  conclusion that follows: "if progress climbs while obj is a real index and the
+//  zone is contested, the server did everything it is supposed to and the failure
+//  is purely client-side."
+//
+//  🛑 THE RACE, and why it was intermittent for weeks.
+//
+//  The ring is the OBJECTIVE system - zm_tomb_capture_zones.gsc:1506 calls
+//  objective_setprogress( self.n_objective_index, ... ), and the mid-screen meter
+//  is LUI's TCZWaypoint, which inherits ObjectiveWaypoint and is selected by the
+//  objective's NAME. The four objectives are created ONCE, at map init:
+//
+//      declare_objectives()                     zm_tomb_capture_zones.gsc:80
+//          objective_add( 0, "invisible", (0,0,0), &"ZM_TOMB_OBJ_CAPTURE_1" );
+//          objective_add( 1..3, ... )
+//
+//  objective_add sends the objective to the clients that are connected AT THAT
+//  MOMENT. A player who finishes connecting afterwards never receives it, so
+//  objective_setprogress later updates an objective their client does not have -
+//  the capture completes and nothing draws.
+//
+//  🌟 That is exactly the one logged difference between the two back-to-back
+//  Origins games recorded in quality_of_life.gsc::zmqol_intro_hold_time:
+//        game A   solo status: expected=1 connected=0   -> NO ring
+//        game B   solo status: expected=1 connected=1   -> ring
+//  A connect race explains an intermittent failure; the startup-hold theory that
+//  was tested before could not, and was correctly falsified (identical 1.6s hold,
+//  opposite outcomes). This is the variable that actually differed.
+//
+//  THE FIX: re-issue the declaration after players are actually connected.
+//  objective_add on an index that already exists simply re-defines it, and stock
+//  calls objective_setprogress continuously while a zone is being captured, so a
+//  redundant re-declare costs nothing and cannot lose progress. Re-declaring is
+//  confined to the opening seconds of the match, before any generator can be
+//  captured, plus once per player connect so co-op joins are covered too.
+//
+//  📝 declare_objectives() is called QUALIFIED, and that is safe from this file
+//  for the same reason the probe below already calls
+//  maps\mp\zm_tomb_capture_zones::get_players_in_capture_zone() - this script
+//  loads only on Origins. It must never be named from a root script.
+//
+//  📝 The probe is deliberately LEFT IN. It is println-only, and it is the
+//  instrument that verifies this fix: if the ring still fails, its lines say
+//  immediately whether the server side changed.
+// ============================================================================
+zmqol_capture_objectives_fix()
+{
+    level endon( "end_game" );
+
+    //  Classic Origins only. The survival arenas have no generators to capture.
+    if ( !is_classic() )
+        return;
+
+    level thread zmqol_capture_objectives_on_connect();
+
+    //  Covers the HOST, who is normally already connected before this thread
+    //  starts and therefore never fires a "connected" notify to listen for.
+    //  Six passes over the first six seconds - a generator cannot be captured
+    //  that early, so no in-progress ring can be disturbed.
+    n_pass = 0;
+
+    while ( n_pass < 6 )
+    {
+        wait 1;
+        maps\mp\zm_tomb_capture_zones::declare_objectives();
+        n_pass++;
+    }
+
+    println( "[zm_qol] capture objectives: re-declared " + n_pass + " time(s) after connect" );
+}
+
+zmqol_capture_objectives_on_connect()
+{
+    level endon( "end_game" );
+
+    for ( ;; )
+    {
+        level waittill( "connected", player );
+
+        player waittill( "spawned_player" );
+        wait 0.05;
+
+        maps\mp\zm_tomb_capture_zones::declare_objectives();
+        println( "[zm_qol] capture objectives: re-declared for a connecting player" );
+    }
+}
+
 //  zmqol_probe_capture_zones  -  CLASSIC ORIGINS ONLY, diagnostic, remove later
 //
 //  Reported: starting generator 1 in the spawn area shows no progress indicator.
