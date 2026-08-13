@@ -3289,3 +3289,49 @@ routes, user's call:
       alt weapon — exactly the shape that broke the SIG556 and SA58 in v1.89.6.
    4. Sound: the Titus is a launcher; confirm each alias round-trips. A missing alias is SILENT.
    5. Boot Origins first (weapon-count ceiling only known to be >=178).
+
+---
+
+## 🔴 WUNDERWAFFE DOES NOT AFFECT BRUTUS ON MOB OF THE DEAD (queued 2026-08-13, user request)
+
+Queued behind the Electric Cherry fx fix (v1.89.8) per the one-at-a-time rule. **Not started.**
+
+**What the user said:** *"the wunderwaffe wasn't affecting brutus in mob of the dead, the
+README.md and the folder its in for the resource my friend gave should have all the fixes and
+compatability workarounds for proper implementation for those 3 bo1 zombies wonder weapons ports."*
+
+🛑 **The README does NOT contain fixes or workarounds — I read it.** `H:\Claude\Wonder_Weapons-T6ZM\README.md`
+is 970 bytes of build instructions (`t6modm build`), requirements and credits, in Portuguese.
+Nothing about bosses, Brutus, or compatibility. Tell the user this rather than citing it.
+
+**What the folder DOES contain, and it is not a fix either:**
+
+    src\scripts\zm\teslagun.gsc:7
+      if( getdvar(#"mapname") == "zm_tomb" || getdvar(#"mapname") == "zm_prison" ) return;
+
+The reference implementation **switches the Wunderwaffe off entirely on Mob of the Dead and
+Origins.** That is its "compatibility workaround" - a map exclusion, not boss support. zm_qol
+ships the gun on those maps, so we are already past where their source stops.
+
+    src\maps\mp\zombies\_zm_weap_tesla.gsc:217
+      if ( is_magic_bullet_shield_enabled( zombies[i] ) ) continue;   <- skips Brutus outright
+
+**zm_qol already relaxed exactly that line** (`maps\mp\zombies\_zm_weap_tesla.gsc:273`):
+`is_magic_bullet_shield_enabled( ... ) && !IsDefined( ... .tesla_damage_func )` - so a boss carrying
+a `tesla_damage_func` is allowed into the arc. So targeting is already opened up.
+
+**And a previous in-game probe already ruled targeting out** - see the comment at
+`maps\mp\zombies\_zm_weap_tesla.gsc:139`: *"NOT the Brutus fault -- an in-game probe showed him
+reported already-in-list on the first arc, so targeting was never the problem."*
+
+▶️ **So the open question is what happens AFTER he is selected**, not whether he is selected.
+Start here, and measure before theorising:
+1. Does Brutus have a `.tesla_damage_func` at all on Mob? If not, `tesla_do_damage` has nothing to
+   call and the arc is a no-op on him. Grep `_zm_weap_tesla.gsc` for how `tesla_damage_func` is
+   assigned, and `zm_prison`'s own scripts for what damage route Brutus accepts.
+2. Brutus is `magic_bullet_shield` - stock's shield makes him immune to ordinary `dodamage`.
+   Check what the map's own weapons do to hurt him (`zm_prison` boss scripts in the gsc-dump).
+3. 🛑 The two copies of `_zm_weap_tesla.gsc` have DRIFTED - `maps\...` (raw, 848 lines, live) vs
+   `zone_assets\maps\...` (799 lines, compiled into mod.ff). The raw one carries the user's
+   tuning (`tesla_max_arcs` 10, the arc-delay dvar); the staged one still has the port's 5.
+   Reconcile them before doing boss work, or a fix may land in the copy that does not run.

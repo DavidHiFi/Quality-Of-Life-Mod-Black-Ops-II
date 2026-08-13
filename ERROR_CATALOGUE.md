@@ -299,6 +299,48 @@ diagnosis.
 
 ---
 
+## 12. 🛑 A PORTED SCRIPT WRITING A **STOCK GLOBAL** — RE-TUNES STOCK SYSTEMS SILENTLY
+
+**Hit:** v1.89.8, user report — *"the electric cherry fx are a bit too bright and don't look
+quite vanilla."* No error, no log line, nothing missing. Electric Cherry itself was untouched.
+
+**Cause.** The ported Wunderwaffe script `maps\mp\zombies\_zm_weap_tesla.gsc` ships raw in
+`mod.iwd`, so it **loads on every map**, and its `init()` wrote two names that belong to stock:
+
+| line | what it wrote | who else reads it |
+|---|---|---|
+| `level._effect["tesla_shock_eyes"] = loadfx(...)` | a stock effect key | `zombie_tesla_head_gib()`, `_zm_spawner.gsc:2976` |
+| `set_zombie_var( "tesla_head_gib_chance", 75 )` | a stock zombie var (stock = **50**) | the same function's roll |
+
+Every zombie gets `.tesla_head_gib_func = ::zombie_tesla_head_gib` from stock
+`_zm_spawner.gsc:261`, and **Electric Cherry calls it on every kill**
+(`_zm_perk_electric_cherry.gsc:170`). In stock BO2 `tesla_shock_eyes` is loaded by exactly one
+script — Origins' `_zm_weap_staff_lightning.gsc:19` — so on every other map the key is
+**undefined and the else branch draws nothing**. Defining it globally *added* a bright electric
+eye burst to every cherry kill on five maps, and the 75 changed how often that branch ran at all.
+
+🌟 **The shape to remember: this is not a wrong value, it is a wrong OWNER.** The port was
+faithful to its source; the defect is that its source assumed it was the only user of those
+globals. A ported feature that writes a stock `level._effect[...]` key, a stock `zombie_vars`
+entry, or a stock `level.*` pointer re-tunes **every stock system that reads it**, on every map
+the script loads on — with no error and no log line.
+
+**Fix:** mod-private names (`level._effect["zmqol_tesla_shock_eyes"]`,
+`level.zmqol_tesla_head_gib_chance`) plus a private copy of the stock function that reads them,
+so the port keeps its behaviour and stock keeps its own. Neither feature is degraded.
+
+### ✅ Pre-flight check
+
+1. For every ported script that loads on all maps, **list every global it writes** —
+   `grep -nE 'level\._effect\[|set_zombie_var\(|level\.[a-z_]+ *='` — and for each name ask
+   **"does any stock script read this?"** `grep -rn "<name>" reference/gsc-dump/`.
+2. If stock reads it, the port may not write it. Use a `zmqol_`-prefixed name and a private copy
+   of whatever stock function consumes it.
+3. 🛑 **`isdefined`-gated stock code is the trap.** Stock deliberately leaves keys undefined so a
+   branch does nothing; defining one turns dead code live. Absence can be the vanilla behaviour.
+
+---
+
 ## The pre-flight sequence, in order
 
 1. `gsc-tool -m parse -g t6 -s pc -y <file>` (`-i client` for `.csc`) — syntax only; it will happily

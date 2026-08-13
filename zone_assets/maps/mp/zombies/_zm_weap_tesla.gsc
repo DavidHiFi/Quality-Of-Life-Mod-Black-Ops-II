@@ -23,7 +23,10 @@ init()
     level._effect["tesla_viewmodel_tube2_upgraded"] = loadfx( "maps/zombie/fx_zombie_tesla_tube_view2_ug" );
     level._effect["tesla_viewmodel_tube3_upgraded"] = loadfx( "maps/zombie/fx_zombie_tesla_tube_view3_ug" );
 
-    level._effect["tesla_shock_eyes"]       = loadfx( "maps/zombie/fx_zombie_tesla_shock_eyes" );
+    // 🛑 mod-private key, not the stock one - see the long note in
+    // maps\mp\zombies\_zm_weap_tesla.gsc. Defining stock's "tesla_shock_eyes" here
+    // added a bright eye burst to every Electric Cherry kill off Origins.
+    level._effect["zmqol_tesla_shock_eyes"] = loadfx( "maps/zombie/fx_zombie_tesla_shock_eyes" );
     
     maps\mp\zombies\_zm_spawner::register_zombie_damage_callback( ::tesla_zombie_damage_response );
     maps\mp\zombies\_zm_spawner::register_zombie_death_animscript_callback( ::tesla_zombie_death_response );
@@ -34,7 +37,8 @@ init()
     set_zombie_var( "tesla_max_enemies_killed", 20 );
     set_zombie_var( "tesla_radius_start",       300 );
     set_zombie_var( "tesla_radius_decay",       20 );
-    set_zombie_var( "tesla_head_gib_chance",    75 );
+    // 🛑 private, not the stock var Electric Cherry also sets (to 50).
+    level.zmqol_tesla_head_gib_chance = 75;
     set_zombie_var( "tesla_arc_travel_time",    0.11, true );
     set_zombie_var( "tesla_kills_for_powerup",  15 );
     set_zombie_var( "tesla_min_fx_distance",    128 );
@@ -502,7 +506,30 @@ tesla_play_death_fx( arc_num, b_lethal )
 
     if ( b_lethal && IsDefined( self.tesla_head_gib_func ) && !self.head_gibbed )
     {
-        [[ self.tesla_head_gib_func ]]();
+        // NOT the stock pointer - Electric Cherry calls that same function.
+        self zmqol_tesla_head_gib();
+    }
+}
+
+// Private copy of stock zombie_tesla_head_gib() (_zm_spawner.gsc:2976); identical
+// except the gib chance and eye fx come from this script's own keys.
+zmqol_tesla_head_gib()
+{
+    self endon( "death" );
+
+    if ( self.animname == "quad_zombie" )
+    {
+        return;
+    }
+
+    if ( randomint( 100 ) < level.zmqol_tesla_head_gib_chance )
+    {
+        wait( randomfloatrange( 0.53, 1.0 ) );
+        self maps\mp\zombies\_zm_spawner::zombie_head_gib();
+    }
+    else
+    {
+        network_safe_play_fx_on_tag( "tesla_death_fx", 2, level._effect["zmqol_tesla_shock_eyes"], self, "J_Eyeball_LE" );
     }
 }
 

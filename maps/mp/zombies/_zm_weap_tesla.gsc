@@ -23,8 +23,27 @@ init()
     level._effect["tesla_viewmodel_tube2_upgraded"] = loadfx( "maps/zombie/fx_zombie_tesla_tube_view2_ug" );
     level._effect["tesla_viewmodel_tube3_upgraded"] = loadfx( "maps/zombie/fx_zombie_tesla_tube_view3_ug" );
 
-    level._effect["tesla_shock_eyes"]       = loadfx( "maps/zombie/fx_zombie_tesla_shock_eyes" );
-    
+    // 🛑 A MOD-PRIVATE KEY, NOT THE STOCK ONE. This used to be
+    // level._effect["tesla_shock_eyes"], and that one line changed how ELECTRIC
+    // CHERRY looks on every map. Traced 2026-08-13 from the user's report that
+    // "the electric cherry fx are a bit too bright and don't look quite vanilla":
+    //
+    //   stock _zm_spawner.gsc:261   every zombie gets .tesla_head_gib_func
+    //   stock _zm_spawner.gsc:2976  zombie_tesla_head_gib() rolls
+    //                               tesla_head_gib_chance; on the ELSE branch it
+    //                               plays level._effect["tesla_shock_eyes"]
+    //   stock _zm_perk_electric_cherry.gsc:170  a cherry kill calls that func
+    //
+    // In stock BO2 "tesla_shock_eyes" is loaded by exactly ONE script -
+    // Origins' _zm_weap_staff_lightning.gsc:19 - so on every other map the key is
+    // UNDEFINED and the else branch draws nothing. This script loads on every map,
+    // so defining the stock key here added a bright electric eye burst to every
+    // Electric Cherry kill on TranZit / Nuketown / Die Rise / Buried / Mob that
+    // vanilla never shows there. The Wunderwaffe keeps the effect - it reaches it
+    // through zmqol_tesla_head_gib() below, which reads this private key.
+    level._effect["zmqol_tesla_shock_eyes"] = loadfx( "maps/zombie/fx_zombie_tesla_shock_eyes" );
+
+
     maps\mp\zombies\_zm_spawner::register_zombie_damage_callback( ::tesla_zombie_damage_response );
     maps\mp\zombies\_zm_spawner::register_zombie_death_animscript_callback( ::tesla_zombie_death_response );
 
@@ -40,7 +59,11 @@ init()
     set_zombie_var( "tesla_max_enemies_killed", 20 );
     set_zombie_var( "tesla_radius_start",       300 );
     set_zombie_var( "tesla_radius_decay",       20 );
-    set_zombie_var( "tesla_head_gib_chance",    75 );
+    // 🛑 NOT set_zombie_var( "tesla_head_gib_chance", 75 ). That is a STOCK var and
+    // Electric Cherry sets it to 50 in its own init (_zm_perk_electric_cherry.gsc:28).
+    // Whichever init ran last decided the rate for BOTH, so the Wunderwaffe's 75 was
+    // silently re-tuning a stock perk. The gun keeps its own rate, privately.
+    level.zmqol_tesla_head_gib_chance = 75;
     set_zombie_var( "tesla_arc_travel_time",    0.11, true );
     set_zombie_var( "tesla_kills_for_powerup",  15 );
     set_zombie_var( "tesla_min_fx_distance",    128 );
@@ -538,7 +561,35 @@ tesla_play_death_fx( arc_num, b_lethal )
 
     if ( b_lethal && IsDefined( self.tesla_head_gib_func ) && !self.head_gibbed )
     {
-        [[ self.tesla_head_gib_func ]]();
+        // Deliberately NOT [[ self.tesla_head_gib_func ]](). That pointer is stock's
+        // zombie_tesla_head_gib(), which Electric Cherry also calls - so anything this
+        // port wanted from it (a 75% gib rate, the eye fx) landed on the perk too.
+        // Same behaviour, read out of this script's own vars instead. See init().
+        self zmqol_tesla_head_gib();
+    }
+}
+
+// A private copy of stock zombie_tesla_head_gib() (_zm_spawner.gsc:2976), identical
+// except that the gib chance and the eye fx come from this script's own keys rather
+// than the two stock globals Electric Cherry shares. The 0.53-1.0s wait, the
+// quad_zombie guard and zombie_head_gib() are stock's, unchanged.
+zmqol_tesla_head_gib()
+{
+    self endon( "death" );
+
+    if ( self.animname == "quad_zombie" )
+    {
+        return;
+    }
+
+    if ( randomint( 100 ) < level.zmqol_tesla_head_gib_chance )
+    {
+        wait( randomfloatrange( 0.53, 1.0 ) );
+        self maps\mp\zombies\_zm_spawner::zombie_head_gib();
+    }
+    else
+    {
+        network_safe_play_fx_on_tag( "tesla_death_fx", 2, level._effect["zmqol_tesla_shock_eyes"], self, "J_Eyeball_LE" );
     }
 }
 
