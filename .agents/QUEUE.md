@@ -3521,3 +3521,44 @@ suppression is the real bug to find — no new file ownership needed either way.
 
 **Next action: boot Origins with the mod OFF and look at generator 1.** Nothing else should ship
 before that answer; it decides which of two completely different fixes is correct.
+
+## B8 — "GAME" TAB + SUBTITLES MISSING FROM THE PAUSE MENU (user, 2026-08-14)
+
+User: *"whenever my mod is loaded, some options are missing from the in-game pause/escape menu
+like the 'game' tab, there also seems to be no option to disable/enable subtitles as well."*
+
+### Measured offline — the mod owns NO menu LUI at all
+
+| check | result |
+|---|---|
+| `.lua` files shipped in `mod.iwd` | **5**, and none is a menu: `privategamelobby_project`, `privateonlinegamelobby`, `hudcraftablestombzombie`, `hudpowerupszombie`, `selectmaplistzombie` |
+| `.lua` rawfiles declared in `mod.ff` | **0** (`grep -c "\.lua" zone_source/*.zone` → 0 / 0, the 3 hits in `mod_locations.zone` are comments) |
+| what `build.bat` step [6] syncs into Plutonium's `raw\` | only `privategamelobby_project.lua` + `selectmaplistzombie.lua` — it copies **only** files present in BOTH trees |
+| `raw\ui\t6\menus\optionssettings.lua` mtime | **2025-11-01**, i.e. Plutonium's shipped file, never written by this project |
+
+### 🌟 The subtitles row is absent from PLUTONIUM'S OWN options file
+
+- Stock `ui/t6/menus/optionssettings.lua` (dumped from `zone/all/patch_zm.ff` **and** `patch.ff`)
+  contains `MENU_SUBTITLES_CAPS`, `MENU_SUBTITLES_DESC`, `cg_subtitles`, `SupportsSubtitles`,
+  sitting in the **Graphics** tab between `MENU_SHADOWS_CAPS` and `MENU_MATURE_CAPS`.
+- Plutonium's replacement at `storage\t6\raw\ui\t6\menus\optionssettings.lua` has **zero**
+  occurrences of `cg_subtitles`. Its `CreateGraphicsTab` is: Brightness, FOV, FOV-scaled
+  sensitivity, Shadows, Mature, Team indicator, Colourblind. **No subtitles row.**
+- That file shadows the fastfile copy unconditionally — mod loaded or not.
+
+### 🛑 No "GAME" tab exists anywhere in the dumps
+
+`optionssettings.lua` registers exactly four tabs in both the stock and the Plutonium copy:
+`MENU_GRAPHICS_CAPS`, `MENU_ADVANCED_CAPS`, `MENU_SOUND_CAPS`, `MENU_VOICECHAT_CAPS`.
+`optionscontrols.lua` registers Move / Look / Combat / Interact / Gamepad. Nothing named "Game".
+
+**So the tab the user is describing has not been located yet** — it is not in the options menu as
+shipped. It may be a button on the ESC menu itself (`ui_mp/t6/hud/ingamemenus.lua`, the
+`CoD.InGameMenu` class) rather than an options tab.
+
+### NEXT — one boot, mod OFF, folds into the B7 vanilla A/B
+
+Same vanilla boot that answers B7: press ESC, open Options, and photograph the tab row. If the
+"Game" tab and the subtitles row are missing there too, this is Plutonium and leaves the queue.
+Nothing in this project can be the cause on the evidence above; the boot is to confirm what the
+user is actually looking at, not to test a fix.

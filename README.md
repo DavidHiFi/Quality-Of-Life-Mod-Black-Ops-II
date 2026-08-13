@@ -158,7 +158,8 @@ source folders is built or don't-touch.
 - **Tombstone's HUD icon fixed** — stock ships it with the badge frame upside down
   relative to every other perk. Uses BO2-Reimagined's corrected 64x64 icon.
 - **Velocity meter** — `.velocity on` / `.velocity off` (also `.vel`, `.speed`), or the
-  `velocity` dvar so you can bind it. Horizontal speed in units/sec.
+  `velocity` dvar so you can bind it. Horizontal speed in units/sec, colour-banded:
+  green, yellow from 330, red from 370.
 - **Boss spawn commands** — `.brutus (amount)` on Mob of the Dead, `.panzer (amount)` on
   Origins, `.jumpingjacks (amount)` on Die Rise. Each goes through that map's own stock
   spawner, so you get the real boss with its own fx, audio and behaviour. Console twins:

@@ -1154,10 +1154,28 @@ timer()
     //  in between. That assumption is why -56 undershot. Two points beat one
     //  point and a theory.
     //
-    //  -64 is 8 units past -56, i.e. 21 - 18 = ~3px from the left edge, which
-    //  matches the 3px the text already sits from the top. Square in the corner.
-    timer.x = -64;
-    timer.y = -2;
+    //  v1.90.12 - PULLED OFF THE CORNER. User, 2026-08-14: *"they're all pushed
+    //  up and i feel like you should slightly move them to the right, and down a
+    //  bit too, just slightly so it's not right against the border"*.
+    //
+    //  x = -45 is not a nudge-and-see number, it is the SAME left margin this
+    //  mod's own bottom-left column already uses - qol_options.gsc's zone HUD is
+    //  setpoint( "LEFT", "BOTTOM_LEFT", -45, ... ) and the -45 sample above
+    //  measured that text at 46px from the left edge. The two timers now share a
+    //  left edge with the zombie counter / zone / health bar instead of hanging
+    //  19 units further out.
+    //
+    //  y = 8 is +10 units on the old -2. Vertical scale MEASURED from the user's
+    //  screenshot, not assumed: the game timer's glyph top sat at y=2px and the
+    //  round timer's at y=35px, and those two are exactly 14 hud units apart, so
+    //  33px / 14 = 2.36 px per unit. +10 units puts the top row ~25px down.
+    //  (That 2.36 also corroborates the 2.27 horizontal figure above - the hud
+    //  space scales uniformly off the 480-unit height, it is NOT 2000/640.)
+    //
+    //  🛑 qol_options.gsc::qol_opt_round_timer_hud() MOVED BY THE SAME +10 AND
+    //  TO THE SAME x. Change one without the other and the stack splits.
+    timer.x = -45;
+    timer.y = 8;
     timer.fontscale = 1.4;
     //  v1.90.6 - yellow, user 2026-08-14. Must be set here as well as in
     //  qol_options' watcher: that watcher seeds its previous-value to the dvar
@@ -5558,7 +5576,11 @@ zmqol_boss_spawn_dvar_watch()
 //  🛑 setvalue(), never settext(), on the repeating update - see the note in the
 //  chat branch. And this hudelem has exactly ONE owner writing its alpha, per
 //  [[t6-hudelem-single-alpha-owner]]: only zmqol_velocity_set() creates or
-//  destroys it, and the loop touches nothing but the number.
+//  destroys it, and it is the only thing that ever writes .alpha.
+//
+//  v1.90.12: the loop now also writes .color, for the speed bands - but only on
+//  a band CHANGE, and no other thread writes this element's colour at all, so
+//  there is still exactly one owner per field.
 // ============================================================================
 zmqol_velocity_set( b_on )
 {
@@ -5577,11 +5599,17 @@ zmqol_velocity_set( b_on )
         self.zmqol_vel_hud.vertalign = "bottom";
         self.zmqol_vel_hud.x = 0;
         self.zmqol_vel_hud.y = -62;
-        //  v1.90.6 - yellow, user 2026-08-14. Sole owner: nothing else writes
-        //  this element's .color (it is deliberately absent from the hud_color
-        //  tint list in qol_options::qol_opt_hud_watcher), so setting it here
-        //  once is enough and cannot be repainted behind our back.
-        self.zmqol_vel_hud.color = ( 1, 1, 0 );
+        //  v1.90.12 - SPEED-BANDED, user 2026-08-14: green, yellow from 330,
+        //  red from 370. Created green because a standing player is band 0;
+        //  zmqol_velocity_think() repaints it from there.
+        //
+        //  Sole owner: nothing else writes this element's .color (it is
+        //  deliberately absent from every tint list in qol_options::
+        //  qol_opt_hud_watcher), so this element plus that one loop is the whole
+        //  ownership story - no second writer to fight, per
+        //  [[t6-hudelem-single-alpha-owner]].
+        self.zmqol_vel_hud.color = ( 0, 1, 0 );
+        self.zmqol_vel_band = 0;
         self.zmqol_vel_hud.alpha = 1;
         self.zmqol_vel_hud.hidewheninmenu = 1;
         self.zmqol_vel_hud.sort = 10;
@@ -5589,7 +5617,7 @@ zmqol_velocity_set( b_on )
 
         self thread zmqol_velocity_think();
         setdvar( "velocity", "1" );
-        self iprintln( "^2[zm_qol] velocity meter ON ^7- horizontal speed in units/sec" );
+        self iprintln( "^2[zm_qol] velocity meter ON ^7- horizontal speed, ^2green ^7/ ^3330+ ^7/ ^1370+" );
     }
     else
     {
@@ -5600,6 +5628,10 @@ zmqol_velocity_set( b_on )
             self.zmqol_vel_hud destroy();
             self.zmqol_vel_hud = undefined;
         }
+
+        //  Cleared with the element it describes, so a later re-create cannot
+        //  inherit a stale band and skip its first repaint.
+        self.zmqol_vel_band = undefined;
 
         setdvar( "velocity", "0" );
         self iprintln( "^1[zm_qol] velocity meter OFF" );
@@ -5620,7 +5652,40 @@ zmqol_velocity_think()
         if ( !isdefined( self.zmqol_vel_hud ) )
             return;
 
-        self.zmqol_vel_hud setvalue( int( length( self getvelocity() * ( 1, 1, 0 ) ) ) );
+        n_speed = int( length( self getvelocity() * ( 1, 1, 0 ) ) );
+        self.zmqol_vel_hud setvalue( n_speed );
+
+        // ------------------------------------------------------------------
+        //  v1.90.12 - speed bands. User, 2026-08-14: *"make it green and then
+        //  whenever it goes 330 or above it goes yellow, then when it goes 370
+        //  or above it goes red"*. Thresholds are inclusive, exactly as asked.
+        //
+        //  🛑 WRITTEN ONLY WHEN THE BAND CHANGES, never every tick. .color is a
+        //  networked hudelem field; re-assigning it 20x a second is the same
+        //  class of mistake as settext()-ing a number every frame (see the
+        //  setvalue note above, and ERROR_CATALOGUE's reliable-channel entry).
+        //  Comparing a small int rather than the colour vector keeps that test
+        //  exact - there is no float compare anywhere in this path.
+        // ------------------------------------------------------------------
+        n_band = 0;
+
+        if ( n_speed >= 370 )
+            n_band = 2;
+        else if ( n_speed >= 330 )
+            n_band = 1;
+
+        if ( !isdefined( self.zmqol_vel_band ) || n_band != self.zmqol_vel_band )
+        {
+            self.zmqol_vel_band = n_band;
+
+            if ( n_band == 2 )
+                self.zmqol_vel_hud.color = ( 1, 0, 0 );
+            else if ( n_band == 1 )
+                self.zmqol_vel_hud.color = ( 1, 1, 0 );
+            else
+                self.zmqol_vel_hud.color = ( 0, 1, 0 );
+        }
+
         wait 0.05;
     }
 }

@@ -1048,8 +1048,11 @@ qol_opt_round_timer_hud( b_on )
         self.qol_hud_roundtimer.aligny = "top";
         self.qol_hud_roundtimer.horzalign = "left";
         self.qol_hud_roundtimer.vertalign = "user_top";
-        self.qol_hud_roundtimer.x = -64;    // == timer.x, see the note there
-        self.qol_hud_roundtimer.y = 12;     // == timer.y (-2) + one 14px row
+        //  v1.90.12 - moved with the game timer (-64 -> -45, +10 on y). Both
+        //  numbers are derived in quality_of_life.gsc::timer(); read the note
+        //  there before touching either. The 14-unit row gap is unchanged.
+        self.qol_hud_roundtimer.x = -45;    // == timer.x, see the note there
+        self.qol_hud_roundtimer.y = 22;     // == timer.y (8) + one 14px row
         //  v1.90.6 - light blue, user 2026-08-14. Set at creation for the same
         //  reason as the game timer's yellow: the watcher no-ops on its first
         //  pass. Console override: hud_color_round_timer "r g b".
