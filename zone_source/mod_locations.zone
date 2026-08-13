@@ -1095,3 +1095,26 @@ xmodel,viewmodel_hands_no_model
 // ============================================================================
 attachment,holo
 attachment,steadyaim_smg
+
+// ============================================================================
+//  v1.89.3 - THE PACK-A-PUNCH ATTACHMENT TABLE, UNDER A MOD-PRIVATE NAME
+// ----------------------------------------------------------------------------
+//  _zm_weapons::add_attachments() looks the UPGRADED weapon name up in
+//  `zm/pap_attach.csv` and assigns level.zombie_weapons[w].default_attachment
+//  from column 1. Every stock Pack-a-Punched weapon has a row there; none of
+//  the nine ported ones did - so a packed weapon was built with an attachment
+//  set its def requires and nothing supplied. That is the crash on firing.
+//
+//  🛑 THE STOCK TABLE CANNOT BE OVERRIDDEN. `zm/pap_attach.csv` is owned by
+//  patch_zm.ff; declaring that exact name here makes mod.ff the owner, mod.ff
+//  loads first, and the owning zone then dies with
+//      COM_ERROR Attempting to override asset ... from zone 'mod'
+//  which is the same shape that made Origins unbootable in v1.19.0.
+//
+//  🌟 SO IT SHIPS UNDER A NEW NAME AND IS SELECTED IN SCRIPT.
+//  _zm_weapons.gsc:582 reads `if ( isdefined( level.weapon_attachment_table ) )
+//  table = level.weapon_attachment_table;` - a hook Treyarch left open. The
+//  file carries ALL 29 stock rows verbatim plus 7 of ours, so pointing the
+//  whole game at it changes nothing for any stock weapon.
+// ============================================================================
+stringtable,zm/pap_attach_qol.csv

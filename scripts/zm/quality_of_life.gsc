@@ -5606,6 +5606,30 @@ zmqol_mp_weapons_init()
     if ( !zmqol_mp_weapons_enabled() )
         return;
 
+    // ========================================================================
+    //  🛑 THIS LINE IS THE PACK-A-PUNCH CRASH FIX (v1.89.3). It must run
+    //  BEFORE the add_zombie_weapon calls below, because add_zombie_weapon ->
+    //  add_attachments() reads this on the way past.
+    //
+    //  add_attachments() looks the UPGRADED name up in the attachment table and
+    //  sets level.zombie_weapons[w].default_attachment from column 1. Every
+    //  stock Pack-a-Punched weapon has a row in stock's zm/pap_attach.csv; none
+    //  of these nine did, so a packed weapon was built with an attachment set
+    //  its def requires and nothing supplied - and firing it froze the game
+    //  hard, with the console log simply ending mid-line.
+    //
+    //  The stock table cannot be overridden (patch_zm.ff owns it - see the
+    //  block in zone_source\mod_locations.zone), so mod.ff ships
+    //  zm/pap_attach_qol.csv: all 29 stock rows verbatim plus 7 of ours.
+    //  Repointing the whole game at it is therefore a no-op for every stock
+    //  weapon, which is why this is safe to set unconditionally.
+    //
+    //  📝 Only 7 rows, not 9: mk48, insas and crossbow have NO `attachments`
+    //  field at all on their upgraded defs, exactly like the stock weapons that
+    //  are themselves absent from stock's table. Nothing to map.
+    // ========================================================================
+    level.weapon_attachment_table = "zm/pap_attach_qol.csv";
+
     // base, upgraded, display ref, cost, vox pack
     zmqol_add_mp_weapon( "sig556_zm",      "sig556_upgraded_zm",      &"WEAPON_SIG556",             1200, "wpck_mg" );
     zmqol_add_mp_weapon( "sa58_zm",        "sa58_upgraded_zm",        &"WEAPON_SA58",               1000, "wpck_mg" );
