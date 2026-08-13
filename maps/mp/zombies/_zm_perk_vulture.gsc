@@ -872,14 +872,86 @@ _ramp_up_stink_overlay( b_instant_change )
     }
 }
 
+//  🛑 zm_qol: THE STINK OVERLAY YIELDS TO ZOMBIE BLOOD.
+//
+//  User report, via a tester: with Zombie Blood active, walking into the green
+//  stink cloud HIDES Zombie Blood's screen effect.
+//
+//  Measured cause, not a theory. The visionset manager's "overlay" type is
+//  single-winner per player: get_first_active_name() (_visionset_mgr.gsc:361)
+//  walks sorted_prio_keys - sorted DESCENDING by priority - and returns the FIRST
+//  active one, and update_clientfields() then sends that one slot index. So the
+//  whole overlay ladder is winner-take-all:
+//
+//      200  zombie_time_bomb_overlay
+//      120  vulture_stink_overlay   <- this one
+//      120  zm_afterlife_filter
+//       75  zm_ai_avogadro_electrified
+//       61  zm_trap_burn
+//       60  zm_trap_electric
+//       50  zm_ai_screecher_blur
+//       20  zm_transit_burn
+//       16  zm_powerup_zombie_blood_overlay   <- bottom of the ladder
+//
+//  Both numbers are FAITHFUL to stock - Buried registers the stink at 120
+//  (_zm_perk_vulture.gsc:106) and Origins registers Zombie Blood's overlay at 16
+//  (_zm_powerup_zombie_blood.gsc:26). Nothing was mis-ported.
+//
+//  🌟 VANILLA HAS NO OPINION HERE. Vulture Aid is Buried-only and Zombie Blood is
+//  Origins-only, so the two never coexist in stock BO2 and there is no stock
+//  behaviour to match. This mod created the pairing by putting both on every map,
+//  so resolving it is not re-tuning a ported perk - there is no original to
+//  deviate from.
+//
+//  🛑 WHY NOT JUST RAISE ZOMBIE BLOOD'S PRIORITY. Because 16 is the bottom of the
+//  ladder for a reason: lifting it over 120 would ALSO put it over the afterlife
+//  filter, the avogadro electrocution and both trap/burn overlays - so being set
+//  on fire or electrocuted while holding Zombie Blood would stop showing the
+//  damage feedback. That trades a cosmetic bug for a gameplay-feedback one. Only
+//  the specific pair the mod invented is resolved here; every other overlay keeps
+//  its stock relationship to both effects.
+//
+//  The ramp loops above and below call this every 0.25s for as long as the player
+//  is in the stink (ramp-up) or the meter is above zero (ramp-down), so this
+//  re-evaluates continuously: pick Zombie Blood up inside the cloud and the stink
+//  overlay drops within a tick; let it expire while still standing in the cloud
+//  and the stink overlay comes back on the next tick. Nothing else about the perk
+//  changes - the disease meter, the stink value, the zombie aggro and the stink
+//  audio all still update on their normal schedule, and no clientfield
+//  registration is touched, so client symmetry and the bit budget are unaffected.
 set_vulture_overlay( fraction )
 {
     state = level.vsmgr["overlay"].info["vulture_stink_overlay"].state;
 
-    if ( fraction > 0 )
+    if ( fraction > 0 && !( self zmqol_vulture_zombie_blood_active() ) )
         state maps\mp\_visionset_mgr::vsmgr_set_state_active( self, 1 - fraction );
     else
         state maps\mp\_visionset_mgr::vsmgr_set_state_inactive( self );
+}
+
+//  Is Zombie Blood currently running on this player?
+//
+//  zombie_vars["zombie_powerup_zombie_blood_on"] is the flag the powerup itself
+//  owns - quality_of_life.gsc's zmqol_zb_powerup() sets it to 1 on pickup and back
+//  to 0 when the timer expires, in the same function that activates and
+//  deactivates the Zombie Blood visionset and overlay, so it cannot drift out of
+//  step with what is on screen. quality_of_life.gsc:7338 already tests it exactly
+//  this way.
+//
+//  🛑 isdefined-guarded on purpose. zmqol_zb_init_player_vars() is registered as an
+//  onplayerconnect callback from INSIDE zmqol_enable_zombie_blood(), which returns
+//  early on maps where Zombie Blood is not enabled - so on those maps the key is
+//  never initialised and a bare read would be an undefined-variable error. Absent
+//  means "no Zombie Blood here", which is the correct answer.
+zmqol_vulture_zombie_blood_active()
+{
+    if ( !isdefined( self.zombie_vars ) )
+        return 0;
+
+    if ( !isdefined( self.zombie_vars[ "zombie_powerup_zombie_blood_on" ] ) )
+        return 0;
+
+    return self.zombie_vars[ "zombie_powerup_zombie_blood_on" ];
 }
 
 _get_disease_meter_fraction()
