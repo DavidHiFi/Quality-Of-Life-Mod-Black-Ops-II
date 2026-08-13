@@ -529,6 +529,44 @@ qol_opt_night_on()
 //  loop compares and decrements it directly. That is the one place this port
 //  deviates, and only to make the comparison numeric rather than relying on
 //  string coercion.
+//
+//  ========================================================================
+//  🛑 v1.90.3 - THIS LOOP WAS KILLING ORIGINS, MOB AND BURIED AT 0:06.
+//
+//  User, 2026-08-14: Origins, Mob and Buried all failed to reach the game
+//  with "CL_CGameNeedsServerCommand: A reliable command was cycled out."
+//  TranZit and Die Rise were fine. All three died at exactly 0:06 server
+//  time (games_mp.log), which is a threshold, not a race.
+//
+//  🌟 setclientdvar IS A RELIABLE SERVER COMMAND, and this function emitted
+//  20 (prison/tomb) to 40 (buried) of them PER SECOND, from spawn, forever.
+//  Six seconds of that is ~120-240 queued commands; the client's reliable
+//  ring holds 128, so the oldest was overwritten before the client - still
+//  loading, not yet acking - had read it. That is the error, verbatim.
+//
+//  🛑 AND THE EXIT CONDITION COULD NEVER BE TRUE. setclientdvar does not
+//  write back into the value the SERVER's getdvar() returns. Measured, not
+//  assumed: across 13 logged games the load-time dvar dump reports
+//  r_exposureValue "3" and r_sky_intensity_factor0 "1" every single time,
+//  including immediately after night mode set them to 3.5/3.9/4 and 0. So
+//  `while ( getdvar(...) != 0 )` was always an infinite loop - here AND in
+//  the source mod, where the same line compares a string to an int. It is
+//  written as for(;;) now because that is what it always was; pretending
+//  otherwise hid the real cost of the wait.
+//
+//  📝 WHY IT ONLY SURFACED NOW. It needs a second per-frame consumer to tip
+//  it over: every one of these maps booted fine yesterday with night mode
+//  ON and the velocity meter OFF, and died today with both ON. Nine games,
+//  no counterexample. The meter is not the bug - it is one hudelem on
+//  setvalue() - it is simply the load that exposed this one.
+//
+//  THE FIX IS A RATE CUT, NOT A RETUNE. The prison/tomb ramp keeps its
+//  exact trajectory: it was 0.05 units per 0.05s and is now 0.2 per 0.2s -
+//  the same 1.0 units/second, from the same start value to the same 0.
+//  Buried's clamp is unchanged except that it re-asserts every 0.2s rather
+//  than every 0.05s. Worst case over the first six seconds drops from
+//  120-240 commands to 30-60, comfortably inside the ring.
+//  ========================================================================
 // ----------------------------------------------------------------------------
 qol_opt_night_visual_fix()
 {
@@ -538,24 +576,24 @@ qol_opt_night_visual_fix()
 
     if ( level.script == "zm_buried" )
     {
-        while ( float( getdvar( "r_sky_intensity_factor0" ) ) != 0 )
+        for ( ;; )
         {
             self setclientdvar( "r_lightTweakSunLight", 1 );
             self setclientdvar( "r_sky_intensity_factor0", 0 );
-            wait 0.05;
+            wait 0.2;
         }
     }
     else if ( level.script == "zm_prison" || level.script == "zm_tomb" )
     {
-        while ( float( getdvar( "r_lightTweakSunLight" ) ) != 0 )
+        for ( ;; )
         {
-            for ( i = float( getdvar( "r_lightTweakSunLight" ) ); i >= 0; i = ( i - 0.05 ) )
+            for ( i = float( getdvar( "r_lightTweakSunLight" ) ); i >= 0; i = ( i - 0.2 ) )
             {
                 self setclientdvar( "r_lightTweakSunLight", i );
-                wait 0.05;
+                wait 0.2;
             }
 
-            wait 0.05;
+            wait 0.2;
         }
     }
 }
