@@ -586,10 +586,30 @@ zmqol_capture_objectives_fix()
     //
     //  The re-declare is now skipped while any zone holds an objective index,
     //  which is precisely the window in which it would be destructive.
+    //  🌟 v1.90.9 - WHY THE WINDOW IS 20 SECONDS AND NOT 6.
+    //
+    //  The user found the decisive clue: the ring is absent, and then appears the
+    //  instant the scoreboard is opened and closed. Toggling the scoreboard fires
+    //  hud_update_bit_<BIT_SCOREBOARD_OPEN>, which forces the Origins HUD to
+    //  re-evaluate visibility - so the widget exists and simply never learned
+    //  about the objective.
+    //
+    //  The log says why. In the failing match:
+    //        4740  capture objectives: re-declared 6 time(s), skipped 0
+    //        4743  Loaded menu file: ui_mp/t6/zombie/hudcraftablestombzombie.lua
+    //
+    //  Every objective_add - stock's at map init AND all six of v1.90.2's -
+    //  completed BEFORE the client's Origins HUD menu was created. objective_add
+    //  only reaches what exists at that instant, so the objective was announced to
+    //  a HUD that had not been built yet.
+    //
+    //  Six seconds simply was not long enough. The window now runs 20 seconds so
+    //  declares keep landing well after the menu is up, and the capture guard
+    //  below still prevents any of them touching a ring that is already live.
     n_pass = 0;
     n_skipped = 0;
 
-    while ( n_pass + n_skipped < 6 )
+    while ( n_pass + n_skipped < 20 )
     {
         wait 1;
 

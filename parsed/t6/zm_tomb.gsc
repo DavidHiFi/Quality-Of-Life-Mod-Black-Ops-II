@@ -154,7 +154,7 @@ zmqol_capture_objectives_fix()
     n_pass = 0;
     n_skipped = 0;
 
-    while ( n_pass + n_skipped < 6 )
+    while ( n_pass + n_skipped < 20 )
     {
         wait 1;
 
