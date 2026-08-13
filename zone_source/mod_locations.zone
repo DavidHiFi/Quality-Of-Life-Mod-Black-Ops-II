@@ -1159,3 +1159,36 @@ attachmentunique,au_qbb95_holo
 attachmentunique,au_peacekeeper_none
 attachmentunique,au_peacekeeper_grip
 attachmentunique,au_peacekeeper_reflex
+
+// ============================================================================
+//  v1.89.6 - THE TWO ALT-WEAPON POINTERS, REPOINTED AT THE ZOMBIES DEFS
+// ----------------------------------------------------------------------------
+//  Declaring the 13 above made the engine finally READ them, and the first boot
+//  that did so printed two brand-new lines that had never appeared before:
+//      Could not load weapon "gl_sig556_mp"
+//      Could not load weapon "sf_sa58_mp"
+//  Only 2 of the 13 carry a non-empty `altWeapon`, and both name MULTIPLAYER's
+//  weapon - so the packed SIG556's grenade launcher and the packed SA58's
+//  select-fire pointed at nothing. `gl_sig556_upgraded_zm` and
+//  `sf_sa58_upgraded_zm` were shipped as raw defs in v1.88.0, are confirmed
+//  "Loaded weapon:" in the log, and are include_weapon'd on BOTH halves
+//  (quality_of_life.gsc:5648-5649, zm_expanded.csc:117-118). Nothing referenced
+//  them. BO2-Reimagined edits exactly these two fields and nothing else that
+//  matters - independent confirmation of both the defect and the target names.
+//
+//  🌟 HOW AN ASSET WE DO NOT OWN THE SOURCE FOR GETS EDITED. The Linker resolves
+//  a declared asset from the ASSET SEARCH PATH FIRST and only then falls back to
+//  a --load'ed fastfile - the same mechanism build_ff.bat already relies on to
+//  stage .csc files over the donor's stale copies. So the two edited files sit
+//  in `zone_assets\attachmentunique\` and the Linker takes those instead of
+//  common_mp.ff's. Verified by dumping the built mod.ff back out with
+//  `Unlinker --include-assets attachmentunique`, not by trusting the source file.
+//
+//  📝 The other 11 are NOT staged and must not be. Reimagined also fills in ~40
+//  anim fields per file that MP leaves empty; the user's packed Vector fired and
+//  rendered correctly with all 34 of them empty, which proves empty fields
+//  inherit from the weapon def. Copying them would be change without cause.
+//  Every `camo` the 13 name (camo_mp7, camo_vector, camo_sig556, camo_sa58,
+//  camo_qbb, camo_holo, camo_peacekeeper, camo_reflex) is confirmed present in
+//  mod.ff, so those fields are correct as extracted too.
+// ============================================================================
