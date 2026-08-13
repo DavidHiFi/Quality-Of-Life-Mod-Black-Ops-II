@@ -3607,6 +3607,30 @@ zmqol_dev_command_listener()
                 player iprintln( "^3[zm_qol] ^3.fog on ^7or ^3.fog off ^8(on by default)" );
             }
         }
+        else if ( cmd == "velocity" || cmd == "vel" || cmd == "speed" )
+        {
+            //  User, 2026-08-13, pointing at H:\Claude\T6-B2OP-PATCH.
+            //
+            //  🛑 THE METER IS NOT IN THAT PATCH. b2op.gsc has no velocity meter;
+            //  its README only documents the stat slot that toggles B2FR's one,
+            //  and B2FR is a separate repo that is not in the workspace. So this
+            //  is written, not ported. What B2OP did supply is the HUD shape -
+            //  its coordinates readout (b2op.gsc:5279-5301) uses setvalue() on a
+            //  numeric hudelem rather than settext per tick, which is also this
+            //  project's own rule (settext every frame floods reliable commands
+            //  and throws EXE_SERVERCOMMANDOVERFLOW).
+            str_arg = "";
+
+            if ( tokens.size > 1 )
+                str_arg = tokens[1];
+
+            if ( str_arg == "off" )
+                player zmqol_velocity_set( 0 );
+            else if ( str_arg == "on" )
+                player zmqol_velocity_set( 1 );
+            else
+                player iprintln( "^3[zm_qol] ^3.velocity on ^7or ^3.velocity off ^8(off by default)" );
+        }
         else if ( cmd == "fly" )
         {
             //  setdvar keeps the "fly" console dvar in step with reality -
@@ -4702,6 +4726,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.help ^7show/hide   ^3.p <n> ^7points   ^3.where ^7coords";
     a_lines[a_lines.size] = "^3.god ^7god   ^3.ghost ^7ignored   ^3.afk ^7both   ^3.nightmode ^7on/off";
     a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance, melee stops)   ^3.fog ^7on/off";
+    a_lines[a_lines.size] = "^3.velocity ^7on/off ^8(also .vel/.speed)";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
     a_lines[a_lines.size] = "^3.giveperks^7/^3.removeperks ^7  ^3.nozmspawns ^7spawns   ^3.hud ^7on/off";
@@ -4710,7 +4735,7 @@ zmqol_help_lines()
     //  so it rides on the same line as the syntax rather than getting its own.
     a_lines[a_lines.size] = "^3.give^7/^3.remove^7 + ^3jug speed dtap stam mule revive deadshot phd tombstone whoswho cherry vulture";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
-    a_lines[a_lines.size] = "^5console: ^3fly night_mode rapid_fire character coop_pause no_power lod_fix";
+    a_lines[a_lines.size] = "^5console: ^3fly velocity night_mode rapid_fire character coop_pause no_power lod_fix";
     //  Chat commands are console dvars too - folded onto the line below rather
     //  than given its own, because this panel has a hard line budget and has
     //  been silently truncated before. See zmqol_console_command_watcher().
@@ -5373,6 +5398,125 @@ zmqol_fly_key_bind()
     self thread zmqol_fly_key_toggle();
     self thread zmqol_fly_dvar_watch();
     self thread zmqol_ww_give_dvar_watch();
+    self thread zmqol_velocity_dvar_watch();
+}
+
+// ============================================================================
+//  THE VELOCITY METER                                              (v1.90.0)
+//
+//      .velocity on / .velocity off        (aliases .vel, .speed)
+//      velocity 1 / velocity 0             console, bindable:
+//                                          bind x "toggle velocity 0 1"
+//
+//  🌟 getvelocity() ON A PLAYER IS VERIFIED, not assumed. It was worth checking:
+//  this engine has already been caught not exposing a player movement builtin -
+//  getnormalizedmovement() is UNDEFINED here, which is why zmqol_fly_think()
+//  reads button state instead. Three independent confirmations that getvelocity
+//  is not in that category:
+//      BO2-Reimagined  scripts\zm\_zm_reimagined.gsc:3783  get_player_speed()
+//                      calls `self getvelocity()` with self a PLAYER
+//      stock MP        maps\mp\gametypes\_spawning.gsc:178 `self getvelocity()`
+//      stock MP        maps\mp\killstreaks\_straferun.gsc:663 on a player target
+//  The stock pair matter most - that is Treyarch's own code reading a player.
+//
+//  HORIZONTAL SPEED, which is what a velocity meter means. Reimagined masks with
+//  (1,1,0) when airborne for exactly this reason; masking unconditionally is the
+//  same result on the ground (z is ~0 there) and one branch fewer.
+//
+//  🛑 setvalue(), never settext(), on the repeating update - see the note in the
+//  chat branch. And this hudelem has exactly ONE owner writing its alpha, per
+//  [[t6-hudelem-single-alpha-owner]]: only zmqol_velocity_set() creates or
+//  destroys it, and the loop touches nothing but the number.
+// ============================================================================
+zmqol_velocity_set( b_on )
+{
+    if ( b_on )
+    {
+        //  Idempotent: three front-ends can call this (chat, the console dvar
+        //  poll, a keybind toggling that dvar), and a second create would leak
+        //  the first hudelem with no handle left to destroy it.
+        if ( isdefined( self.zmqol_vel_hud ) )
+            return;
+
+        self.zmqol_vel_hud = self createfontstring( "default", 1.4 );
+        self.zmqol_vel_hud.alignx = "center";
+        self.zmqol_vel_hud.aligny = "middle";
+        self.zmqol_vel_hud.horzalign = "center";
+        self.zmqol_vel_hud.vertalign = "bottom";
+        self.zmqol_vel_hud.x = 0;
+        self.zmqol_vel_hud.y = -62;
+        self.zmqol_vel_hud.color = ( 1, 1, 1 );
+        self.zmqol_vel_hud.alpha = 1;
+        self.zmqol_vel_hud.hidewheninmenu = 1;
+        self.zmqol_vel_hud.sort = 10;
+        self.zmqol_vel_hud setvalue( 0 );
+
+        self thread zmqol_velocity_think();
+        setdvar( "velocity", "1" );
+        self iprintln( "^2[zm_qol] velocity meter ON ^7- horizontal speed in units/sec" );
+    }
+    else
+    {
+        self notify( "zmqol_velocity_off" );
+
+        if ( isdefined( self.zmqol_vel_hud ) )
+        {
+            self.zmqol_vel_hud destroy();
+            self.zmqol_vel_hud = undefined;
+        }
+
+        setdvar( "velocity", "0" );
+        self iprintln( "^1[zm_qol] velocity meter OFF" );
+    }
+}
+
+zmqol_velocity_think()
+{
+    self endon( "disconnect" );
+    self endon( "zmqol_velocity_off" );
+    level endon( "game_ended" );
+
+    for ( ;; )
+    {
+        //  The hudelem is destroyed by zmqol_velocity_set() on the same frame it
+        //  notifies, but a notify only takes effect at the next waittill/wait -
+        //  so re-test rather than assume this thread died first.
+        if ( !isdefined( self.zmqol_vel_hud ) )
+            return;
+
+        self.zmqol_vel_hud setvalue( int( length( self getvelocity() * ( 1, 1, 0 ) ) ) );
+        wait 0.05;
+    }
+}
+
+// ============================================================================
+//  zmqol_velocity_dvar_watch  -  the "velocity" console dvar.
+//
+//  Same shape as zmqol_fly_dvar_watch(): compare against the REAL state (does
+//  the hudelem exist), never against the dvar's previous value, so the chat
+//  command and the dvar cannot fight each other. zmqol_velocity_set() writes the
+//  dvar back on every toggle, which keeps all front-ends in agreement.
+// ============================================================================
+zmqol_velocity_dvar_watch()
+{
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    if ( getdvar( "velocity" ) == "" )
+        setdvar( "velocity", "0" );
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        b_want = getdvarintdefault( "velocity", 0 );
+        b_have = isdefined( self.zmqol_vel_hud );
+
+        if ( b_want && !b_have )
+            self zmqol_velocity_set( 1 );
+        else if ( !b_want && b_have )
+            self zmqol_velocity_set( 0 );
+    }
 }
 
 // ============================================================================
