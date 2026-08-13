@@ -206,11 +206,27 @@ zmqol_capture_hud_nudge_player()
     level endon( "end_game" );
     self waittill( "spawned_player" );
     flag_wait( "initial_blackscreen_passed" );
-    wait 8;
-    self setclientuivisibilityflag( "hud_visible", 0 );
-    wait 0.05;
-    self setclientuivisibilityflag( "hud_visible", 1 );
-    println( "[zm_qol] capture hud: visibility nudged - the scoreboard trick, done in script" );
+    b_done = 0;
+
+    for (;;)
+    {
+        wait 0.25;
+
+        if ( !zmqol_any_zone_capturing() )
+        {
+            b_done = 0;
+            continue;
+        }
+
+        if ( b_done )
+            continue;
+
+        self setclientuivisibilityflag( "hud_visible", 0 );
+        wait 0.25;
+        self setclientuivisibilityflag( "hud_visible", 1 );
+        b_done = 1;
+        println( "[zm_qol] capture hud: nudged DURING an active capture" );
+    }
 }
 
 zmqol_capture_objectives_on_connect()

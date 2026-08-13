@@ -691,17 +691,45 @@ zmqol_capture_hud_nudge_player()
     level endon( "end_game" );
 
     self waittill( "spawned_player" );
-
-    //  Past the blackscreen, and past the 6 declare passes above, so the
-    //  objective definitely exists by the time the HUD is asked to re-read it.
     flag_wait( "initial_blackscreen_passed" );
-    wait 8;
 
-    self setclientuivisibilityflag( "hud_visible", 0 );
-    wait 0.05;
-    self setclientuivisibilityflag( "hud_visible", 1 );
+    //  🛑 v1.90.11 - TIMING WAS THE FLAW IN v1.90.10, NOT THE MECHANISM.
+    //  The nudge fired once at t+8s and the log proves it ran:
+    //        4710  capture hud: visibility nudged
+    //  ...and the ring still did not appear. The difference from the user's
+    //  scoreboard press is WHEN: they open the scoreboard *while a generator is
+    //  being captured*. A visibility re-evaluation at t+8s, when no objective is
+    //  active, finds nothing to draw and the HUD goes straight back to sleep.
+    //
+    //  So the refresh has to land DURING an active capture. Wait for a zone to
+    //  actually hold an objective index, then nudge.
+    //
+    //  Also: 0.05s was likely too short to survive snapshot coalescing - two
+    //  flag writes inside one client update can collapse to no net change. The
+    //  hold is now 0.25s, which is what the user's own scoreboard press
+    //  effectively does.
+    b_done = 0;
 
-    println( "[zm_qol] capture hud: visibility nudged - the scoreboard trick, done in script" );
+    for ( ;; )
+    {
+        wait 0.25;
+
+        if ( !zmqol_any_zone_capturing() )
+        {
+            b_done = 0;      //  re-arm for the next generator
+            continue;
+        }
+
+        if ( b_done )
+            continue;
+
+        self setclientuivisibilityflag( "hud_visible", 0 );
+        wait 0.25;
+        self setclientuivisibilityflag( "hud_visible", 1 );
+        b_done = 1;
+
+        println( "[zm_qol] capture hud: nudged DURING an active capture" );
+    }
 }
 
 zmqol_capture_objectives_on_connect()
