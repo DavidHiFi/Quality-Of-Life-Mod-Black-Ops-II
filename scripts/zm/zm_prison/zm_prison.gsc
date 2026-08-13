@@ -25,6 +25,51 @@ init()
     zmqol_precache_survival_characters();
     added_weapons();
     level thread zmqol_prison_spawn_probe();   // TEMPORARY - see below
+
+    //  .brutus (amount) / spawn_brutus <n>. The root script parses and clamps;
+    //  the pointer is installed HERE because maps\mp\zombies\_zm_ai_brutus is a
+    //  Mob-only script and a qualified reference to it from a root file would
+    //  crash every other map at load. See zmqol_boss_spawn_request().
+    level.zmqol_boss_name = "brutus";
+    level.zmqol_boss_spawn_func = ::zmqol_spawn_brutus;
+}
+
+// ============================================================================
+//  zmqol_spawn_brutus  -  the real Brutus, through stock's own spawner.
+//
+//  brutus_spawning_logic() (_zm_ai_brutus.gsc:830) is already threaded by the
+//  map and sits on `level waittill( "spawn_brutus", num )`; for each one it does
+//  spawn_zombie( level.brutus_spawners[0] ) + brutus_spawn() and plays
+//  zmb_ai_brutus_spawn_2d. So going through it means the alarm behaviour, the
+//  zone logic, the helmet, the spawn sound and the count are all stock's - none
+//  of it re-implemented here.
+//
+//  🛑 STOCK CAPS IT AT ONE. attempt_brutus_spawn() (:858) refuses outright when
+//  level.brutus_count + n > level.brutus_max_count, and init sets
+//  brutus_max_count = 1 (:79). So `.brutus 3` needs the CEILING raised, not the
+//  check bypassed - raising it and then going through stock's own wrapper keeps
+//  every invariant that check exists to protect, where a bare
+//  `level notify( "spawn_brutus", n )` would desync level.brutus_count.
+// ============================================================================
+zmqol_spawn_brutus( n_amount )
+{
+    //  Grief and some survival variants never start the Brutus logic, so the
+    //  spawner array is the honest test for "is this reachable here".
+    if ( !isdefined( level.brutus_spawners ) || !isdefined( level.brutus_max_count ) )
+        return 0;
+
+    if ( !isdefined( level.brutus_count ) )
+        level.brutus_count = 0;
+
+    n_ceiling = level.brutus_count + n_amount;
+
+    if ( level.brutus_max_count < n_ceiling )
+        level.brutus_max_count = n_ceiling;
+
+    if ( maps\mp\zombies\_zm_ai_brutus::attempt_brutus_spawn( n_amount ) )
+        return n_amount;
+
+    return 0;
 }
 
 // ============================================================================

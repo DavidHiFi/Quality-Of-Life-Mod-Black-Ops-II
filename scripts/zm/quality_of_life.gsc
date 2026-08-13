@@ -3607,6 +3607,26 @@ zmqol_dev_command_listener()
                 player iprintln( "^3[zm_qol] ^3.fog on ^7or ^3.fog off ^8(on by default)" );
             }
         }
+        else if ( cmd == "brutus" || cmd == "panzer" || cmd == "jumpingjacks" || cmd == "jacks" )
+        {
+            //  User, 2026-08-13: ".brutus (amount)" on Mob, ".panzer (amount)" on
+            //  Origins, ".jumpingjacks (amount)" on Die Rise, plus console dvars.
+            //
+            //  🛑 THIS BRANCH MAY NOT NAME A SINGLE BOSS FUNCTION. _zm_ai_brutus,
+            //  _zm_ai_mechz and _zm_ai_leaper are MAP-SPECIFIC scripts, and a
+            //  qualified reference to one resolves at SCRIPT LOAD time - so
+            //  naming any of them from this root file would throw "Unresolved
+            //  external" and crash every OTHER map, and a runtime
+            //  `if ( level.script == ... )` guard does not prevent it
+            //  (AI_CONTEXT rule 2). The call therefore goes through a pointer
+            //  that each map's own script installs in its init().
+            n_amount = 1;
+
+            if ( tokens.size > 1 && int( tokens[1] ) > 0 )
+                n_amount = int( tokens[1] );
+
+            player zmqol_boss_spawn_request( cmd, n_amount );
+        }
         else if ( cmd == "velocity" || cmd == "vel" || cmd == "speed" )
         {
             //  User, 2026-08-13, pointing at H:\Claude\T6-B2OP-PATCH.
@@ -4727,6 +4747,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.god ^7god   ^3.ghost ^7ignored   ^3.afk ^7both   ^3.nightmode ^7on/off";
     a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance, melee stops)   ^3.fog ^7on/off";
     a_lines[a_lines.size] = "^3.velocity ^7on/off ^8(also .vel/.speed)";
+    a_lines[a_lines.size] = "^3.brutus^7/^3.panzer^7/^3.jumpingjacks ^7(amount) ^8- Mob / Origins / Die Rise";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
     a_lines[a_lines.size] = "^3.giveperks^7/^3.removeperks ^7  ^3.nozmspawns ^7spawns   ^3.hud ^7on/off";
@@ -4736,6 +4757,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.give^7/^3.remove^7 + ^3jug speed dtap stam mule revive deadshot phd tombstone whoswho cherry vulture";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
     a_lines[a_lines.size] = "^5console: ^3fly velocity night_mode rapid_fire character coop_pause no_power lod_fix";
+    a_lines[a_lines.size] = "^5console: ^3spawn_brutus ^7n ^3spawn_panzer ^7n ^3spawn_jumpingjacks ^7n";
     //  Chat commands are console dvars too - folded onto the line below rather
     //  than given its own, because this panel has a hard line budget and has
     //  been silently truncated before. See zmqol_console_command_watcher().
@@ -5399,6 +5421,110 @@ zmqol_fly_key_bind()
     self thread zmqol_fly_dvar_watch();
     self thread zmqol_ww_give_dvar_watch();
     self thread zmqol_velocity_dvar_watch();
+    self thread zmqol_boss_spawn_dvar_watch();
+}
+
+// ============================================================================
+//  BOSS SPAWN COMMANDS                                             (v1.90.0)
+//
+//      .brutus (amount)        Mob of the Dead   zm_prison
+//      .panzer (amount)        Origins           zm_tomb
+//      .jumpingjacks (amount)  Die Rise          zm_highrise    (alias .jacks)
+//
+//      spawn_brutus <n> / spawn_panzer <n> / spawn_jumpingjacks <n>
+//          console twins. The dvar carries the AMOUNT and is reset to 0 on
+//          consumption, so it is a trigger and a keybind fires on every press -
+//          the same shape as give_thundergun (zmqol_ww_give_dvar_watch).
+//
+//  🛑 EVERYTHING MAP-SPECIFIC LIVES IN THE MAP'S OWN SCRIPT. This file only
+//  holds the parsing, the clamp and the dispatch; scripts\zm\<map>\<map>.gsc
+//  installs level.zmqol_boss_spawn_func and level.zmqol_boss_name in its init().
+//  See the note in the chat branch for why that split is mandatory rather than
+//  stylistic.
+//
+//  📝 Each map's spawn function returns the number it actually started, or 0 if
+//  that map's spawner is not up (grief/survival variants do not always run the
+//  boss logic), so the message can tell the difference between "spawning 3" and
+//  "this map is not ready" instead of silently doing nothing.
+// ============================================================================
+zmqol_boss_spawn_request( str_boss, n_amount )
+{
+    if ( str_boss == "jacks" )
+        str_boss = "jumpingjacks";
+
+    if ( n_amount < 1 )
+        n_amount = 1;
+
+    //  A cap, and it SAYS so rather than silently clamping. Eight of any of these
+    //  three is already far past what the round logic ever spawns at once.
+    if ( n_amount > 8 )
+    {
+        n_amount = 8;
+        self iprintln( "^3[zm_qol] amount capped at ^78" );
+    }
+
+    if ( !isdefined( level.zmqol_boss_spawn_func ) || !isdefined( level.zmqol_boss_name ) )
+    {
+        self iprintln( "^1[zm_qol] this map has no boss ^8(.brutus Mob / .panzer Origins / .jumpingjacks Die Rise)" );
+        return;
+    }
+
+    if ( str_boss != level.zmqol_boss_name )
+    {
+        self iprintln( "^1[zm_qol] ^7." + str_boss + " ^1is not this map's boss ^7- try ^3." + level.zmqol_boss_name );
+        return;
+    }
+
+    n_done = level [[ level.zmqol_boss_spawn_func ]]( n_amount );
+
+    if ( isdefined( n_done ) && n_done > 0 )
+        self iprintln( "^2[zm_qol] spawning ^7" + n_done + " ^2" + level.zmqol_boss_name );
+    else
+        self iprintln( "^1[zm_qol] the " + level.zmqol_boss_name + " spawner is not running on this map" );
+}
+
+zmqol_boss_spawn_dvar_watch()
+{
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    if ( getdvar( "spawn_brutus" ) == "" )
+        setdvar( "spawn_brutus", "0" );
+
+    if ( getdvar( "spawn_panzer" ) == "" )
+        setdvar( "spawn_panzer", "0" );
+
+    if ( getdvar( "spawn_jumpingjacks" ) == "" )
+        setdvar( "spawn_jumpingjacks", "0" );
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        n_want = getdvarintdefault( "spawn_brutus", 0 );
+
+        if ( n_want > 0 )
+        {
+            setdvar( "spawn_brutus", "0" );
+            self zmqol_boss_spawn_request( "brutus", n_want );
+        }
+
+        n_want = getdvarintdefault( "spawn_panzer", 0 );
+
+        if ( n_want > 0 )
+        {
+            setdvar( "spawn_panzer", "0" );
+            self zmqol_boss_spawn_request( "panzer", n_want );
+        }
+
+        n_want = getdvarintdefault( "spawn_jumpingjacks", 0 );
+
+        if ( n_want > 0 )
+        {
+            setdvar( "spawn_jumpingjacks", "0" );
+            self zmqol_boss_spawn_request( "jumpingjacks", n_want );
+        }
+    }
 }
 
 // ============================================================================

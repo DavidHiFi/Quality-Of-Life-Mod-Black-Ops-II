@@ -256,6 +256,37 @@ init()
     level thread zmqol_open_stock_barriers();
     level thread zmqol_wunderfizz_all_perks();
     added_weapons();
+
+    //  .panzer (amount) / spawn_panzer <n>. Installed here, not in the root
+    //  script - maps\mp\zombies\_zm_ai_mechz is Origins-only and a qualified
+    //  reference to it from a root file crashes every other map at load.
+    level.zmqol_boss_name = "panzer";
+    level.zmqol_boss_spawn_func = ::zmqol_spawn_panzer;
+}
+
+// ============================================================================
+//  zmqol_spawn_panzer  -  the real Panzer Soldat, through stock's own spawner.
+//
+//  mechz_spawning_logic() (_zm_ai_mechz.gsc:403) is already threaded and sits on
+//  `level waittill( "spawn_mechz" )`, then drains level.mechz_left_to_spawn -
+//  spawning each one with spawn_zombie( level.mechz_spawners[0] ) + mechz_spawn()
+//  (the armour, the claw, the health scaling, the fx, the audio, the hint vo) and
+//  waiting for a free spawn location. So all of that stays stock.
+//
+//  🌟 THIS IS EXACTLY WHAT TREYARCH'S OWN DEV SPAWNER DOES -
+//  _zm_ai_mechz_dev.gsc:87-92 sets mechz_left_to_spawn then notifies. The one
+//  deliberate difference is += rather than =, so asking for a panzer during a
+//  real panzer round tops the queue up instead of cancelling what is pending.
+// ============================================================================
+zmqol_spawn_panzer( n_amount )
+{
+    if ( !isdefined( level.mechz_spawners ) || !isdefined( level.mechz_left_to_spawn ) )
+        return 0;
+
+    level.mechz_left_to_spawn += n_amount;
+    level notify( "spawn_mechz" );
+
+    return n_amount;
 }
 
 // ============================================================================

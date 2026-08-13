@@ -66,6 +66,79 @@ init()
 {
     added_weapons();
     move_marathon_origins();
+
+    //  .jumpingjacks (amount) / spawn_jumpingjacks <n>. Installed here, not in
+    //  the root script - maps\mp\zombies\_zm_ai_leaper is Die Rise-only and a
+    //  qualified reference to it from a root file crashes every other map at load.
+    level.zmqol_boss_name = "jumpingjacks";
+    level.zmqol_boss_spawn_func = ::zmqol_spawn_jumpingjacks;
+}
+
+// ============================================================================
+//  zmqol_spawn_jumpingjacks  -  the real leaper, one leaper round's spawn step.
+//
+//  🛑 UNLIKE BRUTUS AND THE PANZER, THE LEAPER HAS NO NOTIFY HOOK. Its spawns
+//  happen inline inside leaper_round_spawning() (_zm_ai_leaper.gsc:570), which is
+//  a whole round - it plays the dog-round vo, sets level.zombie_total, threads
+//  the accuracy tracking and the aftermath, and does not return until the round
+//  ends. Calling that would start a leaper ROUND, not spawn a leaper.
+//
+//  So this replicates its per-spawn step and nothing else. Straight out of :644,
+//  in the same order, with the same three helpers:
+//      favorite_enemy = get_favorite_enemy()                             (:733)
+//      spawn_point    = leaper_spawn_logic( level.enemy_dog_spawns, ... ) (:800)
+//      ai             = spawn_zombie( level.leaper_spawners[0] )
+//      ai.favoriteenemy / ai.spawn_point, then leaper_spawn_fx()         (:924)
+//  get_favorite_enemy() is safe to call outside a leaper round: it calls
+//  getplayers() itself and defaults .hunted_by, so it depends on nothing the
+//  round sets up. spawn_zombie is _zm_utility, already included above.
+//
+//  📝 level.zombie_total and level.leaper_count are deliberately NOT touched.
+//  Those are the ROUND's bookkeeping - decrementing zombie_total outside a leaper
+//  round would tell the round system a zombie it never counted has been used up.
+//  These are extra AI on top of the round, which is what the command is for.
+// ============================================================================
+zmqol_spawn_jumpingjacks( n_amount )
+{
+    if ( !isdefined( level.leaper_spawners ) || !isdefined( level.enemy_dog_spawns ) )
+        return 0;
+
+    if ( !level.leaper_spawners.size )
+        return 0;
+
+    level thread zmqol_spawn_jumpingjacks_think( n_amount );
+
+    return n_amount;
+}
+
+zmqol_spawn_jumpingjacks_think( n_amount )
+{
+    level endon( "intermission" );
+    level endon( "end_game" );
+
+    for ( i = 0; i < n_amount; i++ )
+    {
+        favorite_enemy = maps\mp\zombies\_zm_ai_leaper::get_favorite_enemy();
+        spawn_point = maps\mp\zombies\_zm_ai_leaper::leaper_spawn_logic( level.enemy_dog_spawns, favorite_enemy );
+        ai = spawn_zombie( level.leaper_spawners[0] );
+
+        if ( isdefined( ai ) )
+        {
+            ai.favoriteenemy = favorite_enemy;
+            ai.spawn_point = spawn_point;
+
+            //  Stock passes spawn_point as both the caller and the argument; it
+            //  can be undefined if every spawn node is occupied, and playing the
+            //  fx on an undefined ent is a script error, so gate on it. The
+            //  leaper itself is already spawned and functional either way.
+            if ( isdefined( spawn_point ) )
+                spawn_point thread maps\mp\zombies\_zm_ai_leaper::leaper_spawn_fx( ai, spawn_point );
+        }
+
+        //  Stagger, so a request for several does not put them all through the
+        //  same spawn node in one frame.
+        wait 0.5;
+    }
 }
 
 custom_vending_precaching()
