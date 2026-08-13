@@ -255,6 +255,50 @@ effects in one step.
 
 ---
 
+## 11. 🛑 THE MIRROR OF §10 — A **FASTFILE-ONLY** ASSET CLASS SHIPPED AS A RAW FILE
+
+**Symptom:** the game boots, the weapon works, and it **hard-crashes (`0xC0000005`) the
+instant the Pack-a-Punched version is fired.** No GSC error, no `COM_ERROR`; the log just
+stops. Attributing it is guesswork *unless you read the map-load lines*, where the engine
+already said exactly what was wrong:
+
+```
+Couldn't find attachmentunique 'au_mp7_dualclip'
+Couldn't find attachmentunique 'au_mp7_none'
+```
+
+**Cause.** `attachmentunique` resolves **only** from a fastfile. All 13 files were present
+in `attachmentunique\` and verified inside the deployed `mod.iwd`, and the engine still
+could not find them — because `mod_base.zone` declares 91 `attachmentunique,` lines and
+`mod_locations.zone` declared none. The raw folder is what the **Linker** is fed from; it is
+not what the **game** reads.
+
+🌟 **Why the raw folder looked like proof it works:** 89 stock `au_*` files sit there and
+everything is fine. They are never exercised — stock resolves them from its own fastfile
+first, so the raw copies have never once been loaded. **A folder full of working-looking
+files is not evidence that the folder is a load path.**
+
+🌟 **The confirmation that the diagnosis is right comes from the link, not the boot.**
+Declaring 13 assets added **110** — the attachment xmodels (`t6_attach_fastmag_mp7_view`,
+the holo sight, the DBAL), their materials, and 64 attachment viewmodel anims. Everything a
+packed weapon needs hangs off the attachmentunique node. If your declaration pulls in a
+dependency chain, the assets were genuinely absent; if it adds exactly N, suspect the
+diagnosis.
+
+### ✅ Pre-flight check
+
+1. **Grep the previous boot log for `Couldn't find` and `Could not load` and diff it
+   against an older boot** — the absolute count is meaningless (this project logs 300+
+   normally); only the *set difference* names what you broke. Same technique as §10.
+2. For any new asset class, ask **"is this declared in `mod_base.zone`?"** If the donor
+   declares it, it is a fastfile asset and a raw file will not do.
+3. Check ownership **before** linking: `Unlinker --list` each zombies fastfile for the names
+   you are about to declare. Zero matches = safe to own (§ the v1.19.0 Origins shape).
+4. After linking, audit `--list` before vs after: **zero removed** is the property that
+   matters.
+
+---
+
 ## The pre-flight sequence, in order
 
 1. `gsc-tool -m parse -g t6 -s pc -y <file>` (`-i client` for `.csc`) — syntax only; it will happily
