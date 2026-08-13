@@ -3382,3 +3382,54 @@ fix. If they do not, `leaper_spawn_logic` must already cope and the guard is sim
 
 🛑 Do not "fix" this by deleting the guard without answering that — passing an undefined array into
 `leaper_spawn_logic()` is exactly the silent-failure shape this project keeps getting caught by.
+
+---
+
+# 📥 BATCH FROM USER, 2026-08-14 — seven items, reported after booting v1.90.5
+
+Reported in one message with six screenshots, after the first boot covering v1.89.8 → v1.90.5.
+User: *"get this all fixed and sorted out now."* Acknowledged; recorded here so none is lost.
+Two of these are **regressions**, which take priority over the new features.
+
+| # | item | kind | first read |
+|---|---|---|---|
+| B1 | Perk icons are forced to the mod's copies; streamed custom textures ignored | bug | **root cause verified, see below** |
+| B2 | Game time yellow, round timer light blue, velocity meter yellow | tweak | cosmetic, low risk |
+| B3 | Nuketown survival: the fallen Pack-a-Punch can't be used, no hint prompt | bug | not investigated |
+| B4 | Vulture Aid powerup drop is a bare green bloom — no icon | bug | same class as the box/wallbuy bloom fix |
+| B5 | XPR-50 + Titus-6 still absent from the box; want dvars/commands to grant them | feature | **asset-ownership job, see checkpoint 44 §2** |
+| B6 | Origins **solo intro cutscene** black again | 🛑 **REGRESSION** | was CONFIRMED working v1.65.8, 2026-08-11 |
+| B7 | Origins generator progress icons missing at match start | 🛑 **REGRESSION / bad fix** | v1.90.2 was supposed to fix exactly this |
+
+## B1 — root cause, measured 2026-08-14
+
+The mod owns these icons **twice over**, and the second one is the problem:
+
+1. `mod.ff` **owns** `material` + `image` for `specialty_vulture_zombies`,
+   `specialty_tombstone_zombies`, `specialty_vulture_zombies_glow` and ~10 more.
+2. `mod.iwd\images\` **also ships the pixels** — `specialty_vulture_zombies.iwi`,
+   `specialty_vulture_zombies_glow.iwi`, `specialty_tombstone_zombies.iwi`.
+
+The user's own copies sit at `%LOCALAPPDATA%\Plutonium\storage\t6\images\` under **exactly those
+names** (1,907 files there; `specialty_vulture_zombies.iwi` and `specialty_tombstone_zombies.iwi`
+both present). The mod's copy wins, which is the reported symptom.
+
+🛑 **The ownership is NOT removable — it IS the icon fix.** Measured across stock fastfiles:
+
+| icon | owned by stock | so on other maps |
+|---|---|---|
+| `specialty_vulture_zombies` (image+material) | **`zm_buried.ff` only** | does not exist |
+| `specialty_tombstone_zombies` (image) | **`zm_transit.ff` only** | does not exist |
+
+Strip mod.ff's copy and Vulture Aid loses its icon everywhere except Buried, Tombstone everywhere
+except TranZit. That is the regression the ownership was added to prevent.
+
+**So the fix is about the PIXELS, not the header:** stop shipping `images\specialty_*.iwi` in
+mod.iwd so the streamed copy supplies them.
+
+🛑 **Open risk that must be settled before shipping:** a fastfile image is a **header only**
+(see agent memory `t6-fastfile-images-and-scripts`) — pixels come from a loose `.iwi`. Drop the
+mod's `.iwi` and a clean install *with no custom texture pack* may render the icon **black**
+rather than falling back to stock. Plutonium's search order between `mod.iwd\images\` and
+`storage\t6\images\` has **not** been verified offline; the user's report only proves mod.iwd
+currently wins. **Do not ship this on the assumption of a fallback — prove the order first.**
