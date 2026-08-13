@@ -98,12 +98,49 @@ init()
 //  round would tell the round system a zombie it never counted has been used up.
 //  These are extra AI on top of the round, which is what the command is for.
 // ============================================================================
+//  ============================================================================
+//  🛑 v1.90.4 - THE GUARD WAS GATING ON A VARIABLE THE SPAWN PATH NEVER READS.
+//
+//  User, 2026-08-14, on Die Rise: ".jumpingjacks didn't work" ->
+//  "[zm_qol] the jumpingjacks spawner is not running on this map".
+//
+//  That message is the else branch of quality_of_life.gsc:5483, i.e. this
+//  function returned 0. It was the level.enemy_dog_spawns half of the guard.
+//
+//  🌟 THAT ARRAY IS ONLY EVER SET BY THE zstandard GAMETYPE.
+//      _zm_ai_dogs.gsc:83   level.enemy_dog_spawns = getentarray( "zombie_spawner_dog_init", ... )
+//  and the only caller of _zm_ai_dogs::init() is gametypes_zm\zstandard.gsc:27.
+//  zclassic never calls it, so on a classic game the array is undefined and the
+//  command refused to run - on the map whose boss it is.
+//
+//  🌟 AND THE ARRAY IS IRRELEVANT ANYWAY: leaper_spawn_logic( leaper_array,
+//  favorite_enemy ) (_zm_ai_leaper.gsc:800) NEVER READS ITS FIRST PARAMETER. It
+//  builds its candidates from level.zones[zone].leaper_locations. So does the
+//  older leaper_spawn_logic_old(), which reads a getstructarray() instead. Stock
+//  passes level.enemy_dog_spawns at :645 purely as a leftover. The call below
+//  keeps passing it for exact parity with stock's line - it is inert either way,
+//  and an unread parameter is not worth deviating from the port over.
+//
+//  WHAT THE PATH ACTUALLY NEEDS, and what is guarded now instead:
+//      level.leaper_spawners     - spawn_zombie( level.leaper_spawners[0] )
+//      level.active_zone_names   - leaper_spawn_logic foreaches it; foreach over
+//                                  an undefined array is a script error, and
+//                                  Plutonium swallows those silently.
+//  Both are populated by core, gametype-independent code: leaper_spawner_init()
+//  from _zm_ai_leaper::init() (registered into level.custom_ai_type by
+//  zm_highrise.gsc:182, every gametype), and _zm_zonemgr.gsc:798/936. Verified
+//  against the stock dump, not assumed - which is also why jumping-jack ROUNDS
+//  work in classic while this command did not.
+//  ============================================================================
 zmqol_spawn_jumpingjacks( n_amount )
 {
-    if ( !isdefined( level.leaper_spawners ) || !isdefined( level.enemy_dog_spawns ) )
+    if ( !isdefined( level.leaper_spawners ) )
         return 0;
 
     if ( !level.leaper_spawners.size )
+        return 0;
+
+    if ( !isdefined( level.active_zone_names ) )
         return 0;
 
     level thread zmqol_spawn_jumpingjacks_think( n_amount );
