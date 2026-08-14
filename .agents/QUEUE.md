@@ -4378,3 +4378,101 @@ destroy/re-create cannot leave it blank.
 Still open from earlier: B-GEN (Origins generator overlay), B-ROUND (Mob round counter missing),
 B-CHERRY (prone at Electric Cherry gives no points), B-WF (randomise the Wunderfizz first spawn),
 B-CDC (CDC/CIA survival character choice), B-TOWN (= B-DIG).
+
+## v1.95.2 — TWO ROOT CAUSES FOUND OFFLINE, BOTH FROM DEAD `isdefined` CONDITIONS
+
+### ✅ B-WAFFLE — A DIRECT WUNDERWAFFE HIT ON BRUTUS DID NOTHING. `tesla_damage_func` IS NEVER SET.
+
+User: *"i was shooting at brutus with the wunderwaffe it didn't do anything at all when directly
+shooting him with it, the only way i could damage him is if i shot a zombie near him and the zap
+from the waffe jumped to him."*
+
+🌟 **MEASURED: `tesla_damage_func` is ASSIGNED NOWHERE.** Not in `_zm_weap_tesla.gsc`, not anywhere
+under `scripts\` or `maps\`, not in the stock T6 dump, and not in either donor
+(`SRS_T5_WonderWeapons_portable`, `Wonder_Weapons-T6ZM`). It is only ever **read**, in five places.
+
+`tesla_damage_init()` carried this, added specifically to unflag surviving bosses:
+
+```gsc
+a_survivors = srs_ww_target_array();
+for ( i = 0; i < a_survivors.size; i++ )
+    if ( IsDefined( a_survivors[i] ) && IsDefined( a_survivors[i].tesla_damage_func ) )
+        a_survivors[i].zombie_tesla_hit = false;
+```
+
+**The body never executed once.** Textbook [[t6-plutonium-hides-script-errors]] silent failure: the
+loop looks load-bearing, runs every shot, and does nothing.
+
+**The chain of consequences, and it matches the report exactly:**
+1. `tesla_flag_hit()` sets `zombie_tesla_hit = true` on every arc candidate.
+2. A normal zombie dies, so its flag dies with the entity — which is why nobody noticed.
+3. **Brutus survives, so he stays flagged.** The only other place the flag is cleared is the
+   arc-cap early-out in `tesla_arc_damage()`.
+4. A **direct** hit enters `tesla_damage_init()` with `self == Brutus` and takes the
+   `self.zombie_tesla_hit` early return at the top: no damage, no arc, no boss hook. Nothing.
+5. Shooting a **nearby zombie** enters with `self ==` that zombie, which is not flagged, so the
+   shot proceeds and the arc reaches Brutus. The one thing the user found that works.
+
+🛑 The dead loop also sat **below** the early return, so even with a working condition it could
+never have cleared the flag on the very AI being shot.
+
+**Fix:** a new shot clears the per-shot flag on every AI that is still **alive**, before the early
+return. That is what "per-shot" always meant, with the dead condition removed.
+🌟 **The `IsAlive()` test is load-bearing, not decoration:** an AI already marked for tesla death is
+dead or dying and is deliberately NOT cleared, so the original early return still protects it
+verbatim. Only survivors are freed. Clearing unconditionally would re-arm a corpse mid-death.
+
+### ✅ B-TITUSCAMO — THE TITUS-6 WAS MISSING CAMO SLOT 8, THE ANIMATED ONE
+
+User: *"the titus 6 still doesn't have a pack a punch camo, it does on green run maps like tranzit,
+diner, town, bus depot etc. etc. but not mob."*
+
+**That split is the whole diagnosis and it points straight at the slot.**
+`get_pack_a_punch_weapon_options()` in `quality_of_life.gsc` sets `camo_index = 39` everywhere
+except Mob, Buried and Origins, where `anim_pap_camo_*` raises it to **40** — the animated camo.
+
+Counted the populated slots across all four of the mod's own camo assets:
+
+| camo | array length | slots carrying real `materialOverrides` |
+|---|---|---|
+| `camo_thundergun` | 13 | 0, 3, 8, 12 |
+| `camo_tesla` | 13 | 0, 3, 8, 12 |
+| `camo_freezegun` | 13 | 0, 3, 8, 12 |
+| **`camo_titus6`** | **12** | **3, 11** 🔴 |
+
+Slot 3 (index 39) is why it works on Green Run. **Slot 8 (index 40) was a filler entry with an
+empty `materialOverrides` array**, which is why Mob shows no camo at all — and the array was only
+12 long, so slot 12 did not exist either.
+
+**Fix, built from precedent rather than invented:** slot 8 now maps the Titus's own three base
+materials — taken verbatim from its working slot 3, so no material name is guessed — onto
+`mtl_weapon_camo_zmb_dlc2` / `_1` / `_2`, with `camo_mk48`'s slot-8 shaderConsts `[3,3,0,0.8,…]`.
+`camo_sig556` and `camo_xpr50` use the identical shape for their three-material layer.
+Array extended to 13 and slot 12 filled with the `mtl_weapon_camo_3layer` mapping **for parity with
+the three sibling camos** — not a fix, since nothing asks for index 45 while this mod overrides the
+camo index.
+`build_ff.bat` confirms `Loaded camo "camo_titus6" (src: disk)`.
+
+### 🔴 B-TITUSRELOAD — root-caused as far as the evidence allows, NOT fixed
+
+It is **not** the weapon def: `titus6_zm`'s `reloadSound` / `reloadSoundPlayer` /
+`reloadEmptySound` / … are all empty strings, and so are `sig556_zm`'s — and the SWAT reloads
+audibly since v1.90.5. Its `notetrackSoundMap` is empty too, and so is every other gun's. So reload
+foley on this install comes purely from **aliases named after the reload animation's notetracks**,
+in the `fly_<weapon>_<notetrack>` family.
+
+The mod ships **37** `titus` aliases and only two are foley: `fly_titus_slide_back` and
+`fly_titus_slide_forward` — the fire-mode toggle, not the reload. Compare the SWAT, which has the
+full set: `fly_sig556_bolt_back`, `_bolt_release`, `_button`, `_charge`, `_mag_in`, `_mag_out`, …
+
+**Why it stops here rather than guessing:** a missing alias is silent and never an error
+([[t6-soundbank-facts]]), so a wrong name is indistinguishable in game from the bug itself.
+Two routes were tried and both dead-ended: BO2-Reimagined's bank carries the same 16 titus aliases
+and no reload foley, and T6 `.sabl` files store alias names as **hashes**, not strings — a binary
+scan of `spl_monsoon.all.sabl` and `cmn_root.all.sabl` for `fly_titus` returns nothing.
+
+▶️ **NEXT STEP, precisely:** dump the notetracks of **`viewmodel_titus_gl_reload_empty`** (the
+`reloadAnim` named in `weapons\zm\titus6_zm`; the masterkey half uses
+`viewmodel_titus_mk_reload` / `viewmodel_titus_mk_reload_empty`) out of `monsoon.ff` with OAT.
+Those notetrack names ARE the alias names to add. `monsoon.ff` is already in `build_ff.bat`'s
+`--load` chain.

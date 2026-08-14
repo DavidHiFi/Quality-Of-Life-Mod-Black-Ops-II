@@ -116,13 +116,20 @@ source folders is built or don't-touch.
   blank icon in the feed. Cosmetic; it does not affect handling.
   📝 **The XPR-50** is stored under its development name `as50`, which is why it was twice
   reported as absent from the game — the defs are `as50_*` and the art is `xpr50_*`.
-  📝 **The Titus-6 is new in v1.93.0 and not yet confirmed in game.** It is dual-mode: the
-  explosive-dart launcher with a buckshot masterkey on alt-fire, both halves and both dart
-  projectiles included. Its Pack-a-Punch camo is compiled from source rather than copied (the
-  game ships no `camo_titus6` asset), and all three of its effects — muzzle bolt, dart trail and
-  dart explosion — are baked into `mod.ff` from the campaign fastfile that owns them.
-  🛑 **Known gap on it:** `wpn_titus_proj_loop`, the dart's in-flight loop, exists in no bank in
-  this install, so a fired dart travels silently. Everything else it asks for is present.
+  📝 **The Titus-6** is dual-mode: the explosive-dart launcher with a buckshot masterkey on
+  alt-fire, both halves and both dart projectiles included. It is **confirmed obtainable and
+  firing**. Its Pack-a-Punch camo is compiled from source rather than copied (the game ships no
+  `camo_titus6` asset), and all three of its effects — muzzle bolt, dart trail and dart explosion —
+  are baked into `mod.ff` from the campaign fastfile that owns them.
+  **Its Pack-a-Punch camo was missing on Mob of the Dead, Buried and Origins until v1.95.2 and is
+  not yet re-confirmed in game.** Those three maps use camo index **40**, the animated one, where
+  every other map uses 39; `camo_titus6` carried real materials at slot 3 (index 39) but only an
+  empty filler at slot 8 (index 40), so the camo simply had nothing to draw there. The three
+  Black Ops 1 camos all carry slots 0, 3, 8 and 12 — this one now carries 3, 8, 11 and 12.
+  🛑 **Two known gaps on it, both honest:** `wpn_titus_proj_loop`, the dart's in-flight loop, exists
+  in no bank in this install, so a fired dart travels silently. And **it reloads in silence** — its
+  reload foley aliases were never imported. The names cannot be guessed (a missing alias is silent,
+  never an error), so they have to be read out of the reload animation's notetracks first.
   🛑 **One weapon is still left out:** the **Bouncing Betty** — its viewmodel anims and HUD icon
   are absent everywhere in the workspace, so it would be a visibly broken weapon.
 - **Three Black Ops 1 wonder weapons in the mystery box** — the **Thundergun**,
@@ -135,8 +142,16 @@ source folders is built or don't-touch.
   `brutus_remove_helmet`), the second kills him through the normal damage path so his powerup
   drops. Before this he was effectively immune: all three damaged him through `DoDamage`, which
   carries no hit location, so his own damage override scaled every hit to 10% and could never
-  pop the helmet. **Confirmed in game for the Wunderwaffe and the Winter's Howl.
-  The Thundergun is fixed but NOT yet confirmed** — v1.93.0 put its hook in
+  pop the helmet. **The Thundergun is confirmed in game as of v1.94.1** — helmet off on the first
+  shot, dead and launched on the second.
+  🛑 **The Wunderwaffe needed a second, unrelated fix in v1.95.2 and is not yet re-confirmed:** a
+  *direct* hit on Brutus did nothing at all, and only the arc chaining off a nearby zombie could
+  hurt him. `tesla_damage_init()` early-returns on any target still carrying `zombie_tesla_hit`,
+  and the loop meant to clear that flag on survivors was gated on `tesla_damage_func` — a field
+  **nothing in the game, this mod, or either donor mod ever assigns**, so it never ran. Brutus
+  stayed flagged forever after his first arc. A new shot now clears the flag on every AI that is
+  still alive, which is what "per-shot" always meant.
+  The history, for context — v1.93.0 put the Thundergun hook in
   `zombie_knockdown()`, which Brutus never reaches; v1.94.0 moved it above the
   per-AI dispatch in `thundergun_knockdown_zombie()`, which only covers targets
   480–1200 units away; **v1.94.1 adds it to `thundergun_fling_zombie()` as well**,

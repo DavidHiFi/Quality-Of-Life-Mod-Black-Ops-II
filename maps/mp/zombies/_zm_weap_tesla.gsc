@@ -119,6 +119,54 @@ tesla_damage_init( hit_location, hit_origin, player )
         return;
     }
 
+    // ========================================================================
+    // 🛑 v1.95.2 - THIS CLEAR HAS TO HAPPEN BEFORE THE zombie_tesla_hit TEST
+    // BELOW, AND ITS OLD CONDITION COULD NEVER BE TRUE.
+    //
+    // User, 2026-08-14: "i was shooting at brutus with the wunderwaffe it didn't
+    // do anything at all when directly shooting him with it, the only way i could
+    // damage him is if i shot a zombie near him and the zap from the waffe jumped
+    // to him".
+    //
+    // 🌟 MEASURED: `tesla_damage_func` is ASSIGNED NOWHERE. Not in this file, not
+    // anywhere in scripts\ or maps\, not in the stock T6 dump, and not in either
+    // donor (SRS_T5_WonderWeapons_portable, Wonder_Weapons-T6ZM) - it is only
+    // ever READ, in five places. So the loop this replaces was gated on a field
+    // that is always undefined and its body never executed once. It was written
+    // specifically to unflag surviving bosses and it never unflagged anything.
+    //
+    // WHAT THAT PRODUCED, exactly as reported:
+    //   - tesla_flag_hit() sets zombie_tesla_hit = true on every arc candidate.
+    //   - A normal zombie dies, so the flag dies with the entity.
+    //   - Brutus SURVIVES, so he stays flagged. The only other place the flag is
+    //     ever cleared is the arc-cap early-out in tesla_arc_damage().
+    //   - A DIRECT hit then enters this function with self == Brutus and takes
+    //     the `self.zombie_tesla_hit` early return two lines down: the shot does
+    //     nothing whatsoever, no damage, no arc, no boss hook.
+    //   - Shooting a nearby ZOMBIE enters with self == that zombie, which is not
+    //     flagged, so the shot proceeds and the arc reaches Brutus. That is
+    //     precisely the one thing the user found that works.
+    //
+    // THE FIX: a new shot clears the per-shot flag on every AI that is still
+    // ALIVE. That is what "per-shot" was always supposed to mean, and it is the
+    // author's own intent with the dead condition removed.
+    //
+    // 🛑 THE isalive() TEST IS LOAD-BEARING, not decoration. It preserves the
+    // original protection below verbatim: an AI already marked for tesla death
+    // is dead or dying, so it is NOT cleared here and the early return still
+    // catches it. Only survivors are freed. Clearing unconditionally would
+    // re-arm a corpse mid-death.
+    // ========================================================================
+    a_alive = srs_ww_target_array();
+
+    for ( i = 0; i < a_alive.size; i++ )
+    {
+        if ( IsDefined( a_alive[i] ) && IsAlive( a_alive[i] ) )
+        {
+            a_alive[i].zombie_tesla_hit = false;
+        }
+    }
+
     if ( IsDefined( self.zombie_tesla_hit ) && self.zombie_tesla_hit )
     {
         // can happen if an enemy is marked for tesla death and player hits again with the tesla gun
@@ -128,25 +176,8 @@ tesla_damage_init( hit_location, hit_origin, player )
 //  debug_print( "TESLA: Player: '" + player.name + "' hit with the tesla gun" );
 
     //TO DO Add Tesla Kill Dialog thread....
-    
+
     player.tesla_enemies = undefined;
-
-    // Clear the per-shot hit flag on any AI that can SURVIVE an arc. tesla_flag_hit sets
-    // zombie_tesla_hit = true on every candidate and only ever clears it again in the arc-cap
-    // early-out below. Normal zombies never need clearing because the arc kills them -- the flag
-    // dies with the entity. A boss survives, so without this a boss would stay flagged across
-    // shots and later arcs would skip him at the zombie_tesla_hit check in tesla_get_enemies_in_area.
-    // Correct hygiene for any surviving AI, but NOT the Brutus fault -- an in-game probe showed him
-    // reported already-in-list on the first arc, so targeting was never the problem. See :305.
-    a_survivors = srs_ww_target_array();
-
-    for ( i = 0; i < a_survivors.size; i++ )
-    {
-        if ( IsDefined( a_survivors[i] ) && IsDefined( a_survivors[i].tesla_damage_func ) )
-        {
-            a_survivors[i].zombie_tesla_hit = false;
-        }
-    }
     player.tesla_enemies_hit = 1;
     player.tesla_powerup_dropped = false;
     player.tesla_arc_count = 0;

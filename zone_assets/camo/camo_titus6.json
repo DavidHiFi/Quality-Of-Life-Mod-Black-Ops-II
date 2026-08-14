@@ -290,28 +290,25 @@
 		{
 			"materials": [
 				{
-					"materialOverrides": [],
-					"shaderConsts": [
-						1,
-						1,
-						0,
-						1,
-						0,
-						0,
-						0,
-						0
+					"materialOverrides": [
+						{
+							"baseMaterial": "mc/mtl_t6_wpn_titus",
+							"camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
+						},
+						{
+							"baseMaterial": "mc/mtl_t6_wpn_lmg_type95_drum",
+							"camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_1"
+						},
+						{
+							"baseMaterial": "mc/mtl_t6_attach_sniper_fastmag",
+							"camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_2"
+						}
 					],
-					"useColorMap": false,
-					"useNormalMap": true,
-					"useSpecularMap": true
-				},
-				{
-					"materialOverrides": [],
 					"shaderConsts": [
-						1,
-						1,
+						3,
+						3,
 						0,
-						1,
+						0.800000011920929,
 						0,
 						0,
 						0,
@@ -442,6 +439,39 @@
 					"useColorMap": false,
 					"useNormalMap": true,
 					"useSpecularMap": true
+				}
+			]
+		},
+		{
+			"materials": [
+				{
+					"materialOverrides": [
+						{
+							"baseMaterial": "mc/mtl_t6_wpn_titus",
+							"camoMaterial": "mc/mtl_weapon_camo_3layer"
+						},
+						{
+							"baseMaterial": "mc/mtl_t6_wpn_lmg_type95_drum",
+							"camoMaterial": "mc/mtl_weapon_camo_3layer_1"
+						},
+						{
+							"baseMaterial": "mc/mtl_t6_attach_sniper_fastmag",
+							"camoMaterial": "mc/mtl_weapon_camo_3layer_2"
+						}
+					],
+					"shaderConsts": [
+						1,
+						1,
+						0,
+						1,
+						0,
+						0,
+						0,
+						0
+					],
+					"useColorMap": false,
+					"useNormalMap": true,
+					"useSpecularMap": false
 				}
 			]
 		}
