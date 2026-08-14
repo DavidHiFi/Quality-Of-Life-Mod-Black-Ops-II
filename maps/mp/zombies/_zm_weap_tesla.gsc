@@ -324,6 +324,19 @@ tesla_do_damage( source_enemy, arc_num, player )
 {
     player endon( "disconnect" );
 
+    // v1.93.0 - BOSSES FIRST, same hook as the thundergun and the freeze gun.
+    // The Wunderwaffe's health+666 was being scaled to 10% by Brutus's own
+    // actor_damage_func and never came close to killing him - the "no effect"
+    // the user reported. Installed per-map so this root file never references
+    // a Mob-only script. See zmqol_brutus_ww_hit() in zm_prison.gsc.
+    if ( isdefined( level.zmqol_ww_boss_hit ) )
+    {
+        b_handled = self [[ level.zmqol_ww_boss_hit ]]( player );
+
+        if ( b_handled )
+            return;
+    }
+
     // 🛑 THE DELAYED-KILL BUG. User, 2026-08-11: "in bo1 when you shoot a zombie
     // with the wunderwaffe it can chain up to 10 zombies, same as waw zombies, and
     // it's basically instantaneous, i just shot a few zombies in even just small

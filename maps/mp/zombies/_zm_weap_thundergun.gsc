@@ -305,6 +305,19 @@ srs_ww_target_array()
 
 zombie_knockdown( player, gib )
 {
+    // v1.93.0 - BOSSES FIRST. level.zmqol_ww_boss_hit is installed only by the
+    // map that owns the boss (scripts\zm\zm_prison\zm_prison.gsc for Brutus), so
+    // this file - which loads on every map - never names a map-specific script.
+    // It returns true when it has handled the hit: helmet off on the first shot,
+    // lethal on the second. See the long comment on zmqol_brutus_ww_hit().
+    if ( isdefined( level.zmqol_ww_boss_hit ) )
+    {
+        b_handled = self [[ level.zmqol_ww_boss_hit ]]( player );
+
+        if ( b_handled )
+            return;
+    }
+
     // Special AI still take the hit -- they just take it as plain damage, with no fall/getup and
     // no gib. Deliberately NOT a skip: the point is that every enemy type is damageable, only
     // that the ones without the animstates must not be driven through them.

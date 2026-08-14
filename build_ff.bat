@@ -295,6 +295,16 @@ REM  (common_mp.ff carries it only as a bare reference - note the leading comma
 REM  in "material, ,menu_mp_weapons_as50"). It sits after both zombies commons
 REM  so first-load-wins keeps every shared name on its zombies copy. A/B'd.
 REM
+REM  🌟 monsoon.ff and code_post_gfx.ff are the TITUS-6's sources, and they are
+REM  CAMPAIGN fastfiles - the first campaign content this mod has ever linked.
+REM  monsoon.ff owns the Titus xmodels, its 43 view anims, mtl_t6_wpn_titus and
+REM  the two weapon/titus effects; code_post_gfx.ff owns hud_monsoon_titus_arrow
+REM  and nothing else here needs it. Both sit after every zombies fastfile, so
+REM  first-load-wins means they can only supply names no zombies file offers.
+REM  🛑 A/B the full asset list after any change here - a campaign ff is exactly
+REM  the shape of thing that shadows a shared name, and zero-removed is the
+REM  property that proves it did not.
+REM
 REM  🌟 zone_source\fx_donor\mod.ff is LAST, and that placement is the whole
 REM  safety argument for it. It is the fastfile of the "T5 Winter's Howl Port"
 REM  module, added so mod_freezefx.zone can reach the 19 fx MATERIALS the ported
@@ -330,6 +340,8 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\patch_mp.ff" ^
   --load "%BO2_DIR%\zone\all\common_patch_mp.ff" ^
   --load "%BO2_DIR%\zone\all\code_post_gfx_mp.ff" ^
+  --load "%BO2_DIR%\zone\all\monsoon.ff" ^
+  --load "%BO2_DIR%\zone\all\code_post_gfx.ff" ^
   --load "%PROJ%\zone_source\fx_donor\mod.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^

@@ -25,6 +25,15 @@ QoL tweaks. All gameplay is plain GSC you can edit — no compiling, no linker.
 > v1.57.7 because loose `.iwi` files in `mod.iwd` did not reliably override the stock
 > art, and it cost 2 GB for no visible result. Load a texture pack from
 > `%LOCALAPPDATA%\Plutonium\storage\t6\images\` instead — that path works.
+>
+> **v1.93.0:** two perk icons the mod still shipped, `specialty_vulture_zombies.iwi` and
+> `specialty_tombstone_zombies.iwi`, were beating a custom pack because `mod.iwd\images\`
+> wins over `storage\t6\images\`. Both are gone, so those two now come from your pack.
+> 🛑 **Consequence, stated plainly:** without a pack, the Vulture Aid icon now falls back to
+> the game's own copy — which only Buried owns, so it may not draw on other maps. The
+> Tombstone icon is safe either way (its pixels are in the game's base pak).
+> `specialty_vulture_zombies_glow.iwi` is deliberately still shipped, because no known pack
+> replaces it.
 
 ## How to change something (the whole loop)
 
@@ -90,32 +99,43 @@ source folders is built or don't-touch.
   (`zmb_vox_ann_death_machine`, Die Rise's bank) was recorded by Treyarch and **never wired up
   anywhere in the game** — zero references across all 2,093 stock scripts. All three are
   re-shipped in the mod's own sound bank and routed through the stock announcer path.
-- **Ten multiplayer weapons added to the mystery box on every map** — the
+- **Eleven multiplayer and campaign weapons added to the mystery box on every map** — the
   **SWAT-556**, **FAL OSW**, **Mk 48**, **QBB LSW**, **MP7**, **Vector K10**, **MSMC**,
-  **Peacekeeper**, **Crossbow** and **XPR-50**, each with its Pack-a-Punch upgrade (FBI-667,
-  WN OTW, HtMk 4800, RCC MTX, Matter Penetrator 700, Matrix K1000, Modern Sub Machine
-  Catastrophe, Warmonger, Awful Lawton, Xtreme Pain Releaser 5000). Nothing is a stand-in:
-  their models, animations and camos are the
+  **Peacekeeper**, **Crossbow**, **XPR-50** and **Titus-6**, each with its Pack-a-Punch upgrade
+  (FBI-667, WN OTW, HtMk 4800, RCC MTX, Matter Penetrator 700, Matrix K1000, Modern Sub Machine
+  Catastrophe, Warmonger, Awful Lawton, Xtreme Pain Releaser 5000, Augustus-9). Nothing is a
+  stand-in: their models, animations and camos are the
   real assets baked into `mod.ff`, and their fire audio — including the `_decay`, `_dist` and
   `_LFE` layers and the Pack-a-Punch shot — ships in the mod's own sound bank. The SWAT-556's
   grenade launcher and the FAL OSW's select-fire work on the Pack-a-Punched versions.
   `zmqol_mp_weapons 0` turns them all off.
-  ⚠️ **Two gaps on these ten, still open:** they have **no reload sounds** (T6 drives reload
-  audio from animation notetracks rather than from the weapon file, so the alias import that
-  covered firing could not have caught them), and their **kill-feed icons are missing**, so a
-  kill with one shows a blank icon in the feed. Both are cosmetic; neither affects handling.
-  📝 **The XPR-50 is new in v1.92.0 and not yet confirmed in game.** It is stored under its
-  development name `as50`, which is why it was twice reported as absent from the game — the
-  defs are `as50_*` and the art is `xpr50_*`. It ships its own HUD icon material, its
-  Pack-a-Punch camo and variable-zoom scope, and both Pack-a-Punch fire sounds.
-  🛑 **Two are still left out:** the **Titus-6** (its camo and HUD arrow material
-  exist in no fastfile in a retail install) and the **Bouncing Betty** (its viewmodel anims
-  and HUD icon likewise). Shipping either would mean a visibly broken weapon, so neither ships.
+  **Reload sounds work on all eleven as of v1.93.0.** The SWAT-556 and the Peacekeeper were the
+  only two shipping with no foley aliases at all — six each, which is why the SWAT reloaded in
+  silence; the other nine already matched their source one for one. Not yet confirmed in game.
+  ⚠️ **One gap still open:** their **kill-feed icons are missing**, so a kill with one shows a
+  blank icon in the feed. Cosmetic; it does not affect handling.
+  📝 **The XPR-50** is stored under its development name `as50`, which is why it was twice
+  reported as absent from the game — the defs are `as50_*` and the art is `xpr50_*`.
+  📝 **The Titus-6 is new in v1.93.0 and not yet confirmed in game.** It is dual-mode: the
+  explosive-dart launcher with a buckshot masterkey on alt-fire, both halves and both dart
+  projectiles included. Its Pack-a-Punch camo is compiled from source rather than copied (the
+  game ships no `camo_titus6` asset), and all three of its effects — muzzle bolt, dart trail and
+  dart explosion — are baked into `mod.ff` from the campaign fastfile that owns them.
+  🛑 **Known gap on it:** `wpn_titus_proj_loop`, the dart's in-flight loop, exists in no bank in
+  this install, so a fired dart travels silently. Everything else it asks for is present.
+  🛑 **One weapon is still left out:** the **Bouncing Betty** — its viewmodel anims and HUD icon
+  are absent everywhere in the workspace, so it would be a visibly broken weapon.
 - **Three Black Ops 1 wonder weapons in the mystery box** — the **Thundergun**,
   **Wunderwaffe DG-2** and **Winter's Howl**, each with its Pack-a-Punch upgrade
   (Zeus Cannon / DG-3 JZ / Winter's Fury). They fire, chain, freeze and knock back
   properly, and handle the special enemies (Brutus, the Avogadro, screechers,
-  leapers, mechz, dogs). Console commands give one directly:
+  leapers, mechz, dogs).
+  **Brutus takes exactly two hits from any of the three as of v1.93.0** — the first knocks his
+  helmet off (and he pulls his tear gas, because it calls Mob of the Dead's own
+  `brutus_remove_helmet`), the second kills him through the normal damage path so his powerup
+  drops. Before this he was effectively immune: all three damaged him through `DoDamage`, which
+  carries no hit location, so his own damage override scaled every hit to 10% and could never
+  pop the helmet. Not yet confirmed in game. Console commands give one directly:
   `give_thundergun 1`, `give_wunderwaffe 1`, `give_wintershowl 1` — or in chat,
   `.thundergun`, `.wunderwaffe`, `.wintershowl`. `zmqol_ww 0` turns all three off.
   🛑 **Known gaps, honestly:** the Wunderwaffe's view-model lights are still too
@@ -165,6 +185,17 @@ source folders is built or don't-touch.
   Both fixed in the menu LUI.
 - **Tombstone's HUD icon fixed** — stock ships it with the badge frame upside down
   relative to every other perk. Uses BO2-Reimagined's corrected 64x64 icon.
+- **Give yourself any added weapon** — `.give <weapon>`, or `.give <weapon> pap` for the
+  Pack-a-Punched one; `.give list` prints every name it takes. Covers all eleven ported guns
+  and the three wonder weapons. Console twin, bindable and self-clearing so a bind fires every
+  time: `give_weapon "titus"` / `give_weapon "titus pap"`. It routes through the same
+  `weapon_give()` the mystery box uses, so it respects your weapon limit and behaves exactly
+  like pulling the gun out of the box — which is the point, if you are testing one.
+- **A GAME tab in Settings** — v1.93.0 adds one to the options menu with **draw identifier**
+  (the session watermark across the top of the screen), **flash script hashes** and **hold to
+  sprint**. 📝 There was never a GAME tab to "restore": Plutonium's own `optionssettings.lua`
+  builds exactly four tabs unconditionally, and this mod owns no options LUI, so it could not
+  have hidden one. This adds it.
 - **Velocity meter** — `.velocity on` / `.velocity off` (also `.vel`, `.speed`), or the
   `velocity` dvar so you can bind it. Horizontal speed in units/sec, colour-banded:
   green, yellow from 330, red from 370.

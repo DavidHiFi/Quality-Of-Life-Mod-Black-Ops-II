@@ -100,6 +100,7 @@ zmqol_mp_weapons_init()
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "peacekeeper_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "as50_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "titus6_zm" );
 
 	// their upgraded halves - included, but never a box result
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sig556_upgraded_zm", 0 );
@@ -112,6 +113,7 @@ zmqol_mp_weapons_init()
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "peacekeeper_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "as50_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "titus6_upgraded_zm", 0 );
 
 	// attachment and projectile variants - same six as the server half
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "vector_extclip_zm", 0 );
@@ -120,6 +122,13 @@ zmqol_mp_weapons_init()
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sf_sa58_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_explosive_bolt_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_explosive_bolt_upgraded_zm", 0 );
+
+	// v1.93.0 - the Titus-6's alt-fire half and its two dart projectiles.
+	// Must mirror the server list in quality_of_life.gsc exactly.
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "mk_titus6_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "mk_titus6_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "titus6_explosive_dart_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "titus6_explosive_dart_upgraded_zm", 0 );
 }
 
 // ============================================================================

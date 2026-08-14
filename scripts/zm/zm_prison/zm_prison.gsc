@@ -32,6 +32,100 @@ init()
     //  crash every other map at load. See zmqol_boss_spawn_request().
     level.zmqol_boss_name = "brutus";
     level.zmqol_boss_spawn_func = ::zmqol_spawn_brutus;
+
+    //  v1.93.0 - the three BO1 wonder weapons vs Brutus. Installed here for the
+    //  SAME reason as the spawn pointer above: this function makes a qualified
+    //  call into maps\mp\zombies\_zm_ai_brutus, which is a Mob-only script, and
+    //  a root file referencing it would be an unresolved external on every other
+    //  map AT LOAD - a runtime guard does not help. AI_CONTEXT rule 2.
+    level.zmqol_ww_boss_hit = ::zmqol_brutus_ww_hit;
+}
+
+// ============================================================================
+//  zmqol_brutus_ww_hit  -  Thundergun / Wunderwaffe / Winter's Howl vs Brutus.
+//
+//  User, 2026-08-14: "when i shoot hit with the wunderwaffe it had no effect,
+//  make it first take his helmet off with the first shot so he like pulls the
+//  grenades typical brutus, second shot kills him... right now the thundergun
+//  just sends brutus flying it doesnt even take his helmet off and i dont think
+//  you even get a power up because of him dying incorrectly".
+//
+//  WHY IT BEHAVED THAT WAY - measured, not inferred:
+//
+//  All three guns damage through DoDamage(), which routes to Brutus's own
+//  self.actor_damage_func = ::brutus_damage_override (_zm_ai_brutus.gsc:338).
+//  That function only ever pops the helmet on a "head"/"helmet" hit location or
+//  on accumulated EXPLOSIVE damage. DoDamage() passes neither a hit location nor
+//  a means-of-death, so every wonder-weapon hit fell through to
+//      return damage * n_brutus_damage_percent
+//  with level.brutus_damage_percent = 0.1. So: the helmet could never come off,
+//  and the tesla's health+666 became (health+666)*0.1, nowhere near lethal -
+//  exactly "no effect". The thundergun's knockdown damage got the same 10%,
+//  which is why it only launched him.
+//
+//  WHAT THIS DOES INSTEAD - two shots, as asked:
+//
+//    shot 1, helmet on   -> stock's own brutus_remove_helmet( vdir ). Using the
+//                           real function is the point: it detaches the model,
+//                           plays evt_brutus_helmet, launches the helmet as a
+//                           dynent AND threads brutus_fire_teargas_when_possible(),
+//                           which is the grenade-pulling reaction the user
+//                           described. No lookalike.
+//                           Points and the "brutus_helmet_removed" notify are
+//                           awarded exactly as scale_helmet_damage() does them.
+//    shot 2, helmet off  -> lethal DoDamage through the NORMAL path, so the
+//                           "death" notify fires, brutus_death() runs and its
+//                           powerup_drop() happens. That is the missing powerup.
+//
+//  🛑 THE KILL IS DELIBERATELY DoDamage AND NOT self Kill()/delete. brutus_death()
+//  is a thread waiting on self waittill( "death" ) - it is what decrements
+//  level.brutus_count, plays the death fx and stinger, and drops the powerup.
+//  Anything that removes the entity instead of killing it skips all of that.
+//
+//  Damage is health*20 + 100000 so the 10% scaler cannot leave him alive at any
+//  round; brutus_damage_percent is read from level rather than hardcoded in case
+//  a future map or mod changes it.
+//
+//  Returns true when it handled the hit, so the calling gun skips its own
+//  damage. Returns false for anything that is not a Brutus.
+// ============================================================================
+zmqol_brutus_ww_hit( player )
+{
+    if ( !isdefined( self ) || !isalive( self ) )
+        return false;
+
+    if ( !isdefined( self.animname ) || self.animname != "brutus_zombie" )
+        return false;
+
+    if ( !isdefined( player ) )
+        return true;
+
+    v_dir = vectornormalize( self.origin - player.origin );
+
+    if ( isdefined( self.has_helmet ) && self.has_helmet )
+    {
+        self thread maps\mp\zombies\_zm_ai_brutus::brutus_remove_helmet( v_dir );
+
+        if ( isplayer( player ) )
+        {
+            if ( isdefined( level.brutus_in_grief ) && level.brutus_in_grief )
+                n_points = level.brutus_points_for_helmet;
+            else
+            {
+                n_mult = maps\mp\zombies\_zm_score::get_points_multiplier( self );
+                n_points = n_mult * round_up_score( level.brutus_points_for_helmet, 5 );
+            }
+
+            player maps\mp\zombies\_zm_score::add_to_player_score( n_points );
+            player.pers["score"] = player.score;
+            level notify( "brutus_helmet_removed", player );
+        }
+
+        return true;
+    }
+
+    self DoDamage( self.health * 20 + 100000, player.origin, player );
+    return true;
 }
 
 // ============================================================================

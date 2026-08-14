@@ -97,4 +97,18 @@ LANG_ENGLISH        "Warmonger"
 REFERENCE           ZMWEAPON_AS50_UPGRADED
 LANG_ENGLISH        "Xtreme Pain Releaser 5000"
 
+// ============================================================================
+//  v1.93.0 - THE TITUS-6, weapon 11 and the last of the port.
+//
+//  Only the Pack-a-Punch name ships. Both BASE names already resolve on a
+//  zombies map - WEAPON_TITUS6_EXPLOSIVE ("Titus-6") and WEAPON_TITUS6
+//  ("Buckshot", the masterkey mode) are each present in the zombies language
+//  fastfiles, confirmed by dumping the localize asset of en_code_post_gfx_zm,
+//  en_common_zm, en_patch_zm, en_ui_zm and two map zones and matching the
+//  REFERENCE. Text below is BO2-Reimagined's, out of reimagined.str.
+// ============================================================================
+
+REFERENCE           ZMWEAPON_TITUS6_EXPLOSIVE_UPGRADED
+LANG_ENGLISH        "Augustus-9"
+
 ENDMARKER

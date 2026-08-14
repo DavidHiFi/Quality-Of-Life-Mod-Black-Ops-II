@@ -3723,6 +3723,24 @@ zmqol_dev_command_listener()
         {
             player zmqol_give_wonder_weapon( "freezegun_zm", "4", "Winter's Howl" );
         }
+        else if ( cmd == "give" || cmd == "giveweapon" || cmd == "gun" )
+        {
+            //  v1.93.0 - user, 2026-08-14: "make sure that all the added weapons
+            //  have console commands to give myself the weapons, so i can
+            //  instead of spamming the box for half an hour and praying i get
+            //  the weapon i wanna test, i can just give myself it".
+            //      .give swat        base
+            //      .give swat pap    Pack-a-Punched
+            //      .give list        every name it accepts
+            if ( tokens.size < 2 )
+            {
+                player iprintln( "^3[zm_qol] usage: ^7.give <weapon> [pap]   ^3try ^7.give list" );
+                continue;
+            }
+
+            b_pap = tokens.size > 2 && ( tokens[2] == "pap" || tokens[2] == "packed" || tokens[2] == "upgraded" );
+            player zmqol_give_named_weapon( tokens[1], b_pap );
+        }
         else if ( cmd == "infinitesprint" || cmd == "infsprint" )
         {
             if ( isdefined( player.zmqol_infsprint ) && player.zmqol_infsprint )
@@ -4771,6 +4789,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.god ^7god   ^3.ghost ^7ignored   ^3.afk ^7both   ^3.nightmode ^7on/off";
     a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance, melee stops)   ^3.fog ^7on/off";
     a_lines[a_lines.size] = "^3.velocity ^7on/off ^8(also .vel/.speed)";
+    a_lines[a_lines.size] = "^3.give <weapon> [pap] ^7every added gun ^8(.give list)";
     a_lines[a_lines.size] = "^3.brutus^7/^3.panzer^7/^3.jumpingjacks ^7(amount) ^8- Mob / Origins / Die Rise";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
@@ -4781,6 +4800,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.give^7/^3.remove^7 + ^3jug speed dtap stam mule revive deadshot phd tombstone whoswho cherry vulture";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
     a_lines[a_lines.size] = "^5console: ^3fly velocity night_mode rapid_fire character coop_pause no_power lod_fix";
+    a_lines[a_lines.size] = "^5console: ^3give_weapon \"titus\" ^7or ^3\"titus pap\" ^8- bindable, self-clearing";
     a_lines[a_lines.size] = "^5console: ^3spawn_brutus ^7n ^3spawn_panzer ^7n ^3spawn_jumpingjacks ^7n";
     //  Chat commands are console dvars too - folded onto the line below rather
     //  than given its own, because this panel has a hard line budget and has
@@ -5444,6 +5464,7 @@ zmqol_fly_key_bind()
     self thread zmqol_fly_key_toggle();
     self thread zmqol_fly_dvar_watch();
     self thread zmqol_ww_give_dvar_watch();
+    self thread zmqol_give_weapon_dvar_watch();   // v1.93.0 - give_weapon "<name> [pap]"
     self thread zmqol_velocity_dvar_watch();
     self thread zmqol_boss_spawn_dvar_watch();
 }
@@ -5804,6 +5825,168 @@ zmqol_give_wonder_weapon( str_weapon, str_which, str_name )
     self iprintln( "^2[zm_qol] gave ^7" + str_name );
 }
 
+// ============================================================================
+//  .give <weapon> [pap]   /   give_weapon "<weapon>"        (v1.93.0)
+//
+//  User, 2026-08-14: "make sure that all the added weapons have console commands
+//  to give myself the weapons, so i can instead of spamming the box for half an
+//  hour and praying i get the weapon i wanna test, i can just give myself it
+//  with the console to make sure it even works properly in zombies."
+//
+//  Covers every weapon this mod adds: the 11 ported MP/campaign guns and the
+//  three BO1 wonder weapons. The wonder weapons keep their own dedicated
+//  commands as well (.thundergun / .wunderwaffe / .wintershowl) - those route
+//  through zmqol_give_wonder_weapon(), which additionally respects the zmqol_ww
+//  gate, so this generic path defers to it for those three rather than handing
+//  out a gun the gate has switched off.
+//
+//  🛑 THE TABLE IS BUILT FROM THE SAME NAMES zmqol_mp_weapons_init() REGISTERS.
+//  If a weapon is added there and not here, .give simply will not know it - the
+//  two lists are meant to be edited together, and .give list is what shows the
+//  drift.
+//
+//  Per the standing "every chat command is also a dvar" rule, the console twin
+//  is give_weapon:
+//      give_weapon "titus"        gives the Titus-6
+//      give_weapon "titus pap"    gives the Pack-a-Punched one
+//      bind p "set give_weapon titus"
+//  zmqol_give_weapon_dvar_watch() consumes it and blanks it again, so the same
+//  bind fires every time rather than once.
+// ============================================================================
+zmqol_weapon_give_table()
+{
+    a = [];
+
+    //  keys | base weapon | upgraded weapon | display name
+    a[a.size] = zmqol_give_row( "swat swat556 sig556",              "sig556_zm",      "SWAT-556" );
+    a[a.size] = zmqol_give_row( "fal falosw sa58 osw",              "sa58_zm",        "FAL OSW" );
+    a[a.size] = zmqol_give_row( "mk48",                             "mk48_zm",        "Mk 48" );
+    a[a.size] = zmqol_give_row( "qbb qbb95 lsw",                    "qbb95_zm",       "QBB LSW" );
+    a[a.size] = zmqol_give_row( "mp7",                              "mp7_zm",         "MP7" );
+    a[a.size] = zmqol_give_row( "vector k10",                       "vector_zm",      "Vector K10" );
+    a[a.size] = zmqol_give_row( "msmc insas",                       "insas_zm",       "MSMC" );
+    a[a.size] = zmqol_give_row( "peacekeeper pk",                   "peacekeeper_zm", "Peacekeeper" );
+    a[a.size] = zmqol_give_row( "crossbow bow",                     "crossbow_zm",    "Crossbow" );
+    a[a.size] = zmqol_give_row( "xpr xpr50 as50 sniper",            "as50_zm",        "XPR-50" );
+    a[a.size] = zmqol_give_row( "titus titus6 dart",                "titus6_zm",      "Titus-6" );
+
+    return a;
+}
+
+//  One row. The upgraded name is always base with "_upgraded" spliced in before
+//  "_zm", which is the naming every one of these defs follows - checked against
+//  weapons\zm\ rather than assumed.
+zmqol_give_row( str_keys, str_base, str_name )
+{
+    s = spawnstruct();
+    s.keys = strtok( str_keys, " " );
+    s.base = str_base;
+    s.upgraded = getsubstr( str_base, 0, str_base.size - 3 ) + "_upgraded_zm";
+    s.name = str_name;
+    return s;
+}
+
+zmqol_give_named_weapon( str_arg, b_pap )
+{
+    if ( !isdefined( str_arg ) )
+        return;
+
+    str_arg = tolower( str_arg );
+
+    if ( !isdefined( b_pap ) )
+        b_pap = 0;
+
+    //  The three wonder weapons keep their own path so the zmqol_ww gate and
+    //  their friendlier failure message still apply.
+    if ( str_arg == "thundergun" || str_arg == "zeus" )
+    {
+        self zmqol_give_wonder_weapon( "thundergun_zm", "2", "Thundergun" );
+        return;
+    }
+
+    if ( str_arg == "wunderwaffe" || str_arg == "dg2" || str_arg == "tesla" )
+    {
+        self zmqol_give_wonder_weapon( "tesla_gun_zm", "3", "Wunderwaffe DG-2" );
+        return;
+    }
+
+    if ( str_arg == "wintershowl" || str_arg == "winters" || str_arg == "freezegun" )
+    {
+        self zmqol_give_wonder_weapon( "freezegun_zm", "4", "Winter's Howl" );
+        return;
+    }
+
+    a_rows = zmqol_weapon_give_table();
+
+    if ( str_arg == "list" || str_arg == "help" || str_arg == "?" )
+    {
+        self iprintln( "^3[zm_qol] .give ^7swat fal mk48 qbb mp7 vector msmc peacekeeper" );
+        self iprintln( "^3[zm_qol] .give ^7crossbow xpr titus thundergun wunderwaffe wintershowl" );
+        self iprintln( "^3[zm_qol] add ^7pap ^3for the upgraded one, e.g. ^7.give titus pap" );
+        return;
+    }
+
+    foreach ( row in a_rows )
+    {
+        foreach ( key in row.keys )
+        {
+            if ( key != str_arg )
+                continue;
+
+            if ( b_pap )
+                str_weapon = row.upgraded;
+            else
+                str_weapon = row.base;
+
+            //  🛑 Same reasoning as zmqol_give_wonder_weapon(): weapon_give(),
+            //  never giveweapon(). It honours the zombies weapon limit, takes
+            //  the current gun when you are at it, gives start ammo, switches
+            //  and plays the pickup sound - i.e. it behaves exactly like pulling
+            //  the weapon out of the box, which is the point of the command.
+            self maps\mp\zombies\_zm_weapons::weapon_give( str_weapon );
+
+            if ( b_pap )
+                self iprintln( "^2[zm_qol] gave ^7" + row.name + " ^5(Pack-a-Punched)" );
+            else
+                self iprintln( "^2[zm_qol] gave ^7" + row.name );
+
+            return;
+        }
+    }
+
+    self iprintln( "^1[zm_qol] no weapon called ^7" + str_arg + " ^1- try ^7.give list" );
+}
+
+//  give_weapon "<name> [pap]" - the console twin, blanked after every use so a
+//  bind can fire it repeatedly. Same shape as the fly / velocity watchers.
+zmqol_give_weapon_dvar_watch()
+{
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    if ( getdvar( "give_weapon" ) == "" )
+        setdvar( "give_weapon", "" );
+
+    for ( ;; )
+    {
+        str_want = getdvar( "give_weapon" );
+
+        if ( isdefined( str_want ) && str_want != "" )
+        {
+            setdvar( "give_weapon", "" );
+            a_parts = strtok( str_want, " " );
+
+            if ( isdefined( a_parts ) && a_parts.size > 0 )
+            {
+                b_pap = a_parts.size > 1 && ( a_parts[1] == "pap" || a_parts[1] == "packed" || a_parts[1] == "upgraded" );
+                self zmqol_give_named_weapon( a_parts[0], b_pap );
+            }
+        }
+
+        wait 0.25;
+    }
+}
+
 zmqol_ww_give_dvar_watch()
 {
     self endon( "disconnect" );
@@ -6001,6 +6184,21 @@ zmqol_mp_weapons_init()
     //  en_patch_zm.ff and en_code_post_gfx_zm.ff. Only the PaP name is ours.
     zmqol_add_mp_weapon( "as50_zm",        "as50_upgraded_zm",        &"WEAPON_AS50",               1000, "sniper" );
 
+    //  v1.93.0 - the Titus-6, weapon 11 and the last of the port. User request.
+    //
+    //  🛑 IT IS DUAL-MODE AND THAT CHANGES WHAT GOES IN THE BOX. titus6_zm is
+    //  the explosive-dart launcher (inventoryType primary) and its altWeapon is
+    //  mk_titus6_zm, the buckshot masterkey (inventoryType altmode). ONLY the
+    //  primary may be a box result; the three others are included below as
+    //  variants, exactly like the SWAT's grenade launcher. Box the altmode and
+    //  the player gets a weapon that cannot switch back.
+    //
+    //  Cost 1000 and vox "wpck_shotgun": stock maps class "spread" -> shotgun
+    //  (_zm_audio.gsc:126) and the masterkey half is spread, which is the half
+    //  that reads as a shotgun. The launcher half is class "rifle" but there is
+    //  no wpck for a dart launcher in the stock table.
+    zmqol_add_mp_weapon( "titus6_zm",      "titus6_upgraded_zm",      &"WEAPON_TITUS6_EXPLOSIVE",   1000, "wpck_shotgun" );
+
     // Reachable only via a PaP attachment or as a projectile - never a box
     // result, but they must be included or their owner cannot resolve them.
     zmqol_include_variant( "vector_extclip_zm" );
@@ -6010,7 +6208,14 @@ zmqol_mp_weapons_init()
     zmqol_include_variant( "crossbow_explosive_bolt_zm" );
     zmqol_include_variant( "crossbow_explosive_bolt_upgraded_zm" );
 
-    println( "[zm_qol] mp_weapons: 10 registered for the box on " + getdvar( "mapname" ) );
+    //  The Titus-6's alt-fire half and its two dart projectiles. Never a box
+    //  result; reachable only by toggling fire mode or as the fired dart.
+    zmqol_include_variant( "mk_titus6_zm" );
+    zmqol_include_variant( "mk_titus6_upgraded_zm" );
+    zmqol_include_variant( "titus6_explosive_dart_zm" );
+    zmqol_include_variant( "titus6_explosive_dart_upgraded_zm" );
+
+    println( "[zm_qol] mp_weapons: 11 registered for the box on " + getdvar( "mapname" ) );
 }
 
 zmqol_add_mp_weapon( str_base, str_upgraded, str_hint, n_cost, str_vox )

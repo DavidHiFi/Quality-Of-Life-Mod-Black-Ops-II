@@ -372,6 +372,17 @@ freezegun_debug_print( msg, color )
 
 freezegun_do_damage( upgraded, player, dist_ratio )
 {
+    // v1.93.0 - BOSSES FIRST, same hook as the thundergun and the tesla gun.
+    // Installed per-map so this root file never references a Mob-only script.
+    // See zmqol_brutus_ww_hit() in scripts\zm\zm_prison\zm_prison.gsc.
+    if ( isdefined( level.zmqol_ww_boss_hit ) )
+    {
+        b_handled = self [[ level.zmqol_ww_boss_hit ]]( player );
+
+        if ( b_handled )
+            return;
+    }
+
     // do not gib this time, was causing issues when creating a crawler
     self.no_gib = true;
     

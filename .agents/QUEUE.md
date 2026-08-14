@@ -3802,3 +3802,100 @@ fastfile in this install, and Reimagined's `zone_source\dependencies\` ships emp
 check against the new full 191-fastfile index before accepting it** — the XPR-50's `camo_xpr50` was
 found this way and the `menu_mp_weapons_as50` false negative shows the old sweeps were not reliable.
 The user authorised `SynarxisReimagined` as a donor for it on 2026-08-13.
+
+## ✅ v1.93.0 — SIX ITEMS IN ONE ROUND (user asked for all at once, 2026-08-14)
+
+User skipped ahead of v1.91.0/v1.92.0 verification to request these together. Stated to them.
+**Nothing below is boot-verified.**
+
+### 1. ✅ SWAT-556 reloaded in silence — and it was not the notetrack theory
+
+README claimed all nine ported weapons had "no reload sounds" because T6 drives reload audio from
+animation notetracks. **That was wrong and it hid a much simpler defect.** Comparing our foley
+alias set against BO2-Reimagined's, weapon by weapon:
+
+| weapon | ours | theirs |
+|---|---|---|
+| sa58, mk48, qbb95, mp7, vector, insas, crossbow, as50 | 6/10/7/4/6/5/11/7 | identical |
+| **sig556** | **0** | 6 |
+| **peacekeeper** | **0** | 6 |
+
+Exactly two weapons had **zero** foley. The v1.90.5 pass simply skipped them. 12 rows imported and
+6 shared `fly_assault_*` / `fly_m16_button` payloads staged; all verified inside the rebuilt bank.
+
+### 2. ✅ THE TITUS-6 IS IN — and the "permanent drop" was wrong on both counts
+
+`mod_titus6.zone` (new). Re-measured against the 191-fastfile index:
+- `hud_monsoon_titus_arrow` **exists** in `code_post_gfx.ff`. The old sweep missed it.
+- `camo_titus6` really is in no fastfile — **and does not need to be.** BO2-Reimagined ships
+  `camo\camo_titus6.json` and OAT compiles a weaponCamo from json. All six materials it
+  references resolve.
+- 🌟 **The fx were the real near-miss.** `mod_wonderweapons.zone` says "OAT cannot read or write
+  FxEffectDef" — true of a RAW `.efx`, false of an fx already inside a `--load`ed fastfile.
+  Verified before relying on it: `mod_locations.zone` declares 34 `fx,` lines and all 34 are in
+  the built `mod.ff`. So `fx_muz_titus_bolt`, `fx_titus_trail_bolt` and `fx_exp_titus_dart_sp`
+  are declared and copied out of `monsoon.ff` / `zm_prison.ff`. Without that the launcher would
+  have fired with no muzzle flash and no dart trail — the Winter's Howl defect again.
+- Two new `--load`s, both LAST: `monsoon.ff` (first campaign fastfile this mod has ever linked)
+  and `code_post_gfx.ff`.
+- Dual-mode handled: only `titus6_zm` is boxed; `mk_titus6_*` and both darts are variants.
+- 🛑 **Sound was the second near-miss.** The four Titus fire aliases live only in
+  `spl_monsoon.all.aliases.csv` — 21 rows imported and 11 payloads staged, all confirmed in the
+  rebuilt bank. Without them the gun fired **silently**, no error.
+- **A/B: 4,919 → 5,003, 84 added, ZERO removed.**
+
+🛑 **Residual, stated in the README:** `wpn_titus_proj_loop` is in no bank in this install, so a
+fired dart travels silently. Everything else the six defs ask for is present.
+
+### 3. ✅ BRUTUS TAKES TWO HITS FROM ALL THREE WONDER WEAPONS
+
+Root cause, measured: all three damage through `DoDamage()`, which routes to Brutus's own
+`self.actor_damage_func = ::brutus_damage_override` (`_zm_ai_brutus.gsc:338`). That function only
+pops the helmet on a `"head"`/`"helmet"` hit location or on accumulated explosive damage.
+`DoDamage()` passes **neither**, so every hit fell through to `damage * level.brutus_damage_percent`
+= **10%**. The tesla's `health + 666` became `(health+666)*0.1` — "no effect". The thundergun's
+knockdown got the same 10%, hence the launch with nothing else.
+
+Fix: `zmqol_brutus_ww_hit()` in `scripts\zm\zm_prison\zm_prison.gsc`, installed as
+`level.zmqol_ww_boss_hit` — 🛑 **map-side on purpose**, because it calls
+`maps\mp\zombies\_zm_ai_brutus::brutus_remove_helmet` and a root script naming a Mob-only script is
+an unresolved external on every other map AT LOAD. Same pattern as the existing
+`level.zmqol_boss_spawn_func`. All three guns call it first and return if it handled the hit.
+Shot 1 = stock's own `brutus_remove_helmet( vdir )` (helmet model, sound, launched dynent AND
+`brutus_fire_teargas_when_possible()` — the grenade pull), points and notify exactly as
+`scale_helmet_damage()` awards them. Shot 2 = lethal `DoDamage` through the normal path so
+`brutus_death()` runs and `powerup_drop()` happens.
+
+### 4. ✅ `.give <weapon> [pap]` / `give_weapon "<name>"`
+
+Covers all 11 ported guns + the 3 wonder weapons; `.give list` prints the names. Routes through
+`_zm_weapons::weapon_give()`, the same call the box uses, so the weapon limit, start ammo, switch
+and pickup sound all behave like a real box pull. The wonder weapons defer to
+`zmqol_give_wonder_weapon()` so the `zmqol_ww` gate still applies. Dvar blanks itself so a bind
+re-fires.
+
+### 5. ✅ THE "GAME" TAB — added, not restored, and the difference matters
+
+🛑 **There was never a GAME tab in this Plutonium build.** `optionssettings.lua` is Plutonium's own
+file in `storage\t6\raw\`, dated 2025-11-01, never written by this mod; its tab list is four
+unconditional `addTab()` calls. The stock compiled copies in `patch.ff` and `patch_zm.ff` have the
+same four, `optionscontrols.lua` has Move/Look/Combat/Interact/Gamepad, and `t6zm.exe` carries no
+such menu strings. The mod owns **zero** LUI in `mod.ff` and `build.bat` only syncs `raw\` files
+already present in both trees — so it could not have removed anything.
+
+So v1.93.0 **adds** the tab: `CreateGameTab` with `cg_drawIdentifier`, `cg_flashScriptHashes` and
+`cg_holdToSprint`, all three read live out of `console_zm.log`'s dvar dump. Uses Plutonium's own
+`addDvarLeftRightSelector`, and plain-English labels because `Engine.Localize()` falls back to the
+literal — Plutonium's own line 575 does exactly that. Their original is backed up next to it as
+`optionssettings.lua.bak-before-gametab`. `luaparse` clean.
+
+### 6. ✅ PERK ICONS NO LONGER FORCED
+
+`images\specialty_vulture_zombies.iwi` and `specialty_tombstone_zombies.iwi` removed from both
+`images\` and `zone_assets\images\` (build.bat copies the latter into the former, so both had to
+go). `specialty_vulture_zombies_glow.iwi` deliberately kept — no known pack replaces it.
+
+🛑 **The trade-off, which is the user's call and they made it twice:** the Tombstone icon is safe
+for everyone (its pixels are in `base.ipak`, confirmed in the IPAK dump), but
+`specialty_vulture_zombies` is in **no** ipak dump available here and stock owns it only in
+`zm_buried.ff` — so a user with no custom pack may lose that icon off Buried. In the README.

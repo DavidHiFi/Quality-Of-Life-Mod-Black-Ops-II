@@ -1,0 +1,114 @@
+// ============================================================================
+//  mod_titus6.zone  -  the Titus-6, weapon 11 and the last of the port.
+//
+//  User request, repeatedly, most recently 2026-08-14: "all you gotta add is the
+//  titus 6 from the campaign which i was inspired to add because my friend
+//  synarxis has it in his mod for zombies, last weapon addition and we're done."
+//
+//  🛑 THIS OVERTURNS THE RECORDED "PERMANENT DROP", AND THE OLD REASON WAS WRONG
+//  ON BOTH COUNTS. v1.88.0 dropped this weapon because "camo,camo_titus6 and
+//  material,hud_monsoon_titus_arrow exist in no fastfile in this install".
+//  Re-measured against a full index of all 191 fastfiles in zone\all:
+//
+//    hud_monsoon_titus_arrow   EXISTS - code_post_gfx.ff owns it. The old sweep
+//                              simply missed it.
+//    camo_titus6               correct, it is in no fastfile - but it does not
+//                              need to be. BO2-Reimagined ships the SOURCE,
+//                              camo\camo_titus6.json, and OAT compiles a
+//                              weaponCamo from json. Staged at
+//                              zone_assets\camo\camo_titus6.json. All six
+//                              materials it references resolve (three are
+//                              already in mod.ff, three from common_mp/monsoon).
+//
+//  🌟 AND THE FX ARE NOT A BLOCKER EITHER, WHICH IS THE PART THAT NEARLY SANK
+//  THIS AGAIN. mod_wonderweapons.zone says "OAT cannot read or write
+//  FxEffectDef" - true of a RAW .efx, and false of an fx asset already inside a
+//  --load'ed fastfile. Proven before relying on it: mod_locations.zone declares
+//  34 fx lines and all of them are present in the built mod.ff. So the three
+//  Titus effects are declared here and copied out of monsoon.ff / zm_prison.ff
+//  like any other asset.
+//
+//  Without that, the launcher mode would have fired with NO muzzle flash and NO
+//  projectile trail - the exact defect the Winter's Howl was just fixed for.
+//
+//  WHERE EACH GROUP COMES FROM
+//    xmodels / xanims / camo materials / the two Titus fx  ->  monsoon.ff
+//    hud_monsoon_titus_arrow                               ->  code_post_gfx.ff
+//    fx_titus_trail_bolt                                   ->  zm_prison.ff (also
+//                                                              in monsoon; MotD
+//                                                              already owns it)
+//  Both new --loads go LAST in build_ff.bat, after the zombies commons, so
+//  first-load-wins keeps every shared name on its zombies copy.
+//
+//  📝 NOT DECLARED, BECAUSE mod.ff ALREADY HAS THEM: the four buckshot muzzle fx
+//  (fx_muz_sg_buck_flash_1p/3p, fx_zmb_muz_buck_1p/3p) that the masterkey mode
+//  uses, and viewmodel_hands_no_model. Checked one by one against the asset dump.
+//
+//  📝 NO PACK-A-PUNCH ATTACHMENT ROW. Both upgraded defs have an EMPTY
+//  `attachments` field, the same shape as mk48 / insas / crossbow, so there is
+//  nothing for add_attachments() to look up and the v1.89.3 freeze cannot apply.
+//
+//  🛑 IT IS A DUAL-MODE WEAPON. titus6_zm (explosive dart launcher, primary) has
+//  altWeapon = mk_titus6_zm (buckshot masterkey, inventoryType altmode), and the
+//  upgraded pair mirrors that. All four defs plus the two dart projectiles must
+//  ship or the pair cannot resolve each other.
+// ============================================================================
+
+// ---- models, animations, materials, camo and effects, derived from the six
+// ---- defs by parsing every \key\value\ pair - not typed from a pattern.
+xmodel,t6_wpn_projectile_titus
+xmodel,t6_wpn_titus_view
+xmodel,t6_wpn_titus_world
+
+material,hud_monsoon_titus_arrow
+material,menu_mp_weapons_titus
+
+camo,camo_titus6
+
+fx,explosions/fx_exp_titus_dart_sp
+fx,weapon/titus/fx_muz_titus_bolt
+fx,weapon/titus/fx_titus_trail_bolt
+
+xanim,viewmodel_germangrenade_idle
+xanim,viewmodel_germangrenade_pullpin
+xanim,viewmodel_germangrenade_throw
+xanim,viewmodel_germangrenade_tossback_stick
+xanim,viewmodel_titus_gl_ads_down
+xanim,viewmodel_titus_gl_ads_fire
+xanim,viewmodel_titus_gl_ads_up
+xanim,viewmodel_titus_gl_crawl_back
+xanim,viewmodel_titus_gl_crawl_forward
+xanim,viewmodel_titus_gl_crawl_in
+xanim,viewmodel_titus_gl_crawl_left
+xanim,viewmodel_titus_gl_crawl_out
+xanim,viewmodel_titus_gl_crawl_right
+xanim,viewmodel_titus_gl_fire
+xanim,viewmodel_titus_gl_first_raise
+xanim,viewmodel_titus_gl_from_masterkey
+xanim,viewmodel_titus_gl_idle
+xanim,viewmodel_titus_gl_pullout
+xanim,viewmodel_titus_gl_pullout_quick
+xanim,viewmodel_titus_gl_putaway
+xanim,viewmodel_titus_gl_putaway_quick
+xanim,viewmodel_titus_gl_reload_empty
+xanim,viewmodel_titus_gl_sprint_in
+xanim,viewmodel_titus_gl_sprint_loop
+xanim,viewmodel_titus_gl_sprint_out
+xanim,viewmodel_titus_gl_to_masterkey
+xanim,viewmodel_titus_mk_ads_down
+xanim,viewmodel_titus_mk_ads_up
+xanim,viewmodel_titus_mk_crawl_back
+xanim,viewmodel_titus_mk_crawl_forward
+xanim,viewmodel_titus_mk_crawl_in
+xanim,viewmodel_titus_mk_crawl_left
+xanim,viewmodel_titus_mk_crawl_out
+xanim,viewmodel_titus_mk_crawl_right
+xanim,viewmodel_titus_mk_fire
+xanim,viewmodel_titus_mk_idle
+xanim,viewmodel_titus_mk_pullout
+xanim,viewmodel_titus_mk_putaway
+xanim,viewmodel_titus_mk_reload
+xanim,viewmodel_titus_mk_reload_empty
+xanim,viewmodel_titus_mk_sprint_in
+xanim,viewmodel_titus_mk_sprint_loop
+xanim,viewmodel_titus_mk_sprint_out
