@@ -4640,3 +4640,28 @@ survival or anything is random not a fixed spawn"*. Already queued as **B-WF**; 
 request for it. The Origins log line
 `[zm_qol] wunderfizz: placed 6 of 6 candidate location(s)` shows the candidate list exists per map —
 the missing piece is choosing the starting one at random rather than always taking the first.
+
+### 🟡 B-CDC (refined 2026-08-14) — CIA / CDC picker ABOVE the DIFFICULTY row
+
+User, 2026-08-14: *"the character selection option is still missing from the options in solo play
+and custom game, i want you to place it above the difficulty option, so you can select CIA or CDC
+as your character to play as during survival matches."*
+
+**Where DIFFICULTY lives is the whole job.** It is a row on the pre-game **lobby** screen (Solo Play
+/ Custom Game), i.e. LUI — not the in-game pause menu where the mod's GAME / HUD tabs are. 🌟 The
+mod already ships its own copies of `ui_mp/t6/menus/privategamelobby_project.lua` and
+`privateonlinegamelobby.lua`, so adding a row there needs no new file ownership. Find the row that
+renders DIFFICULTY and insert above it.
+
+**The server half already exists and is verified present** — `qol_options.gsc:749`
+`qol_opt_character()`, threaded per player at `:281`, reading the `character` dvar (default 0, off).
+It sets `self.characterindex = ( n_want - 1 ) % 4` and then calls the LEVEL'S OWN
+`level.givecustomcharacters`, and it stands down when `level.givecustomcharacters` is undefined or
+`level.force_team_characters` is set (Origins / Mob, where the characters are story-fixed).
+
+🛑 **Two things to settle before writing any of it:**
+1. `character` is listed in MOD_CATALOGUE.md as ⚠️ *reported to do nothing*. Confirm the server half
+   actually works from the console FIRST (`character 2` in a TranZit survival game) — a lobby row
+   driving a broken dvar is a half-implementation.
+2. CIA vs CDC is a **team**, not one of the four character slots. Establish how stock picks between
+   the two sets before mapping the option onto `characterindex` — do not assume 1-4 covers it.
