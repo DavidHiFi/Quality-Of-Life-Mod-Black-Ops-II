@@ -37,6 +37,28 @@
 
 init()
 {
+    //  ========================================================================
+    //  🛑 v1.95.5 - THE BISECT SWITCH WAS UNUSABLE AND THAT IS WHY IT HAS NEVER
+    //  PRODUCED AN ANSWER.
+    //
+    //  zmqol_minimal shipped in v1.95.1 as a plain getdvarintdefault() read with
+    //  no registration anywhere. An UNREGISTERED dvar does not exist until
+    //  something creates it, so typing `zmqol_minimal 1` at the console is not a
+    //  dvar assignment - it is an unknown command, and it silently does nothing.
+    //
+    //  🌟 MEASURED, not assumed: the 2026-08-14 Origins crash log's dvar dump
+    //  lists `zmqol_loadmovie_probe` and every other zmqol_* the mod creates, and
+    //  contains NO `zmqol_minimal` line at all. The user set it and it never
+    //  existed. Two boots were spent on a switch that could not be thrown.
+    //
+    //  Registering it here fixes that: it is created at 0 on the first load, and
+    //  qol_opt_dvar only writes when the value is empty, so a console `1` set
+    //  afterwards survives into the next map. The print below then puts the
+    //  answer in the log, so "was it actually on?" is never a guess again.
+    //  ========================================================================
+    qol_opt_dvar( "zmqol_minimal",         "0" );
+    println( "[zm_qol] minimal mode: " + zmqol_minimal() + "  (1 = all 18 periodic threads disabled)" );
+
     //  Registered up front so they all show up in the console's autocomplete
     //  even before anything reads them.
     qol_opt_dvar( "rapid_fire",            "0" );
