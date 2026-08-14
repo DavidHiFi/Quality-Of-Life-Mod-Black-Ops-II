@@ -4590,3 +4590,53 @@ still"*. Nothing about the diagnosis has changed and nothing was tried this roun
 fastfile and not in `mod.ff`, so they can only come from a raw `.efx` in `mod.iwd`. Bolts visible →
 T6 loads raw `.efx` and the Winter's Howl problem is elsewhere. Nothing → no raw `.efx` ever loads
 and every ported wonder-weapon effect needs a different route.
+
+---
+
+## 🆕 QUEUED 2026-08-14 (late evening, after the v1.95.3 Origins crash)
+
+### 🔴 B-TOGGLECONFLICT — a chat command cannot turn ON anything the menu has turned OFF
+
+User: *"there's a conflict with the .infammo command and the menu option ... if any one of them are
+set to disabled and i try to enable them via chat commands it will not allow it"*.
+
+**🌟 DIAGNOSED OFFLINE, MECHANISM CERTAIN — no boot needed to explain it.** Two front-ends write
+different things and one of them is a poller that wins:
+
+| path | what it writes |
+|---|---|
+| menu row (`ui/t6/menus/optionssettings.lua:791`) | the **dvar** `infinite_ammo` |
+| chat `.infammo` (`quality_of_life.gsc:3760-3771`) | the **player field** `player.zmqol_infammo`, and nothing else |
+| `zmqol_toggle_dvar_watch()` (`:6117-6178`) | polls the **dvar** every pass and forces the player field to match |
+
+So `.infammo` sets the field to 1, the watcher's next pass reads `infinite_ammo 0`, sees
+`b_want=0, b_is=1`, and immediately runs the OFF branch. The chat command is undone within a
+fraction of a second, exactly as reported. Turning it *off* by chat looks like it works because the
+watcher agrees with that direction.
+
+📝 This is the **single-owner rule** again, the same one behind the flashing hudelem and the
+god/ghost collision: state that a timer loop repaints may only be written by that loop.
+
+▶️ **THE FIX (all four toggles, not just ammo):** the chat commands must write the **dvar**
+(`setdvar( "infinite_ammo", ... )`) and let the watcher do the work — never touch
+`player.zmqol_*` directly. Affects `god` / `ghost` / `infammo`+`infiniteammo` /
+`infsprint`+`infinitesprint` at `:3760` and the god/ghost equivalents nearby.
+🛑 Check every chat command against its watcher before calling this done; the same pattern may
+exist for `fly`, `rapid_fire` and `night_mode`.
+
+### 🟡 B-CROSSHAIR — HUD tab toggle for the crosshair
+
+User: *"add an option under HUD to enable or disable the crosshair"*.
+📝 Likely `cg_drawCrosshair` — **verify against Plutonium's `dvar_descriptions.json` before
+writing it**, and remember a client-side render dvar has to be pushed with `setclientdvar`, not
+`setdvar`. Goes in the HUD tab, which is currently 13.5 row-pitches of the ~14.5 budget — check the
+tab still fits before adding a row.
+
+### 🔁 B-WF re-reported — the Wunderfizz first spawn is still fixed, not random
+
+User, 2026-08-14: *"the wunderfizz machine still always spawns at a fixed location initially at the
+game start ... make it so that the first initial location for the wunderfizz on all maps classic
+survival or anything is random not a fixed spawn"*. Already queued as **B-WF**; this is the second
+request for it. The Origins log line
+`[zm_qol] wunderfizz: placed 6 of 6 candidate location(s)` shows the candidate list exists per map —
+the missing piece is choosing the starting one at random rather than always taking the first.
