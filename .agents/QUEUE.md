@@ -4275,3 +4275,106 @@ with the config, not a user action. Every deliberate toggle still announces.
   only.** Still not started. 📝 `qol_options.gsc` already has a `character` dvar and a watcher
   (gated off `zm_tomb`/`zm_prison`) — that is the server half to build on.
 - **B-TOWN. Town survival: the zombie ground-spawn (emerge) sound is missing.**
+
+## 🛑 CORRECTION: "ORIGINS IS FIXED" WAS WRONG. IT CRASHED AGAIN ON v1.95.0.
+
+The previous entry claimed the capture-ring code was the emitter, on the strength of one clean
+2:03 run. **That was one data point and it was luck.** On v1.95.0 Origins died again at 0:32 with
+the identical `EXE_ERR_RELIABLE_CYCLED_OUT`, at the identical place in the log — immediately after
+`[zm_qol] BASE zm_tomb/tomb t=20`.
+
+🌟 **But the re-crash is itself a hard measurement, because the log proves the suspect was absent.**
+`console_zm.log.001` contains **neither** `capture objectives: re-declared …` line. Both functions
+were provably not running, and it crashed anyway.
+
+**Three explanations have now been disproven, each by evidence rather than by another boot:**
+
+| version | theory | how it died |
+|---|---|---|
+| v1.93.1 | the night-mode ramp | Mob shares Origins' exact night branch and is fine; ramp is one-shot now |
+| v1.94.0 | the capture re-declare + HUD nudge | both absent from the crash log, crash unchanged |
+| v1.95.0 | the zone-HUD `settext` at 4/sec | the crashing session's own dump reads `hud_zone "0"` |
+
+### 🌟 THE DVAR DUMP FROM THE CRASHING SESSION NARROWS IT ENORMOUSLY
+
+`console_zm.log.001`, lines 2552-4266 — the mod's own dvars at the moment Origins loaded:
+
+```
+hitmarkers "0"      hud_health_bar "0"   hud_master "0"     hud_remaining "0"
+hud_round_timer "0" hud_timer "0"        hud_zone "0"       lod_fix "0"
+round_summary "0"   night_mode "1"       velocity "1"
+```
+
+**Almost the entire mod HUD was already switched off and Origins crashed anyway.** So the HUD
+elements, the hitmarkers, the round summary and the LOD fix are all exonerated for this crash.
+What was still running: night mode (one-shot ramp) and the velocity meter (`setvalue` at 20/sec —
+a hudelem value write, which is snapshot state and not the reliable channel, but unproven).
+
+### ▶️ SHIPPED THIS ROUND: `zmqol_minimal 1`, A ONE-BOOT BISECT
+
+Set it at the console before starting a map and **every periodic thread the mod owns returns
+immediately**: the HUD watcher, round-counter master, LOD fix, night mode, co-op pause, the game
+and round timers, the zombie counter, the round chalk, the velocity meter and its poll, the Death
+Machine state monitor, the credits banner, the console-command watcher and all five dvar watchers.
+18 guarded entry points across `quality_of_life.gsc` and `qol_options.gsc`.
+
+🛑 Default 0, and the dvar is not registered, so with it unset **nothing changes at all**.
+Everything one-shot — weapon registration, the Wunderfizz, the wall-buy retag, perks, the wonder
+weapons — deliberately still runs.
+
+- Origins survives → the emitter is one of those periodic threads, and that list is the whole pool.
+- Origins still dies → every periodic thread is exonerated; the cause is one-shot map setup, or is
+  not this mod at all.
+
+## v1.95.1 — MENU RENAMES AND ONE REAL LATENT EMITTER
+
+### ✅ Renames, all three as asked
+- tab `QUALITY OF LIFE` → **GAME**, tab `QOL HUD` → **HUD**.
+- The heading reads **QUALITY OF LIFE** and is **centred**.
+  🛑 The in-game path could not simply pass an alignment: `CoD.InGameMenu.New(name, controller,
+  title)` calls `addTitle(title)` with one argument and `CoD.Menu.addTitle(text, alignment)`
+  defaults to `LUI.Alignment.Left` — which is exactly why the heading was centred out of game and
+  left-aligned in it. 🌟 The constant table of `BO2-Raw-files\ui\t6\codmenu.lua` shows `addTitle`
+  building `self.titleElement = LUI.UIText.new() … :setAlignment(<alignment>)`, with a sibling
+  `setTitle()` writing through the same handle — so `titleElement:setAlignment(Center)` after
+  construction is the supported route, read out of the shipped bytecode rather than guessed. It is
+  `isdefined`-guarded because an unexpected nil hard-crashes LUI.
+- **Tab strip 800 → 700.** The two short names make the strip narrower than before: 527 px of
+  glyphs + five 82 px gaps = 937 px = 600 units, +68 of stock-matching margin = 668 minimum. 700
+  leaves ~32 px per side against stock's 31. Leaving it at 800 would have pushed the arrows 82 px
+  clear of the text — the opposite of what was asked. 700 is also Reimagined's shipped value for a
+  six-tab strip labelled GRAPHICS ADVANCED SOUND VOICE CHAT GAME MOD.
+
+### ✅ The zone-name HUD was a real unbounded reliable emitter
+`qol_opt_zone_hud()` called `settext()` unconditionally from `qol_opt_hud_watcher()`'s permanent
+0.25s loop — **4 reliable commands per second, forever, whenever `hud_zone` is on**, to report a
+zone name that had not changed. Same defect class as ERROR_CATALOGUE §7b and the same one the
+health HUD was fixed for in v1.65.3. Now written only on change, with the cache on the hudelem so a
+destroy/re-create cannot leave it blank.
+🛑 **Not claimed as the Origins crash** — `hud_zone` was 0 in that session. Fixed on its own merits.
+
+## 🔴 NEW, QUEUED FROM THE 2026-08-14 EVENING BOOT
+
+- **B-DIG. The zombie ground-spawn / dig-out sound is missing.** Reported twice now (Town survival,
+  and again this boot). Nothing has been looked at yet.
+- **B-TITUSCAMO. The Titus-6 has no Pack-a-Punch camo on Mob of the Dead**, but does on the Green
+  Run maps (TranZit, Diner, Town, Bus Depot).
+  🌟 Strong lead, not yet verified: the mod's own animated-camo override forces **camo index 40** on
+  Mob, Buried and Origins (`anim_pap_camo_mob` and friends in `qol_options.gsc`), while stock asks
+  for 39 elsewhere. v1.94.0 rebuilt `camo_titus6.json`'s **slot 3** only. The three BO1 ports hit
+  this exact bug before — check what the working camos carry for the animated index.
+- **B-TITUSRELOAD. The Titus-6 has no reload sound.** Same class as the SWAT/Peacekeeper foley gap
+  fixed in v1.90.5 — check whether `titus6` has reload aliases in the shipped banks at all.
+- **B-WAFFLE. A direct Wunderwaffe hit on Brutus does nothing.** Only the chained arc off a nearby
+  zombie damages him.
+  🌟 Lead: `level.zmqol_ww_boss_hit` is hooked in `tesla_do_damage()`, which is the per-arc damage
+  call — that is why the chain works. The DIRECT hit is a different entry point, so Brutus is
+  either excluded from the initial target pick or the direct shot never reaches
+  `tesla_do_damage()`. Find the direct-hit path before touching anything.
+- **B-PERKLIMIT. Add a GAME-tab toggle for the 4-perk limit.** The mod already has a no-perk-limit
+  module; this needs a dvar and a row.
+- **B-BACKSPEED. Add a GAME-tab toggle for the backspeed fix.**
+
+Still open from earlier: B-GEN (Origins generator overlay), B-ROUND (Mob round counter missing),
+B-CHERRY (prone at Electric Cherry gives no points), B-WF (randomise the Wunderfizz first spawn),
+B-CDC (CDC/CIA survival character choice), B-TOWN (= B-DIG).

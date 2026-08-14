@@ -554,6 +554,9 @@ new_full_ammo_powerup( drop_item, player )
 // ============================================================================
 round_hud()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level waittill( "start_of_round" );
     switch ( level.round_number )
     {
@@ -1124,6 +1127,9 @@ first_spawn()
 
 timer()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     //  v1.84.0 - TOP-LEFT, was top-centre. User, 2026-08-13: *"move the game
     //  counter to the top left of the screen, and have the current round timer
@@ -1198,6 +1204,9 @@ timer()
 
 zombiecounter()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "end_game" );
     flag_wait( "initial_blackscreen_passed" );
@@ -1926,6 +1935,9 @@ deathmachine_powerup( m_powerup, e_player )
 
 powerup_state_monitor()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level endon( "end_game" );
     self endon( "disconnect" );
     self endon( "death" );
@@ -3273,6 +3285,9 @@ zmqol_credits_banner()
 
 zmqol_credits_banner_print()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "end_game" );
 
@@ -3363,6 +3378,9 @@ zmqol_console_command_names()
 
 zmqol_console_command_watcher()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level endon( "game_ended" );
 
     a_names = zmqol_console_command_names();
@@ -5560,6 +5578,9 @@ zmqol_boss_spawn_request( str_boss, n_amount )
 
 zmqol_boss_spawn_dvar_watch()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "game_ended" );
 
@@ -5703,6 +5724,9 @@ zmqol_velocity_set( b_on, b_quiet )
 
 zmqol_velocity_think()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     self endon( "zmqol_velocity_off" );
     level endon( "game_ended" );
@@ -5763,6 +5787,9 @@ zmqol_velocity_think()
 // ============================================================================
 zmqol_velocity_dvar_watch()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "game_ended" );
 
@@ -6026,6 +6053,9 @@ zmqol_give_named_weapon( str_arg, b_pap )
 // ============================================================================
 zmqol_toggle_dvar_watch()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "game_ended" );
 
@@ -6166,6 +6196,9 @@ zmqol_toggle_dvar_watch()
 //  bind can fire it repeatedly. Same shape as the fly / velocity watchers.
 zmqol_give_weapon_dvar_watch()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "game_ended" );
 
@@ -6194,6 +6227,9 @@ zmqol_give_weapon_dvar_watch()
 
 zmqol_ww_give_dvar_watch()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "game_ended" );
 
@@ -6723,6 +6759,9 @@ zmqol_round_dvar_watch()
 
 zmqol_fly_dvar_watch()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "game_ended" );
 
@@ -10826,4 +10865,43 @@ zmqol_spawn_baseline_probe()
 
         println( "[zm_qol] BASE " + str_where + " t=" + ( ( i + 1 ) * 10 ) + " pool=" + n_pool + " total=" + n_total + " alive=" + get_current_zombie_count() + " actors=" + get_current_actor_count() + " ailim=" + n_ailim + " actlim=" + n_actlim + " flag=" + flag( "spawn_zombies" ) );
     }
+}
+
+// ============================================================================
+//  zmqol_minimal  -  THE ORIGINS BISECT SWITCH                     (v1.95.1)
+//
+//  `zmqol_minimal 1` at the console, before starting a map, stops EVERY
+//  periodic thread this mod owns from running: the HUD watcher, the round
+//  counter master, the LOD fix, night mode, the co-op pause watcher, the game
+//  and round timers, the zombie counter, the round chalk, the velocity meter
+//  and its poll, the Death Machine state monitor, the credits banner, the
+//  console-command watcher and all five dvar watchers.
+//
+//  🛑 IT IS A DIAGNOSTIC, NOT A FEATURE. Default 0; nothing changes unless it
+//  is typed. Everything one-shot - weapon registration, the Wunderfizz, the
+//  wall-buy retag, perks, the wonder weapons - is deliberately still active.
+//
+//  WHY IT EXISTS. Origins dies with EXE_ERR_RELIABLE_CYCLED_OUT at ~20-35s and
+//  three explanations have now been wrong: the night-mode ramp (v1.93.1), the
+//  capture-objective re-declare and HUD nudge (v1.94.0, and the crash came back
+//  with both provably off - neither line appears in the crash log), and this
+//  session's zone-HUD settext (the crashing session's own dvar dump reads
+//  hud_zone "0", so that loop was not even running).
+//
+//  🌟 The same dump settles a great deal more, and it is why a switch is worth
+//  shipping rather than another guess: in the crashing session hud_master "0",
+//  every hud_* sub-option "0", hitmarkers "0", round_summary "0", lod_fix "0".
+//  Almost the entire HUD was already off and it crashed anyway. What was left
+//  on was night_mode "1" and velocity "1".
+//
+//  So one boot with this set to 1 splits the remaining space in half:
+//    - Origins survives  -> the emitter IS one of this mod's periodic threads,
+//                           and the list above is now the whole suspect pool.
+//    - Origins still dies -> every periodic thread is exonerated and the cause
+//                           is in one-shot map setup, or is not this mod.
+//  Either answer is worth more than another fix built on the likeliest story.
+// ============================================================================
+zmqol_minimal()
+{
+    return getdvarintdefault( "zmqol_minimal", 0 );
 }

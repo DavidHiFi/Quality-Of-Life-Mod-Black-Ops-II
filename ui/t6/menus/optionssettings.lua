@@ -835,11 +835,38 @@ end
 LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	local OptionsSettingsWidget = nil
 	local InGame = UIExpression.IsInGame() == 1
+	-- ========================================================================
+	--  zm_qol v1.95.1 - THE HEADING READS "QUALITY OF LIFE" AND IS CENTRED.
+	--  User, 2026-08-14: "move where it says settings on the top left in the
+	--  pause menu to where the arrow faces, which is centered, and rename it
+	--  from SETTINGS to QUALITY OF LIFE."
+	--
+	--  🛑 THE IN-GAME PATH CANNOT PASS AN ALIGNMENT. CoD.InGameMenu.New(name,
+	--  controller, title) calls addTitle(title) with ONE argument, and
+	--  CoD.Menu.addTitle(text, alignment) defaults to LUI.Alignment.Left - which
+	--  is why the heading sits top-left in game and centred out of game (the
+	--  else-branch below has always passed Center).
+	--
+	--  🌟 READ OUT OF THE SHIPPED BYTECODE, NOT GUESSED. The constant table of
+	--  BO2-Raw-files\ui\t6\codmenu.lua shows addTitle building
+	--      self.titleElement = LUI.UIText.new() ... :setAlignment( <alignment> )
+	--  and a sibling setTitle() that writes through the same handle. So
+	--  titleElement is the real field name and setAlignment is the real method;
+	--  re-aligning after construction is the supported route, not a second
+	--  addTitle call that would stack two heading elements.
+	--
+	--  Guarded anyway: an unexpected nil here would hard-crash LUI, and a
+	--  left-aligned heading is a cosmetic loss, not a broken menu.
+	-- ========================================================================
+	local ZmQolMenuTitle = Engine.Localize("QUALITY OF LIFE")
 	if InGame then
-		OptionsSettingsWidget = CoD.InGameMenu.New("OptionsSettingsMenu", LocalClientIndex, Engine.Localize("MENU_SETTINGS_CAPS"))
+		OptionsSettingsWidget = CoD.InGameMenu.New("OptionsSettingsMenu", LocalClientIndex, ZmQolMenuTitle)
+		if OptionsSettingsWidget.titleElement then
+			OptionsSettingsWidget.titleElement:setAlignment(LUI.Alignment.Center)
+		end
 	else
 		OptionsSettingsWidget = CoD.Menu.New("OptionsSettingsMenu")
-		OptionsSettingsWidget:addTitle(Engine.Localize("MENU_SETTINGS_CAPS"), LUI.Alignment.Center)
+		OptionsSettingsWidget:addTitle(ZmQolMenuTitle, LUI.Alignment.Center)
 		OptionsSettingsWidget:addLargePopupBackground()
 	end
 	OptionsSettingsWidget.addApplyPrompt = CoD.Options.AddApplyPrompt
@@ -871,7 +898,9 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 		Engine.SyncHardwareProfileWithDvars()
 	end
 	CoD.OptionsSettings.DoNotSyncProfile = nil
-	-- zm_qol v1.95.0 - 500 -> 800. THIS IS WHAT PUT THE ARROWS INSIDE THE TEXT.
+	-- zm_qol v1.95.1 - 800 -> 700, because the tabs were renamed GAME and HUD.
+	-- v1.95.0 raised stock's 500 to 800; THAT is what pulled the arrows off the
+	-- text in the first place.
 	--
 	-- CoD.Options.SetupTabManager(widget, HorizontalOffset) does
 	--     GenericTabManager:setLeftRight(false, false, -HorizontalOffset/2, HorizontalOffset/2)
@@ -889,16 +918,17 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	--     VOICE CHAT 1078..1207   QUALITY OF LIFE 1289..1465
 	-- Five labels span 929 px = 595 units; stock's four span 675 px = 432 units
 	-- inside the 500 container, i.e. stock leaves ~34 units of margin per side.
-	-- This build now has SIX tabs - "QOL HUD" adds ~83 px of glyphs plus one
-	-- 82 px gap - so the strip is ~1094 px = 700 units, and 700 + 68 = 768 is
-	-- the minimum. 800 leaves 37 px of margin per side against stock's 31, so
-	-- the arrows sit just outside the text exactly as they do on the stock tabs.
+	-- The six labels are now GRAPHICS ADVANCED SOUND VOICE CHAT GAME HUD, and
+	-- the two short names make the strip NARROWER than the five-tab version:
+	-- 527 px of glyphs plus five 82 px gaps = 937 px = 600 units. 600 + 68 = 668
+	-- is the minimum, so 700 leaves ~32 px of margin per side - stock's is 31.
+	-- 800 would now leave 82 px per side and push the arrows visibly away from
+	-- the text, which is the opposite of what was asked for.
 	--
-	-- 800 is also a working precedent twice over: Plutonium's own
-	-- optionscontrols.lua uses 800 for its five-tab strip in this same build,
-	-- and BO2-Reimagined uses 700 for a six-tab strip with slightly narrower
-	-- labels.
-	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, 800)
+	-- 🌟 700 is also BO2-Reimagined's shipped value for a six-tab settings strip
+	-- labelled GRAPHICS ADVANCED SOUND VOICE CHAT GAME MOD - the same label set
+	-- to within one three-letter word (its ui/t6/options.lua, line 661).
+	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, 700)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_GRAPHICS_CAPS", CoD.OptionsSettings.CreateGraphicsTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_ADVANCED_CAPS", CoD.OptionsSettings.CreateAdvancedTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_SOUND_CAPS", CoD.OptionsSettings.CreateSoundTab)
@@ -908,11 +938,11 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	-- Engine.Localize falls back to the literal when a key does not exist, which
 	-- is how this renders as "QUALITY OF LIFE" with no new localize entry;
 	-- Plutonium's own line for FOV SENSITIVITY relies on the same behaviour.
-	SettingsTabs:addTab(LocalClientIndex, "QUALITY OF LIFE", CoD.OptionsSettings.CreateQolTab)
-	-- v1.95.0 - the visuals and HUD half. Split so neither tab overflows; see
-	-- the note above CreateQolTab. Kept short ("QOL HUD") so the six-tab strip
-	-- still fits comfortably inside the 800-unit container set below.
-	SettingsTabs:addTab(LocalClientIndex, "QOL HUD", CoD.OptionsSettings.CreateQolHudTab)
+	SettingsTabs:addTab(LocalClientIndex, "GAME", CoD.OptionsSettings.CreateQolTab)
+	-- v1.95.1 - the visuals and HUD half, named "HUD" at the user's request
+	-- (2026-08-14), with the first tab renamed back to "GAME". Split so neither
+	-- tab overflows - see the note above CreateQolTab.
+	SettingsTabs:addTab(LocalClientIndex, "HUD", CoD.OptionsSettings.CreateQolHudTab)
 	if CoD.OptionsSettings.CurrentTabIndex then
 		SettingsTabs:loadTab(LocalClientIndex, CoD.OptionsSettings.CurrentTabIndex)
 	else

@@ -122,6 +122,9 @@ init()
 // ============================================================================
 qol_opt_roundcounter_master()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level endon( "end_game" );
 
     n_prev = 1;
@@ -192,6 +195,9 @@ qol_opt_roundcounter_master()
 // ============================================================================
 qol_opt_lod_fix()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level endon( "end_game" );
 
     n_prev = -1;
@@ -428,6 +434,9 @@ qol_opt_night_mode()
 
 qol_opt_night_on()
 {
+    if ( zmqol_minimal() )
+        return;
+
     //  ========================================================================
     //  v1.59.3 - WHY THIS USED TO RENDER A BLACK SCREEN.
     //
@@ -771,6 +780,9 @@ qol_opt_character()
 // ----------------------------------------------------------------------------
 qol_opt_coop_pause()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level endon( "end_game" );
 
     b_paused = 0;
@@ -870,6 +882,9 @@ qol_opt_nullptr()
 // ----------------------------------------------------------------------------
 qol_opt_hud_watcher()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "end_game" );
 
@@ -1075,7 +1090,29 @@ qol_opt_zone_hud( b_on )
     if ( isdefined( self.zone_name ) )
         str_zone = self.zone_name;
 
-    self.qol_hud_zone settext( str_zone );
+    //  🛑 v1.95.1 - WRITTEN ONLY ON CHANGE. This is called from
+    //  qol_opt_hud_watcher()'s permanent 0.25s loop, and settext() is ONE
+    //  RELIABLE SERVER COMMAND PER CALL - so with hud_zone on this was a
+    //  permanent 4/sec stream against a 128-entry ring, which is the exact
+    //  defect ERROR_CATALOGUE section 7b is about and the exact thing the health
+    //  HUD was fixed for in v1.65.3. A player standing in one zone was sending
+    //  four commands a second to report that nothing had changed.
+    //
+    //  📝 This is NOT claimed to be the Origins crash. The dvar dump from that
+    //  session reads hud_zone "0", so this loop was not running there. It is a
+    //  real unbounded emitter found while looking for that one, and it is fixed
+    //  on its own merits.
+    //
+    //  🌟 THE CACHE LIVES ON THE HUDELEM, for the same reason the health one
+    //  does: the block above destroys and re-creates this element whenever
+    //  hud_zone is toggled, and a local would survive that and leave the fresh
+    //  element permanently blank. A new element carries no .qol_last_zone, so
+    //  the first pass after any re-create writes the text again.
+    if ( !isdefined( self.qol_hud_zone.qol_last_zone ) || self.qol_hud_zone.qol_last_zone != str_zone )
+    {
+        self.qol_hud_zone settext( str_zone );
+        self.qol_hud_zone.qol_last_zone = str_zone;
+    }
 }
 
 //  Time since the current round started, next to the game timer.
@@ -1143,4 +1180,12 @@ qol_opt_round_clock()
                 player.qol_hud_roundtimer settimerup( 0 );
         }
     }
+}
+
+zmqol_minimal()
+{
+    //  Twin of the one in quality_of_life.gsc - see the long note there. GSC
+    //  scopes function names per file, so each file that needs the gate carries
+    //  its own two-line copy rather than reaching across with a qualified call.
+    return getdvarintdefault( "zmqol_minimal", 0 );
 }
