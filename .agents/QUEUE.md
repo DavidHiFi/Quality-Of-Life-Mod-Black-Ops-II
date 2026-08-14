@@ -4752,3 +4752,29 @@ since v1.81.0 (`git log -S whos_who`), so whatever changed was something else - 
 the user's config) pins `r_filmUseTweaks` and the whole `vc_*` grade on the client. Either could
 swamp a filter/visionset. **Ask which map it was on** before spending a boot - the map decides
 which materials are loaded.
+
+### 🔴 B-CONTROLS — three Plutonium rows missing from CONTROLS → LOOK
+
+User, 2026-08-14, with a reference screenshot of a working client: the LOOK tab should end
+**MOUSE SENSITIVITY / RAW INPUT / MOUSE ACCELERATION / FIX HIGH POLL RATE LAG**. Theirs stops at
+MOUSE SENSITIVITY.
+
+**Root cause found, and it is NOT this mod's code.**
+`%LOCALAPPDATA%\Plutonium\storage\t6\raw\ui\t6\menus\optionscontrols.lua` is a **retail decompile**
+(plain Lua source, dated 2025-11-01) sitting in Plutonium's raw folder, where it **shadows
+Plutonium's own patched version**. Its `CreateLookTab` ends at the mouse-sensitivity slider - read
+it, lines 140-147 - which is exactly the truncated menu in the screenshot. zm_qol does not ship this
+file and `build.bat` never touches it (it only refreshes .lua files that exist in BOTH the project
+and raw\, and the project has no optionscontrols.lua). It arrived from this workspace's earlier LUI
+patching, and it breaks the menu with or without the mod loaded.
+
+▶️ **FIX / TEST (user runs it, the sandbox blocks writes to the Plutonium folder):** rename it
+aside, restart Plutonium, open Controls → LOOK.
+
+🛑 **AND THE SAME DISEASE IS IN `optionssettings.lua`.** The mod's copy is built on the same retail
+decompile, which is why v1.93.0 had to hand-re-add four Plutonium GAME-tab rows (allow downloading,
+draw identifier, flash script hashes, hold to sprint) and why "reduce engine sleeps" and perma-perks
+are missing. **The proper fix is to rebuild the mod's copy on top of PLUTONIUM'S current file rather
+than the retail one** - then no Plutonium row can ever be lost again. Confirm the optionscontrols
+test first; it proves Plutonium restores its own version when the shadow is gone, which is the whole
+premise of that rebuild.
