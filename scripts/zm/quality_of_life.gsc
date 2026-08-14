@@ -1131,64 +1131,78 @@ timer()
         return;
 
     self endon( "disconnect" );
-    //  v1.84.0 - TOP-LEFT, was top-centre. User, 2026-08-13: *"move the game
-    //  counter to the top left of the screen, and have the current round timer
-    //  below it"*.
+    //  v1.95.3 - TOP-RIGHT, DIRECTLY UNDER THE ROUND COUNTER. User, 2026-08-14:
+    //  *"move the timers ... underneath the round counter on the top right, just
+    //  below it so i don't get the visual bug on maps like mob where the key icon
+    //  overlaps the counters"*. Top-left is where Mob's key/knife icon lives, and
+    //  the two were drawing on top of each other.
+    //
+    //  🌟 EVERY NUMBER BELOW IS PIXEL-MEASURED, NOT NUDGED. Sources: the user's
+    //  Origins clip (1920x1080, round 100) and their Mob screenshot (2560x1440),
+    //  both scanned with System.Drawing for the exact bounding box of each
+    //  element. The hud space is 480 units tall and scales UNIFORMLY, so
+    //  1080/480 = 2.25 px per unit in the clip and 3.0 in the screenshot.
+    //
+    //    round counter ("100", round_hud() above)   glyph box y 102..175 px
+    //    this game timer at y = 8                   glyph top  y  26   px
+    //    round timer at y = 22                      glyph top  y  56   px
+    //
+    //  Horizontal is exact BY CONSTRUCTION rather than by arithmetic: this
+    //  element now copies round_hud()'s own anchor - horzalign "right", x = 25 -
+    //  so whatever the safe area does to that origin, it does to both. The one
+    //  thing that had to be measured is the ROUND COUNTER'S alignx, which
+    //  round_hud() never sets: its "100" measured 1780..1881 px, i.e. centred on
+    //  813.6 units, and only alignx "center" puts it there ("left" would start it
+    //  at 813 and run off the screen edge). So alignx "center" here parks these
+    //  two dead under the round number.
     //
     //  🛑 THE ANCHOR HERE AND IN qol_options.gsc::qol_opt_round_timer_hud()
-    //  MUST STAY IDENTICAL. The round timer sits QOL_TIMER_ROW_H below this one
-    //  and the two only stack if they resolve their y against the same edge.
-    //  The round timer used to be a setpoint( "TOP", "TOP", 0, 14 ), which is
-    //  vertalign "top", while this element is "user_top" - different origins, so
-    //  the 14 between them was never a real gap. Both are now set the same way,
-    //  by hand, so the offset means what it says.
+    //  MUST STAY IDENTICAL. The round timer sits one 14-unit row below this one
+    //  and the two only stack if they resolve against the same edges.
+    //
+    //  v1.84.0 (superseded) - TOP-LEFT, was top-centre. User, 2026-08-13: *"move
+    //  the game counter to the top left of the screen, and have the current round
+    //  timer below it"*.
+    //
+    //  vertalign STAYS "user_top" even though round_hud() uses "top". That is
+    //  deliberate: the y below is derived from a pixel measurement OF THIS VERY
+    //  ELEMENT in the "user_top" frame (y = 8 -> glyph top 26 px), so the offset
+    //  between the two origins is already baked into the number. Switching the
+    //  frame would throw the one calibration away.
     timer = newclienthudelem( self );
-    timer.alignx = "left";
+    timer.alignx = "center";        // == round_hud()'s measured alignment
     timer.aligny = "top";
-    timer.horzalign = "left";
+    timer.horzalign = "right";      // == round_hud()
     timer.vertalign = "user_top";
-    //  v1.87.0 - the true top-left corner, from TWO measured points rather than
-    //  one measurement plus an assumed scale.
+    //  x = 25 is round_hud()'s own x, copied verbatim, so this text is centred on
+    //  the round number whatever the safe area is doing.
     //
-    //  Pixel-scanned from the user's own 2000x1125 screenshots, top-left corner:
-    //        x = -45  ->  text at 46px from the left
-    //        x = -56  ->  text at 21px
-    //  so the real scale is 25px / 11 units = 2.27 px per unit.
+    //  y = 80: the round counter's glyphs end at 175 px and the 14 px below that
+    //  is the gap the user asked for ("just below it"), so the target glyph top
+    //  is 189 px. This element's glyph top sits at 26 px when y = 8, and the
+    //  scale is 2.25 px/unit, so y = 8 + (189 - 26) / 2.25 = 80.4 -> 80.
     //
-    //  🛑 NOT 3.125. v1.86.0 assumed 2000/640 because hudelems are nominally a
-    //  640x480 space; the second sample disproved it - there is further scaling
-    //  in between. That assumption is why -56 undershot. Two points beat one
-    //  point and a theory.
+    //  Clearance checked, not assumed: a row scan of the whole right-hand column
+    //  found the next HUD element (the grenade / equipment counts) at 501 px,
+    //  while these two timers end at ~238 px. Nothing to collide with.
     //
-    //  v1.90.12 - PULLED OFF THE CORNER. User, 2026-08-14: *"they're all pushed
-    //  up and i feel like you should slightly move them to the right, and down a
-    //  bit too, just slightly so it's not right against the border"*.
-    //
-    //  x = -45 is not a nudge-and-see number, it is the SAME left margin this
-    //  mod's own bottom-left column already uses - qol_options.gsc's zone HUD is
-    //  setpoint( "LEFT", "BOTTOM_LEFT", -45, ... ) and the -45 sample above
-    //  measured that text at 46px from the left edge. The two timers now share a
-    //  left edge with the zombie counter / zone / health bar instead of hanging
-    //  19 units further out.
-    //
-    //  y = 8 is +10 units on the old -2. Vertical scale MEASURED from the user's
-    //  screenshot, not assumed: the game timer's glyph top sat at y=2px and the
-    //  round timer's at y=35px, and those two are exactly 14 hud units apart, so
-    //  33px / 14 = 2.36 px per unit. +10 units puts the top row ~25px down.
-    //  (That 2.36 also corroborates the 2.27 horizontal figure above - the hud
-    //  space scales uniformly off the 480-unit height, it is NOT 2000/640.)
-    //
-    //  🛑 qol_options.gsc::qol_opt_round_timer_hud() MOVED BY THE SAME +10 AND
-    //  TO THE SAME x. Change one without the other and the stack splits.
-    timer.x = -45;
-    timer.y = 8;
+    //  🛑 qol_options.gsc::qol_opt_round_timer_hud() CARRIES THE SAME anchor and
+    //  x, at y = 94 (one 14-unit row lower). Change one without the other and the
+    //  stack splits.
+    timer.x = 25;
+    timer.y = 80;
     timer.fontscale = 1.4;
-    //  v1.90.6 - yellow, user 2026-08-14. Must be set here as well as in
-    //  qol_options' watcher: that watcher seeds its previous-value to the dvar
-    //  default and so deliberately does nothing on its first pass, which would
-    //  leave this element on the engine default (white) if creation didn't set
-    //  it. Console override: hud_color_timer "r g b".
-    timer.color = ( 1, 1, 0 );
+    //  v1.95.3 - dull navy blue, user 2026-08-14: *"just make them a sort of dull
+    //  navy blue colour both the round and global match timer so they match
+    //  better"*. Both timers now carry the same colour instead of yellow /
+    //  light blue.
+    //
+    //  Must be set here as well as in qol_options' watcher: that watcher seeds
+    //  its previous-value to the dvar default and so deliberately does nothing on
+    //  its first pass, which would leave this element on the engine default
+    //  (white) if creation didn't set it. Console override, live, no rebuild:
+    //  hud_color_timer "r g b".
+    timer.color = ( 0.2, 0.3, 0.6 );
     timer.alpha = 0;
     timer.hidewheninmenu = 1;
     flag_wait( "initial_blackscreen_passed" );

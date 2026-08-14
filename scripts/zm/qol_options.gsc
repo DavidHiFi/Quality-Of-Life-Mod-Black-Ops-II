@@ -60,16 +60,23 @@ init()
     qol_opt_dvar( "hud_zone",         "0" );
     qol_opt_dvar( "hud_color",        "1 1 1" );
     qol_opt_dvar( "hud_color_health", "1 1 1" );
-    //  v1.90.6 - the two stacked top-left timers get their own colours, user
-    //  2026-08-14: game time yellow, round timer light blue.
+    //  v1.90.6 - the two stacked timers get their own colours, kept out of the
+    //  shared hud_color tint list.
+    //
+    //  v1.95.3 - both are now the SAME dull navy blue, user 2026-08-14 (was
+    //  yellow / light blue). Two dvars are kept rather than one so either row can
+    //  still be re-coloured on its own from the console.
     //
     //  🛑 They had to come OUT of the shared hud_color tint list to do this.
     //  qol_opt_hud_watcher() repaints from one dvar on change, so a colour set
     //  at creation was guaranteed to be flattened back to white on the very
     //  first pass - the same single-owner rule as the health bar above.
     //  hud_color still owns zombietext and the zone name.
-    qol_opt_dvar( "hud_color_timer",       "1 1 0" );
-    qol_opt_dvar( "hud_color_round_timer", "0.4 0.75 1" );
+    //
+    //  🛑 The watcher's str_prev_color_timer / _round seeds MUST match these two
+    //  strings exactly, or the first pass sees a change and repaints on spawn.
+    qol_opt_dvar( "hud_color_timer",       "0.2 0.3 0.6" );
+    qol_opt_dvar( "hud_color_round_timer", "0.2 0.3 0.6" );
 
     //  Read by quality_of_life::get_pack_a_punch_weapon_options(). Default 1
     //  keeps the animated camo exactly where this mod already had it.
@@ -900,8 +907,10 @@ qol_opt_hud_watcher()
     //  the first pass is a no-op. The elements are created already carrying
     //  these colours (timer() in quality_of_life.gsc and qol_opt_round_timer_hud
     //  below), so the watcher only ever has to act on a real console change.
-    str_prev_color_timer = "1 1 0";
-    str_prev_color_round = "0.4 0.75 1";
+    //  v1.95.3 - both are the same dull navy now; these MUST track the two
+    //  qol_opt_dvar defaults above or the first pass repaints on spawn.
+    str_prev_color_timer = "0.2 0.3 0.6";
+    str_prev_color_round = "0.2 0.3 0.6";
 
     //  -1 so the first pass always writes the LUI flag once, whatever hud_master
     //  says. Seeding it to 1 would leave the flag unset on a player who joined
@@ -996,7 +1005,7 @@ qol_opt_hud_watcher()
             }
         }
 
-        //  The two stacked top-left timers, each with its own colour dvar.
+        //  The two stacked top-right timers, each with its own colour dvar.
         str_color_timer = getdvar( "hud_color_timer" );
 
         if ( str_color_timer != str_prev_color_timer )
@@ -1131,28 +1140,27 @@ qol_opt_round_timer_hud( b_on )
 
     if ( !isdefined( self.qol_hud_roundtimer ) )
     {
-        //  v1.84.0 - SITS DIRECTLY UNDER THE GAME TIMER, TOP-LEFT.
+        //  v1.95.3 - SITS DIRECTLY UNDER THE GAME TIMER, TOP-RIGHT, and the pair
+        //  now sits under the round counter instead of on Mob's key icon.
         //
-        //  🛑 EVERY FIELD BELOW MIRRORS quality_of_life.gsc::timer() ON PURPOSE.
-        //  This used to be setpoint( "TOP", "TOP", 0, 14 ), which resolves y
-        //  against vertalign "top" while the game timer resolves against
-        //  "user_top" - two different origins, so the two elements were never
-        //  actually 14 apart and would drift with the safe-area setting. Same
-        //  horzalign, same vertalign, same x; only y differs, by one row.
+        //  🛑 EVERY FIELD BELOW MIRRORS quality_of_life.gsc::timer() ON PURPOSE,
+        //  and the derivation of all four numbers lives in that function's
+        //  comment - read it before touching either element. Same alignx, same
+        //  horzalign, same vertalign, same x; only y differs, by one 14-unit row.
+        //  (Both keep vertalign "user_top" rather than round_hud()'s "top": the y
+        //  values are measured in the "user_top" frame, so that offset is already
+        //  accounted for.)
         self.qol_hud_roundtimer = self createfontstring( "hudsmall", 1.2 );
-        self.qol_hud_roundtimer.alignx = "left";
+        self.qol_hud_roundtimer.alignx = "center";
         self.qol_hud_roundtimer.aligny = "top";
-        self.qol_hud_roundtimer.horzalign = "left";
+        self.qol_hud_roundtimer.horzalign = "right";
         self.qol_hud_roundtimer.vertalign = "user_top";
-        //  v1.90.12 - moved with the game timer (-64 -> -45, +10 on y). Both
-        //  numbers are derived in quality_of_life.gsc::timer(); read the note
-        //  there before touching either. The 14-unit row gap is unchanged.
-        self.qol_hud_roundtimer.x = -45;    // == timer.x, see the note there
-        self.qol_hud_roundtimer.y = 22;     // == timer.y (8) + one 14px row
-        //  v1.90.6 - light blue, user 2026-08-14. Set at creation for the same
-        //  reason as the game timer's yellow: the watcher no-ops on its first
-        //  pass. Console override: hud_color_round_timer "r g b".
-        self.qol_hud_roundtimer.color = ( 0.4, 0.75, 1 );
+        self.qol_hud_roundtimer.x = 25;     // == timer.x == round_hud()'s x
+        self.qol_hud_roundtimer.y = 94;     // == timer.y (80) + one 14-unit row
+        //  v1.95.3 - dull navy blue, same value as the game timer above, user
+        //  2026-08-14. Set at creation for the same reason: the watcher no-ops on
+        //  its first pass. Console override: hud_color_round_timer "r g b".
+        self.qol_hud_roundtimer.color = ( 0.2, 0.3, 0.6 );
         self.qol_hud_roundtimer.hidewheninmenu = 1;
 
         if ( isdefined( level.qol_round_start_time ) )

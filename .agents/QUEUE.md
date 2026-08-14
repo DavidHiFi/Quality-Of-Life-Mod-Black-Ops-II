@@ -4523,3 +4523,70 @@ say whether the **dirt burst** at the moment of emergence is there.
 📝 Worth knowing for whoever picks this up: the **dust** (the lingering cloud) is server-side
 `zombie_rise_dust_fx()` and is independent of the clientfield, so dust alone proves nothing — it is
 the sharp **burst** at the moment of emergence that shares its trigger with the sound.
+
+---
+
+## 🆕 QUEUED 2026-08-14 (evening, after the user's Origins session on v1.95.2)
+
+Reported together with the timer HUD move that shipped as v1.95.3. Listed newest-last as usual.
+
+### 🔴 B-VIEWMODEL — the player's arms and gun vanish when a horde gets close (Origins, round 100+)
+
+User: *"whenever this hoard of zombies was close to me, my character would disappear"*.
+Clip: `G:\Clips\NVIDIA\Plutonium\Plutonium 2026.08.14 - 16.25.18.02.DVR.mp4` (8.5 s, 1920x1080).
+
+**Confirmed from the clip, not from the description.** Frames were extracted with the ffmpeg that
+ships inside LosslessCut
+(`%LOCALAPPDATA%\Microsoft\WinGet\Packages\ch.LosslessCut_…\resources\ffmpeg.exe` — there is no
+ffmpeg on PATH on this machine). In every frame of the clip the **viewmodel is absent** while the
+HUD still names the weapon and its ammo (`AUGUSTUS-9  3 / 60`), so it is a *render* failure, not a
+weapon-state one. Round 100, `Zombies: 924` remaining.
+
+**🌟 The lead, and it is the mod's own doing:** `qol_options.gsc::qol_opt_lod_fix()` writes
+`r_lodBiasRigid` and `r_lodBiasSkinned` to **-1000**, which forces every model in the world to its
+highest LOD at any distance. `lod_fix "1"` is the default AND it was on in this exact session —
+`console_zm.log` (16:25, the clip's own session) carries `lod_fix "1"` in all four dvar dumps.
+Forty-plus skinned zombies at LOD0 in one view is exactly the kind of load that makes a renderer
+start dropping draws, and the viewmodel is a plausible casualty.
+
+▶️ **FREE DISCRIMINATOR, no build, one round:** at the console type **`lod_fix 0`**, then get a
+horde on top of you at a high round.
+- Gun comes back → the LOD fix is the cause, and the fix is a bounded bias (or bias only for rigid
+  models) instead of -1000.
+- Gun still vanishes → the LOD fix is exonerated and this is a base-game high-round limit; the next
+  check is whether stock BO2 does the same at round 100 with no mod loaded.
+
+🛑 Do not "fix" this by lowering the bias until the discriminator has been run — a change that
+happens to hide the symptom is not a mechanism.
+
+### 🔴 B-WHOSWHO2 — Who's Who still has no visual fx on a down (Diner, survival)
+
+User, 2026-08-14: *"the visual fx for whos who are also missing when i got a down in a survival
+diner match"*. Diner is a `zm_transit` survival location, and `zm_transit` is one of the maps
+`zmqol_whoswho_enabled()` returns 1 for (5/32 actor bits, plenty of room).
+
+📝 **This is the SECOND report of the same symptom** — the first (2026-08-09) was traced to
+`level.whos_who_client_setup` being Die Rise-only, and v1.6x set it plus registered the three
+clientfields. So the obvious cause is already fixed and something else is wrong. Both halves are
+present in the tree, checked before writing this: `quality_of_life.gsc:8419-8431` registers the
+three fields and sets `whos_who_client_setup` / `vsmgr_prio_visionset_zm_whos_who`, and
+`zm_expanded.csc:832-834` registers the same three with callbacks, with the visionset registered at
+`:1664`.
+
+▶️ **NEXT — before touching any code, split "did the perk's effect code run at all" from "did it
+run and draw nothing":** the mod already ships `zmqol_whoswho_verify()`
+(`quality_of_life.gsc:8437`) for exactly this. Read what it prints for that session out of
+`console_zm.log`, and check whether the DOWN was a real Who's Who last stand (clone spawned, you
+walk away as the ghost) or an ordinary bleed-out — the whole fx block hangs off
+`activate_chugabud_effects_and_audio()`, which only runs on the former.
+
+### 🔴 B-WFHOWL (re-confirmed, = checkpoint 47 OPEN #2) — Winter's Howl has no firing fx
+
+User re-confirmed it on 2026-08-14: *"the visual fx for shooting with the winters howl are missing
+still"*. Nothing about the diagnosis has changed and nothing was tried this round.
+
+▶️ **The free discriminator is STILL not done:** fire the **Wunderwaffe** and look at the gun.
+`maps/zombie/fx_zombie_tesla_electric_bolt` and `fx_zombie_tesla_tube_view` exist in no retail
+fastfile and not in `mod.ff`, so they can only come from a raw `.efx` in `mod.iwd`. Bolts visible →
+T6 loads raw `.efx` and the Winter's Howl problem is elsewhere. Nothing → no raw `.efx` ever loads
+and every ported wonder-weapon effect needs a different route.
