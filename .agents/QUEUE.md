@@ -4712,3 +4712,43 @@ inspection, and nothing in the record settles whether this is even the mod's fau
 - Vanilla crashes too → this is Plutonium/base-game on these two maps and the hunt stops.
 - Vanilla is fine → it is the mod, and the bisect continues with `zmqol_minimal` (now registered,
   and now provable from the log line).
+
+### 🔴 B-WHOSWHO2 (updated 2026-08-14 late) — 🌟 THE CORPSE AND THE EFFECTS ARE THE SAME BRANCH
+
+User: *"i just went down with who's who, and there's no effects while in the who's who downed
+state, it was working prior in the mod."*
+
+**Read stock before touching anything.** `_zm_chugabud::chugabud_laststand()` (:35) only calls
+`activate_chugabud_effects_and_audio()` **inside `if ( create_corpse == 1 )`** (:63-65). And
+`create_corpse` is set to 0 by any of:
+
+```gsc
+if ( isdefined( self.insta_killed ) && self.insta_killed || isdefined( self.disable_chugabud_corpse ) )
+    create_corpse = 0;
+...
+if ( isdefined( level._chugabug_reject_corpse_override_func ) )   // per-map corpse-position veto
+```
+
+So **no clone = no effects, always**, and they can never be debugged separately. The mod sets none
+of those three (grepped: zero matches outside comments), so if the corpse is missing it is stock's
+own veto firing - most likely the position reject, or an insta-kill down.
+
+▶️ **FREE DISCRIMINATOR, one look, no build: next time you go down with Who's Who, does the CLONE
+BODY appear where you fell?**
+- **No clone** → `create_corpse` came out 0 and the effects were never called. Fix the corpse
+  branch; the effects follow for free.
+- **Clone appears, still no effects** → the branch ran and one of the three effect calls is dying.
+  Then the order is: the `zm_whos_who` visionset (registered client-side at `zm_expanded.csc:1663`,
+  server-side by stock off `level.vsmgr_prio_visionset_zm_whos_who`), the audio clientfield, and the
+  screen filter, which needs `level.filter_matid["generic_filter_afterlife"]` - set by
+  `chugabud_setup_afterlife_filters()`, threaded at `zm_expanded.csc:846`. 🛑 That material has to
+  exist on the map being played; the logs already show this mod hitting
+  `Could not load material "zombie_electric_shock_overlay"` on Mob, so a missing filter material is
+  a live possibility, not a theory.
+
+📝 **"It worked before" is checkable and has NOT been checked yet.** No Who's-Who commit has landed
+since v1.81.0 (`git log -S whos_who`), so whatever changed was something else - Zombie Blood
+(v1.65.0) claims a custom visionset filter slot, and night mode (v1.59.5+, `night_mode "1"` is in
+the user's config) pins `r_filmUseTweaks` and the whole `vc_*` grade on the client. Either could
+swamp a filter/visionset. **Ask which map it was on** before spending a boot - the map decides
+which materials are loaded.
