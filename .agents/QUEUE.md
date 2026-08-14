@@ -4476,3 +4476,50 @@ scan of `spl_monsoon.all.sabl` and `cmn_root.all.sabl` for `fly_titus` returns n
 `viewmodel_titus_mk_reload` / `viewmodel_titus_mk_reload_empty`) out of `monsoon.ff` with OAT.
 Those notetrack names ARE the alias names to add. `monsoon.ff` is already in `build_ff.bat`'s
 `--load` chain.
+
+### 🔴 B-DIG — the riser sound. FOUR CAUSES ELIMINATED, THE ALIAS AND CODE PATH NAMED, NOT SOLVED.
+
+The sound is **`zmb_zombie_spawn`** (`zmb_zombie_spawn_snow` on snow maps), played by
+`handle_zombie_risers()` in stock `clientscripts\mp\zombies\_zm.csc` at the moment the
+`zombie_riser_fx` actor clientfield goes 0 -> 1:
+
+```gsc
+sound = "zmb_zombie_spawn";
+...
+playsound( 0, sound, self.origin );
+```
+
+**Eliminated, each by a check rather than an opinion:**
+
+1. **The game's own sound banks are untouched.** `sound\cmn_root.all.sabl` and
+   `mpl_common.all.sabl` both carry their original **2022** mtimes. The
+   `cmn_root.all - Copy.sabl` / `mpl_common.all - Copy.sabl` files dated today 03:38 are build
+   OUTPUT from a soundbank experiment and differ from the live files — but they were never
+   installed over them.
+2. **No clientfield exhaustion.** Zero `netfield` / `Client Field Set … out of space` /
+   `Trying to assign` lines across every log in the scratchpad.
+3. **The mod does not override the alias.** `zmb_zombie_spawn` appears in neither
+   `zone_assets\soundbank\mod.all.aliases.csv` nor `soundbank\mod.all.aliases.additions.csv`; the
+   mod's bank defines exactly **3** `zmb_*` rows and that is not one of them.
+4. **The mod's replacement of the registration function is sound.** `zm_expanded.csc:48`
+   `replaceFunc`s `_zm::init_client_flag_callback_funcs` and its copy re-registers the four riser
+   fields with `::handle_zombie_risers*` — handlers that are **not defined in that file**. That
+   looked like nine dangling callbacks (risers, both barricade-board fx, rock fx, deadshot, weapon
+   box). 🛑 **It is not a bug:** `zm_expanded.csc:15` has `#include clientscripts\mp\zombies\_zm;`,
+   so every one of those `::` references resolves through the include. Registration order and the
+   odd `12000` version argument on the foliage field are copied verbatim from stock and match the
+   server half.
+
+Also checked: `zombie_rise_burst_fx()` ends in a bare `else` that always sets `zombie_riser_fx`, so
+there is no map or zone condition under which the field fails to fire.
+
+▶️ **NEXT — a free discriminator, no build, one look:** watch a zombie climb out of the ground and
+say whether the **dirt burst** at the moment of emergence is there.
+- Burst visible, no sound → the callback runs and `zmb_zombie_spawn` is failing to resolve, which
+  points at bank loading rather than script.
+- No burst and no sound → the clientfield or its callback is not firing, and the eliminations
+  above narrow that hard.
+
+📝 Worth knowing for whoever picks this up: the **dust** (the lingering cloud) is server-side
+`zombie_rise_dust_fx()` and is independent of the clientfield, so dust alone proves nothing — it is
+the sharp **burst** at the moment of emergence that shares its trigger with the sound.
