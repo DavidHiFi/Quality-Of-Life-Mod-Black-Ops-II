@@ -40,6 +40,98 @@
 --  it does not touch the capture wheel. Flagged rather than silently assumed.
 -- ============================================================================
 
+-- ============================================================================
+--  v1.95.7 - THE GENERATOR PROGRESS RING, FIXED AT THE MECHANISM.
+--
+--  User, 2026-08-14: *"progress overlay for the generators is missing again,
+--  how have you not fixed this problem for good? fix that permanently and never
+--  re-introduce it, generator progress icon always works no more hidden stuff."*
+--
+--  🛑 WHY EVERY PREVIOUS ATTEMPT FAILED, AND WHY THIS ONE CANNOT.
+--
+--  The ring lives in ui_mp/t6/zombie/tombcapturezonedisplay.lua. Its menu is
+--  built by CoD.GametypeBase.new(), whose last act is setAlpha(0) - the menu is
+--  born INVISIBLE. Nothing in the objective path ever raises that alpha:
+--  GametypeBase.NewObjectiveEvent creates the waypoint child and calls update()
+--  on it, and never touches the parent. The ONLY thing that raises it is
+--  CoD.TCZWaypoint.UpdateVisibility, which runs solely on an incoming
+--  hud_update_bit_<N> event - which is why opening the scoreboard "fixes" it.
+--
+--  From GSC exactly one of those eleven bits can be written: BIT_HUD_VISIBLE,
+--  via setclientuivisibilityflag( "hud_visible", ... ). So every previous fix
+--  was a 0 -> 1 flip of that flag, timed to land after the client had built its
+--  menus. All of them are races, and all of them lost:
+--      v1.90.10  flip at t+8s                      -> ring stayed hidden
+--      v1.90.11  flip during an active capture     -> ring appeared, but the
+--                                                     whole HUD blinked
+--      v1.95.4   flip after spawn + black screen   -> logged
+--                "ring hud: hud_visible cycled 0->1" and the ring STILL did not
+--                appear, because the menu is created later than that
+--  A flip that lands before the menu exists reaches nothing, and the server
+--  cannot see when the client builds its LUI. There is no timing that is safe.
+--
+--  🌟 SO STOP FIGHTING THE ALPHA AND STOP IT BEING ZERO. This file is loaded by
+--  the mod already, so it can wrap the ring's own constructor: run stock's, then
+--  raise the menu it just built. No timer, no event, no flag, nothing hidden -
+--  the menu is simply never in the broken state to begin with.
+--
+--  📝 THIS DOES NOT MAKE THE RING DRAW WHEN IT SHOULDN'T. The parent is only a
+--  container; the visible wheel is a waypoint CHILD that createObjectiveIfNeeded
+--  builds per objective, and stock keeps those objectives in the "invisible"
+--  state until a capture starts. Alpha 1 on an empty container draws nothing -
+--  it is exactly the state a normal game is in after the intro raises the flag.
+--  Setting .visible = true as well keeps UpdateVisibility's own state machine
+--  honest, so a later legitimate hide (pause menu, scoreboard) still works: its
+--  hide branch tests `visible == true`.
+--
+--  📝 BOTH LOAD ORDERS ARE HANDLED. If tombcapturezonedisplay.lua has already
+--  registered its constructor we wrap it now; if it has not, a __newindex hook
+--  wraps it at the moment it registers. The hook passes every other key straight
+--  through with rawset and chains any pre-existing __newindex, so it cannot
+--  change what any other menu file does.
+--
+--  🛑 THE NAME IS VERIFIED, NOT COPIED FROM A DECOMPILE. "TombCaptureZoneDisplay"
+--  appears in the string constant table of the SHIPPED bytecode dumped out of
+--  zm_tomb_patch.ff with OpenAssetTools.
+-- ============================================================================
+local function zmqol_ring_force_visible(originalCreateMenu)
+	return function(...)
+		local menu = originalCreateMenu(...)
+
+		--  Defensive on purpose: a nil method call is a HARD LUI error, which
+		--  would take Origins' whole HUD down - strictly worse than the bug this
+		--  fixes. LUI.createMenu itself is known to exist here, because this same
+		--  file assigns LUI.createMenu.CraftablesTombArea further down.
+		if menu and menu.setAlpha then
+			menu:setAlpha(1)
+			menu.visible = true
+		end
+
+		return menu
+	end
+end
+
+if LUI.createMenu.TombCaptureZoneDisplay then
+	LUI.createMenu.TombCaptureZoneDisplay = zmqol_ring_force_visible(LUI.createMenu.TombCaptureZoneDisplay)
+else
+	local zmqol_mt = getmetatable(LUI.createMenu) or {}
+	local zmqol_prev_newindex = zmqol_mt.__newindex
+
+	zmqol_mt.__newindex = function(t, k, v)
+		if k == "TombCaptureZoneDisplay" and type(v) == "function" then
+			v = zmqol_ring_force_visible(v)
+		end
+
+		if zmqol_prev_newindex then
+			zmqol_prev_newindex(t, k, v)
+		else
+			rawset(t, k, v)
+		end
+	end
+
+	setmetatable(LUI.createMenu, zmqol_mt)
+end
+
 require("T6.Zombie.CraftableItemTombDisplay")
 require("T6.Zombie.QuestItemTombDisplay")
 require("T6.Zombie.PersistentItemTombDisplay")

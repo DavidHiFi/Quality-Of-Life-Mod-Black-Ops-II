@@ -249,7 +249,17 @@ init()
 {
     level thread zmqol_hide_native_wunderfizz();
     level thread zmqol_probe_capture_zones();
-    level thread zmqol_ring_hud_visibility();
+
+    //  🛑 v1.95.7 - zmqol_ring_hud_visibility() IS NO LONGER STARTED, and the
+    //  whole hud_visible approach is abandoned. It shipped in v1.95.4, it
+    //  provably RAN ("[zm_qol] ring hud: hud_visible cycled 0->1" is in the
+    //  2026-08-14 log), and the ring was still missing - the client builds its
+    //  LUI later than any moment the server can pick. Every flag-flip fix is a
+    //  race and all three lost. The real fix is in
+    //  ui_mp\t6\zombie\hudcraftablestombzombie.lua, which wraps the ring menu's
+    //  own constructor so its alpha is never 0 in the first place.
+    //  User: *"fix that permanently ... no more hidden stuff"* - so this also
+    //  stops the mod taking their HUD down for half a second at every spawn.
 
     //  🛑 v1.94.0 - zmqol_capture_objectives_fix() AND zmqol_capture_hud_nudge()
     //  ARE NO LONGER STARTED. Both are left in the file, unreferenced, because
