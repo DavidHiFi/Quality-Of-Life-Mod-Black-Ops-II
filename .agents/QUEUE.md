@@ -4665,3 +4665,50 @@ It sets `self.characterindex = ( n_want - 1 ) % 4` and then calls the LEVEL'S OW
    driving a broken dvar is a half-implementation.
 2. CIA vs CDC is a **team**, not one of the four character slots. Establish how stock picks between
    the two sets before mapping the option onto `characterindex` — do not assume 1-4 covers it.
+
+---
+
+## 🔴 ORIGINS/MOB CRASH — findings 2026-08-14 late, v1.95.5 (OPEN #1, still open)
+
+🛑 **CORRECTION FIRST: `zmqol_minimal` HAS NEVER BEEN ON.** v1.95.5 added
+`[zm_qol] minimal mode: N` at init, and **all three** sessions since — the Origins run that
+survived AND both crashes — log `minimal mode: 0`. The Origins survival was therefore NOT a bisect
+result, it was the intermittency. Nothing about the 18 threads has been tested yet.
+
+### What the offline sweep of the 18 gated threads says
+
+Every one was scanned for calls that actually cost a reliable server command (`iprintln`,
+`setclientdvar`, `setclientuivisibilityflag`, `settext`, `setshader`, `objective_*`), with comment
+lines excluded — an earlier pass counted the word "settext" inside a comment and was wrong.
+
+| thread | reliable calls | when |
+|---|---|---|
+| `qol_opt_night_on` | 16 × setclientdvar | once, at spawn |
+| `powerup_state_monitor` | 4 × setclientdvar | Death Machine only, not running in these games |
+| `round_hud` | 5 × setshader | once per round transition |
+| `zmqol_toggle_dvar_watch` / `_fly_` / `coop_pause` / `credits` | iprintln | only on a state change |
+| `qol_opt_hud_watcher` | 1 × setclientuivisibilityflag | only on change |
+| the other 11 | **none** | — |
+
+🌟 **So none of the 18 emits a sustained stream.** The velocity meter in particular is clean - it
+uses `setvalue`, and the "settext" that showed up in the first scan was the *comment* explaining
+why it must not use settext. A bisect that comes back "still crashes" is therefore the expected
+result, not a surprise.
+
+### Two more things measured, both of which are NOT the discriminator
+
+- **The crash lands 1-4 log lines after the second `lui checksum` exchange**, in all three crash
+  logs. But a surviving session shows the same second exchange and plays on, so it is a timing
+  marker, not a cause.
+- **A 6.5-7.2 second main-thread hitch happens at map load on EVERY map**, crashing or not
+  (Diner 6977ms, Die Rise 6854, Nuketown 6603, Origins 7246, Mob 6471). Universal, so it does not
+  explain why only Origins and Mob die. 📝 It does explain the `connected=0` that breaks the
+  generator ring - the client finishes connecting *after* the mod's init.
+
+### ▶️ THE TEST THAT HAS NEVER BEEN RUN, and it needs no build
+
+**Boot classic Origins with the mod OFF.** Four theories are dead, the emitter cannot be found by
+inspection, and nothing in the record settles whether this is even the mod's fault.
+- Vanilla crashes too → this is Plutonium/base-game on these two maps and the hunt stops.
+- Vanilla is fine → it is the mod, and the bisect continues with `zmqol_minimal` (now registered,
+  and now provable from the log line).
