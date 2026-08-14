@@ -584,27 +584,74 @@ qol_opt_night_visual_fix()
     self endon( "disconnect" );
     self endon( "disable_nightmode" );
 
+    //  ========================================================================
+    //  🛑 v1.93.1 - THIS RAN FOREVER AND IT IS WHY MOB OF THE DEAD DIED AT ~12s
+    //  WITH CL_CGameNeedsServerCommand: EXE_ERR_RELIABLE_CYCLED_OUT.
+    //
+    //  Read the ORIGINAL, _zm_nightmode.gsc::visual_fix(), before changing this
+    //  again. It is:
+    //
+    //      while( getDvar( "r_lightTweakSunLight" ) != 0 )
+    //      {
+    //          for( i = getDvar( "r_lightTweakSunLight" ); i >= 0; i -= 0.05 )
+    //          { self setclientdvar( "r_lightTweakSunLight", i ); wait 0.05; }
+    //          wait 0.05;
+    //      }
+    //
+    //  That `while` is the author's own stop condition: ramp until the value is
+    //  0, then stop. 🌟 IT CAN NEVER BE SATISFIED - setclientdvar does NOT write
+    //  back into what the SERVER's getdvar() returns (proven in this project
+    //  from 13 games of dvar dumps, see [[t6-plutonium-...]] and checkpoint 43).
+    //  So the source mod's loop is infinite too; it is a latent bug there.
+    //
+    //  This port then dropped the `while` entirely for a bare for(;;), and
+    //  v1.90.3 "fixed" the resulting flood by cutting the rate 4x (0.05 -> 0.2).
+    //  🛑 A RATE CUT IS THE WRONG SHAPE. An unbounded stream fills the client's
+    //  128-entry reliable ring eventually no matter how slow it is - the cut
+    //  only moved the crash from 0:06 to 0:12, which is exactly what the
+    //  2026-08-14 Mob log shows.
+    //
+    //  So: ramp ONCE and stop, which is what the original's `while` was written
+    //  to do. That is parity with the author's intent, not a re-tune. Total
+    //  cost is ~22 reliable commands on Mob/Origins and 2 on Buried, once, on a
+    //  ring that holds 128 - instead of a permanent 5/sec.
+    //
+    //  📝 The step is back to the original's 0.05 because the ramp is now a
+    //  one-shot: 0.2 was only ever there to slow the flood, and it made the
+    //  fade visibly chunky.
+    //  ========================================================================
     if ( level.script == "zm_buried" )
     {
-        for ( ;; )
-        {
-            self setclientdvar( "r_lightTweakSunLight", 1 );
-            self setclientdvar( "r_sky_intensity_factor0", 0 );
-            wait 0.2;
-        }
+        self setclientdvar( "r_lightTweakSunLight", 1 );
+        self setclientdvar( "r_sky_intensity_factor0", 0 );
+        return;
     }
-    else if ( level.script == "zm_prison" || level.script == "zm_tomb" )
-    {
-        for ( ;; )
-        {
-            for ( i = float( getdvar( "r_lightTweakSunLight" ) ); i >= 0; i = ( i - 0.2 ) )
-            {
-                self setclientdvar( "r_lightTweakSunLight", i );
-                wait 0.2;
-            }
 
-            wait 0.2;
+    if ( level.script == "zm_prison" || level.script == "zm_tomb" )
+    {
+        n_start = float( getdvar( "r_lightTweakSunLight" ) );
+
+        //  🛑 THE RAMP IS BOUNDED ON PURPOSE. Every step is one reliable
+        //  command and the client's ring holds 128. The measured live value on
+        //  Mob is exactly 1 ("r_lightTweakSunLight \"1\"" in the 2026-08-14
+        //  dvar dump), i.e. 21 steps - but a map, a config or a user setting it
+        //  higher must not be able to turn this back into the flood it just
+        //  stopped being. Capping at 2 keeps the worst case at 41 commands,
+        //  under a third of the ring.
+        if ( n_start > 2 )
+            n_start = 2;
+
+        for ( i = n_start; i >= 0; i = ( i - 0.05 ) )
+        {
+            self setclientdvar( "r_lightTweakSunLight", i );
+            wait 0.05;
         }
+
+        //  Land exactly on 0 rather than on whatever the last step happened to
+        //  be - the loop exits on i < 0, so the final written value could be a
+        //  small positive number if the starting value is not a multiple of the
+        //  step. One extra command, and it removes the doubt.
+        self setclientdvar( "r_lightTweakSunLight", 0 );
     }
 }
 
@@ -615,10 +662,12 @@ qol_opt_night_off()
     //  earlier may still have r_filmUseTweaks stuck at 1 from that session, and
     //  that alone is the black screen. Clearing them here makes turning night
     //  mode OFF a way out of it rather than a no-op.
-    //  🛑 FIRST, and it is not optional: this stops qol_opt_night_visual_fix(),
-    //  which endons on it. That loop holds the sun at 0 on Mob and Origins and
-    //  the sky at 0 on Buried - leave it running and the restore below is
-    //  overwritten within 0.05s and night mode cannot be turned off.
+    //  🛑 FIRST, and it is still not optional even though the reason changed in
+    //  v1.93.1. qol_opt_night_visual_fix() endons on this notify. It used to run
+    //  forever, so without the notify the restore below was overwritten within
+    //  0.05s; it now ramps once and returns, so the only window is the ~1s the
+    //  Mob/Origins ramp is still stepping - toggle night mode off inside that
+    //  window without this notify and the ramp would fight the restore.
     //  disable_night_mode() in the source mod opens with the same notify.
     self notify( "disable_nightmode" );
 

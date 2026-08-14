@@ -3899,3 +3899,73 @@ go). `specialty_vulture_zombies_glow.iwi` deliberately kept — no known pack re
 for everyone (its pixels are in `base.ipak`, confirmed in the IPAK dump), but
 `specialty_vulture_zombies` is in **no** ipak dump available here and stock owns it only in
 `zm_buried.ff` — so a user with no custom pack may lose that icon off Buried. In the README.
+
+## 🔴 v1.93.1 — MOB CRASHED AT ~12s. `EXE_ERR_RELIABLE_CYCLED_OUT`, AND IT WAS NOT NEW CODE
+
+User booted Mob of the Dead classic on v1.93.0 and got
+`CL_CGameNeedsServerCommand: A reliable command was cycled out.`
+
+### The log named it without ambiguity
+
+`mods\zm_qol\games_mp.log`: `InitGame ... mapname\zm_prison`, `J;...DavidHiFi` at 0:01,
+**`ShutdownGame:` at 0:16.** `main\console_zm.log` around the failure:
+
+```
+[zm_qol] night_mode ON - ported from _zm_nightmode.gsc, exposure 3.9
+[zm_qol] PRISON t=1 ... t=12          <- the temporary spawn probe, 0.5s apart
+====================== COM_ERROR (1) ===============
+CL_CGameNeedsServerCommand: EXE_ERR_RELIABLE_CYCLED_OUT
+```
+
+Died at ~12s with no player input. **Nothing in v1.93.0 emits reliable commands on a timer** — the
+Brutus hook only runs on a hit, the Titus registration is one-shot, and `give_weapon` uses
+`setdvar` (server-side), not `setclientdvar`. This is the v1.90.3 flood, still alive.
+
+### 🛑 THE v1.90.3 "FIX" WAS THE WRONG SHAPE
+
+`qol_opt_night_visual_fix()` was a bare `for(;;)` around `setclientdvar`. v1.90.3 cut the rate 4x
+(`wait 0.05` -> `wait 0.2`). **That moved the crash from 0:06 to 0:12 and nothing else** — an
+unbounded stream fills a 128-entry ring however slowly it runs.
+
+### 🌟 The original's stop condition CAN NEVER FIRE, and that is the real story
+
+`_zm_nightmode.gsc::visual_fix()`, the source this was ported from:
+
+```gsc
+while( getDvar( "r_lightTweakSunLight" ) != 0 )
+{
+    for( i = getDvar( "r_lightTweakSunLight" ); i >= 0; i = ( i - 0.05 ) )
+    { self setclientdvar( "r_lightTweakSunLight", i ); wait 0.05; }
+    wait 0.05;
+}
+```
+
+That `while` is the author's own "ramp until it reaches 0, then stop". It never can:
+**`setclientdvar` does not write back into what the SERVER's `getdvar()` returns** — already proven
+in this project from 13 games of dvar dumps. So the source mod's loop is infinite too, and this
+port then dropped the `while` altogether.
+
+### The fix: ramp ONCE and return
+
+Which is exactly what the original's `while` was written to do, so this is parity with the author's
+intent rather than a re-tune ([[zm-qol-port-never-tune]] satisfied).
+
+- Buried: 2 commands, once, then `return`.
+- Mob / Origins: ramp `r_lightTweakSunLight` from its current value to 0 in 0.05 steps, then one
+  explicit `0`. **Measured live value is exactly 1** (`r_lightTweakSunLight "1"` in the dvar dump),
+  so 22 commands over ~1s against a 128 ring.
+- 🛑 The start value is **clamped to 2** so a map, config or user cannot turn the ramp back into a
+  flood. Worst case 41 commands.
+- Step restored to the original's 0.05: the 0.2 only ever existed to slow the flood and it made the
+  fade chunky.
+
+Swept the whole tree for the same shape: the only other `setclientdvar` inside a permanent loop is
+`bo2dd_onplayerconnect()`, which is gated on `level waittill( "connected" )` — 5 commands per
+connect, not a stream. `qol_opt_hud_watcher`'s `setclientuivisibilityflag` is written on change
+only. The prison probe uses `println` (server console, not the reliable channel) and is bounded to
+24 iterations.
+
+`ERROR_CATALOGUE.md` §7b added: the failure class, both hits, and why a rate cut is never the fix.
+
+**Deployed and hash-matched. Everything from v1.93.0 is still unverified, and Mob is now the one
+map that must be booted first.**

@@ -183,6 +183,36 @@ HUD values instead of re-`settext`-ing.
 
 ---
 
+## 7b. `CL_CGameNeedsServerCommand: EXE_ERR_RELIABLE_CYCLED_OUT` 🛑 HIT TWICE
+
+**The client's reliable-command ring holds 128 entries. Anything that emits reliable commands
+*without a stop condition* fills it eventually and kills the game mid-match — a clean load proves
+nothing, because the failure is timed, not immediate.**
+
+Seen twice, both times from `qol_opt_night_visual_fix()` on Mob / Origins / Buried:
+
+| | |
+|---|---|
+| first hit | ~0:06. Cause: a bare `for(;;)` around `setclientdvar` at `wait 0.05` |
+| "fix" in v1.90.3 | cut the rate 4x to `wait 0.2` |
+| second hit | ~0:12, on the first Mob boot after that change |
+
+🛑 **A RATE CUT IS THE WRONG SHAPE AND THIS IS THE LESSON.** Halving an unbounded stream only
+doubles the time to failure. The only correct fixes are *stop when done* or *write only on change*.
+
+🌟 **Why the loop had no working stop condition:** the original it was ported from
+(`_zm_nightmode.gsc::visual_fix()`) guards with `while( getDvar( "r_lightTweakSunLight" ) != 0 )` —
+and **`setclientdvar` does not write back into what the SERVER's `getdvar()` returns**, so that
+condition can never be satisfied. The source mod's loop is infinite too. Any
+`while ( getdvar(x) != target ) { setclientdvar(x, ...) }` is an infinite loop; do not write one,
+and treat one you inherit as a bug to fix, not behaviour to preserve.
+
+**Pre-flight check:** grep every `setclientdvar`, `setclientuivisibilityflag` and `iprintln` in the
+tree and confirm each is either event-driven or written only on a state change. A permanent loop
+containing one is a defect even if it looks slow.
+
+---
+
 ## 8. Silent failures — no error line at all 🛑 THE DANGEROUS CLASS
 
 These produce **no log output**, so a clean log proves nothing.
