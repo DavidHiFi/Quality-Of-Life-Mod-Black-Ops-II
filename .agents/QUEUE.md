@@ -4778,3 +4778,45 @@ are missing. **The proper fix is to rebuild the mod's copy on top of PLUTONIUM'S
 than the retail one** - then no Plutonium row can ever be lost again. Confirm the optionscontrols
 test first; it proves Plutonium restores its own version when the shadow is gone, which is the whole
 premise of that rebuild.
+
+### 🛑 B-WHOSWHO2 — CORRECTION. The assets ARE shipped; this is a REGRESSION, and Zombie Blood is the suspect
+
+**My "the assets don't exist on TranZit" diagnosis was WRONG, and it was wrong because I listed the
+retail fastfiles and never listed the mod's own.** `Unlinker --list mod.ff` carries all four:
+`rawfile vision/zm_whos_who.vision`, `material generic_filter_afterlife`,
+`techniqueset sw4_2d_afterlife_q51e4w21`, `image zm_afterlife_alcatraz_vignette_noise`. The vision
+file and the material dump **byte-identical to Die Rise's own copies** (hash-compared, not eyeballed).
+`mod_locations.zone:544` also records the overlay as *confirmed in game* off its home map. The user
+is right: it worked, and something later broke it.
+
+**What the user's screenshot proves:** the clone spawned and the audio played, so
+`create_corpse == 1` and `activate_chugabud_effects_and_audio()` ran in full. The failure is at
+apply time, in the two visual calls only.
+
+🌟 **THE SUSPECT, and the timing fits exactly.** Stock `_filter.csc` hands out screen-filter
+material slots from ONE shared counter:
+
+```gsc
+init_filter_indices()  { ... level.filter_matcount = 4; }
+map_material_helper( player, name )
+{ ... level.filter_matid[name] = level.filter_matcount; player map_material( level.filter_matcount, name ); level.filter_matcount++; }
+```
+
+Who's Who needs `level.filter_matid["generic_filter_afterlife"]` (mapped by
+`chugabud_setup_afterlife_filters()`, **threaded** at `zm_expanded.csc:845`) and then calls
+`enable_filter_afterlife( player, 5 )` with a **hardcoded pass index of 5** - Die Rise's own number,
+kept verbatim. **Zombie Blood (v1.65.0) now claims a slot from that same counter**
+(`zmqol_zb_init_filter` → `init_filter_indices()` + `map_material_helper( "generic_filter_zombie_blood_b" )`,
+on an `onplayerconnect_callback` at `:652`). A threaded call and a connect callback racing for the
+same counter is exactly the shape of an intermittent, map-dependent break — and v1.65.0 landed
+immediately after v1.63.1, the version in which the overlay was confirmed working.
+
+▶️ **FREE DISCRIMINATOR, no build — the map lists barely overlap:**
+Zombie Blood runs everywhere EXCEPT `zm_tomb` and `zm_prison`. Who's Who runs everywhere EXCEPT
+`zm_highrise`, `zm_prison` and `zm_buried`. **`zm_tomb` (Origins) is the ONLY map with Who's Who and
+no Zombie Blood.** Go down with Who's Who on Origins:
+- **Overlay appears there, absent on Diner** → the collision is confirmed and the fix is to stop
+  hardcoding pass 5 / give the two filters separate slots.
+- **Absent on both** → Zombie Blood is exonerated and the next suspect is night mode, which pins
+  `r_filmUseTweaks` and the whole `vc_*` grade the visionset rides on (`night_mode "1"` is in the
+  user's saved config).
