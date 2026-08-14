@@ -249,6 +249,7 @@ init()
 {
     level thread zmqol_hide_native_wunderfizz();
     level thread zmqol_probe_capture_zones();
+    level thread zmqol_ring_hud_visibility();
 
     //  🛑 v1.94.0 - zmqol_capture_objectives_fix() AND zmqol_capture_hud_nudge()
     //  ARE NO LONGER STARTED. Both are left in the file, unreferenced, because
@@ -271,6 +272,10 @@ init()
     //  maps still dying with EXE_ERR_RELIABLE_CYCLED_OUT, so removing known
     //  timed reliable traffic is worth doing on its own merits. This is NOT
     //  claimed as the fix for that crash - see the queue entry.
+    //
+    //  ▶️ v1.95.4 - THE REAL FIX IS zmqol_ring_hud_visibility() ABOVE. Both of
+    //  these stay unreferenced; read their comments for what was measured, not
+    //  for what to do.
     zmqol_register_survival_visionset();
     level thread zmqol_power_up_all_generators();
     level thread zmqol_disable_staff_relay_switches();
@@ -750,6 +755,143 @@ zmqol_capture_hud_nudge_player()
 
         println( "[zm_qol] capture hud: nudged DURING an active capture" );
     }
+}
+
+// ============================================================================
+//  zmqol_ring_hud_visibility  -  THE GENERATOR RING, FIXED PROPERLY  (v1.95.4)
+//
+//  User, 2026-08-14: *"make it behave like the vanilla base game so the progress
+//  icon in the middle of the screen shows up like normal when it's supposed to
+//  when ur powering up a generator, and i don't have to pull up the in-game
+//  scoreboard for it to be fixed."*
+//
+//  🌟 THE MECHANISM, END TO END, EVERY STEP READ OUT OF STOCK SOURCE OR THIS
+//  PROJECT'S OWN LOGS. No part of this is inferred from what an API "should" do.
+//
+//  1. The ring lives in ui_mp\t6\zombie\tombcapturezonedisplay.lua. Dumped from
+//     the retail zm_tomb_patch.ff, its menu is built by CoD.GametypeBase.new(),
+//     which ENDS IN setAlpha(0) (gametypebase.lua:26). The menu starts hidden.
+//  2. Only CoD.TCZWaypoint.UpdateVisibility ever raises that alpha, and it runs
+//     ONLY on an incoming `hud_update_bit_<N>` event or on `hud_update_refresh`.
+//     Adding an objective does NOT raise it: GametypeBase.NewObjectiveEvent
+//     (:36-41) creates the waypoint child and calls update() on it, and never
+//     touches the parent's alpha. That is why every re-declare attempt failed.
+//  3. Of the eleven bits that menu registers, exactly ONE is settable from GSC:
+//     BIT_HUD_VISIBLE, via setclientuivisibilityflag( "hud_visible", ... ).
+//  4. In stock zombies that flag is written in exactly two places:
+//        _zm.gsc:250   the end of the intro screen, for every CONNECTED player
+//        _zm.gsc:5301  zm_on_player_connect(), if the intro already finished
+//     It is never set to 0 - it simply starts clear. So the single 0 -> 1 write
+//     at the end of the intro is what un-hides this menu in a normal game.
+//
+//  🛑 AND THAT IS THE BUG. A player who is not connected yet when the intro
+//  function runs gets their write from zm_on_player_connect() instead - at
+//  CONNECT time, before their client has built its HUD menus. The menu is then
+//  created with the bit ALREADY 1, so no change event ever arrives and the alpha
+//  stays 0 for the rest of the match. Opening the scoreboard is the player
+//  hand-firing BIT_SCOREBOARD_OPEN, which is why that "fixes" it.
+//
+//  🌟 THE MOD'S OWN A/B ALREADY PROVED THIS AND IT WAS MISREAD AT THE TIME.
+//  quality_of_life.gsc::zmqol_intro_hold_time()'s note records two back-to-back
+//  Origins games, same build, same 1.6s hold, opposite outcomes:
+//        game A   solo status: expected=1 connected=0   -> ring did NOT draw
+//        game B   solo status: expected=1 connected=1   -> ring DID draw
+//  `connected` is the count at intro time. Connected=0 means the intro's write
+//  reached nobody. The 2026-08-14 session that reported this again logs
+//  `connected=0` too - three observations, one mechanism.
+//
+//  THE FIX: give every player the same 0 -> 1 transition vanilla gives them, at
+//  a point where their client is definitely up. Hold the flag at 0 from connect
+//  (which is where stock leaves it anyway, for the whole load), then raise it
+//  once, after they have spawned and the black screen has gone.
+//
+//  📝 NOTHING FLASHES. v1.90.11's rejected nudge blinked the HUD mid-capture
+//  because it drove 1 -> 0 -> 1 while the player was looking at it. Here the 0
+//  covers the loading screen, exactly as stock does during its intro, and the 1
+//  lands while the intro shader is still fading out (fade is 1.5s, the flag
+//  fires 0.05s in - see fade_out_intro_screen_zm_instant). The HUD appears as
+//  the screen clears, which is what the base game looks like.
+//
+//  📝 TWO reliable commands per player for the whole match, both event-driven.
+//  No timer, no loop - deliberate, given Origins is the map still dying with
+//  EXE_ERR_RELIABLE_CYCLED_OUT.
+//
+//  🛑 THE RESIDUAL RISK, STATED PLAINLY: if a client builds its HUD menus LATER
+//  than the raise below, the event is missed again and the ring stays hidden.
+//  That window cannot be measured from the server, so both timings are dvars:
+//        zmqol_ring_hud_delay   seconds after the black screen before raising
+//        zmqol_ring_hud_hide    0 to disable this entirely
+//  If the ring is still missing, raise zmqol_ring_hud_delay to 2 or 3 and try
+//  again - that distinguishes "wrong moment" from "wrong mechanism" without a
+//  rebuild.
+// ============================================================================
+zmqol_ring_hud_visibility()
+{
+    if ( !getdvarintdefault( "zmqol_ring_hud_hide", 1 ) )
+        return;
+
+    //  The host is normally already connected before init() runs and therefore
+    //  never fires a "connected" notify to listen for.
+    foreach ( player in get_players() )
+        player thread zmqol_ring_hud_visibility_player();
+
+    for ( ;; )
+    {
+        level waittill( "connected", player );
+        player thread zmqol_ring_hud_visibility_player();
+    }
+}
+
+zmqol_ring_hud_visibility_player()
+{
+    //  🛑 self endon( "disconnect" ) ONLY. No level endon: if end_game killed
+    //  this thread between the 0 and the 1 the player would be left with no HUD
+    //  at all, which is far worse than a missing ring.
+    self endon( "disconnect" );
+
+    if ( is_true( self.zmqol_ring_hud_done ) )
+        return;
+
+    self.zmqol_ring_hud_done = 1;
+
+    //  🛑 ORDER MATTERS AND IT IS NOT A PREFERENCE. Both stock writes of this
+    //  flag put it at 1: the intro function for players already connected, and
+    //  zm_on_player_connect() for anyone later. Writing our 0 before either of
+    //  those would just be overwritten and change nothing. So wait for BOTH
+    //  conditions - the client is in the game, and the intro has finished - and
+    //  only then take the flag down.
+    self waittill( "spawned_player" );
+    flag_wait( "initial_blackscreen_passed" );
+    wait 0.05;
+
+    //  🛑 STAND DOWN IF THE PLAYER ASKED FOR NO HUD. qol_options.gsc's
+    //  hud_master watcher owns this same flag while ".hud off" is set and
+    //  re-asserts 0 every 2s (:952-956). Raising it here would flash their HUD
+    //  back on for up to two seconds - the exact class of bug this replaces.
+    //  Same single-owner rule as everywhere else in this project.
+    if ( !getdvarintdefault( "hud_master", 1 ) )
+        return;
+
+    //  Belt and braces: whatever happens below, the HUD comes back.
+    self thread zmqol_ring_hud_failsafe();
+
+    self setclientuivisibilityflag( "hud_visible", 0 );
+    wait( getdvarfloatdefault( "zmqol_ring_hud_delay", 0.5 ) );
+    self setclientuivisibilityflag( "hud_visible", 1 );
+
+    println( "[zm_qol] ring hud: hud_visible cycled 0->1 for one player" );
+}
+
+//  If anything at all goes wrong between the 0 and the 1 above, the flag is
+//  restored anyway. Writing 1 twice is a no-op, so this costs nothing in the
+//  normal case - and a player with no HUD for a whole match would be a far worse
+//  bug than the one being fixed.
+zmqol_ring_hud_failsafe()
+{
+    self endon( "disconnect" );
+
+    wait 10;
+    self setclientuivisibilityflag( "hud_visible", 1 );
 }
 
 zmqol_capture_objectives_on_connect()

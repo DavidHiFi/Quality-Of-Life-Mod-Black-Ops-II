@@ -105,7 +105,9 @@ version instead of the mod's — the console resolves commands before dvars.
 `no_power` · `lod_fix` · `hud_master` · `hud_all` · `hud_timer` · `hud_health_bar` · `hud_remaining` ·
 `hud_zone` · `hud_round_timer` · `hud_color "1 1 1"` · `hud_color_health` ·
 `hud_color_timer "0.2 0.3 0.6"` · `hud_color_round_timer "0.2 0.3 0.6"` *(the two top-right
-timers, dull navy since v1.95.3)* ·
+timers, dull navy since v1.95.3)* · `zmqol_ring_hud_hide` / `zmqol_ring_hud_delay "0.5"`
+*(Origins only — the generator-ring visibility fix, v1.95.4; raise the delay if the ring is still
+missing, set `zmqol_ring_hud_hide 0` to disable)* ·
 `sv_deathmachine_duration` · `sv_deathmachine_powerup` · `redhitmarkers` ·
 `disable_player_quotes` · `r_sky_intensity_factor0` · `anim_pap_camo_buried` /
 `_mob` / `_origins` · Wunderfizz tuning (`zmqol_wf_fx`, `zmqol_wf_fx_ug`, `zmqol_wf_fx_range`,
