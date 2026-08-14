@@ -226,7 +226,9 @@ source folders is built or don't-touch.
   has its chat command and its dvar; this is a third front-end, not a replacement.
   **Two tabs, not one, for a measured reason:** `CoD.ButtonList` neither clips nor scrolls, and
   stock's largest tab is 14.5 row-pitches. One 23.5-pitch tab drew straight over the tab strip and
-  the ESC prompt. Each tab is now under the stock budget. **Rebuilt in v1.95.0-v1.95.1 and not yet confirmed in game.**
+  the ESC prompt. Each tab is now under the stock budget. **Rebuilt in v1.95.0-v1.95.1 and confirmed
+  in game** — the arrows, both tab names and the centred heading were verified by the user on
+  2026-08-14.
   📝 Two requested entries are **not** there, deliberately: **"reduce engine sleeps"**, because no
   dvar of that name exists in this build and inventing one would be a guess, and **perma-perks**,
   because this mod has no perma-perk system to toggle.
