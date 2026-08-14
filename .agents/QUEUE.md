@@ -3969,3 +3969,102 @@ only. The prison probe uses `println` (server console, not the reliable channel)
 
 **Deployed and hash-matched. Everything from v1.93.0 is still unverified, and Mob is now the one
 map that must be booted first.**
+
+## v1.94.0 — 2026-08-14. Three fixed, three still open and named.
+
+### ✅ 1. Thundergun did not remove Brutus's helmet — WRONG HOOK SITE
+
+v1.93.0 put the boss hook in `zombie_knockdown()`. **Brutus never reaches that function.**
+`thundergun_knockdown_zombie()` dispatches through the PER-AI pointer
+`self.thundergun_knockdown_func`, which stock assigns only in `_zm_spawner.gsc:260` (basic
+zombies) and `_zm_ai_dogs.gsc:445` (dogs). `_zm_ai_brutus.gsc` never sets it, so the whole branch
+was skipped for him — which is exactly why the tesla and freeze gun worked (their hooks sit on
+their own direct damage calls) and this one did not. Hook moved above the dispatch.
+
+### ✅ 2. Titus-6 Pack-a-Punch camo — SLOT 3 WAS EMPTY, same defect as the BO1 ports
+
+Measured across BO2-Reimagined's `camo\`: every working camo puts its `mtl_weapon_camo_zombies*`
+overrides in **camoMaterials[3]** (`camo_xpr50`, `camo_sig556`, `camo_mk48` all do) and fills slots
+0..14. `camo_titus6.json` shipped with overrides in **slot 11 only** — the "dragon" look — and
+slot 3 empty. Slot 3 now built from the three base materials the file itself names in slot 11,
+mapped onto `mtl_weapon_camo_zombies` / `_1` / `_2`, with `camo_mk48`'s slot-3 shaderConsts.
+Linker confirms `Loaded camo "camo_titus6" (src: disk)`.
+
+Note the Titus IS already registered for the box — the log line is
+`[zm_qol] mp_weapons: 11 registered for the box on <map>`.
+
+### ✅ 3. The options tab — repositioned, renamed, filled out
+
+**The broken navigation arrows were the tab POSITION.** Registering ours first shifted every
+stock tab one place right while the tab manager laid its arrows out from the original extents — so
+the left arrow fell off the strip and the right one printed over "VOICE CHAT". Registered **last**,
+after VOICE CHAT, both arrows sit correctly. Renamed **QUALITY OF LIFE**.
+
+22 toggles, in four groups: the standard Plutonium game options, cheats/movement, visuals, HUD.
+**Every dvar was read from a live dump or the mod's own registration list.** Two the user asked
+for are deliberately absent and both are stated in the README: **"reduce engine sleeps"** (no dvar
+of that name exists in this build's dump — inventing one would be a guess) and **perma-perks**
+(this mod has no perma-perk system at all, zero matches in the tree).
+
+**Hold-to-sprint wouldn't turn back off** because v1.93.0 passed
+`Button_ApplyDvarChanged` as the 5th argument to `addChoice`, which REPLACES the widget's own
+`DvarSelectorSetDvarFunc`. All rows now pass `nil` and use Plutonium's default handler — the same
+one `optionscontrols.lua` uses for `cl_freelook`. Descriptions shortened; the hint line does not
+wrap and the old ones ran off screen.
+
+Four new dvars were needed because LUI can only write dvars: `god`, `ghost`, `infinite_ammo`,
+`infinite_sprint` (`zmqol_toggle_dvar_watch()`, edge-triggered against real per-player state so
+chat and menu can never disagree). Fog and depth of field needed **no** server work — `.fog`
+only ever wrote `r_fog`, and DOF is `r_dof_enable`; both are client dvars the menu writes directly.
+
+### 4. ORIGINS AND BURIED STILL CRASH — `EXE_ERR_RELIABLE_CYCLED_OUT`. NOT FIXED.
+
+**Measured this round, so the search space is now much smaller:**
+
+| session | map | outcome |
+|---|---|---|
+| 1 | zm_tomb | CRASH ~t=20-25 |
+| 2 | zm_nuked | ok |
+| 3, 4 | zm_transit | ok (one ran 4:27) |
+| 5 | zm_highrise | ok |
+| 6 | zm_buried | CRASH ~t=30-35 |
+
+- **All six sessions ran v1.93.1.** Deploy was 09:32:24; the Mob success was 09:42, the Origins
+  crash 09:53, the Buried crash 10:12. The night-mode fix was in place and Mob — which shares
+  Origins' exact night branch — is fine. **So this is a second, slower emitter, not the night ramp.**
+- Weapon counts rule out an overflow: tomb 32 and buried 32 loaded weapons vs 38 on the healthy
+  maps (the 6 fewer are the three wonder weapons and their upgrades, gated off there).
+- Swept every `setclientdvar` / `setclientuivisibilityflag` / `iprintln` / `settext` inside a loop
+  across `scripts\`, `maps\` and `clientscripts\`: nothing unbounded remains, and nothing found is
+  gated to those two maps.
+
+**Removed anyway, on its own merits:** `zmqol_capture_objectives_fix()` and
+`zmqol_capture_hud_nudge()` no longer start on Origins. Both emit reliable commands on a timer
+(`objective_add`, `setclientuivisibilityflag`), checkpoint 45 already ruled the re-declare
+disproven, and the user rejected the nudge. **This is not claimed as the fix.**
+
+**NEXT — one free bisect, no build needed:** start Origins with `night_mode 0` set first.
+Boots clean → night mode is still involved despite the one-shot change. Still crashes → night mode
+is exonerated and the remaining space is what runs only on tomb/buried.
+
+### 5. WINTER'S HOWL SHOOTING FX — v1.91.0's THEORY IS DISPROVEN
+
+All six materials `fx_freezegun_view.efx` names are reachable at runtime: `light_flare_cool`,
+`light_flare_star`, `fx_distortion_ring_warp` and `smk_whisp_spiral` are in `mod.ff`, and
+`fx_distortion_heat` and `lensflare_diamond` are in `common_zm`/`patch_zm`, which load on every
+map. The `.efx` itself is in the deployed `mod.iwd` (49,451 bytes). So the missing-materials
+explanation is wrong.
+
+**The unproven assumption underneath it is that T6 loads a raw `.efx` from `mod.iwd\fx\` at
+all.** That came from the Declassified module having no fx in any of its three fastfiles — good
+precedent, never confirmed for this mod.
+
+**Free discriminator, no build:** fire the **Wunderwaffe** and look at the gun itself.
+`maps/zombie/fx_zombie_tesla_electric_bolt` and `fx_zombie_tesla_tube_view` exist in **no retail
+fastfile and not in mod.ff** — only as raw `.efx` in `mod.iwd`. If the bolts and the glowing tubes
+draw, raw `.efx` load and the freeze gun has its own specific problem. If they do not, **no raw
+`.efx` loads** and every wonder-weapon effect needs a different delivery route.
+
+### 6. QUEUED, NOT STARTED — survival character choice (CDC / CIA)
+
+User: an option, survival only, in both solo and custom play. Not attempted this round.

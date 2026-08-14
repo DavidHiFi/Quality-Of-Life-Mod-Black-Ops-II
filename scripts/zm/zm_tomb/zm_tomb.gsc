@@ -249,8 +249,28 @@ init()
 {
     level thread zmqol_hide_native_wunderfizz();
     level thread zmqol_probe_capture_zones();
-    level thread zmqol_capture_objectives_fix();
-    level thread zmqol_capture_hud_nudge();
+
+    //  🛑 v1.94.0 - zmqol_capture_objectives_fix() AND zmqol_capture_hud_nudge()
+    //  ARE NO LONGER STARTED. Both are left in the file, unreferenced, because
+    //  their comments record real measurements worth keeping.
+    //
+    //  Two reasons, and the second is the important one:
+    //
+    //  1. The user rejected the nudge outright: "the ring showed but it flashed
+    //     for a brief moment... my mod shouldn't be doing that i never asked you
+    //     for you hide that." It works by writing hud_visible 0 then 1, i.e. by
+    //     hiding their HUD.
+    //  2. Checkpoint 45 already ruled the re-declare loop DISPROVEN as
+    //     load-bearing - the ring's LUI is created at alpha 0 and only an
+    //     incoming HUD event raises it, so re-declaring objectives could never
+    //     have mattered.
+    //
+    //  📝 AND BOTH EMIT RELIABLE SERVER COMMANDS ON A TIMER. objective_add() is
+    //  reliable and the fix re-declared six of them repeatedly for 20s;
+    //  setclientuivisibilityflag() is reliable too. Origins is one of the two
+    //  maps still dying with EXE_ERR_RELIABLE_CYCLED_OUT, so removing known
+    //  timed reliable traffic is worth doing on its own merits. This is NOT
+    //  claimed as the fix for that crash - see the queue entry.
     zmqol_register_survival_visionset();
     level thread zmqol_power_up_all_generators();
     level thread zmqol_disable_staff_relay_switches();

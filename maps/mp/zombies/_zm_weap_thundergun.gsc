@@ -305,18 +305,10 @@ srs_ww_target_array()
 
 zombie_knockdown( player, gib )
 {
-    // v1.93.0 - BOSSES FIRST. level.zmqol_ww_boss_hit is installed only by the
-    // map that owns the boss (scripts\zm\zm_prison\zm_prison.gsc for Brutus), so
-    // this file - which loads on every map - never names a map-specific script.
-    // It returns true when it has handled the hit: helmet off on the first shot,
-    // lethal on the second. See the long comment on zmqol_brutus_ww_hit().
-    if ( isdefined( level.zmqol_ww_boss_hit ) )
-    {
-        b_handled = self [[ level.zmqol_ww_boss_hit ]]( player );
-
-        if ( b_handled )
-            return;
-    }
+    // 📝 v1.94.0 - THE BOSS HOOK WAS HERE AND IT WAS THE WRONG PLACE. It now
+    // sits in thundergun_knockdown_zombie(), above the per-AI
+    // self.thundergun_knockdown_func dispatch, because Brutus never reaches
+    // this function at all. Read the comment there before moving it back.
 
     // Special AI still take the hit -- they just take it as plain damage, with no fall/getup and
     // no gib. Deliberately NOT a skip: the point is that every enemy type is damageable, only
@@ -432,8 +424,35 @@ thundergun_knockdown_zombie( player, gib )
 
     if( !IsDefined( self ) || !IsAlive( self ) )
     {
-        // guy died on us 
+        // guy died on us
         return;
+    }
+
+    // ========================================================================
+    // v1.94.0 - THE BOSS HOOK LIVES HERE, NOT IN zombie_knockdown().
+    //
+    // v1.93.0 put it in zombie_knockdown() and the user reported the result
+    // exactly: "the thundergun 2 shots him but the first shot doesn't remove
+    // his helmet, the second shot just sends him flying again."
+    //
+    // 🛑 zombie_knockdown() IS NOT ON BRUTUS'S PATH. This function does not
+    // call it - it dispatches through the PER-AI pointer
+    // self.thundergun_knockdown_func, which stock only assigns in
+    // _zm_spawner.gsc:260 (basic zombies, as level.basic_zombie_thundergun_
+    // knockdown) and _zm_ai_dogs.gsc:445 (dogs). _zm_ai_brutus.gsc never sets
+    // it, so for Brutus the isdefined() below is false and the entire branch is
+    // skipped - which is why the tesla and the freeze gun, whose hooks sit on
+    // their own direct damage calls, worked on him and this one did not.
+    //
+    // Hooking above the dispatch catches him whichever way the pointer is set,
+    // and leaves every ordinary zombie on the stock path untouched.
+    // ========================================================================
+    if ( isdefined( level.zmqol_ww_boss_hit ) )
+    {
+        b_handled = self [[ level.zmqol_ww_boss_hit ]]( player );
+
+        if ( b_handled )
+            return;
     }
 
     if ( IsDefined( self.thundergun_knockdown_func ) )

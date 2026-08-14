@@ -5465,6 +5465,7 @@ zmqol_fly_key_bind()
     self thread zmqol_fly_dvar_watch();
     self thread zmqol_ww_give_dvar_watch();
     self thread zmqol_give_weapon_dvar_watch();   // v1.93.0 - give_weapon "<name> [pap]"
+    self thread zmqol_toggle_dvar_watch();        // v1.94.0 - god/ghost/infinite_ammo/infinite_sprint
     self thread zmqol_velocity_dvar_watch();
     self thread zmqol_boss_spawn_dvar_watch();
 }
@@ -5955,6 +5956,117 @@ zmqol_give_named_weapon( str_arg, b_pap )
     }
 
     self iprintln( "^1[zm_qol] no weapon called ^7" + str_arg + " ^1- try ^7.give list" );
+}
+
+// ============================================================================
+//  zmqol_toggle_dvar_watch  -  dvar twins for the four player toggles that only
+//  had chat commands.                                          (v1.94.0)
+//
+//  User, 2026-08-14: they want the in-game Settings menu to drive these instead
+//  of chat, "so when people now use my mod they don't need to rely on chat
+//  commands which get annoying". The menu is LUI and can only write DVARS, so
+//  every option it offers needs one - and god / ghost / infinite ammo /
+//  infinite sprint were chat-only.
+//
+//  🛑 FOG AND DEPTH OF FIELD ARE NOT IN HERE ON PURPOSE. `.fog` only ever sets
+//  r_fog and DOF is r_dof_enable - both are CLIENT dvars, so the menu writes
+//  them directly and a server-side twin would be a pointless extra hop.
+//
+//  Edge-triggered against the REAL per-player state, never against the dvar's
+//  previous value, so the chat command and the menu can never disagree - the
+//  same contract as zmqol_fly_dvar_watch() and zmqol_velocity_dvar_watch().
+//  Each toggle writes its dvar back, which keeps all three front-ends in sync.
+// ============================================================================
+zmqol_toggle_dvar_watch()
+{
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    if ( getdvar( "god" ) == "" )
+        setdvar( "god", "0" );
+
+    if ( getdvar( "ghost" ) == "" )
+        setdvar( "ghost", "0" );
+
+    if ( getdvar( "infinite_ammo" ) == "" )
+        setdvar( "infinite_ammo", "0" );
+
+    if ( getdvar( "infinite_sprint" ) == "" )
+        setdvar( "infinite_sprint", "0" );
+
+    for ( ;; )
+    {
+        //  --- god ---
+        b_want = getdvarintdefault( "god", 0 );
+        b_is = isdefined( self.zmqol_god ) && self.zmqol_god;
+
+        if ( b_want && !b_is )
+        {
+            self.zmqol_god = 1;
+            self enableinvulnerability();
+            self iprintln( "^2[zm_qol] godmode ON" );
+        }
+        else if ( !b_want && b_is )
+        {
+            self.zmqol_god = 0;
+            self disableinvulnerability();
+            self iprintln( "^1[zm_qol] godmode OFF" );
+        }
+
+        //  --- ghost ---
+        b_want = getdvarintdefault( "ghost", 0 );
+        b_is = isdefined( self.zmqol_ghost ) && self.zmqol_ghost;
+
+        if ( b_want && !b_is )
+        {
+            self.zmqol_ghost = 1;
+            self.ignoreme = 1;
+            self iprintln( "^2[zm_qol] ghost ON ^7- zombies ignore you" );
+        }
+        else if ( !b_want && b_is )
+        {
+            self.zmqol_ghost = 0;
+            self.ignoreme = 0;
+            self iprintln( "^1[zm_qol] ghost OFF ^7- zombies can see you" );
+        }
+
+        //  --- infinite ammo ---
+        b_want = getdvarintdefault( "infinite_ammo", 0 );
+        b_is = isdefined( self.zmqol_infammo ) && self.zmqol_infammo;
+
+        if ( b_want && !b_is )
+        {
+            self.zmqol_infammo = 1;
+            self thread zmqol_infinite_ammo_think();
+            self iprintln( "^2[zm_qol] infinite ammo ON" );
+        }
+        else if ( !b_want && b_is )
+        {
+            self.zmqol_infammo = 0;
+            self notify( "zmqol_infammo_off" );
+            self iprintln( "^1[zm_qol] infinite ammo OFF" );
+        }
+
+        //  --- infinite sprint ---
+        b_want = getdvarintdefault( "infinite_sprint", 0 );
+        b_is = isdefined( self.zmqol_infsprint ) && self.zmqol_infsprint;
+
+        if ( b_want && !b_is )
+        {
+            self.zmqol_infsprint = 1;
+            self setperk( "specialty_unlimitedsprint" );
+            self iprintln( "^2[zm_qol] infinite sprint ON" );
+        }
+        else if ( !b_want && b_is )
+        {
+            self.zmqol_infsprint = 0;
+            self notify( "zmqol_infsprint_off" );
+            self unsetperk( "specialty_unlimitedsprint" );
+            self iprintln( "^1[zm_qol] infinite sprint OFF" );
+        }
+
+        wait 0.25;
+    }
 }
 
 //  give_weapon "<name> [pap]" - the console twin, blanked after every use so a

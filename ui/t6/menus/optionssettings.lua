@@ -690,61 +690,105 @@ CoD.OptionsSettings.CreateVoiceChatTab = function (f44_arg0, f44_arg1)
 end
 
 -- ============================================================================
---  zm_qol v1.93.0 - THE "GAME" TAB.
+--  zm_qol - THE "QUALITY OF LIFE" TAB.                            (v1.94.0)
 --
---  User, 2026-08-14: "the game tab is still missing with my mod loaded, make
---  sure im able to access all the regular settings like draw identifier and
---  flash script hashes which are in the game tab in the options."
+--  User, 2026-08-14, on the v1.93.0 attempt: "the placement for the game menu
+--  itself is wrong, it should be the furthest right, after voice chat... the
+--  menu navigation arrows are bugged and colliding with text... rename the Game
+--  tab to Quality Of Life and then add some toggable options in that menu
+--  itself so when people now use my mod they don't need to rely on chat
+--  commands which get annoying."
 --
---  🛑 WHAT WAS ACTUALLY MEASURED, because the report and the cause differ:
---  this file is PLUTONIUM'S, it lives in storage\t6\raw\ui\t6\menus\, it is
---  dated 2025-11-01, and this mod never wrote it. Its tab list is four
---  addTab() calls with no condition on any of them - GRAPHICS, ADVANCED, SOUND,
---  VOICE CHAT - so there was no GAME tab to hide, with or without a mod
---  loaded. Searched for one everywhere first: the stock compiled copies in
---  patch.ff and patch_zm.ff have the same four, optionscontrols.lua has
---  Move/Look/Combat/Interact/Gamepad, and t6zm.exe contains no such menu
---  strings. The mod also owns zero LUI in mod.ff (grep -c "\.lua" on every
---  .zone returns 0) and build.bat only syncs raw\ files that already exist in
---  BOTH trees, so it could not have removed it.
+--  🛑 THE ARROW BUG WAS THE TAB POSITION, NOT THE ARROWS. Registering our tab
+--  FIRST shifted every stock tab one place right, and the tab manager lays its
+--  left/right arrows out from the ORIGINAL extents - so the left arrow landed
+--  off the strip and the right one printed over "VOICE CHAT". Registered last,
+--  the strip is stock's plus one on the end and both arrows sit correctly.
 --
---  So rather than "restore" something that was not there, this ADDS the tab and
---  the two options by name. Both dvars are real and were read live out of
---  console_zm.log's dvar dump, not guessed:
---      cg_drawIdentifier    "1"   the session watermark across the top
---      cg_flashScriptHashes "0"
---  cg_holdToSprint comes along because it is the one other genuinely useful
---  game-side toggle in that dump and it is boolean too.
+--  🌟 EVERY DVAR BELOW WAS READ OUT OF A LIVE DVAR DUMP OR THE MOD'S OWN
+--  REGISTRATION LIST - none is guessed:
+--     cl_allowDownload, cg_drawIdentifier, cg_flashScriptHashes, cg_holdToSprint
+--         from console_zm.log's dvar dump
+--     r_fog, r_dof_enable
+--         the two the mod's own .fog command and night mode already write
+--     night_mode, hud_master, hud_timer, hud_round_timer, hud_health_bar,
+--     hud_remaining, hud_zone, rapid_fire, no_power, lod_fix
+--         from qol_options.gsc's qol_opt_dvar() table
+--     velocity, fly
+--         from quality_of_life.gsc
+--     god, ghost, infinite_ammo, infinite_sprint
+--         added in v1.94.0 by zmqol_toggle_dvar_watch() for exactly this menu
 --
---  🌟 Engine.Localize() FALLS BACK TO THE LITERAL when a key does not exist -
---  Plutonium's own line 575 in this file does exactly that with
---  Engine.Localize("FOV SENSITIVITY"). That is why these labels are plain
---  English and no new localize entries are needed.
+--  📝 "REDUCE ENGINE SLEEPS" IS DELIBERATELY ABSENT. It is in the stock
+--  Plutonium GAME tab the user screenshotted, but no dvar of that name exists
+--  in this build's dump and inventing one would be a guess. The other three
+--  standard entries are all here.
 --
---  Everything else in this file is Plutonium's, byte for byte. Their original
---  is kept next to it as optionssettings.lua.bak-before-gametab.
+--  📝 PERMA-PERKS ARE NOT HERE EITHER - this mod has no perma-perk system at
+--  all (zero matches in the whole tree), so there is nothing to toggle.
+--
+--  🛑 DESCRIPTIONS ARE SHORT ON PURPOSE. The v1.93.0 text ran off the right
+--  edge of the screen; the hint line does not wrap.
+--
+--  🛑 NO CUSTOM APPLY CALLBACK. v1.93.0 passed
+--  CoD.OptionsSettings.Button_ApplyDvarChanged as the 5th argument, which
+--  REPLACES the widget's own DvarSelectorSetDvarFunc - and "hold to sprint"
+--  then would not turn back off. Passing nil uses Plutonium's default handler,
+--  the same one optionscontrols.lua uses for cl_freelook and m_pitch, which are
+--  known to work both ways.
 -- ============================================================================
-CoD.OptionsSettings.CreateGameTab = function (GameTab, LocalClientIndex)
-	local GameTabContainer = LUI.UIContainer.new()
-	local GameTabButtonList = CoD.Options.CreateButtonList()
-	GameTab.buttonList = GameTabButtonList
-	GameTabContainer:addElement(GameTabButtonList)
+CoD.OptionsSettings.QolToggle = function (ButtonList, LocalClientIndex, Label, DvarName, Description)
+	local Selector = ButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize(Label), DvarName, Engine.Localize(Description))
+	Selector:addChoice(LocalClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0)
+	Selector:addChoice(LocalClientIndex, Engine.Localize("MENU_ENABLED_CAPS"), 1)
+	return Selector
+end
 
-	local DrawIdentifier = GameTabButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize("DRAW IDENTIFIER"), "cg_drawIdentifier", Engine.Localize("Show the session identifier watermark across the top of the screen."))
-	DrawIdentifier:addChoice(LocalClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0, nil, CoD.OptionsSettings.Button_ApplyDvarChanged)
-	DrawIdentifier:addChoice(LocalClientIndex, Engine.Localize("MENU_ENABLED_CAPS"), 1, nil, CoD.OptionsSettings.Button_ApplyDvarChanged)
+CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
+	local QolContainer = LUI.UIContainer.new()
+	local QolButtons = CoD.Options.CreateButtonList()
+	QolTab.buttonList = QolButtons
+	QolContainer:addElement(QolButtons)
 
-	local FlashScriptHashes = GameTabButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize("FLASH SCRIPT HASHES"), "cg_flashScriptHashes", Engine.Localize("Flash script hashes on screen. Debug aid."))
-	FlashScriptHashes:addChoice(LocalClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0, nil, CoD.OptionsSettings.Button_ApplyDvarChanged)
-	FlashScriptHashes:addChoice(LocalClientIndex, Engine.Localize("MENU_ENABLED_CAPS"), 1, nil, CoD.OptionsSettings.Button_ApplyDvarChanged)
+	local T = CoD.OptionsSettings.QolToggle
 
-	GameTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
+	-- The standard Plutonium game options.
+	T(QolButtons, LocalClientIndex, "ALLOW DOWNLOADING",  "cl_allowDownload",     "Allow downloading mods from a server.")
+	T(QolButtons, LocalClientIndex, "DRAW IDENTIFIER",    "cg_drawIdentifier",    "Session watermark at the top of the screen.")
+	T(QolButtons, LocalClientIndex, "FLASH SCRIPT HASHES","cg_flashScriptHashes", "Flash script hashes on screen.")
+	T(QolButtons, LocalClientIndex, "HOLD TO SPRINT",     "cg_holdToSprint",      "Hold the sprint key instead of tapping.")
 
-	local HoldToSprint = GameTabButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize("HOLD TO SPRINT"), "cg_holdToSprint", Engine.Localize("Hold the sprint key instead of tapping it."))
-	HoldToSprint:addChoice(LocalClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0, nil, CoD.OptionsSettings.Button_ApplyDvarChanged)
-	HoldToSprint:addChoice(LocalClientIndex, Engine.Localize("MENU_ENABLED_CAPS"), 1, nil, CoD.OptionsSettings.Button_ApplyDvarChanged)
+	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
-	return GameTabContainer
+	-- Cheats and movement.
+	T(QolButtons, LocalClientIndex, "GOD MODE",           "god",                  "You cannot be damaged.")
+	T(QolButtons, LocalClientIndex, "GHOST",              "ghost",                "Zombies ignore you.")
+	T(QolButtons, LocalClientIndex, "INFINITE AMMO",      "infinite_ammo",        "Never run out of ammo.")
+	T(QolButtons, LocalClientIndex, "INFINITE SPRINT",    "infinite_sprint",      "Sprint without tiring.")
+	T(QolButtons, LocalClientIndex, "FLY MODE",           "fly",                  "Noclip. Melee to stop.")
+	T(QolButtons, LocalClientIndex, "RAPID FIRE",         "rapid_fire",           "Faster firing on every weapon.")
+	T(QolButtons, LocalClientIndex, "NO POWER NEEDED",    "no_power",             "Perks and doors work without power.")
+
+	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
+
+	-- Visuals.
+	T(QolButtons, LocalClientIndex, "NIGHT MODE",         "night_mode",           "Darker, moodier lighting.")
+	T(QolButtons, LocalClientIndex, "FOG",                "r_fog",                "World fog. Off shows the map edge.")
+	T(QolButtons, LocalClientIndex, "DEPTH OF FIELD",     "r_dof_enable",         "Blur at distance. Off is fully off.")
+	T(QolButtons, LocalClientIndex, "MODEL DETAIL FIX",   "lod_fix",              "Stops distant models popping in.")
+
+	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
+
+	-- HUD.
+	T(QolButtons, LocalClientIndex, "HUD",                "hud_master",           "Master switch for the whole HUD.")
+	T(QolButtons, LocalClientIndex, "GAME TIMER",         "hud_timer",            "Time since the match started.")
+	T(QolButtons, LocalClientIndex, "ROUND TIMER",        "hud_round_timer",      "Time since this round started.")
+	T(QolButtons, LocalClientIndex, "HEALTH BAR",         "hud_health_bar",       "Your health bar, bottom left.")
+	T(QolButtons, LocalClientIndex, "ZOMBIES REMAINING",  "hud_remaining",        "How many zombies are left.")
+	T(QolButtons, LocalClientIndex, "ZONE NAME",          "hud_zone",             "Name of the area you are in.")
+	T(QolButtons, LocalClientIndex, "VELOCITY METER",     "velocity",             "Your speed. Green, yellow, red.")
+
+	return QolContainer
 end
 
 LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
@@ -787,14 +831,16 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	end
 	CoD.OptionsSettings.DoNotSyncProfile = nil
 	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, 500)
-	-- zm_qol: GAME first, so it sits where the user expects it - to the left of
-	-- GRAPHICS. The tab manager localizes this string, and "GAME" has no
-	-- localize entry, so it falls back to the literal and renders as GAME.
-	SettingsTabs:addTab(LocalClientIndex, "GAME", CoD.OptionsSettings.CreateGameTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_GRAPHICS_CAPS", CoD.OptionsSettings.CreateGraphicsTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_ADVANCED_CAPS", CoD.OptionsSettings.CreateAdvancedTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_SOUND_CAPS", CoD.OptionsSettings.CreateSoundTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_VOICECHAT_CAPS", CoD.OptionsSettings.CreateVoiceChatTab)
+	-- zm_qol: LAST, after VOICE CHAT. Registering it first is what broke the
+	-- navigation arrows in v1.93.0 - see the note above CreateQolTab.
+	-- Engine.Localize falls back to the literal when a key does not exist, which
+	-- is how this renders as "QUALITY OF LIFE" with no new localize entry;
+	-- Plutonium's own line for FOV SENSITIVITY relies on the same behaviour.
+	SettingsTabs:addTab(LocalClientIndex, "QUALITY OF LIFE", CoD.OptionsSettings.CreateQolTab)
 	if CoD.OptionsSettings.CurrentTabIndex then
 		SettingsTabs:loadTab(LocalClientIndex, CoD.OptionsSettings.CurrentTabIndex)
 	else

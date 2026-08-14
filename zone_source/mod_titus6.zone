@@ -112,3 +112,29 @@ xanim,viewmodel_titus_mk_reload_empty
 xanim,viewmodel_titus_mk_sprint_in
 xanim,viewmodel_titus_mk_sprint_loop
 xanim,viewmodel_titus_mk_sprint_out
+
+// ---------------------------------------------------------------------------
+//  🛑 v1.94.0 - THE PACK-A-PUNCH CAMO NEEDED SLOT 3 FILLING IN, AND THIS IS THE
+//  SAME DEFECT THE THREE WONDER-WEAPON CAMOS HAD (fixed in v1.76.0).
+//
+//  User: "when i pack a punched it the pack camo was missing similar to how you
+//  had to fix that for the bo1 ports".
+//
+//  Measured, not guessed. Across BO2-Reimagined's camo\ folder every working
+//  weapon puts its mc/mtl_weapon_camo_zombies* overrides in camoMaterials[3]:
+//
+//      camo_xpr50   slot 3 -> mtl_weapon_camo_zombies / _1 / _2 / _3
+//      camo_sig556  slot 3 -> mtl_weapon_camo_zombies
+//      camo_mk48    slot 3 -> mtl_weapon_camo_zombies / _1 / _2
+//
+//  and each of them fills slots 0..14. camo_titus6.json shipped with overrides
+//  in **slot 11 only** - the "dragon" look - and slot 3 empty, so zombies
+//  Pack-a-Punch found nothing to apply.
+//
+//  zone_assets\camo\camo_titus6.json now carries a slot 3 built from the THREE
+//  base materials already named in its own slot 11 (mtl_t6_wpn_titus,
+//  mtl_t6_wpn_lmg_type95_drum, mtl_t6_attach_sniper_fastmag) mapped onto
+//  mtl_weapon_camo_zombies / _1 / _2, with camo_mk48's slot-3 shaderConsts.
+//  Nothing about the weapon's materials was invented - they come from the file
+//  itself.
+// ---------------------------------------------------------------------------

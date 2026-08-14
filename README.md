@@ -191,11 +191,18 @@ source folders is built or don't-touch.
   time: `give_weapon "titus"` / `give_weapon "titus pap"`. It routes through the same
   `weapon_give()` the mystery box uses, so it respects your weapon limit and behaves exactly
   like pulling the gun out of the box — which is the point, if you are testing one.
-- **A GAME tab in Settings** — v1.93.0 adds one to the options menu with **draw identifier**
-  (the session watermark across the top of the screen), **flash script hashes** and **hold to
-  sprint**. 📝 There was never a GAME tab to "restore": Plutonium's own `optionssettings.lua`
-  builds exactly four tabs unconditionally, and this mod owns no options LUI, so it could not
-  have hidden one. This adds it.
+- **A "QUALITY OF LIFE" tab in Settings** — pause, **Options → Settings**, and it is the last tab
+  after Voice Chat. **22 toggles**, so you never have to type a chat command: god mode, ghost,
+  infinite ammo, infinite sprint, fly, rapid fire, no-power, night mode, fog, depth of field,
+  model-detail fix, the whole HUD and each HUD element individually, and the velocity meter —
+  plus the standard Plutonium options (allow downloading, draw identifier, flash script hashes,
+  hold to sprint). Everything still has its chat command and its dvar; this is a third front-end,
+  not a replacement. **New in v1.94.0 and not yet confirmed in game.**
+  📝 Two requested entries are **not** there, deliberately: **"reduce engine sleeps"**, because no
+  dvar of that name exists in this build and inventing one would be a guess, and **perma-perks**,
+  because this mod has no perma-perk system to toggle.
+  📝 There was never a GAME tab for the mod to hide: Plutonium's own `optionssettings.lua` builds
+  exactly four tabs unconditionally, and this mod owns no options LUI. This **adds** a tab.
 - **Velocity meter** — `.velocity on` / `.velocity off` (also `.vel`, `.speed`), or the
   `velocity` dvar so you can bind it. Horizontal speed in units/sec, colour-banded:
   green, yellow from 330, red from 370.
