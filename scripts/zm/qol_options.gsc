@@ -77,6 +77,16 @@ init()
     qol_opt_dvar( "anim_pap_camo_buried",  "1" );
     qol_opt_dvar( "anim_pap_camo_origins", "1" );
 
+    //  v1.95.0 - three new rows for the QUALITY OF LIFE menu, user 2026-08-14.
+    //  All default ON, so the mod behaves exactly as before unless switched off.
+    //  Read in quality_of_life.gsc by updatedamagefeedback(), the custom-summary
+    //  popup and zmqol_credits_banner_print() respectively. Registered here with
+    //  the rest so they appear in console autocomplete and so the menu row reads
+    //  a real value instead of an empty string on the first open.
+    qol_opt_dvar( "hitmarkers",    "1" );
+    qol_opt_dvar( "round_summary", "1" );
+    qol_opt_dvar( "intro_credits", "1" );
+
     qol_opt_dvar( "no_power", "0" );
 
     //  Model pop-in. On by default - it is a pure image-quality win with no

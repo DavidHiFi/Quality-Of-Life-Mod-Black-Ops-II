@@ -1617,8 +1617,21 @@ cs_on_round_change(new_round)
 
     self.cs_last_popup_time = now;
 
-    self notify("cs_popup_kill3");
-    self thread cs_popup(completed_round, round_time, round_kills, old_pb_time, old_pb_kills, new_pb_time, new_pb_kills);
+    //  v1.95.0 - `round_summary` console dvar / QUALITY OF LIFE menu row. User
+    //  request, 2026-08-14: "add an option to toggle the brief pop-up after each
+    //  completed wave/round that shows stats in the middle of the screen."
+    //
+    //  🛑 GATED AT THE POPUP, NOT AT THE TRACKER. Everything above this line
+    //  still runs - round time, kill count and both personal bests are recorded
+    //  and written to the profile exactly as before - so turning the popup off
+    //  loses no history and turning it back on shows correct numbers straight
+    //  away. The three bookkeeping writes below run either way for the same
+    //  reason.
+    if ( getdvarintdefault( "round_summary", 1 ) )
+    {
+        self notify("cs_popup_kill3");
+        self thread cs_popup(completed_round, round_time, round_kills, old_pb_time, old_pb_kills, new_pb_time, new_pb_kills);
+    }
 
     self.cs_last_round = new_round;
     self.cs_round_start_time = getTime();
@@ -3266,6 +3279,12 @@ zmqol_credits_banner_print()
     flag_wait( "initial_blackscreen_passed" );
     wait 1;
 
+    //  v1.95.0 - `intro_credits` console dvar / QUALITY OF LIFE menu row. User
+    //  request, 2026-08-14: "add an option to disable auto flashing credits".
+    //  On by default; this one line is the whole banner.
+    if ( !getdvarintdefault( "intro_credits", 1 ) )
+        return;
+
     self iprintln( "^5Quality Of Life Mod | Credits: DavidHiFi & Synarxis" );
 }
 
@@ -3463,16 +3482,23 @@ zmqol_dev_command_listener()
         }
         else if ( cmd == "god" )
         {
+            //  🛑 v1.95.0 - THE DVAR IS WRITTEN BACK. zmqol_toggle_dvar_watch()
+            //  treats `godmode` as the state, so a front-end that changes the
+            //  state without telling it gets its change undone 0.25s later -
+            //  which is precisely what .god did before this line existed. Same
+            //  contract as .fly, which has always written `fly` back.
             if ( isdefined( player.zmqol_god ) && player.zmqol_god )
             {
                 player.zmqol_god = 0;
                 player disableinvulnerability();
+                setdvar( "godmode", "0" );
                 player iprintln( "^1[zm_qol] godmode OFF" );
             }
             else
             {
                 player.zmqol_god = 1;
                 player enableinvulnerability();
+                setdvar( "godmode", "1" );
                 player iprintln( "^2[zm_qol] godmode ON" );
             }
         }
@@ -3518,10 +3544,12 @@ zmqol_dev_command_listener()
             // self.ignoreme is the stock "AI does not target me" flag - it is what
             // maps\mp\zombies\_zm_spawner sets on a fresh zombie and what the
             // afk_on_command_by_THS script uses for the same purpose.
+            //  v1.95.0 - writes `ghostmode` back for the same reason .god does.
             if ( isdefined( player.zmqol_ghost ) && player.zmqol_ghost )
             {
                 player.zmqol_ghost = 0;
                 player.ignoreme = 0;
+                setdvar( "ghostmode", "0" );
                 player iprintln( "^1[zm_qol] ghost OFF ^7- zombies can see you" );
             }
             else
@@ -3529,6 +3557,7 @@ zmqol_dev_command_listener()
                 player.zmqol_ghost = 1;
                 player.ignoreme = 1;
                 player thread zmqol_ghost_enforce();
+                setdvar( "ghostmode", "1" );
                 player iprintln( "^2[zm_qol] ghost ON ^7- zombies ignore you" );
             }
         }
@@ -5604,8 +5633,16 @@ zmqol_boss_spawn_dvar_watch()
 //  a band CHANGE, and no other thread writes this element's colour at all, so
 //  there is still exactly one owner per field.
 // ============================================================================
-zmqol_velocity_set( b_on )
+zmqol_velocity_set( b_on, b_quiet )
 {
+    //  v1.95.0 - b_quiet suppresses the feed line. The console-dvar watcher
+    //  passes it on its FIRST pass only: a player whose config already has
+    //  velocity 1 was being told "velocity meter ON" every single spawn, which
+    //  is the unsolicited startup spam the user asked to be rid of. Every other
+    //  caller - chat, the keybind - is a deliberate act and still announces.
+    if ( !isdefined( b_quiet ) )
+        b_quiet = 0;
+
     if ( b_on )
     {
         //  Idempotent: three front-ends can call this (chat, the console dvar
@@ -5639,7 +5676,9 @@ zmqol_velocity_set( b_on )
 
         self thread zmqol_velocity_think();
         setdvar( "velocity", "1" );
-        self iprintln( "^2[zm_qol] velocity meter ON ^7- horizontal speed, ^2green ^7/ ^3330+ ^7/ ^1370+" );
+
+        if ( !b_quiet )
+            self iprintln( "^2[zm_qol] velocity meter ON ^7- horizontal speed, ^2green ^7/ ^3330+ ^7/ ^1370+" );
     }
     else
     {
@@ -5656,7 +5695,9 @@ zmqol_velocity_set( b_on )
         self.zmqol_vel_band = undefined;
 
         setdvar( "velocity", "0" );
-        self iprintln( "^1[zm_qol] velocity meter OFF" );
+
+        if ( !b_quiet )
+            self iprintln( "^1[zm_qol] velocity meter OFF" );
     }
 }
 
@@ -5728,6 +5769,10 @@ zmqol_velocity_dvar_watch()
     if ( getdvar( "velocity" ) == "" )
         setdvar( "velocity", "0" );
 
+    //  v1.95.0 - the first pass is SILENT. It is not a user action; it is this
+    //  watcher catching up with a value the config already had.
+    b_first = 1;
+
     for ( ;; )
     {
         wait 0.25;
@@ -5736,9 +5781,11 @@ zmqol_velocity_dvar_watch()
         b_have = isdefined( self.zmqol_vel_hud );
 
         if ( b_want && !b_have )
-            self zmqol_velocity_set( 1 );
+            self zmqol_velocity_set( 1, b_first );
         else if ( !b_want && b_have )
-            self zmqol_velocity_set( 0 );
+            self zmqol_velocity_set( 0, b_first );
+
+        b_first = 0;
     }
 }
 
@@ -5982,11 +6029,35 @@ zmqol_toggle_dvar_watch()
     self endon( "disconnect" );
     level endon( "game_ended" );
 
-    if ( getdvar( "god" ) == "" )
-        setdvar( "god", "0" );
+    //  🛑 v1.95.0 - THE NAMES ARE godmode / ghostmode, NOT god / ghost, AND THAT
+    //  IS THE WHOLE BUG FROM v1.94.0.
+    //
+    //  `god` and `ghost` are already owned by zmqol_console_command_names() -
+    //  the CHAT-COMMAND channel, which seeds every name in its list to "" and
+    //  blanks it again the instant it sees a value. Two systems on one dvar:
+    //  the menu wrote god 1, the command watcher consumed it and blanked it,
+    //  this watcher then read "" as 0 and switched godmode straight back off.
+    //  That is the "[zm_qol] godmode ON / godmode OFF" pair the user
+    //  screenshotted, and why the menu row flipped back to DISABLED on exit.
+    //
+    //  🌟 THE LIVE DVAR DUMP SHOWS IT PLAINLY - `god ""` and `ghost ""` next to
+    //  `infammo ""` / `infsprint ""` (the other command-channel names), while
+    //  `infinite_ammo "1"` and `infinite_sprint "1"` hold their values. Those
+    //  two never collided: the command channel owns `infiniteammo` and
+    //  `infinitesprint`, without the underscore. `fly` is the same story and is
+    //  deliberately absent from the command list for exactly this reason.
+    //
+    //  📝 v1.94.0's note claimed the names were collision-checked. They were -
+    //  against the engine's 3,210 dvars, which is the wrong list. The collision
+    //  was with this mod's own command names.
+    //
+    //  Neither `godmode` nor `ghostmode` appears anywhere in the dvar dump or in
+    //  zmqol_console_command_names(), so both are free.
+    if ( getdvar( "godmode" ) == "" )
+        setdvar( "godmode", "0" );
 
-    if ( getdvar( "ghost" ) == "" )
-        setdvar( "ghost", "0" );
+    if ( getdvar( "ghostmode" ) == "" )
+        setdvar( "ghostmode", "0" );
 
     if ( getdvar( "infinite_ammo" ) == "" )
         setdvar( "infinite_ammo", "0" );
@@ -5994,40 +6065,53 @@ zmqol_toggle_dvar_watch()
     if ( getdvar( "infinite_sprint" ) == "" )
         setdvar( "infinite_sprint", "0" );
 
+    //  v1.95.0 - SILENT FIRST PASS, same rule as the velocity watcher. A config
+    //  that already carries infinite_ammo 1 is not a user action taken now, and
+    //  announcing it on every spawn is the startup spam the user asked to go.
+    b_first = 1;
+
     for ( ;; )
     {
         //  --- god ---
-        b_want = getdvarintdefault( "god", 0 );
+        b_want = getdvarintdefault( "godmode", 0 );
         b_is = isdefined( self.zmqol_god ) && self.zmqol_god;
 
         if ( b_want && !b_is )
         {
             self.zmqol_god = 1;
             self enableinvulnerability();
-            self iprintln( "^2[zm_qol] godmode ON" );
+            if ( !b_first )
+                self iprintln( "^2[zm_qol] godmode ON" );
         }
         else if ( !b_want && b_is )
         {
             self.zmqol_god = 0;
             self disableinvulnerability();
-            self iprintln( "^1[zm_qol] godmode OFF" );
+            if ( !b_first )
+                self iprintln( "^1[zm_qol] godmode OFF" );
         }
 
         //  --- ghost ---
-        b_want = getdvarintdefault( "ghost", 0 );
+        b_want = getdvarintdefault( "ghostmode", 0 );
         b_is = isdefined( self.zmqol_ghost ) && self.zmqol_ghost;
 
         if ( b_want && !b_is )
         {
             self.zmqol_ghost = 1;
             self.ignoreme = 1;
-            self iprintln( "^2[zm_qol] ghost ON ^7- zombies ignore you" );
+            //  v1.95.0 - the chat path threads this and the menu path did not,
+            //  so ghost bought from the menu was not re-asserted against stock
+            //  code that clears .ignoreme. Both front-ends now do the same work.
+            self thread zmqol_ghost_enforce();
+            if ( !b_first )
+                self iprintln( "^2[zm_qol] ghost ON ^7- zombies ignore you" );
         }
         else if ( !b_want && b_is )
         {
             self.zmqol_ghost = 0;
             self.ignoreme = 0;
-            self iprintln( "^1[zm_qol] ghost OFF ^7- zombies can see you" );
+            if ( !b_first )
+                self iprintln( "^1[zm_qol] ghost OFF ^7- zombies can see you" );
         }
 
         //  --- infinite ammo ---
@@ -6038,13 +6122,15 @@ zmqol_toggle_dvar_watch()
         {
             self.zmqol_infammo = 1;
             self thread zmqol_infinite_ammo_think();
-            self iprintln( "^2[zm_qol] infinite ammo ON" );
+            if ( !b_first )
+                self iprintln( "^2[zm_qol] infinite ammo ON" );
         }
         else if ( !b_want && b_is )
         {
             self.zmqol_infammo = 0;
             self notify( "zmqol_infammo_off" );
-            self iprintln( "^1[zm_qol] infinite ammo OFF" );
+            if ( !b_first )
+                self iprintln( "^1[zm_qol] infinite ammo OFF" );
         }
 
         //  --- infinite sprint ---
@@ -6054,17 +6140,24 @@ zmqol_toggle_dvar_watch()
         if ( b_want && !b_is )
         {
             self.zmqol_infsprint = 1;
-            self setperk( "specialty_unlimitedsprint" );
-            self iprintln( "^2[zm_qol] infinite sprint ON" );
+            //  v1.95.0 - was a bare setperk(). The chat path threads
+            //  zmqol_infinite_sprint_think(), which is what re-asserts the perk
+            //  after stock strips it (down, round change, Stamin-Up purchase).
+            //  A one-shot setperk from the menu quietly wore off. Same work now.
+            self thread zmqol_infinite_sprint_think();
+            if ( !b_first )
+                self iprintln( "^2[zm_qol] infinite sprint ON" );
         }
         else if ( !b_want && b_is )
         {
             self.zmqol_infsprint = 0;
             self notify( "zmqol_infsprint_off" );
             self unsetperk( "specialty_unlimitedsprint" );
-            self iprintln( "^1[zm_qol] infinite sprint OFF" );
+            if ( !b_first )
+                self iprintln( "^1[zm_qol] infinite sprint OFF" );
         }
 
+        b_first = 0;
         wait 0.25;
     }
 }
@@ -9586,6 +9679,14 @@ init_hitmarkers()
 updatedamagefeedback( mod, inflictor, death )
 {
     if ( !isplayer( self ) || isdefined( self.disable_hitmarkers ) )
+        return;
+
+    //  v1.95.0 - `hitmarkers` console dvar / QUALITY OF LIFE menu row. User
+    //  request, 2026-08-14. Gated HERE rather than at registration so it can be
+    //  turned on and off mid-match: this is the single funnel both callbacks
+    //  (do_hitmarker and do_hitmarker_death) go through, and it is the only
+    //  place the marker and its sound are produced.
+    if ( !getdvarintdefault( "hitmarkers", 1 ) )
         return;
 
     //  DIAGNOSTIC, v1.65.4 - see zmqol_perf_probe(). This function is threaded

@@ -744,6 +744,26 @@ CoD.OptionsSettings.QolToggle = function (ButtonList, LocalClientIndex, Label, D
 	return Selector
 end
 
+-- ============================================================================
+--  🛑 v1.95.0 - THE LIST IS SPLIT ACROSS TWO TABS BECAUSE 22 ROWS DO NOT FIT.
+--
+--  User, 2026-08-14: "The Esc back at the bottom left doesn't account for all
+--  the options in the list for this menu, and it collides with some of the
+--  options in the list, and the header groups... also collide with the menu
+--  options."
+--
+--  🌟 THE BUDGET IS MEASURED OFF A TAB THAT IS KNOWN TO RENDER CORRECTLY.
+--  Stock's GRAPHICS tab in this same file is 13 rows + 3 half-height spacers =
+--  14.5 row-pitches and it lays out cleanly, hint line and ESC prompt included.
+--  The v1.94.0 QUALITY OF LIFE tab was 22 rows + 3 spacers = 23.5 pitches, 62%
+--  over that, and CoD.ButtonList does not clip or scroll - it simply draws
+--  past both ends of its container, over the tab strip above and the ESC
+--  prompt below. That is the whole of the reported "scuffed-ness".
+--
+--  The two tabs below are 13 and 13.5 pitches, both inside the proven 14.5.
+--  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTER TAB, and never take either past
+--  14.5 pitches (a spacer counts as 0.5).
+-- ============================================================================
 CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	local QolContainer = LUI.UIContainer.new()
 	local QolButtons = CoD.Options.CreateButtonList()
@@ -752,7 +772,7 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 
 	local T = CoD.OptionsSettings.QolToggle
 
-	-- The standard Plutonium game options.
+	-- The standard Plutonium game options.                            4 rows
 	T(QolButtons, LocalClientIndex, "ALLOW DOWNLOADING",  "cl_allowDownload",     "Allow downloading mods from a server.")
 	T(QolButtons, LocalClientIndex, "DRAW IDENTIFIER",    "cg_drawIdentifier",    "Session watermark at the top of the screen.")
 	T(QolButtons, LocalClientIndex, "FLASH SCRIPT HASHES","cg_flashScriptHashes", "Flash script hashes on screen.")
@@ -760,9 +780,14 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
-	-- Cheats and movement.
-	T(QolButtons, LocalClientIndex, "GOD MODE",           "god",                  "You cannot be damaged.")
-	T(QolButtons, LocalClientIndex, "GHOST",              "ghost",                "Zombies ignore you.")
+	-- Cheats and movement.                                            7 rows
+	--
+	-- 🛑 godmode / ghostmode, NOT god / ghost. Those two names belong to the
+	-- mod's CHAT-COMMAND dvar channel, which blanks them the moment they are
+	-- written - so the v1.94.0 rows switched themselves straight back off. See
+	-- the long note in zmqol_toggle_dvar_watch() in quality_of_life.gsc.
+	T(QolButtons, LocalClientIndex, "GOD MODE",           "godmode",              "You cannot be damaged.")
+	T(QolButtons, LocalClientIndex, "GHOST",              "ghostmode",            "Zombies ignore you.")
 	T(QolButtons, LocalClientIndex, "INFINITE AMMO",      "infinite_ammo",        "Never run out of ammo.")
 	T(QolButtons, LocalClientIndex, "INFINITE SPRINT",    "infinite_sprint",      "Sprint without tiring.")
 	T(QolButtons, LocalClientIndex, "FLY MODE",           "fly",                  "Noclip. Melee to stop.")
@@ -771,24 +796,40 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
-	-- Visuals.
-	T(QolButtons, LocalClientIndex, "NIGHT MODE",         "night_mode",           "Darker, moodier lighting.")
-	T(QolButtons, LocalClientIndex, "FOG",                "r_fog",                "World fog. Off shows the map edge.")
-	T(QolButtons, LocalClientIndex, "DEPTH OF FIELD",     "r_dof_enable",         "Blur at distance. Off is fully off.")
-	T(QolButtons, LocalClientIndex, "MODEL DETAIL FIX",   "lod_fix",              "Stops distant models popping in.")
+	-- Startup.                                                       1 row
+	T(QolButtons, LocalClientIndex, "INTRO CREDITS",      "intro_credits",        "Mod name and credits at match start.")
 
-	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
+	return QolContainer                                             -- 13 total
+end
 
-	-- HUD.
-	T(QolButtons, LocalClientIndex, "HUD",                "hud_master",           "Master switch for the whole HUD.")
-	T(QolButtons, LocalClientIndex, "GAME TIMER",         "hud_timer",            "Time since the match started.")
-	T(QolButtons, LocalClientIndex, "ROUND TIMER",        "hud_round_timer",      "Time since this round started.")
-	T(QolButtons, LocalClientIndex, "HEALTH BAR",         "hud_health_bar",       "Your health bar, bottom left.")
-	T(QolButtons, LocalClientIndex, "ZOMBIES REMAINING",  "hud_remaining",        "How many zombies are left.")
-	T(QolButtons, LocalClientIndex, "ZONE NAME",          "hud_zone",             "Name of the area you are in.")
-	T(QolButtons, LocalClientIndex, "VELOCITY METER",     "velocity",             "Your speed. Green, yellow, red.")
+CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
+	local QolHudContainer = LUI.UIContainer.new()
+	local QolHudButtons = CoD.Options.CreateButtonList()
+	QolHudTab.buttonList = QolHudButtons
+	QolHudContainer:addElement(QolHudButtons)
 
-	return QolContainer
+	local T = CoD.OptionsSettings.QolToggle
+
+	-- Visuals.                                                        4 rows
+	T(QolHudButtons, LocalClientIndex, "NIGHT MODE",        "night_mode",     "Darker, moodier lighting.")
+	T(QolHudButtons, LocalClientIndex, "FOG",               "r_fog",          "World fog. Off shows the map edge.")
+	T(QolHudButtons, LocalClientIndex, "DEPTH OF FIELD",    "r_dof_enable",   "Blur at distance. Off is fully off.")
+	T(QolHudButtons, LocalClientIndex, "MODEL DETAIL FIX",  "lod_fix",        "Stops distant models popping in.")
+
+	QolHudButtons:addSpacer(CoD.CoD9Button.Height / 2)
+
+	-- HUD.                                                           9 rows
+	T(QolHudButtons, LocalClientIndex, "HUD",               "hud_master",     "Master switch for the whole HUD.")
+	T(QolHudButtons, LocalClientIndex, "HITMARKERS",        "hitmarkers",     "Hit and kill markers on your crosshair.")
+	T(QolHudButtons, LocalClientIndex, "ROUND SUMMARY",     "round_summary",  "Stats pop-up after each round.")
+	T(QolHudButtons, LocalClientIndex, "GAME TIMER",        "hud_timer",      "Time since the match started.")
+	T(QolHudButtons, LocalClientIndex, "ROUND TIMER",       "hud_round_timer","Time since this round started.")
+	T(QolHudButtons, LocalClientIndex, "HEALTH BAR",        "hud_health_bar", "Your health bar, bottom left.")
+	T(QolHudButtons, LocalClientIndex, "ZOMBIES REMAINING", "hud_remaining",  "How many zombies are left.")
+	T(QolHudButtons, LocalClientIndex, "ZONE NAME",         "hud_zone",       "Name of the area you are in.")
+	T(QolHudButtons, LocalClientIndex, "VELOCITY METER",    "velocity",       "Your speed. Green, yellow, red.")
+
+	return QolHudContainer                                          -- 13.5 total
 end
 
 LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
@@ -830,7 +871,34 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 		Engine.SyncHardwareProfileWithDvars()
 	end
 	CoD.OptionsSettings.DoNotSyncProfile = nil
-	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, 500)
+	-- zm_qol v1.95.0 - 500 -> 800. THIS IS WHAT PUT THE ARROWS INSIDE THE TEXT.
+	--
+	-- CoD.Options.SetupTabManager(widget, HorizontalOffset) does
+	--     GenericTabManager:setLeftRight(false, false, -HorizontalOffset/2, HorizontalOffset/2)
+	-- so the number is the TOTAL WIDTH of the tab strip container, centred, and
+	-- the left/right arrows are drawn at its two edges. The tabs themselves are
+	-- centre-aligned inside it and their width does not depend on it - so a
+	-- container narrower than the labels puts both arrows on top of the text,
+	-- which is exactly the screenshot: left arrow over "GRAPHICS", right arrow
+	-- over "QUALITY OF LIFE". 500 was stock's value for FOUR tabs.
+	--
+	-- 🌟 MEASURED, NOT GUESSED. Scanned the user's 2000x1125 screenshot for the
+	-- five label runs in the tab band (LUI is 1280x720, so exactly 1.5625 px per
+	-- unit):
+	--     GRAPHICS 536..645   ADVANCED 727..841   SOUND 924..997
+	--     VOICE CHAT 1078..1207   QUALITY OF LIFE 1289..1465
+	-- Five labels span 929 px = 595 units; stock's four span 675 px = 432 units
+	-- inside the 500 container, i.e. stock leaves ~34 units of margin per side.
+	-- This build now has SIX tabs - "QOL HUD" adds ~83 px of glyphs plus one
+	-- 82 px gap - so the strip is ~1094 px = 700 units, and 700 + 68 = 768 is
+	-- the minimum. 800 leaves 37 px of margin per side against stock's 31, so
+	-- the arrows sit just outside the text exactly as they do on the stock tabs.
+	--
+	-- 800 is also a working precedent twice over: Plutonium's own
+	-- optionscontrols.lua uses 800 for its five-tab strip in this same build,
+	-- and BO2-Reimagined uses 700 for a six-tab strip with slightly narrower
+	-- labels.
+	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, 800)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_GRAPHICS_CAPS", CoD.OptionsSettings.CreateGraphicsTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_ADVANCED_CAPS", CoD.OptionsSettings.CreateAdvancedTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_SOUND_CAPS", CoD.OptionsSettings.CreateSoundTab)
@@ -841,6 +909,10 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	-- is how this renders as "QUALITY OF LIFE" with no new localize entry;
 	-- Plutonium's own line for FOV SENSITIVITY relies on the same behaviour.
 	SettingsTabs:addTab(LocalClientIndex, "QUALITY OF LIFE", CoD.OptionsSettings.CreateQolTab)
+	-- v1.95.0 - the visuals and HUD half. Split so neither tab overflows; see
+	-- the note above CreateQolTab. Kept short ("QOL HUD") so the six-tab strip
+	-- still fits comfortably inside the 800-unit container set below.
+	SettingsTabs:addTab(LocalClientIndex, "QOL HUD", CoD.OptionsSettings.CreateQolHudTab)
 	if CoD.OptionsSettings.CurrentTabIndex then
 		SettingsTabs:loadTab(LocalClientIndex, CoD.OptionsSettings.CurrentTabIndex)
 	else

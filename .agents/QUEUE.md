@@ -4139,3 +4139,139 @@ established for Origins only.
 ▶️ **The Origins test is now free and it also verifies v1.94.0**: v1.94.0 already stopped
 `zmqol_capture_objectives_fix()` and `zmqol_capture_hud_nudge()` from starting on Origins, and
 both emitted reliable commands on a timer. Neither has ever been booted. Boot Origins first.
+
+## ✅ ORIGINS NO LONGER CRASHES — and the cause is now named
+
+User booted Origins classic solo on v1.94.1 and played past two minutes.
+`games_mp.log`: `zm_tomb` ran **2:03** and ended `PLATFORM_DISCONNECTED_FROM_SERVER` (the user
+quitting), not `EXE_ERR_RELIABLE_CYCLED_OUT`. Mob ran 1:35 then 4:22. No `COM_ERROR (1)` anywhere
+in the new `console_zm.log`.
+
+🌟 **So the emitter WAS the Origins capture-ring code.** v1.94.0 stopped
+`zmqol_capture_objectives_fix()` and `zmqol_capture_hud_nudge()` from starting on Origins, and
+checkpoint 46 explicitly refused to claim that as the fix. It was. Both emitted reliable commands
+on a timer, and the ring holds 128.
+
+🛑 **BURIED IS STILL UNTESTED.** Those two functions were Origins-only, so nothing about Buried
+changed. It must be booted before this is closed.
+
+🛑 **AND THE FIX RE-BROKE THE GENERATOR RING** — see B-GEN below. The two are the same problem seen
+from opposite ends: the thing that made the ring appear is the thing that killed the game.
+
+## ✅ THUNDERGUN vs BRUTUS — CONFIRMED WORKING (v1.94.1)
+
+User: *"Spawned in a brutus and gave myself the thundergun, he lost his helmet first shot and then
+died second shot so good job there."* The close-range `thundergun_fling_zombie()` hook was the
+missing piece. Closed.
+
+## v1.95.0 — THE QUALITY OF LIFE MENU, PROPERLY
+
+### ✅ 1. THE TAB ARROWS — THE CONTAINER WAS 300 UNITS TOO NARROW
+
+`CoD.Options.SetupTabManager(widget, HorizontalOffset)` does
+`setLeftRight(false, false, -HorizontalOffset/2, HorizontalOffset/2)` (source:
+`BO2-Reimagined\ui\t6\options.lua:401`), so the number is the **total width of the tab strip
+container**, centred, with the arrows drawn at its two edges. The tabs are centre-aligned inside it
+and their width does not depend on it — so a container narrower than the labels puts both arrows
+**on top of the text**. 500 was stock's value for four tabs and was never changed.
+
+🌟 **Measured off the user's screenshot** by scanning the tab band for label runs (2000x1125 image,
+LUI is 1280x720, so exactly 1.5625 px/unit):
+
+| tab | pixels |
+|---|---|
+| GRAPHICS | 536..645 |
+| ADVANCED | 727..841 |
+| SOUND | 924..997 |
+| VOICE CHAT | 1078..1207 |
+| QUALITY OF LIFE | 1289..1465 |
+
+Five labels span 929 px = 595 units. Stock's four span 675 px = 432 units inside the 500 container,
+i.e. **stock leaves ~34 units of margin per side**. With six tabs (QOL HUD added) the strip is
+~700 units, so 768 is the minimum. Now **800**, which is also what Plutonium's own five-tab
+`optionscontrols.lua` uses in this same build, and near Reimagined's 700 for six.
+
+### ✅ 2. THE LIST OVERFLOWING THE ESC PROMPT AND THE TAB STRIP — 22 ROWS IN A 14.5-ROW TAB
+
+`CoD.ButtonList` does not clip or scroll; it draws straight past both ends of its container.
+Stock's GRAPHICS tab is 13 rows + 3 half-height spacers = **14.5 row-pitches** and lays out cleanly
+— that is the proven budget. The v1.94.0 QoL tab was 22 rows + 3 spacers = 23.5 pitches, 62% over.
+
+Split into **QUALITY OF LIFE** (13 pitches: the four Plutonium game options, the seven
+cheat/movement toggles, intro credits) and **QOL HUD** (13.5: the four visual toggles and nine HUD
+toggles). Both under 14.5. A comment in the file states the budget and the rule for adding rows.
+
+### ✅ 3. GOD AND GHOST SWITCHING THEMSELVES BACK OFF — A DVAR OWNED BY TWO SYSTEMS
+
+**Measured from the live dvar dump, not inferred.** `console_zm.log` shows:
+
+```
+      ghost ""            <- blank
+      god ""              <- blank
+      infammo ""          infiniteammo ""   infsprint ""   infinitesprint ""
+      infinite_ammo "1"   infinite_sprint "1"      <- these hold
+```
+
+`god` and `ghost` are in `zmqol_console_command_names()` — the **chat-command channel**, which
+seeds every name in its list to `""` and blanks it again the instant it sees a value.
+v1.94.0's `zmqol_toggle_dvar_watch()` then used those same two names as **persistent state**.
+Sequence: the menu writes `god 1` → the command watcher consumes it, blanks it and fires `.god`
+(godmode ON) → the toggle watcher reads `""` as 0 and switches godmode straight back OFF. That is
+the `godmode ON / godmode OFF` pair in the user's screenshot, and why the menu row read DISABLED
+again on exit. `.god` typed in chat hit the second half of the same loop.
+
+🛑 v1.94.0's comment claimed the names were collision-checked. They were — **against the engine's
+3,210 dvars, which is the wrong list.** The collision was with this mod's own command names.
+`infinite_ammo` / `infinite_sprint` never collided because the command channel owns
+`infiniteammo` / `infinitesprint`, without the underscore; `fly` is deliberately absent from that
+list for exactly this reason.
+
+**Fix:** the state dvars are now `godmode` and `ghostmode` — neither appears in the dvar dump nor
+in the command list. `.god` and `.ghost` write them back, so chat, console and menu can never
+disagree. Verified: each of the four new names has exactly one owner in the tree.
+
+**Two more defects found while in there, both the same shape — the menu path doing less work than
+the chat path:**
+- ghost from the menu never threaded `zmqol_ghost_enforce()`, so it was not re-asserted against
+  stock code that clears `.ignoreme`.
+- infinite sprint from the menu did a bare `setperk()` instead of threading
+  `zmqol_infinite_sprint_think()`, so it wore off at the next down or round change.
+
+### ✅ 4. STARTUP SPAM — the feed now shows the credits line and nothing else
+
+`zmqol_velocity_dvar_watch()` and `zmqol_toggle_dvar_watch()` announced on their **first** pass, so
+a config already carrying `velocity 1` / `infinite_ammo 1` produced "velocity meter ON…" and friends
+on every spawn. Both watchers are now silent on pass one — that pass is the watcher catching up
+with the config, not a user action. Every deliberate toggle still announces.
+
+### ✅ 5. THREE NEW TOGGLES, all default ON
+
+| row | dvar | gate |
+|---|---|---|
+| HITMARKERS | `hitmarkers` | `updatedamagefeedback()` — the single funnel both hit and death callbacks pass through, so it works mid-match |
+| ROUND SUMMARY | `round_summary` | gated at the popup, **not** the tracker: round time, kills and both personal bests are still recorded and written to the profile, so turning it off loses no history |
+| INTRO CREDITS | `intro_credits` | `zmqol_credits_banner_print()` |
+
+## 🔴 OPEN, QUEUED FROM THE 2026-08-14 BOOT — in the user's own words
+
+- **B-GEN. The Origins generator progress overlay is hidden until the scoreboard is opened.**
+  *"Make the progress indicator on the hud for whenever you're powering up a generator on Origins
+  fixed for good, make it behave like stock vanilla bo2 no weirdness, keep the position of the brief
+  pop-up that shows up on the top right when you finish powering up a generator."*
+  🛑 **Directly coupled to the crash fix above** — v1.94.0 removed the nudge, which is what used to
+  make the ring appear. The next attempt must be event-driven, not on a timer.
+  🌟 Untested lead: the mod SKIPS the Origins intro (`zmqol_intro_hold_time()` = 0.05s). Stock's
+  intro is what gives the client's Origins HUD menu time to be created before
+  `declare_objectives()` announces to it — the log shows `hudcraftablestombzombie.lua` loading
+  AFTER the objectives were declared. That ordering flip is a mod-caused difference from stock and
+  has never been tested as the cause.
+- **B-ROUND. Mob round 1: the round counter is missing from the top right.** Screenshot 4 shows an
+  empty top-right at 0:08 into the match. (Origins showed it fine at round 2.)
+- **B-CHERRY. Prone at the Electric Cherry machine on Mob gives no +100.** Every other perk machine
+  does.
+- **B-WF. Randomise the Wunderfizz's FIRST spawn point on every map.** Right now the initial
+  location is always the same one; maps with a single location are exempt.
+- **B-CDC. CHOOSE CHARACTER: CDC / CIA above DIFFICULTY in Solo Play and Custom Game, survival
+  only.** Still not started. 📝 `qol_options.gsc` already has a `character` dvar and a watcher
+  (gated off `zm_tomb`/`zm_prison`) — that is the server half to build on.
+- **B-TOWN. Town survival: the zombie ground-spawn (emerge) sound is missing.**

@@ -201,13 +201,18 @@ source folders is built or don't-touch.
   time: `give_weapon "titus"` / `give_weapon "titus pap"`. It routes through the same
   `weapon_give()` the mystery box uses, so it respects your weapon limit and behaves exactly
   like pulling the gun out of the box — which is the point, if you are testing one.
-- **A "QUALITY OF LIFE" tab in Settings** — pause, **Options → Settings**, and it is the last tab
-  after Voice Chat. **22 toggles**, so you never have to type a chat command: god mode, ghost,
-  infinite ammo, infinite sprint, fly, rapid fire, no-power, night mode, fog, depth of field,
-  model-detail fix, the whole HUD and each HUD element individually, and the velocity meter —
-  plus the standard Plutonium options (allow downloading, draw identifier, flash script hashes,
-  hold to sprint). Everything still has its chat command and its dvar; this is a third front-end,
-  not a replacement. **New in v1.94.0 and not yet confirmed in game.**
+- **"QUALITY OF LIFE" and "QOL HUD" tabs in Settings** — pause, **Options → Settings**; they are
+  the last two tabs, after Voice Chat. **25 toggles**, so you never have to type a chat command.
+  *Quality Of Life*: the four standard Plutonium options (allow downloading, draw identifier,
+  flash script hashes, hold to sprint), then god mode, ghost, infinite ammo, infinite sprint, fly,
+  rapid fire, no-power, and the intro credits banner. *QOL HUD*: night mode, fog, depth of field,
+  model-detail fix, then the HUD master switch, hitmarkers, the round-summary pop-up, the game and
+  round timers, health bar, zombies remaining, zone name and the velocity meter. Everything still
+  has its chat command and its dvar; this is a third front-end, not a replacement.
+  **Two tabs, not one, for a measured reason:** `CoD.ButtonList` neither clips nor scrolls, and
+  stock's largest tab is 14.5 row-pitches. One 23.5-pitch tab drew straight over the tab strip and
+  the ESC prompt. Each tab is now under the stock budget. **Rebuilt in v1.95.0 and not yet
+  confirmed in game.**
   📝 Two requested entries are **not** there, deliberately: **"reduce engine sleeps"**, because no
   dvar of that name exists in this build and inventing one would be a guess, and **perma-perks**,
   because this mod has no perma-perk system to toggle.
