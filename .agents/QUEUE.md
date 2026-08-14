@@ -4068,3 +4068,74 @@ draw, raw `.efx` load and the freeze gun has its own specific problem. If they d
 ### 6. QUEUED, NOT STARTED — survival character choice (CDC / CIA)
 
 User: an option, survival only, in both solo and custom play. Not attempted this round.
+
+## v1.94.1 — 2026-08-14. One defect found by the pre-mortem, before a boot was spent on it.
+
+### ✅ THE THUNDERGUN HELMET FIX WAS ON THE WRONG BRANCH — AGAIN, AND FOR A NEW REASON
+
+v1.93.0 hooked `zombie_knockdown()`; v1.94.0 correctly found that Brutus never reaches it and
+moved the hook into `thundergun_knockdown_zombie()`, above the per-AI
+`self.thundergun_knockdown_func` dispatch. **That is still only half the gun.**
+
+`thundergun_get_enemies_in_range()` (`_zm_weap_thundergun.gsc:156-180`) sorts every target into
+exactly one of two buckets, by distance from the muzzle:
+
+| distance | bucket | function | v1.94.0 hook? |
+|---|---|---|---|
+| `< thundergun_fling_range` (**480**) | `level.thundergun_fling_enemies` | `thundergun_fling_zombie()` | 🔴 **no** |
+| 480 .. `thundergun_knockdown_range` (1200) | `level.thundergun_knockdown_enemies` | `thundergun_knockdown_zombie()` | ✅ yes |
+
+480 units is point-blank to close range — the range Brutus is actually fought at. So in practice
+every shot the user fired went down the branch with no hook, and `thundergun_fling_zombie()` goes
+straight to `self.thundergun_fling_func` (Brutus never sets it) and then
+`DoDamage( self.health + 666 )` + `StartRagdoll` + `LaunchRagdoll`.
+
+🌟 **The user's own words are the confirmation of the branch:** *"the second shot just sends him
+flying again"*. The ragdoll launch exists **only** on the fling branch. The knockdown branch does
+`DoDamage( thundergun_knockdown_damage )` = 15 and never launches anything.
+
+**Fix:** the same `level.zmqol_ww_boss_hit` block, added at the top of `thundergun_fling_zombie()`
+above the `thundergun_fling_func` dispatch.
+
+🛑 **And the launch is preserved on the killing shot**, because the user asked for it explicitly:
+*"then kill him and send him flying with the second thundergun shot."* A handled hit that turned
+out lethal (`self.health <= 0` after the handler's `DoDamage`) still runs the same three lines the
+stock branch runs — `StartRagdoll()`, `LaunchRagdoll( fling_vec )`, `self.thundergun_death = true`.
+A handled hit that only took the helmet off does not, which is the asked-for two-stage behaviour.
+
+**Audited the other two guns for the same class of gap and they are clean:** `tesla_do_damage()`
+spans 323-551 and the hook is at 332, so all three of its `DoDamage` sites are downstream of it;
+`freezegun_do_damage()` spans 373-397 with the hook at 378 and its single `DoDamage` at 390.
+`gsc-tool -m parse` clean; deployed and hash-matched; the deployed `mod.iwd` carries 2 hook sites.
+
+### 🌟 NEW MEASUREMENT ON THE ORIGINS / BURIED CRASH — IT IS A RECENT REGRESSION
+
+Re-read `mods\zm_qol\games_mp.log`, which survives across every session and carries per-session
+durations. Checkpoint 46 read the six crash-sweep sessions from `console_zm.log` only, and two
+things came out of the longer record:
+
+**1. Origins used to run fine on the SAME morning.** Session durations immediately preceding the
+crash sweep, in order: `zm_tomb 7:51`, `zm_tomb 3:31`, `4:02`, `0:14`, **`zm_tomb 6:57`**,
+`zm_prison 2:04`, `zm_nuked 11:22`, `zm_transit 5:14`, then `zm_prison 0:16` (**this is the v1.93.0
+Mob crash the user reported** — QUEUE already records that session as `ShutdownGame: at 0:16`),
+`zm_prison 5:11` (the v1.93.1 Mob success), and only then `zm_tomb 1:03` 💥.
+Anchoring on that 0:16 Mob crash (~09:25 local, v1.93.0 committed 09:18) and summing backwards,
+the `zm_tomb 6:57` run sits at roughly 08:55 — **before v1.93.0**. So Origins is not inherently
+broken here; something between the last clean Origins run and v1.93.1 broke it.
+
+**2. The "healthy" maps in the sweep are a weaker control than checkpoint 46 implies.** Four of
+the six sessions ended with `COM_ERROR (4) PLATFORM_DISCONNECTED_FROM_SERVER` — that is the user
+quitting, not survival. They do all outlive the two crashes (nuked 1:28, highrise 1:09, transit
+1:48 and 4:27 vs tomb 1:03 and buried 1:06), and `zm_prison 5:11` on the same build is a genuine
+survivor, so the tomb/buried-only conclusion still holds — but "transit ran 4:27" and
+"prison ran 5:11" are the only two data points actually carrying it.
+
+**Not yet explained.** The v1.92.0 -> v1.93.0 script diff was read in full and contains no new
+timer that emits a reliable command: `zmqol_give_weapon_dvar_watch()` polls at 0.25s but writes
+with `setdvar` (server-side, not a client command), and the Titus/Brutus/foley work is all
+event-driven. Buried has no long clean run anywhere in the log, so the regression window is
+established for Origins only.
+
+▶️ **The Origins test is now free and it also verifies v1.94.0**: v1.94.0 already stopped
+`zmqol_capture_objectives_fix()` and `zmqol_capture_hud_nudge()` from starting on Origins, and
+both emitted reliable commands on a timer. Neither has ever been booted. Boot Origins first.

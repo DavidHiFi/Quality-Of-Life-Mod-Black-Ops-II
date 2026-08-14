@@ -194,8 +194,49 @@ thundergun_fling_zombie( player, fling_vec, index )
 {
     if( !IsDefined( self ) || !IsAlive( self ) )
     {
-        // guy died on us 
+        // guy died on us
         return;
+    }
+
+    // 🛑 v1.94.1 - THE BOSS HOOK HAS TO BE ON THIS BRANCH TOO, AND v1.94.0 PUT IT
+    // ONLY ON THE OTHER ONE. thundergun_get_enemies_in_range() sorts every target
+    // into exactly one of two buckets by distance from the muzzle:
+    //
+    //      < thundergun_fling_range (480)  -> thundergun_fling_zombie   <- HERE
+    //      480 .. thundergun_knockdown_range (1200) -> thundergun_knockdown_zombie
+    //
+    // v1.94.0 hooked the second one only. 480 units is point-blank-to-close, which
+    // is the range anyone actually fights Brutus at, so in practice every shot the
+    // user fired landed here and the helmet could never come off. That is exactly
+    // what they reported: "the second shot just sends him flying again" - the
+    // LaunchRagdoll below is the "flying", and it belongs to this branch alone.
+    //
+    // Same contract as the other three call sites: returns true when it has
+    // handled the hit (helmet off on the first, lethal on the second), and the
+    // gun's own damage is then skipped. See zmqol_brutus_ww_hit() in
+    // scripts\zm\zm_prison\zm_prison.gsc.
+    // 🛑 AND THE LAUNCH IS NOT OPTIONAL ON THE KILLING SHOT. User, same message:
+    // "then kill him and send him flying with the second thundergun shot." So a
+    // handled hit that turned out to be lethal still gets the ragdoll and the
+    // fling vector - the identical three lines the normal path runs below. A
+    // handled hit that only took the helmet off does NOT, which is the asked-for
+    // two-stage behaviour. Reading self.health after DoDamage is the same test
+    // the stock branch below already uses, so it is a supported pattern here.
+    if ( isdefined( level.zmqol_ww_boss_hit ) )
+    {
+        b_handled = self [[ level.zmqol_ww_boss_hit ]]( player );
+
+        if ( b_handled )
+        {
+            if ( isdefined( self ) && isdefined( self.health ) && self.health <= 0 )
+            {
+                self StartRagdoll();
+                self LaunchRagdoll( fling_vec );
+                self.thundergun_death = true;
+            }
+
+            return;
+        }
     }
 
     if ( IsDefined( self.thundergun_fling_func ) )

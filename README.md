@@ -130,21 +130,31 @@ source folders is built or don't-touch.
   (Zeus Cannon / DG-3 JZ / Winter's Fury). They fire, chain, freeze and knock back
   properly, and handle the special enemies (Brutus, the Avogadro, screechers,
   leapers, mechz, dogs).
-  **Brutus takes exactly two hits from any of the three as of v1.93.0** — the first knocks his
+  **Brutus takes exactly two hits from any of the three** — the first knocks his
   helmet off (and he pulls his tear gas, because it calls Mob of the Dead's own
   `brutus_remove_helmet`), the second kills him through the normal damage path so his powerup
   drops. Before this he was effectively immune: all three damaged him through `DoDamage`, which
   carries no hit location, so his own damage override scaled every hit to 10% and could never
-  pop the helmet. Not yet confirmed in game. Console commands give one directly:
+  pop the helmet. **Confirmed in game for the Wunderwaffe and the Winter's Howl.
+  The Thundergun is fixed but NOT yet confirmed** — v1.93.0 put its hook in
+  `zombie_knockdown()`, which Brutus never reaches; v1.94.0 moved it above the
+  per-AI dispatch in `thundergun_knockdown_zombie()`, which only covers targets
+  480–1200 units away; **v1.94.1 adds it to `thundergun_fling_zombie()` as well**,
+  the branch every target inside 480 units takes — i.e. the range Brutus is
+  actually fought at, which is why the helmet still stayed on. He is still
+  ragdoll-launched on the killing shot, as requested. Console commands give one directly:
   `give_thundergun 1`, `give_wunderwaffe 1`, `give_wintershowl 1` — or in chat,
   `.thundergun`, `.wunderwaffe`, `.wintershowl`. `zmqol_ww 0` turns all three off.
   🛑 **Known gaps, honestly:** the Wunderwaffe's view-model lights are still too
-  bright. **The Winter's Howl's missing effects are fixed in v1.91.0 but not yet
-  confirmed in game** — the effects themselves always shipped (as raw `.efx` in
-  `mod.iwd`), but **19 of the materials they draw with were not reachable on any
-  map**, so half the muzzle flash and most of the freeze visuals rendered
-  nothing. Measured against a full index of all 191 retail fastfiles; v1.91.0
-  adds those 19 materials and 12 textures to `mod.ff`. Pack-a-Punch camos are **fixed in v1.76.0 but not yet confirmed in game**:
+  bright. **The Winter's Howl still has no firing effects, and this is an OPEN
+  BUG.** v1.91.0 claimed to fix it by adding 19 materials and 12 textures to
+  `mod.ff`; the user booted it and the effects were still missing, and a
+  re-measurement afterwards **disproved that explanation** — all six materials
+  `fx_freezegun_view.efx` names are reachable at runtime (four in `mod.ff`, two
+  in `common_zm`/`patch_zm`), and the `.efx` itself is inside the shipped
+  `mod.iwd`. The remaining untested assumption is whether T6 loads a raw `.efx`
+  out of `mod.iwd\fx\` at all. The 19 materials were left in place — they are
+  harmless and were genuinely absent — but they were not the cause. Pack-a-Punch camos are **fixed in v1.76.0 but not yet confirmed in game**:
   the camo assets were already in `mod.ff` and the upgraded defs' `camo` field was
   empty (v1.75.0), but the real blocker was that all three camo assets were
   missing **slot 3** — stock asks for camo index 39 on every map except MotD (40)
