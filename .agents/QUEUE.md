@@ -5327,3 +5327,69 @@ it, and a countdown appearing on the Death Machine icon.
 📝 **Open question, not guessed at:** "the toggle works" was not tied to a specific row, so
 **neither** queue item was struck — it is either the power-up timers' HUD toggle or #2, the bleedout
 bar toggle.
+
+---
+
+## 2026-08-16 — v1.99.3: THE DEATH MACHINE ICON WAS A CORRUPT `.iwi`, NOT A SCRIPT BUG
+
+v1.99.2 was booted. The timer draws on the Death Machine — **but the icon under it does not**, and
+the user's screenshot shows bare ground where the badge should be (insta-kill's screenshot has both).
+
+### The chain, measured end to end
+
+| check | result |
+|---|---|
+| is the widget assigned? | **yes** — the timer only draws when `w.powerUpId == "deathmachine_powerup"`, and `UpdateState` sets `powerUpId`, `setImage()` and `setAlpha(1)` on three consecutive lines with no branch between them. So the icon element IS at alpha 1 |
+| game log | 🌟 `Could not load material "ui_powerup_deathmachine".` — `console_zm.log:623`, and in all ten rotations |
+| material in `mod.ff` | present, and **byte-identical** to the upstream port's `zone_raw/mod/materials/ui_powerup_deathmachine.json` |
+| its techset | `trivial_9z33feqw` — the same techset 94 other HUD materials in `mod.ff` use, including `hud_icon_*`. Not the problem |
+| `images/ui_powerup_deathmachine.iwi` | 262,228 bytes, **format byte 0**, 512×512 |
+| OpenAssetTools on it | `ERROR: Unknown IWI format: 0` |
+| what a real T6 `.iwi` looks like | 400 sampled across the workspace: **v27, format 11 / 12 / 13 only** (DXT1 / DXT3 / DXT5). Format 0 does not exist |
+
+**The image was invalid, so the material could not resolve, so nothing drew.** No script was ever
+involved.
+
+### The good file was in git the whole time
+
+    14d4e35 (initial)  5,552 B  fmt 13  64x64   <- good
+    59f1d3e (texpack)  8,256 B  fmt 11  128x128 <- also valid
+    bc573af            5,552 B  fmt 13  64x64   <- good
+    HEAD               5,552 B  fmt 13  64x64   <- good
+    working tree     262,228 B  fmt  0  512x512 <- BROKEN, matches no commit
+
+`git checkout --` restored it. The restored file is **SHA1-identical** to
+`t6-ports\Weapons\zm\powerups\t6_deathmachine\zone_raw\mod\images\ui_powerup_deathmachine.iwi`, the
+upstream Death Machine port this mod's power-up came from, and `ImageConverter --t6` now converts it
+cleanly instead of erroring. Restoring it is repair of an asset the mod already ships, not an import.
+
+**Why the header and the pixels agree:** `mod.ff` carries only the image *header*; pixels come from
+the loose `.iwi`. The donor `zone_source\base\mod.ff` has **not changed since the initial
+checkpoint** (`git log` on it is one commit), so its header describes the 64×64 icon that shipped
+then — the same bytes now restored.
+
+### 🛑 TWO BUILD TRAPS THIS TURNED UP
+
+1. **`Select-Object -First N` on `cmd /c build.bat` KILLS THE BUILD.** PowerShell stops the upstream
+   pipeline once N objects arrive, so the batch file was terminated after step [3/6] — it packed
+   `mod.iwd` but never deployed it. The verification then read the **previous** build's `mod.iwd`
+   and reported the broken icon still shipping, which looked like the fix had failed. Use
+   `-Last N`, or capture to a variable first. Added to ERROR_CATALOGUE.
+2. **`[ok]` still does not prove deployment** — the same rule that already exists, earning its keep:
+   the fix was only confirmed by reading the bytes back out of the deployed `mod.iwd`
+   (5,552 / fmt 13 / 64×64).
+
+### 📝 UNEXPLAINED, AND STATED AS SUCH
+
+`images\ui_powerup_deathmachine.iwi` was replaced at **07:14 today**, twelve minutes after the
+v1.99.2 commit (07:02) and one minute before a `mod.iwd` deploy (07:15). **Nothing in the build
+writes it** — `build.bat` step [1/6] only copies from `zone_assets\images\`, which has no such file,
+and `pack_iwd.ps1` only reads. The file has no `assume-unchanged`/`skip-worktree` flag and is not
+gitignored, and no copy of those 262,228 bytes exists anywhere else in the workspace. **No theory of
+who wrote it is offered here, because none is supported.** If it returns, the check is one line:
+
+    git -C "H:\Claude\Projects Sources\zm_qol" status --short images/
+
+Whether the icon was broken *before* today is **not established**: the registration-time
+`Could not load material` line is normal noise (stock's own `zm_hud_icon_battery` and
+`zom_icon_minigun` log it too and work fine), so it is not evidence on its own.
