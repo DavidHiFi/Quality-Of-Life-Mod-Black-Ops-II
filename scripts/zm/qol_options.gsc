@@ -80,6 +80,13 @@ init()
     qol_opt_dvar( "hud_health_bar",   "1" );
     qol_opt_dvar( "hud_remaining",    "1" );
     qol_opt_dvar( "hud_zone",         "0" );
+    //  v1.98.0 - the icon + name + description pop-up shown when you buy a perk
+    //  (the Vanguard Perk Animation module in quality_of_life.gsc). User asked
+    //  for a switch, 2026-08-16. ON by default - it is existing behaviour, and a
+    //  new toggle must not silently change what the mod already does.
+    //  Read in ONE place, at the top of perk_bought(), so the toggle takes
+    //  effect on the very next perk with no respawn.
+    qol_opt_dvar( "hud_perk_popup",   "1" );
     qol_opt_dvar( "hud_color",        "1 1 1" );
     qol_opt_dvar( "hud_color_health", "1 1 1" );
     //  v1.90.6 - the two stacked timers get their own colours, kept out of the

@@ -44,7 +44,7 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   buildable riot shield, teddy bears and secret song.
 
 **HUD and menus**
-- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 24 toggles, so you never
+- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 25 toggles, so you never
   have to type a chat command.
 - Hitmarkers, on-screen counters, round summary, game and round timers, health bar, zombies
   remaining, zone names, velocity meter, Cold-War round HUD, perk pop-ups.

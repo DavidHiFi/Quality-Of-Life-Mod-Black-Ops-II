@@ -541,8 +541,39 @@ is safe either way (its pixels are in the base pak).
   `mod.iwd\fx\` at all. The 19 materials were left in place — harmless and genuinely absent, but
   not the cause.
 - **The DG-2 "never appears from the box" report was measured and is not a bug**: all three
-  register identically, and with stock's box filters removed a specific gun is ~3.8% per spin.
-  `zmqol_box_wonder_weight` (default 2, `0` = stock) weights an unheld wonder weapon from round 10.
+  register identically, and with stock's box filters removed a specific gun is a flat share of the
+  in-box list.
+  🛑 **v1.98.0 reversed the weighting.** `zmqol_box_wonder_weight` (default 2) used to make the
+  three wonder weapons *more* common from round 10; the user asked for the opposite. It is replaced
+  by **`zmqol_box_ww_rarity`** — `4` (default) = a quarter as likely as an ordinary gun, `1` = the
+  same as any other gun, `0` = never from the box. Only those three names are touched, so every
+  other weapon keeps exactly the share it had.
+  📝 **Stock BO2 has no box weighting at all** — measured, not assumed. The chooser is a flat
+  `array_randomize` (`_zm_magicbox.gsc:911`); the only weighting hook is set by one map and points
+  at a no-op stub (`zm_buried.gsc:452`); `add_limited_weapon( "raygun_mark2_zm", 4 )` is a
+  per-player quota that never binds; and `special_weapon_magicbox_check` is mutual exclusion with
+  the Ray Gun, not rarity. **The Ray Gun Mark 2 is exactly as likely as any other box weapon.**
+
+## 7c. The box is diluted, and nothing is replaced ✅ *audited v1.98.0*
+
+Reported via a friend: *"he couldn't get a python or executioner, he thinks it's replaced by the
+Buried-exclusive Remington New Model Army."*
+
+**Nothing is replaced.** Every `add_zombie_weapon` name the mod registers was diffed against that
+map's own stock registrations (comment lines excluded). Across all six maps there is exactly **one**
+name that the mod re-registers over a stock entry:
+
+| map | name | effect |
+|---|---|---|
+| Buried | `qcw05_zm` | stock registers it with `upgrade_name` **undefined**; the mod supplies `qcw05_upgraded_zm`. A fix, not a loss. |
+
+The three wonder weapons collide with nothing on any map. **`python_zm` and `judge_zm` are
+registered and in the box on all six maps** — verified by unioning each map's stock list with the
+mod's additions.
+
+**The real cause is dilution.** The box holds roughly 75 in-box names per map now, so a named gun is
+~1.3% per spin and missing one across a 40-spin game is ~59% likely. That is arithmetic, not a bug —
+but it is the honest answer to "why can't I get the Python".
 - The Wunderwaffe's **view-model lights are still too bright**.
 
 ## 11d. Round jumping

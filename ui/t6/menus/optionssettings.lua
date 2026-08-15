@@ -760,7 +760,7 @@ end
 --  past both ends of its container, over the tab strip above and the ESC
 --  prompt below. That is the whole of the reported "scuffed-ness".
 --
---  The three tabs below are 9.5, 9.5 and 7 pitches, all inside the proven 14.5.
+--  The three tabs below are 9.5, 10 and 7 pitches, all inside the proven 14.5.
 --  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTEST TAB IT HONESTLY BELONGS IN, and
 --  never take any tab past 14.5 pitches (a spacer counts as 0.5).
 --
@@ -839,10 +839,12 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 
 	local T = CoD.OptionsSettings.QolToggle
 
-	-- HUD elements, and nothing else.                                 9 rows
+	-- HUD elements, and nothing else.                                10 rows
 	T(QolHudButtons, LocalClientIndex, "HUD",               "hud_master",     "Master switch for the whole HUD.")
 	T(QolHudButtons, LocalClientIndex, "HITMARKERS",        "hitmarkers",     "Hit and kill markers on your crosshair.")
 	T(QolHudButtons, LocalClientIndex, "ROUND SUMMARY",     "round_summary",  "Stats pop-up after each round.")
+	-- v1.98.0, user request 2026-08-16.
+	T(QolHudButtons, LocalClientIndex, "PERK POP-UP",       "hud_perk_popup", "Icon and name shown when you buy a perk.")
 	T(QolHudButtons, LocalClientIndex, "GAME TIMER",        "hud_timer",      "Time since the match started.")
 	T(QolHudButtons, LocalClientIndex, "ROUND TIMER",       "hud_round_timer","Time since this round started.")
 	T(QolHudButtons, LocalClientIndex, "HEALTH BAR",        "hud_health_bar", "Your health bar, bottom left.")
@@ -850,7 +852,7 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	T(QolHudButtons, LocalClientIndex, "ZONE NAME",         "hud_zone",       "Name of the area you are in.")
 	T(QolHudButtons, LocalClientIndex, "VELOCITY METER",    "velocity",       "Your speed. Green, yellow, red.")
 
-	return QolHudContainer                                          -- 9.5 total
+	return QolHudContainer                                          -- 10 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)

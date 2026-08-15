@@ -6342,14 +6342,18 @@ zmqol_ww_give_dvar_watch()
 //  WaW/BO1 legacy. Which is why stock's own default_tesla_weighting_func()
 //  (:606), a pity timer written for this exact gun, has never once run in T6.
 //
-//  Bounded and reversible, per the standing "every command is also a dvar" rule:
-//      zmqol_box_wonder_weight 0    stock behaviour, no weighting at all
-//      zmqol_box_wonder_weight 2    DEFAULT - 2 extra entries per unheld gun
-//  Gated on round 10 (stock's default_tesla_weighting_func gates on round > 10)
-//  and only for a gun the pulling player does NOT already hold, so it can never
-//  spam a gun you are carrying. At the default, 26 in-box entries become 32 with
-//  9 wonder-weapon entries: a specific gun goes 3.8% -> 9.4% per spin, and
-//  P(never seeing it in 40 spins) drops from 21% to 2%.
+//  🛑 v1.98.0 - THE DIRECTION OF THIS WEIGHTING IS NOW REVERSED, and the dvar
+//  above (`zmqol_box_wonder_weight`, default 2, which ADDED entries for unheld
+//  wonder weapons from round 10) NO LONGER EXISTS. The user asked for the three
+//  ported wonder weapons to be RARE, not boosted. The replacement dvar is
+//  `zmqol_box_ww_rarity` (default 4) - see the long note above
+//  zmqol_box_wonder_weapon_weights() for the measurements behind it, including
+//  the finding that stock BO2 has no box weighting of any kind.
+//
+//  Everything above about the HOOK is still correct and still the reason this
+//  works: level.customrandomweaponweights, called on the player, takes the
+//  randomized key array and returns a key array. Only what we do with that
+//  array changed - we now REMOVE names instead of appending them.
 // ============================================================================
 // ============================================================================
 //  THE 9 PORTED MULTIPLAYER WEAPONS - BOX REGISTRATION       (v1.89.0)
@@ -6525,6 +6529,61 @@ zmqol_box_wonder_weapon_weights_init()
     level.customrandomweaponweights = ::zmqol_box_wonder_weapon_weights;
 }
 
+// ============================================================================
+//  🛑 v1.98.0 - THIS FUNCTION IS INVERTED. IT USED TO MAKE THE THREE WONDER
+//  WEAPONS **MORE** COMMON; IT NOW MAKES THEM RARER.
+//
+//  User, 2026-08-16: *"make the 3 wonder weapon ports have the same chance to
+//  obtain from the mystery box as the raygun mark 2, which is a lot lower than
+//  other weapons, and any other weapons like standard assault rifles etc. have
+//  standard chances to get like any existing box weapon."*
+//
+//  🌟 FIRST, THE MEASURED FACT, BECAUSE IT CHANGES THE ANSWER: **BO2 DOES NOT
+//  GIVE THE RAY GUN MARK 2 A LOWER BOX CHANCE.** There is no weighting in the
+//  game at all. Checked, not assumed:
+//    - `treasure_chest_chooseweightedrandomweapon` (_zm_magicbox.gsc:911) is a
+//      flat `array_randomize` over every in-box weapon, then the first one that
+//      passes the filter. Stock's copy and this mod's copy are identical here.
+//    - `level.customrandomweaponweights` is the only weighting hook, and the
+//      ONE stock map that sets it (zm_buried.gsc:375) points it at
+//      `buried_custom_weapon_weights( keys ) { return keys; }` - a no-op stub.
+//    - `add_limited_weapon( "raygun_mark2_zm", 4 )` is a per-PLAYER quota of 4,
+//      which never binds in a 4-player game and never in solo. The guns that
+//      really are capped are the map wonder weapons - Paralyzer and Sliquifier
+//      are `add_limited_weapon( x, 1 )`.
+//    - `special_weapon_magicbox_check` only stops Ray Gun and Mark 2 dropping
+//      for the same player; it is mutual exclusion, not rarity.
+//  So "the same chance as the Mark 2" and "a lot lower than other weapons" are
+//  two different requests. This implements the SECOND one, because that is what
+//  was described - and `zmqol_box_ww_rarity 1` gives the first one exactly.
+//
+//  📝 WHAT WAS ACTIVELY WRONG BEFORE. The old default was
+//  `zmqol_box_wonder_weight 2`, which appended two extra entries per unheld
+//  wonder weapon from round 10 - the exact opposite of what the user wants, and
+//  on by default. That behaviour is gone, not merely re-tuned.
+//
+//  HOW THE THINNING WORKS. The box returns the FIRST key that passes its filter
+//  from a shuffled list, so a name's chance is its share of the list. Deleting a
+//  name from the shuffled copy on most spins scales its chance down by exactly
+//  that fraction, and touches nothing else:
+//
+//      zmqol_box_ww_rarity 1   same chance as any other gun (= the real Mark 2)
+//      zmqol_box_ww_rarity 4   DEFAULT - a quarter as likely as an ordinary gun
+//      zmqol_box_ww_rarity 0   never from the box (.thundergun etc. still work)
+//
+//  🌟 THE ORDINARY GUNS ARE NOT TOUCHED AT ALL. Only the three names below are
+//  ever removed, so every other weapon - stock or ported - keeps precisely the
+//  share it has today. That is the "standard chances" half of the request, and
+//  it is satisfied by doing nothing rather than by a second adjustment.
+//
+//  📝 THE REAL REASON A SPECIFIC GUN IS HARD TO GET, and it is not a defect:
+//  the box now holds roughly 75 in-box names per map (stock's ~40, plus the
+//  cross-map additions, plus 11 ported MP guns, plus these 3). A named gun is
+//  ~1.3% per spin, so missing one across a 40-spin game is ~59% likely. Nothing
+//  is replaced - that was audited name by name for v1.98.0 and only ONE name on
+//  ONE map is re-registered at all (qcw05_zm on Buried, which the mod re-adds
+//  WITH an upgrade because stock leaves its upgrade undefined).
+// ============================================================================
 zmqol_box_wonder_weapon_weights( keys )
 {
     // self = the player pulling the box. The box calls this as
@@ -6532,46 +6591,51 @@ zmqol_box_wonder_weapon_weights( keys )
     if ( isdefined( level.zmqol_prev_box_weights ) )
         keys = self [[ level.zmqol_prev_box_weights ]]( keys );
 
-    n_extra = getdvarintdefault( "zmqol_box_wonder_weight", 2 );
+    n_rarity = getdvarintdefault( "zmqol_box_ww_rarity", 4 );
 
-    if ( n_extra <= 0 )
+    // 1 = no change at all, which is stock's own uniform behaviour.
+    if ( n_rarity == 1 )
         return keys;
 
-    if ( !isdefined( level.round_number ) || level.round_number < 10 )
-        return keys;
-
-    if ( !isdefined( level.zombie_weapons ) )
-        return keys;
+    if ( n_rarity < 0 )
+        n_rarity = 0;
 
     guns = [];
     guns[ guns.size ] = "tesla_gun_zm";
     guns[ guns.size ] = "thundergun_zm";
     guns[ guns.size ] = "freezegun_zm";
 
-    for ( i = 0; i < guns.size; i++ )
+    a_out = [];
+
+    for ( i = 0; i < keys.size; i++ )
     {
-        str_gun = guns[i];
+        b_thin = 0;
 
-        // Not registered on this map at all - either the zmqol_ww bisect gate or
-        // the zm_tomb/zm_buried map gate turned this gun off. Skip silently.
-        if ( !isdefined( level.zombie_weapons[ str_gun ] ) )
-            continue;
+        for ( j = 0; j < guns.size; j++ )
+        {
+            if ( keys[i] != guns[j] )
+                continue;
 
-        // is_in_box is add_zombie_weapon's copy of include_weapon's in_box flag
-        // (_zm_weapons.gsc:558). Never boost something the box cannot hand out.
-        if ( !isdefined( level.zombie_weapons[ str_gun ].is_in_box ) || !level.zombie_weapons[ str_gun ].is_in_box )
-            continue;
+            // 0 = never. Otherwise keep it on 1 spin in n_rarity.
+            if ( n_rarity == 0 || randomint( n_rarity ) != 0 )
+                b_thin = 1;
 
-        if ( self has_weapon_or_upgrade( str_gun ) )
-            continue;
+            break;
+        }
 
-        for ( j = 0; j < n_extra; j++ )
-            keys[ keys.size ] = str_gun;
+        if ( !b_thin )
+            a_out[ a_out.size ] = keys[i];
     }
 
-    // Re-shuffle: the appended copies all sit at the tail otherwise, and the
-    // box's first-match loop would never reach them.
-    return array_randomize( keys );
+    // 🛑 NEVER HAND BACK AN EMPTY LIST. treasure_chest_chooseweightedrandomweapon
+    // falls through to `return keys[0]` when nothing passes its filter, and on an
+    // empty array that is undefined - which would be a script error inside the
+    // box on a map where the only in-box names were the three wonder weapons.
+    // Cannot happen in practice; costs one comparison to make impossible.
+    if ( a_out.size == 0 )
+        return keys;
+
+    return a_out;
 }
 
 // ============================================================================
@@ -9497,6 +9561,30 @@ perk_bought( perk )
     self endon( "disconnect" );
     self endon( "game_ended" );
 
+    // ========================================================================
+    //  hud_perk_popup - the switch for this whole pop-up.        (v1.98.0)
+    //
+    //  User, 2026-08-16: *"add an option to toggle on or off the perk animation
+    //  that pops up when you buy a perk"*.
+    //
+    //  🛑 GATED HERE, BEFORE THE FIRST newclienthudelem, ON PURPOSE. Returning
+    //  at the top means the four hudelems are never created while the option is
+    //  off, rather than created and faded - the same allocate-on-demand rule the
+    //  health bar had to be rewritten for in v1.53.0, and it hands those slots
+    //  back to the pool that Origins' capture ring draws from.
+    //
+    //  It also means no second writer: this function is the only owner of these
+    //  four elements, so the switch cannot fight an alpha loop the way the
+    //  zombie counter did in v1.87.1.
+    //
+    //  Reads the same three dvars in the same order as the health bar, so ".hud
+    //  off" hides it too and hud_all still forces it on.
+    if ( !getdvarintdefault( "hud_master", 1 ) )
+        return;
+
+    if ( !( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_perk_popup", 1 ) ) )
+        return;
+
     shader = getperkshader( perk );
     if ( shader == "" )
         return;
@@ -9710,7 +9798,11 @@ getPerkDesc( perk )
         case "specialty_scavenger":
             return "When You Die, You Leave Behind a Tombstone With Your Weapons and Perks | Co-op Only";
         case "specialty_finalstand":
-            return "Create a Clone to Bring Yourself Back to Life—Wait, Why Did You Buy It?";
+            //  v1.98.0 - the "-Wait, Why Did You Buy It?" gag is removed at the
+            //  user's request (2026-08-16): funny, but not what a description is
+            //  for. Every other line here states what the perk does; this one
+            //  now does too.
+            return "Create a Clone to Bring Yourself Back to Life";
         case "specialty_nomotionsensor":
             return "Displays Ammo and Money Icons. Creates Green Clouds That Hide You From the Zombies";
         case "specialty_grenadepulldeath":
