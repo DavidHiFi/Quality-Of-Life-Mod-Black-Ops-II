@@ -70,7 +70,7 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 |---|---|
 | Origins and Mob can crash | `EXE_ERR_RELIABLE_CYCLED_OUT`, roughly 20–35 s into a match. Under active investigation. |
 | Winter's Howl firing effects | Still wrong. v1.97.0 fixed a real defect (every `.efx` had been CRLF-corrupted since v1.70.0) but it was not this. Every offline check now passes — the file matches a working build byte for byte and the log shows it loading. |
-| Zombie risers are silent on TranZit Survival | No sound when they climb out of the ground. Narrowed in v1.99.1: the v1.99.0 probe proved the trigger fires and the handler runs, so the sound is played twice and still cannot be heard — the fault is audio-side, not script-side. It cannot be narrowed further offline; the alias tables are not readable with any tool in this workspace. |
+| Zombie risers are silent on TranZit Survival | No sound when they climb out of the ground. Heavily narrowed in v1.99.1 and every easy explanation is now ruled out by measurement: the trigger fires, the handler runs, the sound is played twice, the alias is defined in a loaded bank (byte-identical to classic TranZit's), and its audio payload is loaded too. The remaining lead is that the sound is emitted at an actor origin that is not yet valid, so it plays out of earshot. |
 | Kill-feed icons missing | Kills with the eleven added guns show a blank icon in the feed. |
 | Titus-6 is partly silent | Its dart makes no in-flight sound and it reloads silently. Measured: BO2 ships only four Titus sounds and none is a reload, so the audio has to come from the animation notetracks. |
 | Who's Who has no screen overlay | The perk works and the clone spawns; the afterlife filter does not draw off Die Rise. |

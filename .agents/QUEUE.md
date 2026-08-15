@@ -5161,3 +5161,48 @@ like it could shadow a stock alias — but mod.ff carries no alias assets, so it
 `zmb_zombie_spawn` and a known-good control alias back to back in ONE boot. That separates
 "the alias produces no audio" from "the alias is fine and the riser wiring is wrong", which is the
 only remaining fork. Same instrument B-WHOWL needs (`.testfx`), so build them together.
+
+#### 🛑 B-RISERSOUND — RETRACTION. The "dead end" entry above is WRONG. The alias table IS dumpable.
+
+Written the same day, minutes later. **I got the asset type wrong.** T6's asset class is
+**`soundbank`**, not `sound` — and my own memory note already recorded the exact command. Worse, I
+ran `--list … | uniq -c | head -12` on `common_zm.ff`, and its single `soundbank` line fell below
+the cut, which I then read as "OAT exposes no sound asset class for T6". That is textbook
+CLAUDE.md §2 corollary 3: **a search that did not cover where the answer lives manufactures false
+absence.** The row was there the whole time.
+
+**The working command:**
+```
+Unlinker --include-assets soundbank --search-path "<BO2>\sound" -o <out> <any>.ff
+    -> soundbank\<bank>.aliases.csv     the full 60-column alias table
+```
+
+### 🌟 WHAT IT ACTUALLY SETTLED — the missing-alias hypothesis is DEAD
+
+| question | answer | evidence |
+|---|---|---|
+| does `zmb_zombie_spawn` exist? | ✅ **yes** | 2 rows in `zmb_survival_transit.all` |
+| is that bank loaded on Diner? | ✅ **yes** | `console_zm.log:5203` — `has load asset bank zmb_survival_transit.all.sabl` |
+| does survival's definition differ from classic TranZit's? | ❌ **byte-identical** | diffed against `zmb_returned_tranzit.all` (from `zm_transit_dr.ff`) |
+| is the payload present? | ✅ **yes** | `spawn\dirt\dirt_00/01.LN55.pc.snd`, in **`zmb_common.all`**, loaded at `console_zm.log:363` |
+| does our `mod.all` shadow it? | ❌ **no** | 0 rows for that alias in `mod.ff`'s two banks |
+
+🌟 **Note the structure, it is worth keeping: the ALIAS lives in one bank and its PAYLOAD in a
+different one.** Checking only the bank that defines the alias would have produced a confident
+wrong answer in either direction.
+
+**So the alias resolves, the payload is loaded, the clientfield fires, the handler runs, and the
+sound is played twice — and it is still inaudible.** Every asset-side and script-side explanation
+is now eliminated by measurement.
+
+▶️ **REVISED LEAD — audibility, not existence.** The most promising remaining mechanism is the
+`playsound( 0, sound, self.origin )` **origin**: this fires on the riser's clientfield, and if the
+actor's client-side origin is not yet valid at that instant (`bnewent`/initial-snapshot timing) the
+sound is emitted far from the player and simply cannot be heard. The alias's own curve makes that
+testable — `DistMin 250 / DistMaxDry 1000`, so anything past ~1000 units is silent.
+Two cheap ways to separate it, both still offline-preparable:
+  1. have the wrapper log `self.origin` next to the player's origin on the first riser, or
+  2. play the alias at the **player's** origin instead of the actor's and see if it becomes audible.
+Option 2 is a one-line change and is also a fix if the theory is right.
+🛑 A `.testsound` probe is still worth building for B-WHOWL's sake, but it is **no longer needed to
+settle this one** — the origin test is sharper.
