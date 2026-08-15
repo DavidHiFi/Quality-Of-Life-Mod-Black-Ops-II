@@ -24,7 +24,8 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 - Every weapon on every map, plus Pack-a-Punch on the maps that lack it.
 - **Eleven MP and campaign guns in the mystery box**, each with its Pack-a-Punch upgrade:
   SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50,
-  Titus-6. Real models, animations, camos and audio — nothing is a stand-in.
+  Titus-6. Real models, animations and camos — nothing is a stand-in. Audio is stock's own,
+  which for the Titus-6 means it is incomplete; see the known-issues table.
 - **Three Black Ops 1 wonder weapons**: Thundergun, Wunderwaffe DG-2, Winter's Howl, each with
   its upgrade. They handle the special enemies properly — Brutus dies in two hits from any of
   them, helmet off on the first.
@@ -49,7 +50,8 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 - Hitmarkers, on-screen counters, round summary, game and round timers, health bar, zombies
   remaining, zone names, velocity meter, Cold-War round HUD, perk pop-ups.
 - **Power-up timers** — seconds remaining under every power-up icon, including the Death Machine
-  and anything else the mod adds.
+  and anything else the mod adds. ⚠️ Shipped broken in v1.99.0; rewritten in v1.99.1 and **not yet
+  confirmed working in game**.
 - **Instant match start** — no lobby countdown.
 - Solo Play is titled Solo Play, and the Classic intro cutscenes play again.
 
@@ -68,7 +70,7 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 |---|---|
 | Origins and Mob can crash | `EXE_ERR_RELIABLE_CYCLED_OUT`, roughly 20–35 s into a match. Under active investigation. |
 | Winter's Howl firing effects | Still wrong. v1.97.0 fixed a real defect (every `.efx` had been CRLF-corrupted since v1.70.0) but it was not this. Every offline check now passes — the file matches a working build byte for byte and the log shows it loading. |
-| Zombie risers are silent on TranZit Survival | No sound when they climb out of the ground. v1.99.0 ships a wrapper that plays the alias itself and logs whether the trigger fires at all.  |
+| Zombie risers are silent on TranZit Survival | No sound when they climb out of the ground. Narrowed in v1.99.1: the v1.99.0 probe proved the trigger fires and the handler runs, so the sound is played twice and still cannot be heard — the fault is audio-side, not script-side. It cannot be narrowed further offline; the alias tables are not readable with any tool in this workspace. |
 | Kill-feed icons missing | Kills with the eleven added guns show a blank icon in the feed. |
 | Titus-6 is partly silent | Its dart makes no in-flight sound and it reloads silently. Measured: BO2 ships only four Titus sounds and none is a reload, so the audio has to come from the animation notetracks. |
 | Who's Who has no screen overlay | The perk works and the clone spawns; the afterlife filter does not draw off Die Rise. |
