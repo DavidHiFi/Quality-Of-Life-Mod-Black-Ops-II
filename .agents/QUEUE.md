@@ -5099,3 +5099,37 @@ an inert feature just makes the bug more visible.
 5. Only then: the GAME-tab stepper.
 
 🛑 **The user expected 4 and the game has 2. That gap is theirs to decide on, not ours to paper over.**
+
+---
+
+### 🔴 B-RISERSOUND — the probe ANSWERED: the trigger is fine, the fault is audio-side.
+
+User, 2026-08-16, after booting v1.99.0: *"i still don't hear sound effects for zombies climbing
+from the ground."*
+
+**The v1.99.0 probe did its job — this is now a narrowed bug, not a mystery.** `console_zm.log`
+carries the line twice (once on Origins, once on Diner):
+
+```
+[zm_qol] CLIENT riser clientfield FIRED - handler is running, playing zmb_zombie_spawn
+```
+
+Ruled out this round, each measured:
+
+| check | result |
+|---|---|
+| does the clientfield arrive and the handler run? | ✅ **yes** — the probe line fired |
+| is our registration faithful to stock? | ✅ **line-for-line**, all four fields, incl. stock's own odd `12000` version on `_foliage` |
+| is `zmb_zombie_spawn` a real T6 alias? | ✅ **yes** — stock uses it in 4 places (`_zm.csc:1327`, `_zm_ai_faller.gsc:446/595`, `_zm_blockers.gsc:1057`, `_zm_turned.gsc:113`) |
+| is the sound played twice? | ✅ our wrapper plays it AND then calls stock's handler, which plays it again — so **two** calls produce **zero** audible sound |
+
+🛑 **Do not repeat this dead end:** `zmb_zombie_spawn` appears in `T5-Stock-Soundaliases` (Black Ops
+**1**) CSVs and in no CSV in this workspace for T6. That is NOT evidence it is a BO1-only alias —
+T6 aliases live inside the `.sabl`/`.sabs` banks, not CSVs, and stock T6 script calls it directly.
+
+▶️ **NEXT STEP, bounded:** two calls producing no sound means the alias is not resolving in a loaded
+bank at that moment (a missing alias is silent, never an error). Dump the alias tables out of the
+loaded banks — the mod ships its own 60 MB `mod.all.sabl` — and confirm whether `zmb_zombie_spawn`
+is present, and whether the mod's bank shadows the stock bank that carries it. `Black-Ops-II-Sound-
+Studio` and OAT both read these. That distinguishes "alias missing" from "alias present but not
+audible" and is the only thing that will.
