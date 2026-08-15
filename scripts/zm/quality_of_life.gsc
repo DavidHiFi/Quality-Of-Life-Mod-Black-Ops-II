@@ -164,11 +164,31 @@ main()
 //  second; with none running it is zero. The cache lives on the PLAYER, so it
 //  cannot leak between players or survive a reconnect.
 //
-//  📝 IT IS AUTOMATICALLY AWARE OF ADDED POWER-UPS. The list is not hardcoded -
-//  it is whatever stock's own loop iterates, which is every entry in
-//  level.zombie_powerups that has a client_field_name. The Death Machine
-//  registers one (deathmachine_powerup), so it is included with no extra work,
-//  and so is anything added later.
+//  📝 IT IS AUTOMATICALLY AWARE OF ADDED POWER-UPS **that register a
+//  client_field_name**. The list is not hardcoded - it is whatever stock's own
+//  loop iterates, which is every entry in level.zombie_powerups that has one.
+//
+//  🛑 v1.99.2 - THIS COMMENT USED TO CLAIM THE DEATH MACHINE WAS COVERED "WITH
+//  NO EXTRA WORK". IT WAS NOT, AND THAT IS EXACTLY WHY ITS TIMER NEVER DREW.
+//  The user reported it missing on 2026-08-16. The mod registers the power-up
+//  with SEVEN arguments:
+//
+//      add_zombie_powerup( "deathmachine", "zombie_pickup_minigun",
+//                          &"ZOMBIE_POWERUP_MINIGUN", ::drop_deathmachine, 0, 0, 0 );
+//
+//  and client_field_name / time_name / on_name are arguments NINE, TEN and
+//  ELEVEN (_zm_powerups.gsc:414). So .client_field_name is undefined, the loop
+//  below hits its `continue` on the very first check, and the Death Machine was
+//  never in the string at all. The claim was written from what the code ought to
+//  have done rather than from the call - the exact failure CLAUDE.md forbids.
+//
+//  🌟 THE FIX IS NOT TO REGISTER A CLIENTFIELD FOR IT. The Death Machine's icon
+//  is driven by the `deathmachine_powerup_state` DVAR, not a clientfield -
+//  hudpowerupszombie.lua:622 DeathMachineDvarUpdate reads that dvar and
+//  dispatches the "deathmachine_powerup" event itself. Adding a real clientfield
+//  would cost bits on every map and risk EXE_CLIENT_FIELD_MISMATCH for a display
+//  path that already works. So its remaining time is appended explicitly, from
+//  the end time stamped at pickup - see the block after the loop.
 //
 //  ---------------------------------------------------------------------------
 //  🛑 v1.99.1 - WHY THE v1.99.0 VERSION OF THIS COULD NEVER HAVE WORKED.
@@ -268,6 +288,25 @@ zmqol_powerup_timer_think()
                     //  math.ceil(t), and it is what keeps the string stable
                     //  between ticks so the dvar write stays rare.
                     str = str + pu.client_field_name + ":" + int( n_time + 0.999 ) + ",";
+                }
+
+                //  THE DEATH MACHINE, v1.99.2. It is not in that loop and never
+                //  was - see the banner. Its icon widget on the client carries
+                //  powerUpId "deathmachine_powerup" (ClientFieldNames[7]), so
+                //  that is the key the LUI matches on.
+                //
+                //  Two independent gates, so a stale value cannot draw:
+                //  .deathmachine_active is cleared on EVERY end path by
+                //  deathmachine_clear_powerup_state() - normal expiry, early end
+                //  from a weapon switch, death, disconnect and respawn - and the
+                //  remaining time has to still be positive.
+                if ( isdefined( player.deathmachine_active ) && player.deathmachine_active &&
+                     isdefined( player.zmqol_deathmachine_end_time ) )
+                {
+                    n_dm_left = ( player.zmqol_deathmachine_end_time - gettime() ) / 1000;
+
+                    if ( n_dm_left > 0 )
+                        str = str + "deathmachine_powerup:" + int( n_dm_left + 0.999 ) + ",";
                 }
             }
 
@@ -2035,6 +2074,7 @@ deathmachine_clear_powerup_state( player )
         return;
     }
     player.deathmachine_active = undefined;
+    player.zmqol_deathmachine_end_time = undefined;   //  v1.99.2, power-up timer HUD
     player.has_minigun = 0;
     player.has_powerup_weapon = 0;
     player._show_solo_hud = 0;
@@ -2089,6 +2129,11 @@ deathmachine_powerup( m_powerup, e_player )
     e_player notify( "end_deathmachine" );
     wait 0.05;
     e_player playsound( "death_machine" );
+    //  v1.99.2: stamp when this run ends, for the power-up timer HUD.
+    //  notify_deathmachine_end() below starts its wait on the SAME dvar value in
+    //  this same frame, so this end time is what actually ends the power-up -
+    //  it is not a second, drifting countdown.
+    e_player.zmqol_deathmachine_end_time = gettime() + ( level.deathmachine_duration * 1000 );
     e_player thread powerup_state_monitor();
     e_player thread start_deathmachine();
     e_player thread notify_deathmachine_end();

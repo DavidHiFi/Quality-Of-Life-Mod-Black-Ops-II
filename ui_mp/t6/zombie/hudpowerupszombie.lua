@@ -8,6 +8,11 @@ CoD.PowerUps.STATE_FLASHING_OFF = 2
 CoD.PowerUps.STATE_FLASHING_ON = 3
 CoD.PowerUps.FLASHING_STAGE_DURATION = 500
 CoD.PowerUps.MOVING_DURATION = 500
+-- zm_qol v1.99.2: height of the power-up timer text band. The timer sits in its
+-- own band directly ABOVE the icon (user, 2026-08-16), so the widget is this much
+-- taller than stock's and the upgrade badge rides that much higher. Keeping it a
+-- named constant is what stops the two from ever overlapping.
+CoD.PowerUps.ZmqolTimerHeight = 18
 CoD.PowerUps.UpGradeIconColorRed = {
 	r = 1,
 	g = 0,
@@ -477,7 +482,10 @@ LUI.createMenu.PowerUpsArea = function (f1_arg0)
 	f1_local0.scaleContainer:setTopBottom(false, true, 0, 0)
 	f1_local0:addElement(f1_local0.scaleContainer)
 	local f1_local1 = CoD.PowerUps.IconSize * 0.5
-	local f1_local2 = CoD.PowerUps.IconSize + CoD.PowerUps.UpgradeIconSize + 10
+	-- zm_qol v1.99.2: stock is IconSize + UpgradeIconSize + 10. The timer's own
+	-- band is inserted between the icon and that 10-unit gap, so the widget grows
+	-- by exactly ZmqolTimerHeight and every element keeps the spacing it had.
+	local f1_local2 = CoD.PowerUps.IconSize + CoD.PowerUps.ZmqolTimerHeight + CoD.PowerUps.UpgradeIconSize + 10
 	local Widget = nil
 	f1_local0.powerUps = {}
 	for f1_local4 = 1, #CoD.PowerUps.ClientFieldNames, 1 do
@@ -501,12 +509,20 @@ LUI.createMenu.PowerUpsArea = function (f1_arg0)
 		Widget.upgradePowerUpIcon = upgradePowerUpIcon
 		
 		-- zm_qol v1.99.0: POWER-UP TIMER TEXT. One per icon, alpha 0 until the
-		-- server reports seconds for that power-up. Layout is the forum mod's
-		-- (right-aligned, 18 units tall, sitting under the icon).
+		-- server reports seconds for that power-up.
+		--
+		-- v1.99.2: MOVED ABOVE THE ICON (user, 2026-08-16 - "move the timer right
+		-- above the power up icon itself"). It used to be the forum mod's layout:
+		-- right-aligned in the bottom 18 units, which is the same band the icon
+		-- occupies, so the number sat ON the icon's lower-right corner.
+		--
+		-- Now it is its own band, bottom edge flush with the icon's top edge, and
+		-- centred over the icon rather than right-aligned - the number is a label
+		-- for the icon now, not an overlay on it.
 		local zmqolTimerText = LUI.UIText.new()
 		zmqolTimerText:setLeftRight(true, true, 0, 0)
-		zmqolTimerText:setTopBottom(false, true, -18, 0)
-		zmqolTimerText:setAlignment(LUI.Alignment.Right)
+		zmqolTimerText:setTopBottom(false, true, -(CoD.PowerUps.IconSize + CoD.PowerUps.ZmqolTimerHeight), -CoD.PowerUps.IconSize)
+		zmqolTimerText:setAlignment(LUI.Alignment.Center)
 		zmqolTimerText:setRGB(0.8, 0.9, 0)
 		zmqolTimerText:setAlpha(0)
 		Widget:addElement(zmqolTimerText)

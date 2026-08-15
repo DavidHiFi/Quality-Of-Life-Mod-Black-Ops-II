@@ -5206,3 +5206,124 @@ Two cheap ways to separate it, both still offline-preparable:
 Option 2 is a one-line change and is also a fix if the theory is right.
 🛑 A `.testsound` probe is still worth building for B-WHOWL's sake, but it is **no longer needed to
 settle this one** — the origin test is sharper.
+
+---
+
+## 2026-08-16 — 🗄️ ELEVEN ITEMS CLOSED BY THE USER, AND THE LIST RENUMBERED
+
+The user reviewed `/queue` and named eleven items as **resolved**: *"it's either already added to the
+mod and i'm satisfied with them, or they are not needed anymore … just get rid of the following
+completed tasks from the /queue list that are fine as is to help unclutter the queue … to make sure
+you don't touch it when you don't need to be."*
+
+They were removed from `QUEUE_LIST.md`'s printed list and moved to its **Closed** section. **Nothing
+is deleted** — the write-ups below stay where they are in this file, which is the history the user
+asked to keep.
+
+Closed, by their **old** queue number:
+
+| old # | old ID | item |
+|---|---|---|
+| 7 | — | Instant start (49 §1) |
+| 20 | B-CROSSHAIR | HUD-tab toggle for the crosshair |
+| 22 | B-ROUND | Mob round 1 round counter missing |
+| 24 | §2.6 | Vulture Aid icon missing from the Wunderfizz |
+| 26 | §2.10 | Nuketown perk-machine placement |
+| 27 | §2.8a | Solo: Origins' first-generator chest gives Zombie Blood |
+| 28 | §2.2 | `night_mode 1` blacks the screen out |
+| 29 | — | Diner buildable shield |
+| 30 | — | Frametime lag from the mod |
+| 32 | — | Vulture on Origins is a compromise (invisible stink pile) |
+| 34 | §2.12 | `zm_refreshed` weapon ports — the standing "needs your call" is now answered: **no** |
+
+🛑 **A closed item is not a to-do.** Do not re-probe, re-verify or "improve" any of these unless the
+user asks for that item by name. The user's stated reason for closing them was to stop them being
+touched.
+
+📝 **No per-item reason was given and none has been inferred.** Several of these had open evidence
+threads in this file (#28 was never re-checked; #26 and #30 were never diagnosed; #32 was an
+explicit "perfectly or not at all" compromise). Those write-ups now describe **history, not open
+work** — the user's satisfaction closes them regardless of what the evidence trail was doing.
+
+**The remaining 23 items were renumbered** so the printed list has no gaps. Old → new:
+`8→7` `9→8` `10→9` `11→10` `12→11` `13→12` `14→13` `15→14` `16→15` `17→16` `18→17` `19→18`
+`21→19` `23→20` `25→21` `31→22` `33→23`. Lines 1–6 did not move. Any note elsewhere that cites a
+queue number from before this date must be read against this map.
+
+---
+
+## 2026-08-16 — v1.99.2: POWER-UP TIMERS CONFIRMED, MOVED ABOVE THE ICON, AND THE DEATH MACHINE FIXED
+
+The user booted v1.99.1: *"the power up timer works, and the toggle works, however i want you to
+move the timer right above the power up icon itself, and also the deathmachine custom power up …
+the counter wasn't visible for it."*
+
+### 🛑 WHY THE DEATH MACHINE HAD NO TIMER — A COMMENT THAT ASSERTED WHAT IT NEVER CHECKED
+
+`zmqol_powerup_timer_think()`'s own banner claimed the Death Machine was covered "with no extra
+work" because it "registers one (deathmachine_powerup)". **It does not.** The mod registers it with
+seven arguments:
+
+    add_zombie_powerup( "deathmachine", "zombie_pickup_minigun", &"ZOMBIE_POWERUP_MINIGUN",
+                        ::drop_deathmachine, 0, 0, 0 );          // quality_of_life.gsc:547
+
+and `client_field_name` / `time_name` / `on_name` are arguments **9, 10 and 11** of
+`add_zombie_powerup` (`_zm_powerups.gsc:414`, and `:447-452` is where they are stored). Stock's own
+power-ups that DO have timers pass them — compare `_zm_powerups.gsc:96` (insta_kill) with `:97`
+(full_ammo, which has none). So `.client_field_name` was undefined and the loop hit its first
+`continue` every tick.
+
+The claim was written from what the code ought to have done. The call was never read. That is the
+failure mode CLAUDE.md exists to prevent, and it shipped a feature the README then advertised.
+
+### THE FIX — NOT A NEW CLIENTFIELD
+
+The Death Machine's icon is **dvar-driven, not clientfield-driven**: `deathmachine_powerup_state` →
+`CoD.PowerUps.DeathMachineDvarUpdate` (`hudpowerupszombie.lua:622`) → `processEvent{name =
+"deathmachine_powerup"}` → `CoD.PowerUps.UpdateState` sets `powerUpId = "deathmachine_powerup"`.
+The client side therefore **already matched**; only the server never sent a time.
+
+Registering a real clientfield for it would have cost bits on every map and risked
+`EXE_CLIENT_FIELD_MISMATCH` for a display path that already works. So instead:
+
+| where | change |
+|---|---|
+| `deathmachine_powerup()` | stamps `e_player.zmqol_deathmachine_end_time = gettime() + level.deathmachine_duration * 1000`, in the same frame `notify_deathmachine_end()` starts its wait — so it is the real end time, not a second countdown that can drift |
+| `zmqol_powerup_timer_think()` | appends `deathmachine_powerup:<secs>` after the loop, gated on **both** `.deathmachine_active` and remaining time > 0 |
+| `deathmachine_clear_powerup_state()` | clears the stamp |
+
+`.deathmachine_active` is cleared on **every** end path — `end_deathmachine_powerup()` waits on
+`end_deathmachine`/`disconnect`/`death` with no `endon`, and calls
+`deathmachine_clear_powerup_state()` on all three of its return paths (`:2200`, `:2212`) — plus on
+respawn (`:1949`). Two independent gates, so a stale stamp cannot draw.
+
+No new reliable-command traffic: the string is still only written when it changes, which for a
+running power-up is once a second (ERROR_CATALOGUE §7b).
+
+### THE MOVE — ITS OWN BAND, NOT AN OVERLAY
+
+The forum mod's layout put the text at `setTopBottom(false, true, -18, 0)` — the bottom 18 units of
+a widget whose bottom 48 units **are the icon**. It was drawing on the icon's lower-right corner.
+
+Now: widget height goes from `IconSize + UpgradeIconSize + 10` to
+`IconSize + ZmqolTimerHeight + UpgradeIconSize + 10` (94 → 112), and the text takes
+`-(IconSize + 18) .. -IconSize`, bottom edge flush with the icon's top edge, `LUI.Alignment.Center`
+instead of `Right`.
+
+Measured in units above the container bottom: icon `0..48`, timer `48..66`, 10-unit gap, upgrade
+badge `76..112`. **The badge rides 18 units higher than stock** — the only stock-visual change, it
+is uniform across all seven slots, and it is what guarantees the timer and the upgrade badge can
+never overlap (they would have overlapped by 8 units on upgraded insta-kill otherwise).
+
+### Verified before hand-off
+
+`gsc-tool -m parse` clean · `luaparse` (5.1) clean · `LUI.Alignment.Center` attested 434× in the
+workspace's Lua before use · `gettime()` used 10× already in this file · both new symbols confirmed
+**inside the deployed `mod.iwd`** · nothing in Plutonium's `raw\` shadows `hudpowerupszombie.lua`.
+
+📝 **Deployed, not verified.** Two things to watch: the number sitting above the icon rather than on
+it, and a countdown appearing on the Death Machine icon.
+
+📝 **Open question, not guessed at:** "the toggle works" was not tied to a specific row, so
+**neither** queue item was struck — it is either the power-up timers' HUD toggle or #2, the bleedout
+bar toggle.

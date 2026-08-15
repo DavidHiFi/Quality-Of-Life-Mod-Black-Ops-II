@@ -49,9 +49,9 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   have to type a chat command.
 - Hitmarkers, on-screen counters, round summary, game and round timers, health bar, zombies
   remaining, zone names, velocity meter, Cold-War round HUD, perk pop-ups.
-- **Power-up timers** — seconds remaining under every power-up icon, including the Death Machine
-  and anything else the mod adds. ⚠️ Shipped broken in v1.99.0; rewritten in v1.99.1 and **not yet
-  confirmed working in game**.
+- **Power-up timers** — seconds remaining above each power-up icon. Confirmed working in v1.99.1
+  for the stock power-ups. ⚠️ The mod's own **Death Machine** power-up was **not** covered until
+  v1.99.2, and that half is **not yet confirmed working in game**.
 - **Instant match start** — no lobby countdown.
 - Solo Play is titled Solo Play, and the Classic intro cutscenes play again.
 
