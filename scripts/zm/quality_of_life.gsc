@@ -874,16 +874,36 @@ counters_onplayerspawned()
 //  qol_opt_zone_hud() in qol_options.gsc already worked this way; the health bar
 //  simply never got the same treatment. Both helpers are idempotent so the loop
 //  can call them every tick without churn.
+//
+//  🛑 v1.96.0 - THE NUMERIC READOUT AND THE "+" ARE GONE. THREE ELEMENTS, NOT FIVE.
+//
+//  User, 2026-08-16, reporting for a friend whose name is "SugarButterBuns":
+//  *"his username was long enough to the point that it overlapped with the +
+//  symbol next to the 100/100 health number display ... get rid of the + symbol
+//  and the numbers ... and just keep the bar(s) themself so the username
+//  underneath can fully show without any interference."*
+//
+//  🌟 THE OVERLAP IS ARITHMETIC, NOT A GUESS. All three sat on the SAME ROW
+//  (y = 18 off BOTTOM_LEFT): the name ran rightwards from x = -45, the "+" was
+//  pinned LEFT at x = 12 and the "100 / 100" was pinned RIGHT at x = 58. So the
+//  name had exactly 57 units of clear space and every name wider than that ran
+//  into the "+". Nothing scaled it or clipped it - a hudelem fontstring does
+//  neither - so a long name simply drew over the top.
+//
+//  Deleting the two readouts is what the user asked for and it also settles the
+//  general case: the name row is now the full width of the screen edge to
+//  wherever it ends, for ANY name length, instead of being correct up to 57
+//  units and broken past it.
+//
+//  📝 A SIDE BENEFIT THAT MATTERS HERE: this hands TWO client hudelem slots per
+//  player back to the pool. That is the same budget Origins' generator capture
+//  ring allocates out of - see the note above and .agents/checkpoint_48.md §1.
 // ============================================================================
 qol_health_hud_create()
 {
-    if ( isdefined( self.qol_hud_health ) && self.qol_hud_health.size == 5 )
+    if ( isdefined( self.qol_hud_health ) && self.qol_hud_health.size == 3 )
         return;
 
-    healthvalue = self createfontstring( "default", 1 );
-    healthvalue setpoint( "RIGHT", "BOTTOM_LEFT", 58, 18 );
-    healthvalue.hidewheninmenu = 1;
-    healthvalue.sort = -1;
     healthbar_bg = newclienthudelem( self );
     healthbar_bg.x = 0;
     healthbar_bg.y = 0;
@@ -915,17 +935,11 @@ qol_health_hud_create()
     playername setpoint( "LEFT", "BOTTOM_LEFT", -45, 18 );
     playername settext( self.name );
     playername.hidewheninmenu = 1;
-    healthbar_mas = self createfontstring( "default", 1.5 );
-    healthbar_mas setpoint( "LEFT", "BOTTOM_LEFT", 12, 17 );
-    healthbar_mas settext( "+" );
-    healthbar_mas.hidewheninmenu = 1;
 
     self.qol_hud_health = [];
-    self.qol_hud_health[0] = healthvalue;
-    self.qol_hud_health[1] = healthbar_bg;
-    self.qol_hud_health[2] = healthbar;
-    self.qol_hud_health[3] = playername;
-    self.qol_hud_health[4] = healthbar_mas;
+    self.qol_hud_health[0] = healthbar_bg;
+    self.qol_hud_health[1] = healthbar;
+    self.qol_hud_health[2] = playername;
 }
 
 qol_health_hud_destroy()
@@ -1001,7 +1015,7 @@ first_spawn()
         //  within a frame, which is why there is exactly one owner.
         //
         //  The difference from every version before v1.53.0: when the bar is
-        //  off the five elements are DESTROYED, not merely faded, so the slots
+        //  off the three elements are DESTROYED, not merely faded, so the slots
         //  go back to the pool for things like Origins' generator ring.
         //  zmqol_perf_probe() takes the same path as hud_all 0 - the five
         //  elements are DESTROYED, not just faded, so the loop costs nothing.
@@ -1022,29 +1036,23 @@ first_spawn()
 
         self qol_health_hud_create();
 
-        healthvalue   = self.qol_hud_health[0];
-        healthbar_bg  = self.qol_hud_health[1];
-        healthbar     = self.qol_hud_health[2];
-        playername    = self.qol_hud_health[3];
-        healthbar_mas = self.qol_hud_health[4];
+        healthbar_bg  = self.qol_hud_health[0];
+        healthbar     = self.qol_hud_health[1];
+        playername    = self.qol_hud_health[2];
 
         if ( isdefined( self.e_afterlife_corpse ) )
         {
             healthbar.alpha = 0;
-            healthvalue.alpha = 0;
             playername.alpha = 0;
             healthbar_bg.alpha = 0;
-            healthbar_mas.alpha = 0;
             wait 0.05;
             continue;
         }
-        if ( healthbar_mas.alpha == 0 || healthbar_bg.alpha == 0 || ( playername.alpha == 0 || healthvalue.alpha == 0 ) || healthbar.alpha == 0 )
+        if ( healthbar_bg.alpha == 0 || playername.alpha == 0 || healthbar.alpha == 0 )
         {
             healthbar.alpha = 1;
-            healthvalue.alpha = 1;
             playername.alpha = 1;
             healthbar_bg.alpha = 0.5;
-            healthbar_mas.alpha = 1;
         }
         //  🛑 PERF, v1.65.3 - THESE TWO USED TO RUN EVERY 100ms, UNCONDITIONALLY,
         //  FOR THE WHOLE MATCH.
@@ -1059,19 +1067,22 @@ first_spawn()
         //
         //  🌟 THE CACHE LIVES ON THE HUDELEM, NOT IN A LOCAL, and that is what
         //  makes it safe. The block at the top of this loop DESTROYS and later
-        //  re-CREATES these five elements whenever hud_health_bar is toggled; a
+        //  re-CREATES these elements whenever hud_health_bar is toggled; a
         //  local would survive that and leave the fresh element permanently
-        //  blank. A new element carries no .qol_last_health, so the very first
-        //  iteration after any re-create writes the text again.
+        //  stuck at its spawn width. A new element carries no .qol_last_health,
+        //  so the very first iteration after any re-create resizes it again.
+        //
+        //  v1.96.0 - the cache moved from healthvalue (deleted) onto healthbar,
+        //  the element the guarded call now writes. setshader() is a reliable
+        //  command too, so keeping the guard still matters.
         if ( isdefined( self.health ) &&
-             ( !isdefined( healthvalue.qol_last_health ) ||
-               healthvalue.qol_last_health != self.health ||
-               healthvalue.qol_last_maxhealth != self.maxhealth ) )
+             ( !isdefined( healthbar.qol_last_health ) ||
+               healthbar.qol_last_health != self.health ||
+               healthbar.qol_last_maxhealth != self.maxhealth ) )
         {
             healthbar setshader( "progress_bar_fill", int( 100 * ( self.health / self.maxhealth ) ), 3 );
-            healthvalue settext( self.health + ( "^8 / " + self.maxhealth ) );
-            healthvalue.qol_last_health = self.health;
-            healthvalue.qol_last_maxhealth = self.maxhealth;
+            healthbar.qol_last_health = self.health;
+            healthbar.qol_last_maxhealth = self.maxhealth;
         }
         //  hud_color_health, handled HERE and nowhere else. This loop repaints
         //  the tier colour every 0.1s, so any other thread tinting these
@@ -1089,8 +1100,6 @@ first_spawn()
             if ( isdefined( a_hc ) && a_hc.size == 3 )
             {
                 v_hc = ( string_to_float( a_hc[0] ), string_to_float( a_hc[1] ), string_to_float( a_hc[2] ) );
-                healthvalue.color = v_hc;
-                healthbar_mas.color = v_hc;
                 healthbar.color = v_hc;
             }
 
@@ -1098,29 +1107,13 @@ first_spawn()
             continue;
         }
         if ( self.health >= 71 && self.health <= self.maxhealth )
-        {
-            healthvalue.color = ( 0, 1, 0.5 );
-            healthbar_mas.color = ( 0, 1, 0.5 );
             healthbar.color = ( 0, 1, 0.5 );
-        }
         else if ( self.health >= 50 && self.health <= 70 )
-        {
-            healthvalue.color = ( 1, 1, 0 );
-            healthbar_mas.color = ( 1, 1, 0 );
             healthbar.color = ( 1, 1, 0 );
-        }
         else if ( self.health >= 25 && self.health <= 49 )
-        {
-            healthvalue.color = ( 1, 0.5, 0 );
-            healthbar_mas.color = ( 1, 0.5, 0 );
             healthbar.color = ( 1, 0.5, 0 );
-        }
         else if ( self.health >= 0 && self.health <= 24 )
-        {
-            healthvalue.color = ( 0.5, 0, 0 );
-            healthbar_mas.color = ( 0.5, 0, 0 );
             healthbar.color = ( 0.5, 0, 0 );
-        }
         wait 0.1;
     }
 }

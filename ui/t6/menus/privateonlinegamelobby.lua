@@ -66,7 +66,69 @@ LUI.createMenu.PrivateOnlineGameLobby = function (controller)
 	-- the first moment it can be corrected.
 	zmQolForceSoloPartySize("lobby")
 
+	-- zm_qol v1.96.0: see the INSTANT START block below.
+	zmQolInstantStart()
+
 	return menu
+end
+
+
+-- ============================================================================
+--  zm_qol v1.96.0: INSTANT START - the Start button launches immediately.
+--
+--  🛑 THIS MOD HAS NEVER ACTUALLY SHIPPED INSTANT START, AND THE README SAID IT
+--  DID. Reported 2026-08-16: a friend on Linux installed the v1.95.7 release and
+--  got the stock five-second "match starting in" countdown in Solo Play.
+--
+--  🌟 THE MECHANISM, MEASURED - NOT THE ONE THIS PROJECT BELIEVED.
+--  Two files on the author's own PC settle it between them:
+--      players\plutonium_zm.cfg.bak-before-instantstart   (2026-07-31 04:11)
+--      players\plutonium_zm.cfg                           (live)
+--  and the ONLY party_* lines that differ are
+--      party_gameStartTimerLengthPrivate   5 -> 0
+--      party_pregameStartTimerLength       5 -> 0
+--  Instant start has worked on that machine ever since, on every build, and the
+--  friend - who has the mod but not that config - reports exactly FIVE seconds,
+--  which is the shipped default of the first dvar. Plutonium's own
+--  dvar_descriptions.json defines it as "Time in seconds before a game start
+--  once enough party members are ready".
+--
+--  So it was never the mod: it is two archived dvars that one session set by
+--  hand on ONE machine and nothing ever shipped.
+--
+--  🛑 THE OLD OVERRIDE IN privategamelobby_project.lua IS NOT THE FIX AND NEVER
+--  WAS. CoD.PrivateGameLobby.ButtonStartGame is called by nothing in this game -
+--  already established and documented at that call site, 2026-08-11. Left alone;
+--  removing dead code is a separate change.
+--
+--  📝 party_gameStartTimerLength (the PUBLIC one) is deliberately NOT touched.
+--  It is still 5 on the machine where this works, so 5 is proven compatible and
+--  changing it would alter public matches for no reason.
+--
+--  📝 These are archived dvars, so a player who runs the mod once keeps the
+--  instant start afterwards even in vanilla. That is the same state the author's
+--  machine has been in since July and is the behaviour being asked for.
+--
+--  Called from two places for the same reason zmQolForceSoloPartySize is: the
+--  lobby opening, and the last moment before the match launches.
+-- ============================================================================
+function zmQolInstantStart()
+	local names = { "party_gameStartTimerLengthPrivate", "party_pregameStartTimerLength" }
+
+	for i = 1, #names do
+		local name = names[i]
+		-- Dvar.<name>:set is the route already proven in this file
+		-- (zmQolForceSoloPartySize writes party_maxplayers that way). pcall
+		-- because a dvar this build does not define would otherwise index nil
+		-- and hard-crash the lobby menu.
+		local ok = pcall(function()
+			Dvar[name]:set(0)
+		end)
+
+		if not ok then
+			pcall(Engine.SetDvar, name, "0")
+		end
+	end
 end
 
 
@@ -146,6 +208,13 @@ if zmQolStockStartMatch ~= nil then
 	-- project can read, and forwarding blind cannot get it wrong.
 	CoD.PrivateGameLobby.Button_StartMatch = function (...)
 		zmQolForceSoloPartySize("start")
+		zmQolInstantStart()
 		return zmQolStockStartMatch(...)
 	end
 end
+
+-- zm_qol v1.96.0: and once at load, the earliest moment the mod can act. This
+-- covers the one residual risk in the block above - that the party system reads
+-- the timer length once at frontend init rather than per match. Same two dvars,
+-- same call; there is no second mechanism here to confuse a bad boot with.
+zmQolInstantStart()

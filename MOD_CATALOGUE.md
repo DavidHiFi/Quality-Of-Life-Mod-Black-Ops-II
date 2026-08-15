@@ -479,3 +479,121 @@ this project's LUI files. Node is installed; there is no Lua interpreter on this
 | Stray 254 MB `cmn_root.all.sabl` in `build\zm_qol\` | not one of the 6 files — do not ship it |
 
 `.agents/QUEUE.md` is the authority on ordering and what is in flight.
+
+---
+
+# 11. Long-form notes moved out of `README.md` *(v1.96.0, 2026-08-16)*
+
+User, 2026-08-16: *"fix the GitHub page because right now it's very cluttered and not very user
+friendly ... make the readme as simple as possible so anyone can check out all the features of my
+mod without having to read a bunch of uneeded stuff ... keep them to your other .md files for the
+mods' source so that way you can still access the information and knowledge required in the
+future."*
+
+Nothing below was deleted from the project — it was moved here. The README is now a player-facing
+page: what the mod is, how to install it, what it does, what is broken.
+
+## 11a. Textures — the disclaimer that was cut
+
+The mod **no longer ships an upscaled texture pack**. Removed in v1.57.7: loose `.iwi` in
+`mod.iwd` did not reliably override the stock art, and it cost 2 GB for no visible result. A
+player's own pack goes in `%LOCALAPPDATA%\Plutonium\storage\t6\images\`, which does work.
+
+v1.93.0 removed two perk icons the mod still shipped — `specialty_vulture_zombies.iwi` and
+`specialty_tombstone_zombies.iwi` — because `mod.iwd\images\` beats `storage\t6\images\` and they
+were overriding custom packs. 🛑 **Consequence:** with no pack installed, the Vulture Aid icon
+falls back to the game's own copy, which only Buried owns, so it may not draw elsewhere. Tombstone
+is safe either way (its pixels are in the base pak).
+`specialty_vulture_zombies_glow.iwi` is deliberately still shipped — no known pack replaces it.
+
+## 11b. Weapon detail
+
+- **XPR-50** is stored under its development name `as50` — the defs are `as50_*`, the art is
+  `xpr50_*`. It was twice reported absent because of this.
+- **Titus-6** is dual-mode: explosive-dart launcher with a buckshot masterkey on alt-fire, both
+  dart projectiles included. Its Pack-a-Punch camo is compiled from source (the game ships no
+  `camo_titus6`); all three of its effects are baked into `mod.ff` from the campaign fastfile that
+  owns them. Its PaP camo was missing on Mob, Buried and Origins until v1.95.2 — those three use
+  camo index **40** where every other map uses 39, and `camo_titus6` had real materials at slot 3
+  (index 39) but an empty filler at slot 8 (index 40). It now carries slots 3, 8, 11 and 12.
+- **Reload sounds** work on all eleven as of v1.93.0. SWAT-556 and Peacekeeper shipped with no
+  foley aliases at all (six each); the other nine matched their source one for one.
+- **`zmqol_mp_weapons 0`** turns all eleven off; **`zmqol_ww 0`** turns the three wonder weapons off.
+
+## 11c. Wonder-weapon detail
+
+- **Brutus** was effectively immune before v1.94.1: all three guns damaged him through `DoDamage`,
+  which carries no hit location, so his own damage override scaled every hit to 10% and could never
+  pop the helmet. The fix went into `zombie_knockdown()` (v1.93.0 — Brutus never reaches it), then
+  `thundergun_knockdown_zombie()` (v1.94.0 — only covers 480–1200 units), then
+  `thundergun_fling_zombie()` as well (v1.94.1 — the branch every target inside 480 units takes,
+  i.e. the range he is actually fought at). Thundergun confirmed in game v1.94.1.
+- **The Wunderwaffe needed a second, unrelated fix in v1.95.2**: a *direct* hit on Brutus did
+  nothing, and only the arc chaining off a nearby zombie hurt him. `tesla_damage_init()`
+  early-returns on any target still carrying `zombie_tesla_hit`, and the loop meant to clear that
+  flag was gated on `tesla_damage_func` — a field **nothing in the game, this mod, or either donor
+  mod ever assigns**, so it never ran and Brutus stayed flagged forever after his first arc.
+- **Winter's Howl fx, the open bug.** v1.91.0 claimed to fix it with 19 materials and 12 textures
+  in `mod.ff`; the user booted it and the effects were still missing, and a re-measurement
+  **disproved that explanation** — all six materials `fx_freezegun_view.efx` names are reachable at
+  runtime (four in `mod.ff`, two in `common_zm`/`patch_zm`) and the `.efx` itself is inside the
+  shipped `mod.iwd`. The remaining untested assumption is whether T6 loads a raw `.efx` out of
+  `mod.iwd\fx\` at all. The 19 materials were left in place — harmless and genuinely absent, but
+  not the cause.
+- **The DG-2 "never appears from the box" report was measured and is not a bug**: all three
+  register identically, and with stock's box filters removed a specific gun is ~3.8% per spin.
+  `zmqol_box_wonder_weight` (default 2, `0` = stock) weights an unheld wonder weapon from round 10.
+- The Wunderwaffe's **view-model lights are still too bright**.
+
+## 11d. Round jumping
+
+`.round 30` drives stock's normal round-end path. Stock's own `zombie_devgui_goto_round()` cannot
+be used — its whole body, *and* every `endon( "kill_round" )` it relies on, sit inside `/# #/`
+developer blocks, so neither exists in a retail game.
+
+## 11e. The options menu, and why it is three tabs
+
+`CoD.ButtonList` neither clips nor scrolls, and stock's largest tab is 14.5 row-pitches. The
+v1.94.0 single tab was 23.5 pitches and drew straight over the tab strip and the ESC prompt. The
+split into GAME / HUD (v1.95.0–v1.95.1, confirmed in game 2026-08-14) and then GAME / HUD / CHEATS
+(v1.96.0) keeps every tab under the stock budget. See the header comments in
+`ui/t6/menus/optionssettings.lua` for the pixel measurements behind the tab-strip width.
+
+📝 Two requested entries are **deliberately absent**: **"reduce engine sleeps"**, because no dvar of
+that name exists in this build and inventing one would be a guess, and **perma-perks**, because this
+mod has no perma-perk system to toggle.
+
+📝 There was never a GAME tab for the mod to hide: the `optionssettings.lua` this project is built
+on registers exactly four tabs unconditionally. This **adds** tabs.
+
+## 11f. Diner's Survival build-out
+
+Diner is the only added location — `scripts\zm\locs\` holds exactly one location script. Treyarch
+left the map data in the game but never shipped it as a Survival start. What had to be added:
+
+- **Pack-a-Punch** on the roof, reachable by the restored hatch climb.
+- **Its wall buys turned back on** — the MP5K inside and the Galvaknuckles on the roof are tagged
+  `zclassic_transit` in the stock map, so Survival spawned neither.
+- **A Semtex wall buy** by the exit door. The map ships exactly one Semtex struct and it lives in
+  Town, so this one is *created*, on both the server and the client — a wall buy is a clientfield,
+  and a one-sided one drops every player at load.
+- **The buildable riot shield.** The parts and spawns were always in the map; TranZit only registers
+  buildables in Classic. Its part models, HUD icons and craft sounds ship in `mod.ff` — all of them
+  live in the *Classic-only* fastfile that Survival never loads.
+- **The three teddy bears and the secret song**, matching Bus Depot, Farm and Town.
+
+## 11g. Blood Money and Zombie Blood, in full
+
+- **Blood Money** (`bonus_points_player`, 1–2500 points to whoever grabs it) is registered in core
+  BO2 on all six maps but switched on only by Origins, which hands it out from a dig site alone. It
+  is now in the ordinary drop rotation on every map — Origins' dig sites keep working unchanged.
+  Costs no clientfield bits; the icon model ships in `mod.ff` for the four maps that lack it.
+- **Zombie Blood** on TranZit, Nuketown, Die Rise and Buried: 30 seconds during which every zombie
+  ignores you, with the red screen filter, the visionset, the first- and third-person effects, the
+  player-model swap and the looping audio — ported asset for asset from `zm_tomb.ff`. Origins keeps
+  its own copy. **Not on Mob of the Dead**: that map's `toplayer` clientfield set is out of space,
+  measured from a real boot failure.
+- **Three announcer lines.** Zombie Blood's and Blood Money's exist only in Origins' sound bank, so
+  both drops were silent everywhere else; the Death Machine's (`zmb_vox_ann_death_machine`, Die
+  Rise's bank) was recorded by Treyarch and **never wired up anywhere in the game** — zero
+  references across all 2,093 stock scripts.

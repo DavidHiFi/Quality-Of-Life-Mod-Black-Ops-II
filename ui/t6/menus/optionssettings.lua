@@ -760,9 +760,47 @@ end
 --  past both ends of its container, over the tab strip above and the ESC
 --  prompt below. That is the whole of the reported "scuffed-ness".
 --
---  The two tabs below are 13 and 13.5 pitches, both inside the proven 14.5.
---  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTER TAB, and never take either past
---  14.5 pitches (a spacer counts as 0.5).
+--  The three tabs below are 9.5, 9.5 and 7 pitches, all inside the proven 14.5.
+--  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTEST TAB IT HONESTLY BELONGS IN, and
+--  never take any tab past 14.5 pitches (a spacer counts as 0.5).
+--
+-- ============================================================================
+--  🌟 v1.96.0 - THREE TABS: GAME / HUD / CHEATS, SORTED BY WHAT EACH ROW DOES.
+--
+--  User, 2026-08-16: *"add another tab in the pause menu options called CHEATS
+--  after the HUD section, and move any cheat options like godmode, fly, ghost,
+--  infinite sprint, infinite ammo, etc. to that tab to make room for other
+--  future options in the GAME tab, and also make sure that any added toggable
+--  options are in the correct relevant tab, so HUD would contain all hud element
+--  toggles and so on."*
+--
+--  So the rule for this file is now: HUD holds things that draw on the HUD.
+--  CHEATS holds things that change the rules in the player's favour. GAME holds
+--  everything else - client/session options, world rendering, startup.
+--
+--  That moved the four RENDERING rows (night mode, fog, depth of field, model
+--  detail fix) OUT of HUD, where they never belonged: none of them is a HUD
+--  element, they are r_* / visionset settings applied to the world.
+--
+--  🛑 HOLD TO SPRINT IS REMOVED AND IT IS NOT MOVED TO CONTROLS. Same message:
+--  *"in the game tab remove the hold to sprint option as this was never even in
+--  the regular GAME tab without the mod to begin with, or just move it to
+--  controls instead if that option didn't already exist."*
+--
+--  It cannot go to CONTROLS, and the reason is a bug this project already paid
+--  for. Stock BO2's controls menu has no hold-to-sprint row at all - verified
+--  directly against the retail decompile now sitting at
+--  storage\t6\raw\ui\t6\menus\optionscontrols.lua.aside, whose five tabs (LOOK /
+--  MOVE / COMBAT / INTERACT / GAMEPAD) contain only the "+sprint" key BIND. So
+--  adding the row means this mod shipping its own optionscontrols.lua, and that
+--  file would then SHADOW Plutonium's patched one exactly the way the .aside
+--  copy did - which is what deleted RAW INPUT, MOUSE ACCELERATION and FIX HIGH
+--  POLL RATE LAG from the user's CONTROLS menu in the first place
+--  (.agents/checkpoint_48.md §4). Trading three working Plutonium rows for one
+--  new row is a straight loss, so the row is simply gone.
+--
+--  The dvar itself is untouched and still works from the console:
+--  `cg_holdToSprint 1`.
 -- ============================================================================
 CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	local QolContainer = LUI.UIContainer.new()
@@ -772,34 +810,25 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 
 	local T = CoD.OptionsSettings.QolToggle
 
-	-- The standard Plutonium game options.                            4 rows
+	-- The standard Plutonium game options.                            3 rows
 	T(QolButtons, LocalClientIndex, "ALLOW DOWNLOADING",  "cl_allowDownload",     "Allow downloading mods from a server.")
 	T(QolButtons, LocalClientIndex, "DRAW IDENTIFIER",    "cg_drawIdentifier",    "Session watermark at the top of the screen.")
 	T(QolButtons, LocalClientIndex, "FLASH SCRIPT HASHES","cg_flashScriptHashes", "Flash script hashes on screen.")
-	T(QolButtons, LocalClientIndex, "HOLD TO SPRINT",     "cg_holdToSprint",      "Hold the sprint key instead of tapping.")
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
-	-- Cheats and movement.                                            7 rows
-	--
-	-- 🛑 godmode / ghostmode, NOT god / ghost. Those two names belong to the
-	-- mod's CHAT-COMMAND dvar channel, which blanks them the moment they are
-	-- written - so the v1.94.0 rows switched themselves straight back off. See
-	-- the long note in zmqol_toggle_dvar_watch() in quality_of_life.gsc.
-	T(QolButtons, LocalClientIndex, "GOD MODE",           "godmode",              "You cannot be damaged.")
-	T(QolButtons, LocalClientIndex, "GHOST",              "ghostmode",            "Zombies ignore you.")
-	T(QolButtons, LocalClientIndex, "INFINITE AMMO",      "infinite_ammo",        "Never run out of ammo.")
-	T(QolButtons, LocalClientIndex, "INFINITE SPRINT",    "infinite_sprint",      "Sprint without tiring.")
-	T(QolButtons, LocalClientIndex, "FLY MODE",           "fly",                  "Noclip. Melee to stop.")
-	T(QolButtons, LocalClientIndex, "RAPID FIRE",         "rapid_fire",           "Faster firing on every weapon.")
-	T(QolButtons, LocalClientIndex, "NO POWER NEEDED",    "no_power",             "Perks and doors work without power.")
+	-- World rendering. Not HUD - these change how the map is drawn.   4 rows
+	T(QolButtons, LocalClientIndex, "NIGHT MODE",         "night_mode",           "Darker, moodier lighting.")
+	T(QolButtons, LocalClientIndex, "FOG",                "r_fog",                "World fog. Off shows the map edge.")
+	T(QolButtons, LocalClientIndex, "DEPTH OF FIELD",     "r_dof_enable",         "Blur at distance. Off is fully off.")
+	T(QolButtons, LocalClientIndex, "MODEL DETAIL FIX",   "lod_fix",              "Stops distant models popping in.")
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
-	-- Startup.                                                       1 row
+	-- Startup.                                                        1 row
 	T(QolButtons, LocalClientIndex, "INTRO CREDITS",      "intro_credits",        "Mod name and credits at match start.")
 
-	return QolContainer                                             -- 13 total
+	return QolContainer                                             -- 9.5 total
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
@@ -810,15 +839,7 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 
 	local T = CoD.OptionsSettings.QolToggle
 
-	-- Visuals.                                                        4 rows
-	T(QolHudButtons, LocalClientIndex, "NIGHT MODE",        "night_mode",     "Darker, moodier lighting.")
-	T(QolHudButtons, LocalClientIndex, "FOG",               "r_fog",          "World fog. Off shows the map edge.")
-	T(QolHudButtons, LocalClientIndex, "DEPTH OF FIELD",    "r_dof_enable",   "Blur at distance. Off is fully off.")
-	T(QolHudButtons, LocalClientIndex, "MODEL DETAIL FIX",  "lod_fix",        "Stops distant models popping in.")
-
-	QolHudButtons:addSpacer(CoD.CoD9Button.Height / 2)
-
-	-- HUD.                                                           9 rows
+	-- HUD elements, and nothing else.                                 9 rows
 	T(QolHudButtons, LocalClientIndex, "HUD",               "hud_master",     "Master switch for the whole HUD.")
 	T(QolHudButtons, LocalClientIndex, "HITMARKERS",        "hitmarkers",     "Hit and kill markers on your crosshair.")
 	T(QolHudButtons, LocalClientIndex, "ROUND SUMMARY",     "round_summary",  "Stats pop-up after each round.")
@@ -829,7 +850,31 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	T(QolHudButtons, LocalClientIndex, "ZONE NAME",         "hud_zone",       "Name of the area you are in.")
 	T(QolHudButtons, LocalClientIndex, "VELOCITY METER",    "velocity",       "Your speed. Green, yellow, red.")
 
-	return QolHudContainer                                          -- 13.5 total
+	return QolHudContainer                                          -- 9.5 total
+end
+
+CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)
+	local QolCheatsContainer = LUI.UIContainer.new()
+	local QolCheatsButtons = CoD.Options.CreateButtonList()
+	QolCheatsTab.buttonList = QolCheatsButtons
+	QolCheatsContainer:addElement(QolCheatsButtons)
+
+	local T = CoD.OptionsSettings.QolToggle
+
+	-- 🛑 godmode / ghostmode, NOT god / ghost. Those two names belong to the
+	-- mod's CHAT-COMMAND dvar channel, which blanks them the moment they are
+	-- written - so the v1.94.0 rows switched themselves straight back off. See
+	-- the long note in zmqol_toggle_dvar_watch() in quality_of_life.gsc.
+	--                                                                 7 rows
+	T(QolCheatsButtons, LocalClientIndex, "GOD MODE",        "godmode",        "You cannot be damaged.")
+	T(QolCheatsButtons, LocalClientIndex, "GHOST",           "ghostmode",      "Zombies ignore you.")
+	T(QolCheatsButtons, LocalClientIndex, "INFINITE AMMO",   "infinite_ammo",  "Never run out of ammo.")
+	T(QolCheatsButtons, LocalClientIndex, "INFINITE SPRINT", "infinite_sprint","Sprint without tiring.")
+	T(QolCheatsButtons, LocalClientIndex, "FLY MODE",        "fly",            "Noclip. Melee to stop.")
+	T(QolCheatsButtons, LocalClientIndex, "RAPID FIRE",      "rapid_fire",     "Faster firing on every weapon.")
+	T(QolCheatsButtons, LocalClientIndex, "NO POWER NEEDED", "no_power",       "Perks and doors work without power.")
+
+	return QolCheatsContainer                                       -- 7 total
 end
 
 LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
@@ -928,7 +973,23 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	-- 🌟 700 is also BO2-Reimagined's shipped value for a six-tab settings strip
 	-- labelled GRAPHICS ADVANCED SOUND VOICE CHAT GAME MOD - the same label set
 	-- to within one three-letter word (its ui/t6/options.lua, line 661).
-	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, 700)
+	--
+	-- 🌟 v1.96.0 - 700 -> 800, BECAUSE A SEVENTH TAB WAS ADDED (CHEATS), and the
+	-- number is re-derived from the SAME pixel measurements rather than nudged.
+	-- From the scan above: the inter-label gap is a constant 82 px, and the
+	-- measured labels average ~14 px per capital glyph (GRAPHICS 109/8,
+	-- ADVANCED 114/8, SOUND 73/5). CHEATS is 6 glyphs, so ~84 px, and it costs
+	-- one extra gap as well:
+	--     six tabs   937 px  = 600 units   (measured, v1.95.1)
+	--     + 82 gap + 84 glyphs  ->  1103 px = 706 units
+	-- Stock leaves ~34 units of margin per side, so the minimum here is
+	-- 706 + 68 = 774. 800 leaves 47 units (73 px) per side.
+	--
+	-- 🛑 THE ERROR IS DELIBERATELY BIASED WIDE. Too narrow is the REPORTED bug -
+	-- the arrows draw on top of the labels (v1.93.0/v1.95.0). Too wide only
+	-- pushes the arrows a little further out, which nobody has ever reported.
+	-- CHEATS's width is the one estimated quantity here, so the margin absorbs it.
+	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, 800)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_GRAPHICS_CAPS", CoD.OptionsSettings.CreateGraphicsTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_ADVANCED_CAPS", CoD.OptionsSettings.CreateAdvancedTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_SOUND_CAPS", CoD.OptionsSettings.CreateSoundTab)
@@ -943,6 +1004,8 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	-- (2026-08-14), with the first tab renamed back to "GAME". Split so neither
 	-- tab overflows - see the note above CreateQolTab.
 	SettingsTabs:addTab(LocalClientIndex, "HUD", CoD.OptionsSettings.CreateQolHudTab)
+	-- v1.96.0 - CHEATS, last, immediately after HUD as asked.
+	SettingsTabs:addTab(LocalClientIndex, "CHEATS", CoD.OptionsSettings.CreateQolCheatsTab)
 	if CoD.OptionsSettings.CurrentTabIndex then
 		SettingsTabs:loadTab(LocalClientIndex, CoD.OptionsSettings.CurrentTabIndex)
 	else

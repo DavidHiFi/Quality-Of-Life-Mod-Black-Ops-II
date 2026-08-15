@@ -1000,7 +1000,7 @@ qol_opt_hud_watcher()
         //  🛑 The health HUD is deliberately NOT touched here. quality_of_life's
         //  own health loop already owns its alpha (it restores it the instant it
         //  sees a 0) and its colour (it repaints per health tier every 0.1s).
-        //  Two threads writing the same five elements is what produced the white
+        //  Two threads writing the same health elements is what produced the white
         //  bar, so there is exactly one owner now: that loop reads hud_health_bar
         //  and hud_color_health itself.
 
