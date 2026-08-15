@@ -5133,3 +5133,31 @@ loaded banks — the mod ships its own 60 MB `mod.all.sabl` — and confirm whet
 is present, and whether the mod's bank shadows the stock bank that carries it. `Black-Ops-II-Sound-
 Studio` and OAT both read these. That distinguishes "alias missing" from "alias present but not
 audible" and is the only thing that will.
+
+#### B-RISERSOUND update (same day) — the "dump the alias tables" next step is a DEAD END. Do not retry it.
+
+I tried it. The T6 alias table is **not enumerable with the tooling in this workspace**, and here is
+the accounting so nobody spends the effort again:
+
+| route | result |
+|---|---|
+| grep the `.sabl` for the alias name | ❌ **no plaintext strings at all** — banks are hash-keyed |
+| `Unlinker --list mod.ff` for a `sound`/`sndalias` asset | ❌ mod.ff owns **2 soundbank declarations and no aliases**, so the mod is NOT overriding stock's |
+| `Unlinker --list common_zm.ff` | ❌ **OAT exposes no `sound` asset class for T6** at all |
+| `zmb_common.ff` | ❌ **does not exist** — `zmb_common.all.sabl` is a standalone bank in `sound\`, not a fastfile |
+| the audio dumper's `Identifiers/` DB | ⚠️ maps hash → **source .snd file path**, NOT alias name. Cannot answer "does alias X exist". |
+
+🛑 **And one inference from it that is NOT safe to draw.** No audio file with `riser` in its path
+exists in any of the 96 dumped banks, and the only zombie "spawn" audio is for avogadro, screecher
+and leaper. That is **not** evidence the alias is dead — `zmb_zombie_spawn` most likely points at a
+generic dirt/debris file whose name says nothing about risers. Absence of the word proves nothing.
+
+📝 Also measured, and it removes a suspicion: the mod's banks load **prioritized** (`Adding
+prioritized sound bank "deathmachine_zm.all" from zone "mod"`, `console_zm.log:738`), which looked
+like it could shadow a stock alias — but mod.ff carries no alias assets, so it cannot.
+
+▶️ **REVISED NEXT STEP — a probe, because this genuinely cannot be settled offline.** Ship
+`.testsound <alias>`: play a named alias on demand at the player. The user tries
+`zmb_zombie_spawn` and a known-good control alias back to back in ONE boot. That separates
+"the alias produces no audio" from "the alias is fine and the riser wiring is wrong", which is the
+only remaining fork. Same instrument B-WHOWL needs (`.testfx`), so build them together.
