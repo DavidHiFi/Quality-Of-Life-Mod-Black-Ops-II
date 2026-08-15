@@ -760,7 +760,8 @@ end
 --  past both ends of its container, over the tab strip above and the ESC
 --  prompt below. That is the whole of the reported "scuffed-ness".
 --
---  The three tabs below are 9.5, 11 and 7 pitches, all inside the proven 14.5.
+--  The three tabs below are 9.5, 12 and 7 pitches, all inside the proven 14.5.
+--  (HUD went 11 -> 12 in v1.99.1 with the BLEEDOUT BAR row.)
 --  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTEST TAB IT HONESTLY BELONGS IN, and
 --  never take any tab past 14.5 pitches (a spacer counts as 0.5).
 --
@@ -858,7 +859,7 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	T(QolHudButtons, LocalClientIndex, "ZONE NAME",         "hud_zone",       "Name of the area you are in.")
 	T(QolHudButtons, LocalClientIndex, "VELOCITY METER",    "velocity",       "Your speed. Green, yellow, red.")
 
-	return QolHudContainer                                          -- 11 total
+	return QolHudContainer                                          -- 12 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)

@@ -111,8 +111,31 @@ Bleedout_bar_End_game_fix()
 
 bleedout_bar()
 {
-	self endon( "disconnect" ); 
+	self endon( "disconnect" );
 	level endon("end_game");
+
+	//  zm_qol v1.99.1 - THE HUD TAB TOGGLE, user request 2026-08-16.
+	//
+	//  Read here and nowhere else. This is the one function that creates the two
+	//  hud elements, so an early return means nothing is drawn AND nothing is
+	//  allocated - it does not merely hide the bar behind alpha 0. The caller
+	//  (Bleedout_bar_hud_toggle) still sets and clears self.bleeding_Out either
+	//  way, so the down/revive state machine is untouched.
+	//
+	//  Gating matches the rest of the HUD options: hud_master is the master
+	//  override, hud_all forces the individual rows on. Same expression as
+	//  quality_of_life::zmqol_powerup_timer_think().
+	//
+	//  📝 Toggling this OFF while already downed leaves the current bar up until
+	//  you are revived or bleed out - the check runs when the bar is created.
+	//  That matches the hud_perk_popup precedent ("takes effect on the very next
+	//  perk") and self-corrects within one down.
+	if ( !( getdvarintdefault( "hud_master", 1 ) &&
+	        ( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_bleedout_bar", 1 ) ) ) )
+	{
+		return;
+	}
+
 	//self iprintln("bleedout bar new"); //debuging
 	//we create a progress bar for the bleedout bar
 	self.ProcessBar2 = createPrimaryProgressBar();
