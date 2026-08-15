@@ -100,9 +100,25 @@ stock and is line-for-line faithful, including stock's own odd `12000` version o
 evidence it is BO1-only** — T6 aliases live inside the `.sabl`/`.sabs` banks, not CSVs, and stock
 T6 script calls it in four places. I briefly drew the wrong conclusion here and corrected it.
 
-▶️ Next: dump the alias tables from the **loaded banks** — the mod ships its own 60 MB
-`mod.all.sabl` — and check whether `zmb_zombie_spawn` is present and whether the mod's bank
-shadows the stock one carrying it.
+🛑 **That "dump the alias tables" next step was ATTEMPTED THE SAME DAY AND IS A DEAD END.** Five
+routes, all closed — full accounting in `QUEUE.md` under the B-RISERSOUND update:
+
+- the `.sabl` banks hold **no plaintext strings**; they are hash-keyed
+- `mod.ff` owns **2 soundbank declarations and zero alias assets**, so the mod cannot be shadowing
+  a stock alias — that suspicion (raised by `Adding prioritized sound bank … from zone "mod"`,
+  `console_zm.log:738`) is **cleared**
+- **OAT exposes no `sound` asset class for T6** at all
+- `zmb_common.ff` **does not exist** — it is a standalone bank in `sound\`, not a fastfile
+- the audio dumper's `Identifiers/` DB maps hash → **source `.snd` path**, not alias name
+
+🛑 And an inference that is **not** safe to draw: no file with `riser` in its path exists in any of
+the 96 dumped banks, and the only zombie "spawn" audio is avogadro/screecher/leaper. That does NOT
+mean the alias is dead — `zmb_zombie_spawn` most likely points at a generic dirt/debris file whose
+name says nothing about risers.
+
+▶️ **REVISED next step: `.testsound <alias>`** — play a named alias on demand so the user can compare
+`zmb_zombie_spawn` against a known-good control in ONE boot. This genuinely cannot be settled
+offline. Build it together with B-WHOWL's `.testfx`, which needs the same instrument.
 
 ---
 
@@ -114,4 +130,22 @@ shadows the stock one carrying it.
 3. 🛑 **Origins with the mod OFF** — the crash (48 §2). Still never run, still blocks everything.
 4. **B-CHARACTER** needs a user decision before any code: survival ships only 2 characters, and 4
    would mean shipping 8 stock xmodels into `mod.ff` (which makes the mod own them on every map).
-5. Then: B-RISERSOUND's bank dump, B-STALEGSC, B-WHOWL's `.testfx` probe, B-TITUSRELOAD's notetracks.
+5. **Build `.testsound` + `.testfx` together** — one instrument, two blocked bugs (B-RISERSOUND and
+   B-WHOWL). Both are now blocked on exactly this and on nothing else.
+6. Then: B-STALEGSC, B-TITUSRELOAD's notetrack dump.
+
+---
+
+## 4. 🌟 THE LESSON FROM THIS ROUND — the bug was in the file the whole time
+
+Both power-up timer bugs were findable offline, and v1.99.0 shipped without either being caught.
+What would have caught them, and is now worth doing every time a feature has a client half:
+
+- **Grep the field name you are reading against the file you are reading it from.** One
+  `grep -n powerupId` next to `grep -n powerUpId` would have shown 1 hit vs 6 and ended it.
+- **Check the call site before writing a `replaceFunc`, not after it fails.** `_zm_powerups.gsc:257`
+  is one line and it decides whether the hook can work at all.
+- 🌟 **Prefer a precedent in the SAME file over a theory.** Every remaining risk in the rewrite was
+  cleared by pointing at something already confirmed working a few lines away — the `UITimer` at
+  line 524, the `deathmachine_powerup_state` dvar path, the fontless `UIText` in
+  `selectmaplistzombie.lua`. That is much stronger than reasoning about what the engine "should" do.
