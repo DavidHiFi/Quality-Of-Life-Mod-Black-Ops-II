@@ -4997,3 +4997,105 @@ wrong" and is the only thing that will.
 
 🛑 The remaining structural difference v1.73.0 named is still true and still unexplained: the working
 port's `mod.ff` carries **0** fx assets; ours carries **151**.
+
+---
+
+### 🔴 B-CHARACTER — `.character N` is inert on survival. ROOT-CAUSED (three blockers), and the map only ships TWO characters.
+
+User, 2026-08-16: *"the character console command doesn't do anything, i was in a game of diner
+survival, i did character 1 or character 2 3 and 4 it didn't do anything it's supposed to changed the
+character, also add that as an option in the game tab."*
+
+**All three blockers are measured from stock source / the shipped fastfiles. Nothing below is inferred.**
+
+#### Blocker 1 — our own guard fires. `qol_options.gsc:791`
+
+```gsc
+if ( isdefined( level.force_team_characters ) && level.force_team_characters == 1 )
+    return;
+```
+Stock's `survival_init()` sets `level.force_team_characters = 1` (`zm_transit.gsc:88`), so on **every**
+TranZit survival game — Diner included — `qol_opt_character()` returns before the loop ever starts.
+
+🌟 **The flag it guards on is DEAD.** `grep -r force_team_characters` over the whole 2,093-file stock
+dump returns **5 hits, all of them `level.force_team_characters = 1;` assignments, and zero reads.**
+Same in BO2-Reimagined (7 hits, all assignments). It is vestigial Treyarch state that nothing —
+script or engine — consumes. The guard was written from the flag's *name*, not its behaviour.
+Maps that set it: Buried, Nuketown, Origins, TranZit, `zm_transit_dr`.
+
+#### Blocker 2 — even without the guard, `give_team_characters()` ignores `characterindex`
+
+`survival_init()` also sets `level.should_use_cia` (randomly 0 or 1). `give_team_characters()`
+(`zm_transit.gsc`) opens with `if ( isdefined( level.should_use_cia ) )` — **true on survival** — and
+that branch picks the model purely from that level var, then **overwrites `self.characterindex`**:
+
+```gsc
+if ( level.should_use_cia ) { setmodel c_zom_player_cia_fb;  setviewmodel c_zom_suit_viewhands;   self.characterindex = 0; }
+else                        { setmodel c_zom_player_cdc_fb;  setviewmodel c_zom_hazmat_viewhands; self.characterindex = 1; }
+```
+The `switch ( self.characterindex )` that honours 0–3 is in the **`else`** branch, unreachable in survival.
+So removing the guard alone changes nothing — the fix needs both halves.
+
+🛑 **DO NOT "fix" this by writing `level.should_use_cia`.** It is a level global read elsewhere:
+`_globallogic_player.gsc:278` uses it at game end to send `hud_update_survival_team` (the survival
+end-screen team readout), and `zcleansed.gsc:51` / `zm_nuked.gsc:654` read it too. Writing it per
+player would corrupt the end screen and, in co-op, change every player's team. This is exactly
+[[t6-ported-script-stock-globals]]. The correct fix is a **per-player** model swap in our own function.
+
+#### 🛑 Blocker 3 — THE ONE THAT LIMITS THE FEATURE: survival ships only TWO characters
+
+The four TranZit crew models are **not in any fastfile a survival game loads.** Measured with
+`Unlinker --list` over all four transit fastfiles:
+
+| fastfile | crew models (`c_zom_player_{farmgirl,oldman,engineer,reporter}_fb` + viewhands) |
+|---|---|
+| `so_zsurvival_zm_transit.ff` | ❌ none |
+| `zm_transit.ff` | ❌ none |
+| `zm_transit_patch.ff` | ❌ none |
+| **`so_zclassic_zm_transit.ff`** | ✅ **all 8** |
+
+And the Diner session in `console_zm.log:5147` loads **`so_zsurvival_zm_transit`**, never the classic
+bank. `so_zsurvival_zm_transit.ff` contains exactly `c_zom_player_cia_fb`, `c_zom_player_cdc_fb`,
+`c_zom_suit_viewhands`, `c_zom_hazmat_viewhands` — **CIA and CDC, and nothing else.**
+
+Precaching the crew anyway reproduces the Mob of the Dead failure already documented in
+`zm_prison.gsc:236-240`: `setmodel` on a non-shipped xmodel still sets `.model`, so every probe looks
+healthy, but the player renders **no body, no view arms, no weapon, and has no hit geometry**.
+
+▶️ **THEREFORE: on Diner (and all TranZit survival) `.character` can offer 2 characters, not 4.**
+Getting 4 means shipping those 8 xmodels into `mod.ff`, which makes the mod **own** them on every map
+— [[t6-modff-asset-ownership-trap]] and [[t6-oat-load-order-decides-asset-copy]]. That is a much
+larger and riskier job and **must not be started without the user's call.**
+
+#### 📝 Side finding — Mob of the Dead may be wrongly guarded
+
+`qol_options.gsc:794` returns early on `zm_prison` as well, on the reasoning that Mob's characters are
+story-fixed. But Mob sets `level.givecustomcharacters = ::give_personality_characters`
+(`zm_prison.gsc:51`, via `init_characters()`), which **does** honour `characterindex` 0–3, and
+`zm_qol` already precaches all four there (`zm_prison.gsc:252 zmqol_precache_survival_characters()`).
+So Sal/Finn/Billy/Weasel swapping is plausibly available and blocked only by our own guard. **Verify
+before changing** — do not assume.
+
+#### The GAME-tab half of the request
+
+🛑 **Not a toggle.** Every existing row uses `CoD.OptionsSettings.QolToggle` (on/off). A character
+picker needs a **multi-value stepper**, which does not exist in `optionssettings.lua` yet — that
+widget is net-new work, not a one-line row.
+📝 The GAME tab is at **9.5 of its row budget** (`CreateQolTab`, `optionssettings.lua:805`) and the
+file already carries a tab-overflow warning (line ~1013). Check the budget before adding.
+🛑 **Do not add the row until the command itself is confirmed working in-game** — a menu row on top of
+an inert feature just makes the bug more visible.
+
+#### ▶️ THE FIX, when this reaches the front of the queue
+
+1. Delete the `force_team_characters` guard (dead flag, proven above).
+2. In `qol_opt_character()`, stop calling `[[ level.givecustomcharacters ]]()` blindly. When the level
+   is in the `should_use_cia` regime, do the per-player swap directly with the two models proven
+   present in `so_zsurvival_zm_transit.ff`, touching **no level globals**.
+3. Clamp the dvar to what the current map+gametype actually ships, and make out-of-range values a
+   no-op rather than a silent wrong model.
+4. Boot Diner survival, confirm `.character 1` / `.character 2` visibly swap CIA↔CDC **and** that the
+   end-of-game survival team readout is unchanged.
+5. Only then: the GAME-tab stepper.
+
+🛑 **The user expected 4 and the game has 2. That gap is theirs to decide on, not ours to paper over.**
