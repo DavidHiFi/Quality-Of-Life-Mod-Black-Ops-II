@@ -1714,9 +1714,78 @@ init_client_flag_callback_funcs()
 	{
 		registerclientfield("actor", "zombie_riser_fx_foliage", 12000, 1, "int", ::handle_zombie_risers_foliage, 1);
 	}
-	registerclientfield("actor", "zombie_riser_fx", 1, 1, "int", ::handle_zombie_risers, 1);
+	// ====================================================================
+	//  🛑 v1.99.0 - THE RISER SOUND. THIS IS A PROBE AS WELL AS A FIX, and it
+	//  is deliberately BOTH because three rounds of theorising did not settle
+	//  it and the user has now reported it silent twice.
+	//
+	//  What is meant to happen: the server sets this clientfield in
+	//  _zm_spawner::zombie_rise_burst_fx, and stock's
+	//  _zm.csc::handle_zombie_risers plays "zmb_zombie_spawn" and the dirt
+	//  burst/billow fx. ONE trigger drives both halves.
+	//
+	//  What has been RULED OUT, each measured (see QUEUE.md B-RISERSND):
+	//    - the audio is unreachable   ❌ zmb_common.all.sabl, which owns the
+	//      dirt_00/dirt_01 payloads, loads at frontend start (console_zm.log:363)
+	//      and the alias is defined in zmb_survival_transit.all.
+	//    - the mod permutes the actor clientfield order ❌ stock registers
+	//      zombie_riser_fx first server-side (_zm.gsc:1161) and THIRD
+	//      client-side (_zm.csc:419); this file mirrors stock exactly.
+	//    - the mod touches the riser path anywhere else ❌ grepped scripts/,
+	//      maps/ and clientscripts/.
+	//
+	//  So the remaining question is simply WHETHER THE HANDLER RUNS AT ALL, and
+	//  the only way left to answer it is from inside the handler. This wrapper
+	//  prints one line the first time it fires and then calls stock's handler
+	//  unchanged - so if the log shows the line, the trigger works and the
+	//  fault is in audio; if it never appears, the clientfield is not arriving
+	//  and the spawner path is where to look next.
+	//
+	//  It also plays the alias itself, which is the fix IF the cause is that
+	//  stock's own playsound is being lost. Harmless if not: a second playsound
+	//  of the same one-shot alias at the same origin is at worst inaudible
+	//  doubling, and a missing alias is silent rather than an error.
+	//
+	//  🛑 ONE PRINT PER MATCH, NOT PER ZOMBIE. level.zmqol_riser_logged gates
+	//  it; at round 10 this fires dozens of times a minute and an unbounded
+	//  println is its own problem.
+	// ====================================================================
+	registerclientfield("actor", "zombie_riser_fx", 1, 1, "int", ::zmqol_handle_zombie_risers, 1);
 	if (is_true(level.risers_use_low_gravity_fx))
 	{
 		registerclientfield("actor", "zombie_riser_fx_lowg", 1, 1, "int", ::handle_zombie_risers_lowg, 1);
 	}
+}
+// ============================================================================
+//  zmqol_handle_zombie_risers  -  probe + belt-and-braces sound   (v1.99.0)
+//
+//  Wraps stock's handler rather than replacing it, so the dirt burst, the
+//  billow, the snow/low-gravity variants and the demo-jump guards all stay
+//  exactly as Treyarch wrote them. See the long note at the registration.
+//
+//  The alias name is stock's own, read out of
+//  _zm.csc::handle_zombie_risers - "zmb_zombie_spawn", or
+//  "zmb_zombie_spawn_snow" when level.riser_type is "snow". It is NOT invented;
+//  both are defined in zmb_survival_transit.all and their payloads live in
+//  zmb_common.all, which is loaded.
+// ============================================================================
+zmqol_handle_zombie_risers( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	if ( !oldval && newval )
+	{
+		if ( !isdefined( level.zmqol_riser_logged ) )
+		{
+			level.zmqol_riser_logged = 1;
+			println( "[zm_qol] CLIENT riser clientfield FIRED - handler is running, playing zmb_zombie_spawn" );
+		}
+
+		str_snd = "zmb_zombie_spawn";
+
+		if ( isdefined( level.riser_type ) && level.riser_type == "snow" )
+			str_snd = "zmb_zombie_spawn_snow";
+
+		playsound( 0, str_snd, self.origin );
+	}
+
+	self clientscripts\mp\zombies\_zm::handle_zombie_risers( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump );
 }

@@ -237,6 +237,27 @@ CoD.PowerUps.PatchZombieAmmoArea = function ()
 	CoD.AmmoAreaZombie.deathmachineOriginalUpdateVisibility = CoD.AmmoAreaZombie.UpdateVisibility
 	CoD.AmmoAreaZombie.deathmachineOriginalUpdateWeapon = CoD.AmmoAreaZombie.UpdateWeapon
 
+	-- ======================================================================
+	--  🛑 v1.99.0 - THIS RETURNED `false` AND THAT WAS THE WHOLE ORIGINS BUG.
+	--
+	--  User, 2026-08-16: *"the ammo counter disappears obviously when you get
+	--  the death machine ... but when using it in origins you can still see the
+	--  ammo counter."*
+	--
+	--  ShouldHideAmmoCounter returning false means "do NOT hide me", so this
+	--  branch was explicitly telling Origins' counter to stay on screen for the
+	--  exact duration the Death Machine was active. Its two siblings in this
+	--  file - CoD.AmmoCounter (:102) and CoD.OtherAmmoCounters (:176) - both
+	--  `return true` here. This one was the odd one out.
+	--
+	--  🌟 AND ORIGINS IS THE ONLY MAP THAT COULD SHOW IT, which is why the bug
+	--  looked map-specific rather than like a plain typo:
+	--  `ui_mp/t6/zombie/ammoareazombie.lua` is shipped by **zm_tomb_patch.ff and
+	--  by no other fastfile** - patch_zm.ff carries otherammocounters.lua but no
+	--  ammoareazombie.lua at all (checked with Unlinker --list on both). So
+	--  CoD.AmmoAreaZombie only ever exists on Origins, and every other map was
+	--  hidden correctly by the two siblings above.
+	-- ======================================================================
 	CoD.AmmoAreaZombie.ShouldHideAmmoCounter = function (Element, Event)
 		local Controller = nil
 		if Event ~= nil then
@@ -244,7 +265,7 @@ CoD.PowerUps.PatchZombieAmmoArea = function ()
 		end
 
 		if CoD.PowerUps.IsDeathMachineAmmoCounterHidden(Controller) then
-			return false
+			return true
 		end
 
 		return CoD.AmmoAreaZombie.deathmachineOriginalShouldHideAmmoCounter(Element, Event)
@@ -479,6 +500,18 @@ LUI.createMenu.PowerUpsArea = function (f1_arg0)
 		Widget:addElement(upgradePowerUpIcon)
 		Widget.upgradePowerUpIcon = upgradePowerUpIcon
 		
+		-- zm_qol v1.99.0: POWER-UP TIMER TEXT. One per icon, alpha 0 until the
+		-- server reports seconds for that power-up. Layout is the forum mod's
+		-- (right-aligned, 18 units tall, sitting under the icon).
+		local zmqolTimerText = LUI.UIText.new()
+		zmqolTimerText:setLeftRight(true, true, 0, 0)
+		zmqolTimerText:setTopBottom(false, true, -18, 0)
+		zmqolTimerText:setAlignment(LUI.Alignment.Right)
+		zmqolTimerText:setRGB(0.8, 0.9, 0)
+		zmqolTimerText:setAlpha(0)
+		Widget:addElement(zmqolTimerText)
+		Widget.zmqolTimerText = zmqolTimerText
+
 		Widget.powerupId = nil
 		f1_local0.scaleContainer:addElement(Widget)
 		f1_local0.powerUps[f1_local4] = Widget
@@ -504,6 +537,73 @@ LUI.createMenu.PowerUpsArea = function (f1_arg0)
 	f1_local0:registerEventHandler("hud_update_bit_" .. CoD.BIT_DEMO_CAMERA_MODE_MOVIECAM, CoD.PowerUps.UpdateVisibility)
 	f1_local0:registerEventHandler("hud_update_bit_" .. CoD.BIT_DEMO_ALL_GAME_HUD_HIDDEN, CoD.PowerUps.UpdateVisibility)
 	f1_local0:registerEventHandler("powerups_update_position", CoD.PowerUps.UpdatePosition)
+
+	-- =======================================================================
+	--  zm_qol v1.99.0: POWER-UP TIMERS, the client half.
+	--
+	--  Reads the `powerup_times` dvar the server writes (see
+	--  zmqol_set_clientfield_powerups in quality_of_life.gsc) and paints the
+	--  seconds under whichever icon is showing that power-up.
+	--
+	--  Format is `name:secs,name:secs,` - the forum mod's, kept as-is.
+	--
+	--  🛑 THE SERVER SENDS WHOLE SECONDS AND ONLY WHEN THEY CHANGE. That is not
+	--  a detail: the forum version wrote the dvar on every one of stock's
+	--  20 Hz ticks per power-up per player, which is ~120 reliable commands a
+	--  second against a 128-entry ring. Do NOT "improve" this by asking for
+	--  fractional time.
+	--
+	--  📝 NOT HARDCODED TO A POWER-UP LIST. It matches on Widget.powerupId,
+	--  which stock sets to the clientFieldName of whatever is in that slot - so
+	--  the Death Machine (deathmachine_powerup) and anything added later are
+	--  covered with no extra work.
+	--
+	--  Re-patching AmmoAreaZombie here as well: on Origins that table may not
+	--  exist yet when PatchAmmoCounters() runs at file scope, and this handler
+	--  is idempotent (the deathmachinePatch flag), so it self-heals in 100 ms.
+	-- =======================================================================
+	f1_local0:registerEventHandler("zmqol_powerup_timer_tick", function (self)
+		if CoD.AmmoAreaZombie ~= nil and CoD.AmmoAreaZombie.deathmachinePatch ~= true then
+			CoD.PowerUps.PatchZombieAmmoArea()
+		end
+
+		local times = {}
+		local str = UIExpression.DvarString(nil, "powerup_times")
+
+		if str ~= nil and str ~= "" then
+			for pair in string.gmatch(str, "([^,]+)") do
+				local name, secs = string.match(pair, "([^:]+):([^:]+)")
+				if name ~= nil and secs ~= nil then
+					local n = tonumber(secs)
+					if n ~= nil then
+						times[name] = n
+					end
+				end
+			end
+		end
+
+		for i = 1, #self.powerUps do
+			local w = self.powerUps[i]
+
+			if w.zmqolTimerText ~= nil then
+				local t = nil
+				if w.powerupId ~= nil then
+					t = times[w.powerupId]
+				end
+
+				if t ~= nil and t > 0 then
+					w.zmqolTimerText:setText(tostring(math.ceil(t)))
+					w.zmqolTimerText:setAlpha(1)
+				else
+					w.zmqolTimerText:setAlpha(0)
+				end
+			end
+		end
+
+		return true
+	end)
+	f1_local0:addElement(LUI.UITimer.new(100, "zmqol_powerup_timer_tick", false, f1_local0))
+
 	f1_local0.visible = true
 	return f1_local0
 end

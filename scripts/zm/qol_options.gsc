@@ -87,6 +87,12 @@ init()
     //  Read in ONE place, at the top of perk_bought(), so the toggle takes
     //  effect on the very next perk with no respawn.
     qol_opt_dvar( "hud_perk_popup",   "1" );
+    //  v1.99.0 - seconds remaining under each power-up icon. ON by default:
+    //  the user asked for the feature, not merely for a switch.
+    //  🛑 The dvar is read SERVER-side, in zmqol_set_clientfield_powerups(), so
+    //  switching it off stops the reliable-command traffic entirely rather than
+    //  just hiding the text. See the long note there.
+    qol_opt_dvar( "hud_powerup_timers", "1" );
     qol_opt_dvar( "hud_color",        "1 1 1" );
     qol_opt_dvar( "hud_color_health", "1 1 1" );
     //  v1.90.6 - the two stacked timers get their own colours, kept out of the

@@ -44,10 +44,12 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   buildable riot shield, teddy bears and secret song.
 
 **HUD and menus**
-- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 25 toggles, so you never
+- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 26 toggles, so you never
   have to type a chat command.
 - Hitmarkers, on-screen counters, round summary, game and round timers, health bar, zombies
   remaining, zone names, velocity meter, Cold-War round HUD, perk pop-ups.
+- **Power-up timers** — seconds remaining under every power-up icon, including the Death Machine
+  and anything else the mod adds.
 - **Instant match start** — no lobby countdown.
 - Solo Play is titled Solo Play, and the Classic intro cutscenes play again.
 
@@ -65,10 +67,10 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 | issue | detail |
 |---|---|
 | Origins and Mob can crash | `EXE_ERR_RELIABLE_CYCLED_OUT`, roughly 20–35 s into a match. Under active investigation. |
-| Winter's Howl firing effects | Root-caused in v1.97.0 — every `.efx` had been converted to CRLF in v1.70.0 and T6 parses them as text. All 60 restored to the shipped originals; **not yet confirmed in game.** |
-| Zombie risers are silent on TranZit Survival | No sound when they climb out of the ground. Cause not yet found — the audio and the trigger both check out offline. |
+| Winter's Howl firing effects | Still wrong. v1.97.0 fixed a real defect (every `.efx` had been CRLF-corrupted since v1.70.0) but it was not this. Every offline check now passes — the file matches a working build byte for byte and the log shows it loading. |
+| Zombie risers are silent on TranZit Survival | No sound when they climb out of the ground. v1.99.0 ships a wrapper that plays the alias itself and logs whether the trigger fires at all.  |
 | Kill-feed icons missing | Kills with the eleven added guns show a blank icon in the feed. |
-| Titus-6 is partly silent | Its dart makes no in-flight sound and it reloads silently — the audio does not exist in this install. |
+| Titus-6 is partly silent | Its dart makes no in-flight sound and it reloads silently. Measured: BO2 ships only four Titus sounds and none is a reload, so the audio has to come from the animation notetracks. |
 | Who's Who has no screen overlay | The perk works and the clone spawns; the afterlife filter does not draw off Die Rise. |
 | Bouncing Betty is not included | Its viewmodel animations and HUD icon do not exist anywhere to ship. |
 

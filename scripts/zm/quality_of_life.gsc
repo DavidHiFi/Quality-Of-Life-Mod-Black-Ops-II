@@ -125,6 +125,119 @@ main()
     // scripts instead. Ordering is safe: stock <map>::main() calls <map>_gamemodes::init()
     // (which registers the locations) before _load::main() calls struct_class_init().
     replaceFunc( common_scripts\utility::struct_class_init, scripts\zm\replaced\utility::struct_class_init );
+
+    //  POWER-UP TIMERS (v1.99.0) - see zmqol_set_clientfield_powerups() below.
+    //  A core _zm_powerups function, identical on every map.
+    replaceFunc( maps\mp\zombies\_zm_powerups::set_clientfield_powerups, ::zmqol_set_clientfield_powerups );
+}
+
+// ============================================================================
+//  POWER-UP TIMERS  -  seconds remaining under each power-up icon   (v1.99.0)
+//
+//  User, 2026-08-16, supplying a mod from the Plutonium forums
+//  (H:\Claude\POWER UP TIMERS): *"make this an option toggable in the HUD
+//  options ... it just shows the seconds remaining for all power ups, make it
+//  aware of added/modded in power ups like the death machine as well."*
+//
+//  The server half of that mod appends the live timers to a client dvar so the
+//  LUI can read them; the LUI half draws them under each icon. The idea is
+//  sound and the LUI half is used close to verbatim.
+//
+//  🛑 THE FORUM MOD AS SHIPPED WOULD KILL EVERY MAP WITHIN A SECOND, AND IT IS
+//  NOT SUBTLE. Its version of this function ends with an UNCONDITIONAL
+//      self setclientdvar( "powerup_times", str );
+//  and stock calls this function from a loop that is `wait 0.05` -
+//  _zm_powerups.gsc:208-263 - once per PLAYER per POWER-UP TYPE per tick. With
+//  the six client fields this mod registers that is **120 setclientdvar calls
+//  per second per player**.
+//
+//  setclientdvar is a RELIABLE SERVER COMMAND and the reliable ring holds 128
+//  entries (ERROR_CATALOGUE §7b). That is a guaranteed
+//  EXE_ERR_RELIABLE_CYCLED_OUT in about one second - and it is the SAME crash
+//  class this project already has open and unexplained on Origins and Mob, so
+//  shipping it would also have poisoned that investigation.
+//
+//  🌟 THE FIX IS FREE, BECAUSE THE CLIENT ONLY EVER DRAWS WHOLE SECONDS.
+//  hudpowerupszombie.lua renders math.ceil(t). So the string is built from
+//  int( ceil ) values and sent ONLY when it actually differs from the last one
+//  sent to that player. While a power-up runs that is at most one command per
+//  second; with none running it is zero. The cache lives on the PLAYER, so it
+//  cannot leak between players or survive a reconnect.
+//
+//  📝 IT IS AUTOMATICALLY AWARE OF ADDED POWER-UPS. The list is not hardcoded -
+//  it is whatever stock's own loop iterates, which is every entry in
+//  level.zombie_powerups that has a client_field_name. The Death Machine
+//  registers one (deathmachine_powerup), so it is included with no extra work,
+//  and so is anything added later.
+//
+//  📝 EVERYTHING BELOW THE DVAR WRITE IS STOCK'S OWN BODY, unchanged, so the
+//  flashing thresholds and the on/off clientfield behave exactly as before.
+// ============================================================================
+zmqol_set_clientfield_powerups( clientfield_name, powerup_timer, powerup_on, flashing_timers, flashing_values )
+{
+    if ( !isdefined( level.zmqol_powerup_times ) )
+        level.zmqol_powerup_times = [];
+
+    //  Whole seconds only - that is all the client draws, and it is what keeps
+    //  the string stable between ticks.
+    n_secs = 0;
+
+    if ( powerup_on && isdefined( powerup_timer ) && powerup_timer > 0 )
+        n_secs = int( powerup_timer + 0.999 );
+
+    level.zmqol_powerup_times[ clientfield_name ] = n_secs;
+
+    if ( getdvarintdefault( "hud_master", 1 ) &&
+         ( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_powerup_timers", 1 ) ) )
+    {
+        str = "";
+        keys = getarraykeys( level.zmqol_powerup_times );
+
+        for ( i = 0; i < keys.size; i++ )
+        {
+            if ( level.zmqol_powerup_times[ keys[i] ] > 0 )
+                str = str + keys[i] + ":" + level.zmqol_powerup_times[ keys[i] ] + ",";
+        }
+
+        //  🛑 THE ONE LINE THAT MAKES THIS SAFE. Without it this is 120 reliable
+        //  commands a second; with it, at most one per second.
+        if ( !isdefined( self.zmqol_powerup_times_sent ) || self.zmqol_powerup_times_sent != str )
+        {
+            self.zmqol_powerup_times_sent = str;
+            self setclientdvar( "powerup_times", str );
+        }
+    }
+    else if ( isdefined( self.zmqol_powerup_times_sent ) && self.zmqol_powerup_times_sent != "" )
+    {
+        //  Switched off mid-game: clear it once so no stale numbers are left
+        //  frozen on screen, then stay quiet.
+        self.zmqol_powerup_times_sent = "";
+        self setclientdvar( "powerup_times", "" );
+    }
+
+    //  --- stock's body from here down (_zm_powerups.gsc:267) ---
+    if ( powerup_on )
+    {
+        if ( powerup_timer < 10 )
+        {
+            flashing_value = 3;
+
+            for ( i = flashing_timers.size - 1; i > 0; i-- )
+            {
+                if ( powerup_timer < flashing_timers[i] )
+                {
+                    flashing_value = flashing_values[i];
+                    break;
+                }
+            }
+
+            self setclientfieldtoplayer( clientfield_name, flashing_value );
+        }
+        else
+            self setclientfieldtoplayer( clientfield_name, 1 );
+    }
+    else
+        self setclientfieldtoplayer( clientfield_name, 0 );
 }
 
 // ============================================================================
