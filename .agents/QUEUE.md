@@ -4856,3 +4856,46 @@ already carries the complete Death Machine sound set.
 logs an error, the gun just fires with no sound (`CLAUDE.md` says exactly this about this file). A
 silent regression shipped alongside four other changes cannot be attributed. Cosmetic gain, silent
 failure mode: it gets its own boot or it does not happen.
+
+---
+
+### 🔴 B-RISERSND — zombie risers are SILENT on TranZit Survival (Diner), cause NOT found
+
+User, 2026-08-16, on the first Diner boot of v1.96.0: *"the sound effect is missing from zombies
+spawning out of the ground."*
+
+**What the sound is, and how it is meant to fire.** `_zm_spawner::do_zombie_rise` →
+`zombie_rise_burst_fx` → `zombie setclientfield( "zombie_riser_fx", 1 )` → client
+`_zm.csc::handle_zombie_risers` → `playsound( 0, "zmb_zombie_spawn", self.origin )` plus the
+dirt burst/billow fx. **One trigger drives BOTH the sound and the dirt fx.**
+
+#### 🛑 TWO THEORIES RAISED AND BOTH DISPROVED — do not re-run these
+
+1. **"The alias's audio is not in a loaded bank."** ❌ The alias `zmb_zombie_spawn` IS defined in
+   `zmb_survival_transit.all` (2 rows, dirt_00/dirt_01), and although its payload lives in
+   `zmb_common.all` — confirmed via the audio dumper's `Identifiers\zmb_common.all.txt`, the only
+   one of 96 identifier files that lists that path — **`zmb_common.all.sabl` IS loaded**, at
+   frontend start: `console_zm.log:363-367`, `Header load success ... zmb_common.all.sabl`. Banks
+   stay loaded. The audio is reachable.
+2. **"The mod permutes the actor clientfield order, so the server's `zombie_riser_fx` lands on the
+   client's `zombie_riser_fx_water`."** ❌ Tempting, because the mod's server copy
+   (`quality_of_life.gsc::init_client_flags`) registers `zombie_riser_fx` FIRST while its client
+   copy (`zm_expanded.csc::init_client_flag_callback_funcs`) registers it THIRD. But **stock does
+   exactly the same** — `_zm.gsc:1161` registers it first, `_zm.csc:419` registers it third — so
+   T6 matches clientfields by NAME, not by registration order, and both of the mod's copies mirror
+   stock faithfully. The mod touches nothing else on the riser path (grepped `scripts/`, `maps/`,
+   `clientscripts/`).
+
+#### ▶️ THE NEXT STEP, AND IT COSTS NOTHING
+
+The sound and the dirt burst share one trigger, so **one look splits the remaining space in half**:
+- **Dirt bursts appear, no sound** → the clientfield fires; the fault is in audio (alias routing,
+  bus, or the `snp_hdrfx` duck), not in script.
+- **Neither appears** → the clientfield is not firing, and the suspect list is `do_zombie_rise`'s
+  callers and `zombie.zone_name`.
+
+**And check Bus Depot or Farm Survival too.** Same map, same gametype, a STOCK location. Silent
+there as well → this is TranZit Survival / base game, not Diner and not this mod, and the fix is a
+different job (importing the alias into `mod.all`, which is a bank rebuild).
+
+🛑 Nothing was shipped for this. No guess, no substitute alias.

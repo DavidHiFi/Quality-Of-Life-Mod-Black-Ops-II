@@ -176,13 +176,30 @@ setupWunderfizz()
 {
 	level.wunderfizzChecksPower = getDvarIntDefault( "wunderfizzChecksPower", 1 );
 	level.wunderfizzCost = getDvarIntDefault("wunderfizzCost", 1500);
-	wunderfizzUseRandomStart = getDvarIntDefault("wunderfizzUseRandomStart", 0 );
+	// ========================================================================
+	//  🌟 v1.97.0 - RANDOM FIRST LOCATION IS NOW THE DEFAULT (was 0 = off).
+	//
+	//  User, 2026-08-16: *"the first location in any map for the wunderfizz in
+	//  my mod still isn't randomised, make sure that the initial location ... is
+	//  random so long as a map doesn't only have 1 wunderfizz machine like town,
+	//  diner, bus depot etc."*
+	//
+	//  The machinery already existed and was simply switched off by its own
+	//  default, so every match started at location 1 - the first coordinate in
+	//  the map's list, every single time.
+	//
+	//  The "only one machine" case falls out for free and is already measured:
+	//  a survival location filters the map-wide list down (the Diner boot logs
+	//  "placed 1 of 6 candidate location(s)"), and the draw below is skipped
+	//  whenever there is one machine, so the single machine stays live.
+	// ========================================================================
+	level.zmqol_wf_random_start = getDvarIntDefault("wunderfizzUseRandomStart", 1 );
 	level.wunderfizz_locations = 0;
 	level.zmqol_wf_pending = [];
-	if(wunderfizzUseRandomStart)
-		level.currentWunderfizzLocation = 0;
-	else
-		level.currentWunderfizzLocation = 1;
+	//  Always 1 here. zmqol_wf_place() overrides it with the random draw once it
+	//  knows how many machines actually survive filtering, and it does so BEFORE
+	//  the first machine is spawned - see the note there.
+	level.currentWunderfizzLocation = 1;
 	// ------------------------------------------------------------------------
 	//  THE EFFECTS - SUBSTITUTES, NOT ORIGINS' OWN. Read before "fixing" these.
 	//
@@ -649,19 +666,12 @@ setupWunderfizz()
     	zmqol_wf_add((1809, 1459, 3040), (0,0,0), zmqol_wf_machine_model());
     }
 
+	//  The random first location is drawn INSIDE zmqol_wf_place(), immediately
+	//  before the machines are spawned. The block that used to sit here - a
+	//  `level waittill("connected")` followed by chooseLocation() and a
+	//  "wunderfizzMove" notify - is deleted; see the long note at that draw for
+	//  the two ways it would have failed.
 	zmqol_wf_place();
-
-	// Hoisted out of all six map branches, where it sat as an identical copy.
-	// It has to run AFTER placement now, and it must not run at all when there is
-	// only one location: chooseLocation() loops until it draws a number different
-	// from the current one, so with wunderfizz_locations == 1 it spins forever.
-	if( wunderfizzUseRandomStart && level.wunderfizz_locations > 1 )
-	{
-		level waittill("connected", player);
-		wait 1;
-		level.currentWunderfizzLocation = chooseLocation(level.currentWunderfizzLocation);
-		level notify("wunderfizzMove");
-	}
 }
 
 // ============================================================================
@@ -836,11 +846,48 @@ zmqol_wf_place()
 			a_place[i] = zmqol_wf_unclip( a_place[i] );
 	}
 
+	// ========================================================================
+	//  🌟 v1.97.0 - THE RANDOM FIRST LOCATION IS DRAWN **HERE**, and the
+	//  position in the file is the whole point.
+	//
+	//  a_place.size is the final machine count - filtering (play-area, perk
+	//  clearance) has already run and wunderfizzSetup() has not been called yet,
+	//  so level.wunderfizz_locations is about to count up to exactly this. That
+	//  makes this the ONLY moment where the count is known AND no machine
+	//  exists.
+	//
+	//  🛑 WHY NOT THE OLD BLOCK IN setupWunderfizz(). It sat AFTER this call and
+	//  read:
+	//        level waittill( "connected", player );
+	//        wait 1;
+	//        level.currentWunderfizzLocation = chooseLocation( ... );
+	//        level notify( "wunderfizzMove" );
+	//  That code has NEVER RUN - wunderfizzUseRandomStart defaulted to 0 - and it
+	//  had two faults that would have bitten the moment it did:
+	//    1. `waittill("connected")` is a one-shot. In solo the host has usually
+	//       already connected by the time placement finishes (this function
+	//       traces geometry first), and a waittill for an event that has been
+	//       and gone blocks FOREVER. currentWunderfizzLocation would stay 0, no
+	//       machine would ever match its own .location, and the mod would ship
+	//       with NO working Wunderfizz on any map.
+	//    2. Even when it did fire, wunderfizz() reads
+	//       currentWunderfizzLocation at setup to decide `hidepart("j_ball")`,
+	//       so a value that changes a second later leaves the wrong machine
+	//       holding the ball.
+	//  Drawing it here removes the wait, the notify and both faults: every
+	//  machine is built already knowing whether it is the live one.
+	//
+	//  RandomIntRange(1, n+1) matches chooseLocation()'s own range, and .location
+	//  is assigned 1..n by wunderfizzSetup in this same loop order.
+	if( level.zmqol_wf_random_start && a_place.size > 1 )
+		level.currentWunderfizzLocation = RandomIntRange( 1, a_place.size + 1 );
+
 	for( i = 0; i < a_place.size; i++ )
 		wunderfizzSetup( a_place[i].origin, a_place[i].angles, a_place[i].model );
 
 	level.zmqol_wf_pending = [];
-	println( "[zm_qol] wunderfizz: placed " + a_place.size + " of " + n_candidates + " candidate location(s)" );
+	println( "[zm_qol] wunderfizz: placed " + a_place.size + " of " + n_candidates + " candidate location(s)" +
+	         ", starting at location " + level.currentWunderfizzLocation );
 }
 
 // ============================================================================

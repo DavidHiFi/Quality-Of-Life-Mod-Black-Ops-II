@@ -65,7 +65,8 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 | issue | detail |
 |---|---|
 | Origins and Mob can crash | `EXE_ERR_RELIABLE_CYCLED_OUT`, roughly 20–35 s into a match. Under active investigation. |
-| Winter's Howl has no firing effects | The gun works; the muzzle/impact fx do not draw. |
+| Winter's Howl firing effects | Root-caused in v1.97.0 — every `.efx` had been converted to CRLF in v1.70.0 and T6 parses them as text. All 60 restored to the shipped originals; **not yet confirmed in game.** |
+| Zombie risers are silent on TranZit Survival | No sound when they climb out of the ground. Cause not yet found — the audio and the trigger both check out offline. |
 | Kill-feed icons missing | Kills with the eleven added guns show a blank icon in the feed. |
 | Titus-6 is partly silent | Its dart makes no in-flight sound and it reloads silently — the audio does not exist in this install. |
 | Who's Who has no screen overlay | The perk works and the clone spawns; the afterlife filter does not draw off Die Rise. |

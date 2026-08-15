@@ -34,13 +34,38 @@ try {
     # write FxEffectDef, so they can never enter mod.ff - Plutonium loads them
     # straight out of mod.iwd at runtime.
     #
-    # 🌟 ALL 63 ARE BYTE-IDENTICAL TO Wonder_Weapons-T6ZM\wonder_wepons_zm\, a
-    # SHIPPED WORKING BUILD whose own mod.iwd carries the same 63 and does not
-    # crash. Do not hand-edit them. Two earlier attempts to "fix" these files -
-    # converting them to CRLF, then substituting 22 materials - were both wrong
-    # theories and neither stopped the crash. The real gap was in mod.ff:
-    # THIRTEEN TECHNIQUESETS, seven of them effect_* / distortion_*, the shaders
-    # particles draw with. See zone_source\mod_wonderweapons.zone.
+    # 🌟 ALL 60 ARE BYTE-IDENTICAL TO Wonder_Weapons-T6ZM\wonder_wepons_zm\mod.iwd,
+    # a SHIPPED WORKING BUILD. Do not hand-edit them, and in particular DO NOT
+    # CHANGE THEIR LINE ENDINGS.
+    #
+    # 🛑 v1.97.0 - THIS COMMENT USED TO CLAIM BYTE-IDENTITY WHILE 35 OF THE 60
+    # WERE CRLF-CORRUPTED, AND THAT CLAIM IS WHY IT WENT UNNOTICED FOR SEVEN
+    # VERSIONS. v1.70.0 ("the wonder-weapon crash was LF line endings") compared
+    # our copies against Wonder_Weapons-T6ZM\src\fx\ - the WORKING COPY of a git
+    # clone whose core.autocrlf is true, so git had rewritten every one of them
+    # LF -> CRLF on checkout. The file that actually ships in that mod, and the
+    # blob git stores, are LF:
+    #
+    #     src\fx\...\fx_freezegun_view.efx  (checkout)  49451 bytes, 2676 CR
+    #     git show HEAD:src/fx/.../same file            46775 bytes,    0 CR
+    #     wonder_wepons_zm\mod.iwd  (the working build) 46775 bytes,    0 CR
+    #     ours, v1.70.0 - v1.96.0                       49451 bytes, 2676 CR
+    #
+    # So v1.70.0 converted all of ours to match a checkout artefact. T6 parses
+    # .efx as text; the muzzle flash, the smoke cloud and 33 others have been
+    # parsing wrong ever since, which is the Winter's Howl "wrong firing fx" the
+    # user reported on 2026-08-16. All 60 are now restored from the shipped
+    # mod.iwd and verified 60/60 identical to it.
+    #
+    # .gitattributes sets `* -text`, so a checkout of THIS repo cannot re-break
+    # them. Nothing in the build converts line endings either - this script
+    # copies bytes through a stream.
+    #
+    # 📝 The other two theories of that era were also wrong and are recorded here
+    # so they are not retried: substituting 22 materials (v1.71.0) did not stop
+    # the crash, and the real gap was THIRTEEN TECHNIQUESETS in mod.ff, seven of
+    # them effect_* / distortion_*, the shaders particles draw with. See
+    # zone_source\mod_wonderweapons.zone.
     $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui','ui_mp','weapons')
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out

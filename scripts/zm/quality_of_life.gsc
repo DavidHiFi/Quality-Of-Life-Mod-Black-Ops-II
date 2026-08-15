@@ -3752,16 +3752,41 @@ zmqol_dev_command_listener()
         }
         else if ( cmd == "infiniteammo" || cmd == "infammo" )
         {
+            //  🛑 v1.97.0 - THE DVAR IS WRITTEN BACK, AND WITHOUT THIS LINE THE
+            //  COMMAND CANNOT WORK AT ALL.
+            //
+            //  User, 2026-08-16: *"some chat commands aren't working, so far
+            //  it's only infammo because of the menu options"* - with a
+            //  screenshot showing "infinite ammo ON" immediately followed by
+            //  "infinite ammo OFF".
+            //
+            //  🌟 THE MECHANISM, EXACTLY. zmqol_toggle_dvar_watch() polls
+            //  `infinite_ammo` every 0.25s and drives self.zmqol_infammo from
+            //  it. This branch set the FIELD and never the DVAR, so the very
+            //  next poll saw want=0, is=1, and switched it straight back off -
+            //  printing the OFF line the user photographed. The menu row was
+            //  never the villain; it is simply the other writer of the one dvar
+            //  that is the state.
+            //
+            //  .god, .ghost and .hud were given this same line in v1.95.0 for
+            //  the identical reason. These two were missed. One owner (the
+            //  watcher), two front-ends (menu row and chat command).
+            //
+            //  📝 The dvar is global while the field is per-player, so in co-op
+            //  this turns it on for everyone - the same contract .god and
+            //  .ghost already have, and this mod is a private-match mod.
             if ( isdefined( player.zmqol_infammo ) && player.zmqol_infammo )
             {
                 player.zmqol_infammo = 0;
                 player notify( "zmqol_infammo_off" );
+                setdvar( "infinite_ammo", "0" );
                 player iprintln( "^1[zm_qol] infinite ammo OFF" );
             }
             else
             {
                 player.zmqol_infammo = 1;
                 player thread zmqol_infinite_ammo_think();
+                setdvar( "infinite_ammo", "1" );
                 player iprintln( "^2[zm_qol] infinite ammo ON" );
             }
         }
@@ -3797,17 +3822,22 @@ zmqol_dev_command_listener()
         }
         else if ( cmd == "infinitesprint" || cmd == "infsprint" )
         {
+            //  v1.97.0 - writes `infinite_sprint` back, same fix and the same
+            //  reason as .infammo directly above. It had the identical defect
+            //  and would have been the next command reported.
             if ( isdefined( player.zmqol_infsprint ) && player.zmqol_infsprint )
             {
                 player.zmqol_infsprint = 0;
                 player notify( "zmqol_infsprint_off" );
                 player unsetperk( "specialty_unlimitedsprint" );
+                setdvar( "infinite_sprint", "0" );
                 player iprintln( "^1[zm_qol] infinite sprint OFF" );
             }
             else
             {
                 player.zmqol_infsprint = 1;
                 player thread zmqol_infinite_sprint_think();
+                setdvar( "infinite_sprint", "1" );
                 player iprintln( "^2[zm_qol] infinite sprint ON" );
             }
         }
