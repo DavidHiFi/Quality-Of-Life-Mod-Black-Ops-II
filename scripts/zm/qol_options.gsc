@@ -78,6 +78,13 @@ init()
     //  under the game counter, not left behind a switch they have to find.
     qol_opt_dvar( "hud_round_timer",  "1" );
     qol_opt_dvar( "hud_health_bar",   "1" );
+    //  v1.99.1 - the red "Bleeding out in: N" bar shown while you are downed
+    //  (scripts\zm\bleedout_bar.gsc, imported from Nathan3197's mod). User asked
+    //  for a switch, 2026-08-16. ON by default - it is existing behaviour, and a
+    //  new toggle must not silently change what the mod already does.
+    //  Read in ONE place, at the top of bleedout_bar(), so the toggle takes
+    //  effect on the very next down with no respawn.
+    qol_opt_dvar( "hud_bleedout_bar", "1" );
     qol_opt_dvar( "hud_remaining",    "1" );
     qol_opt_dvar( "hud_zone",         "0" );
     //  v1.98.0 - the icon + name + description pop-up shown when you buy a perk
@@ -89,7 +96,7 @@ init()
     qol_opt_dvar( "hud_perk_popup",   "1" );
     //  v1.99.0 - seconds remaining under each power-up icon. ON by default:
     //  the user asked for the feature, not merely for a switch.
-    //  🛑 The dvar is read SERVER-side, in zmqol_set_clientfield_powerups(), so
+    //  🛑 The dvar is read SERVER-side, in zmqol_powerup_timer_think(), so
     //  switching it off stops the reliable-command traffic entirely rather than
     //  just hiding the text. See the long note there.
     qol_opt_dvar( "hud_powerup_timers", "1" );

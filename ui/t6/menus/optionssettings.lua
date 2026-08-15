@@ -839,7 +839,7 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 
 	local T = CoD.OptionsSettings.QolToggle
 
-	-- HUD elements, and nothing else.                                11 rows
+	-- HUD elements, and nothing else.                                12 rows
 	T(QolHudButtons, LocalClientIndex, "HUD",               "hud_master",     "Master switch for the whole HUD.")
 	T(QolHudButtons, LocalClientIndex, "HITMARKERS",        "hitmarkers",     "Hit and kill markers on your crosshair.")
 	T(QolHudButtons, LocalClientIndex, "ROUND SUMMARY",     "round_summary",  "Stats pop-up after each round.")
@@ -850,6 +850,10 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	T(QolHudButtons, LocalClientIndex, "GAME TIMER",        "hud_timer",      "Time since the match started.")
 	T(QolHudButtons, LocalClientIndex, "ROUND TIMER",       "hud_round_timer","Time since this round started.")
 	T(QolHudButtons, LocalClientIndex, "HEALTH BAR",        "hud_health_bar", "Your health bar, bottom left.")
+	-- v1.99.1, user request 2026-08-16. Belongs in HUD despite HUD being the
+	-- longest tab: it draws a progress bar and a text line on the HUD, so the
+	-- file's own sorting rule puts it here. 12 pitches, inside the proven 14.5.
+	T(QolHudButtons, LocalClientIndex, "BLEEDOUT BAR",      "hud_bleedout_bar", "Countdown bar shown while you are downed.")
 	T(QolHudButtons, LocalClientIndex, "ZOMBIES REMAINING", "hud_remaining",  "How many zombies are left.")
 	T(QolHudButtons, LocalClientIndex, "ZONE NAME",         "hud_zone",       "Name of the area you are in.")
 	T(QolHudButtons, LocalClientIndex, "VELOCITY METER",    "velocity",       "Your speed. Green, yellow, red.")

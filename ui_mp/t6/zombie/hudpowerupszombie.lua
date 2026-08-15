@@ -542,7 +542,7 @@ LUI.createMenu.PowerUpsArea = function (f1_arg0)
 	--  zm_qol v1.99.0: POWER-UP TIMERS, the client half.
 	--
 	--  Reads the `powerup_times` dvar the server writes (see
-	--  zmqol_set_clientfield_powerups in quality_of_life.gsc) and paints the
+	--  zmqol_powerup_timer_think in quality_of_life.gsc) and paints the
 	--  seconds under whichever icon is showing that power-up.
 	--
 	--  Format is `name:secs,name:secs,` - the forum mod's, kept as-is.
@@ -553,10 +553,20 @@ LUI.createMenu.PowerUpsArea = function (f1_arg0)
 	--  second against a 128-entry ring. Do NOT "improve" this by asking for
 	--  fractional time.
 	--
-	--  📝 NOT HARDCODED TO A POWER-UP LIST. It matches on Widget.powerupId,
+	--  📝 NOT HARDCODED TO A POWER-UP LIST. It matches on Widget.powerUpId,
 	--  which stock sets to the clientFieldName of whatever is in that slot - so
 	--  the Death Machine (deathmachine_powerup) and anything added later are
 	--  covered with no extra work.
+	--
+	--  🛑 v1.99.1 - THE CAPITAL U IS THE WHOLE BUG. v1.99.0 read `w.powerupId`.
+	--  Lua is case-sensitive, and although stock DOES write a lowercase
+	--  `Widget.powerupId = nil` once at construction (line ~515), that field is
+	--  dead - nothing ever assigns it again. The live one is `powerUpId`, set in
+	--  CoD.PowerUps.UpdateState and read by GetExistingPowerUpIndex and
+	--  UpdatePosition. Proof it is the live one: the icons position themselves
+	--  correctly in game, and UpdatePosition keys entirely off powerUpId.
+	--  So `t` was ALWAYS nil, the alpha was ALWAYS 0, and no timer could ever
+	--  draw regardless of what the server sent.
 	--
 	--  Re-patching AmmoAreaZombie here as well: on Origins that table may not
 	--  exist yet when PatchAmmoCounters() runs at file scope, and this handler
@@ -587,8 +597,8 @@ LUI.createMenu.PowerUpsArea = function (f1_arg0)
 
 			if w.zmqolTimerText ~= nil then
 				local t = nil
-				if w.powerupId ~= nil then
-					t = times[w.powerupId]
+				if w.powerUpId ~= nil then
+					t = times[w.powerUpId]
 				end
 
 				if t ~= nil and t > 0 then

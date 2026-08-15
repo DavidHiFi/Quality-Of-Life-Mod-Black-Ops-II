@@ -126,9 +126,9 @@ main()
     // (which registers the locations) before _load::main() calls struct_class_init().
     replaceFunc( common_scripts\utility::struct_class_init, scripts\zm\replaced\utility::struct_class_init );
 
-    //  POWER-UP TIMERS (v1.99.0) - see zmqol_set_clientfield_powerups() below.
-    //  A core _zm_powerups function, identical on every map.
-    replaceFunc( maps\mp\zombies\_zm_powerups::set_clientfield_powerups, ::zmqol_set_clientfield_powerups );
+    //  🛑 POWER-UP TIMERS: the v1.99.0 replaceFunc that used to live here was
+    //  REMOVED in v1.99.1 - it could never have fired. See
+    //  zmqol_powerup_timer_think() below for the mechanism and the evidence.
 }
 
 // ============================================================================
@@ -170,74 +170,114 @@ main()
 //  registers one (deathmachine_powerup), so it is included with no extra work,
 //  and so is anything added later.
 //
-//  📝 EVERYTHING BELOW THE DVAR WRITE IS STOCK'S OWN BODY, unchanged, so the
-//  flashing thresholds and the on/off clientfield behave exactly as before.
+//  ---------------------------------------------------------------------------
+//  🛑 v1.99.1 - WHY THE v1.99.0 VERSION OF THIS COULD NEVER HAVE WORKED.
+//
+//  v1.99.0 did this by replaceFunc'ing _zm_powerups::set_clientfield_powerups.
+//  The user booted it and reported no timers at all. The reason is CLAUDE.md §4
+//  failure mode #1, and it is visible in the stock source:
+//
+//      _zm_powerups.gsc:257   player set_clientfield_powerups( ... );
+//
+//  That call is UNQUALIFIED, SAME-FILE and SYNCHRONOUS. The one verified
+//  exception to that failure mode in this project (_zm::onallplayersready) was
+//  `level thread`-ed, and the working theory for why it hooks is precisely that
+//  threaded calls resolve through the redirectable pointer table while a plain
+//  synchronous local call is compiled to a direct jump. This call site is not
+//  threaded, so the hook was dead on arrival.
+//
+//  🌟 SO THE HOOK IS GONE. We now read the SAME source data stock's own loop
+//  reads (level/player .zombie_vars, keyed off level.zombie_powerups) from our
+//  OWN thread. That cannot silently fail to run, and - a real bonus - it no
+//  longer replaces a core function, so stock's icon/flashing behaviour is
+//  untouched and there is nothing to regress.
+//
+//  Rate: this loop is 2 Hz and still only writes the dvar when the whole string
+//  CHANGES, so it stays at =<1 reliable command per second per player while a
+//  power-up runs and 0 otherwise. The ring is 128 entries (ERROR_CATALOGUE §7b).
+//
+//  📝 STILL NOT HARDCODED TO A POWER-UP LIST - it walks level.zombie_powerups
+//  exactly as stock does, so the Death Machine and anything added later are
+//  covered for free.
 // ============================================================================
-zmqol_set_clientfield_powerups( clientfield_name, powerup_timer, powerup_on, flashing_timers, flashing_values )
+zmqol_powerup_timer_think()
 {
-    if ( !isdefined( level.zmqol_powerup_times ) )
-        level.zmqol_powerup_times = [];
+    //  Mirrors stock powerup_hud_monitor()'s own two entry conditions
+    //  (_zm_powerups.gsc:152-157) so we never draw timers where stock does not
+    //  even run its power-up HUD.
+    flag_wait( "start_zombie_round_logic" );
 
-    //  Whole seconds only - that is all the client draws, and it is what keeps
-    //  the string stable between ticks.
-    n_secs = 0;
+    if ( isdefined( level.current_game_module ) && level.current_game_module == 2 )
+        return;
 
-    if ( powerup_on && isdefined( powerup_timer ) && powerup_timer > 0 )
-        n_secs = int( powerup_timer + 0.999 );
+    if ( !isdefined( level.zombie_powerups ) )
+        return;
 
-    level.zmqol_powerup_times[ clientfield_name ] = n_secs;
-
-    if ( getdvarintdefault( "hud_master", 1 ) &&
-         ( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_powerup_timers", 1 ) ) )
+    for ( ;; )
     {
+        wait 0.5;
+
         str = "";
-        keys = getarraykeys( level.zmqol_powerup_times );
+        powerup_keys = getarraykeys( level.zombie_powerups );
+        players = get_players();
 
-        for ( i = 0; i < keys.size; i++ )
+        b_on = getdvarintdefault( "hud_master", 1 ) &&
+               ( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_powerup_timers", 1 ) );
+
+        for ( p = 0; p < players.size; p++ )
         {
-            if ( level.zmqol_powerup_times[ keys[i] ] > 0 )
-                str = str + keys[i] + ":" + level.zmqol_powerup_times[ keys[i] ] + ",";
-        }
+            player = players[p];
+            str = "";
 
-        //  🛑 THE ONE LINE THAT MAKES THIS SAFE. Without it this is 120 reliable
-        //  commands a second; with it, at most one per second.
-        if ( !isdefined( self.zmqol_powerup_times_sent ) || self.zmqol_powerup_times_sent != str )
-        {
-            self.zmqol_powerup_times_sent = str;
-            self setclientdvar( "powerup_times", str );
-        }
-    }
-    else if ( isdefined( self.zmqol_powerup_times_sent ) && self.zmqol_powerup_times_sent != "" )
-    {
-        //  Switched off mid-game: clear it once so no stale numbers are left
-        //  frozen on screen, then stay quiet.
-        self.zmqol_powerup_times_sent = "";
-        self setclientdvar( "powerup_times", "" );
-    }
-
-    //  --- stock's body from here down (_zm_powerups.gsc:267) ---
-    if ( powerup_on )
-    {
-        if ( powerup_timer < 10 )
-        {
-            flashing_value = 3;
-
-            for ( i = flashing_timers.size - 1; i > 0; i-- )
+            if ( b_on )
             {
-                if ( powerup_timer < flashing_timers[i] )
+                for ( k = 0; k < powerup_keys.size; k++ )
                 {
-                    flashing_value = flashing_values[i];
-                    break;
+                    pu = level.zombie_powerups[ powerup_keys[k] ];
+
+                    if ( !isdefined( pu.client_field_name ) || !isdefined( pu.time_name ) || !isdefined( pu.on_name ) )
+                        continue;
+
+                    n_time = undefined;
+                    n_on = undefined;
+
+                    //  Same three-way lookup as _zm_powerups.gsc:236-253.
+                    if ( isdefined( pu.solo ) && pu.solo )
+                    {
+                        if ( isdefined( player._show_solo_hud ) && player._show_solo_hud == 1 )
+                        {
+                            n_time = player.zombie_vars[ pu.time_name ];
+                            n_on = player.zombie_vars[ pu.on_name ];
+                        }
+                    }
+                    else if ( isdefined( level.zombie_vars[ player.team ] ) && isdefined( level.zombie_vars[ player.team ][ pu.time_name ] ) )
+                    {
+                        n_time = level.zombie_vars[ player.team ][ pu.time_name ];
+                        n_on = level.zombie_vars[ player.team ][ pu.on_name ];
+                    }
+                    else if ( isdefined( level.zombie_vars[ pu.time_name ] ) )
+                    {
+                        n_time = level.zombie_vars[ pu.time_name ];
+                        n_on = level.zombie_vars[ pu.on_name ];
+                    }
+
+                    if ( !isdefined( n_time ) || !isdefined( n_on ) || !n_on || n_time <= 0 )
+                        continue;
+
+                    //  Whole seconds only - all the client ever draws is
+                    //  math.ceil(t), and it is what keeps the string stable
+                    //  between ticks so the dvar write stays rare.
+                    str = str + pu.client_field_name + ":" + int( n_time + 0.999 ) + ",";
                 }
             }
 
-            self setclientfieldtoplayer( clientfield_name, flashing_value );
+            if ( !isdefined( player.zmqol_powerup_times_sent ) || player.zmqol_powerup_times_sent != str )
+            {
+                player.zmqol_powerup_times_sent = str;
+                player setclientdvar( "powerup_times", str );
+            }
         }
-        else
-            self setclientfieldtoplayer( clientfield_name, 1 );
     }
-    else
-        self setclientfieldtoplayer( clientfield_name, 0 );
 }
 
 // ============================================================================
@@ -388,6 +428,7 @@ init()
     level thread zmqol_perk_slot_connect();
     level thread zmqol_blood_money_natural_drop();
     level thread zmqol_register_announcer_vox();
+    level thread zmqol_powerup_timer_think();   // POWER-UP TIMERS (v1.99.1)
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
