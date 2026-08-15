@@ -371,6 +371,51 @@ so the port keeps its behaviour and stock keeps its own. Neither feature is degr
 
 ---
 
+## 13. 🛑 A CORRUPT `.iwi` — THE MATERIAL "EXISTS" AND STILL DRAWS NOTHING
+
+**Symptom.** A HUD icon is simply absent — not black, not a placeholder, *nothing* — while
+everything that positions it works. Log line, easy to miss because stock materials print it too:
+
+    Could not load material "<name>".
+
+**Cause (v1.99.3, the Death Machine power-up icon).** `mod.ff` carries only an image **header**; the
+pixels come from a loose `.iwi` in `mod.iwd\images\`. Ours had **format byte 0**, which is not a
+format. The material was perfect, the zone declaration was perfect, the LUI was perfect — and the
+image could not decode, so nothing rendered.
+
+**The checks, all offline:**
+
+```bash
+xxd -l 12 images/<name>.iwi        # byte 4 = format, must be 11 (DXT1), 12 (DXT3) or 13 (DXT5)
+                                   # byte 3 = version, 27 for T6; bytes 6-9 = w, h
+ImageConverter.exe --t6 -v images/<name>.iwi      # converts cleanly, or names the fault
+git log --oneline -- images/<name>.iwi            # git may already hold a good copy
+```
+
+🛑 **The registration-time `Could not load material` line is NOT proof on its own.** Stock's own
+`zm_hud_icon_battery` and `zom_icon_minigun` log it whenever a menu file is parsed before their
+fastfile is loaded, and they render fine. Only the file itself settles it.
+
+📝 **Do not read a missing icon as a script bug.** In `hudpowerupszombie.lua`, `UpdateState` sets
+`powerUpId`, `setImage()` and `setAlpha(1)` on three consecutive lines with no branch between them —
+so anything that proves `powerUpId` is set (a timer drawing, for instance) also proves the icon
+element is live at alpha 1, and moves the search to the asset.
+
+---
+
+## 14. 🛑 `Select-Object -First N` ON A BUILD **KILLS IT MID-RUN**
+
+    cmd /c ".\build.bat" | Select-Object -First 12      # ← DO NOT
+
+PowerShell stops the upstream pipeline once N objects arrive, terminating the batch file. In
+v1.99.3 that ended the build after step [3/6]: `mod.iwd` was packed but **never deployed**, so the
+verification read the *previous* build and reported a fix that had actually worked as broken.
+
+Use `-Last N`, or capture first: `$o = cmd /c ".\build.bat" 2>&1; $o | Select-Object -Last 20`.
+The tell is the absence of `Done.` / `[5/6] Installing to Plutonium` in the output.
+
+---
+
 ## The pre-flight sequence, in order
 
 1. `gsc-tool -m parse -g t6 -s pc -y <file>` (`-i client` for `.csc`) — syntax only; it will happily
