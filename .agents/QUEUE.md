@@ -5532,3 +5532,75 @@ Deployed and byte-checked, not merely built:
    trivial: flip a row off, quit, relaunch, look.
 
 **Verdict: nothing to add. Queue #1 is built, deployed and unbooted — it needs the user, not code.**
+
+---
+
+## 2026-08-16 — v1.99.6: the bleedout bar toggle made LIVE (queue #1)
+
+The user booted v1.99.5, gave themselves Quick Revive, went down, and flipped the row off:
+
+> *"the toggle does work but not in realtime [...] if you have the bleedout bar enabled when you go
+> down [...] and when you turn it off via the settings it wont update on screen and the bar will
+> still be there, but if you have it set to disabled then go down it will not be visible, so
+> basically i cant update it to on or off realtime."*
+
+That is precisely the limitation v1.99.1 shipped **and documented as acceptable** in its own comment
+(*"takes effect on the very next down"*, citing the `hud_perk_popup` precedent). It was not
+acceptable. 📝 **Lesson: a documented compromise is still a compromise** — the note recorded the gap
+instead of closing it, and the user found it on the first boot.
+
+They also confirmed in the same message: **power-up timers and the Death Machine icon both work.**
+Queue #1-as-was is finished and has been removed from `QUEUE_LIST.md` entirely.
+
+### The change
+
+`bleedout_bar()` read the dvar **once**, above the element creation. The read is now **inside the
+loop**, and the elements are created and destroyed to follow it — both directions, at any time
+during a down.
+
+| | before | after |
+|---|---|---|
+| dvar read | once, at creation | every server frame (`wait 0.05`) |
+| HUD writes | every 1s, unconditional | only when the whole SECOND changes — **same ~1/sec** |
+| OFF mid-down | bar stays until revive | bar disappears within a frame |
+| ON mid-down | nothing until the next down | bar appears with the live count |
+
+🌟 **The poll adds no network traffic, by construction.** `updateBar` (→ `setshader`) and `setvalue`
+are the parts that spend reliable commands; `n_shown` holds them to one write per whole second,
+which is exactly what the old `wait 1` produced. Reading a dvar is local. ERROR_CATALOGUE §7b (the
+128-entry reliable ring) is why this was designed rather than assumed.
+
+**Destroy, not hide.** `_hud_util::createbar` makes **three** hudelems (bar, frame, background) and
+the text is a fourth — the old comment saying "two" was wrong and is corrected. A player with the
+row off must not be charged four out of a finite allowance.
+
+New `bleedout_bar_destroy_hud()` tears both down **and clears the references**, because the whole
+state machine now keys off `isdefined( self.ProcessBar2 )`. `Bleedout_bar_End_game_fix()` now shares
+it; it used to `&&` the two references, which tore down **neither** element if only one existed.
+
+### Pre-mortem — four ways it could fail, all checked offline before hand-off
+
+1. **Repeated toggling leaks hud elements.** No: `createbar` returns `barelembg`, which carries
+   `.bar` and `.barframe`, and `destroyelem()` destroys all three plus itself. Read in
+   `_hud_util.gsc:499-556` and `:750`, not assumed.
+2. **`int( self.bleedout_time )` errors at 20 Hz and the thread dies silently.** No:
+   `bleedout_time` is never assigned `undefined` anywhere in the 2,093-file dump, and stock threads
+   `laststand_bleedout` (which sets it, `:395`) at `_zm_laststand.gsc:208` — **before** the
+   `player_downed` notify at `:214`. Exposure is also identical to the old code, which read the same
+   field on its first line.
+3. **`self.ProcessBar2` used while undefined.** Cannot: creation happens in the same pass that sets
+   `b_want`, above the update block, and `createprimaryprogressbar` has no path returning undefined.
+4. **Division changed.** It did not — `n_now` is `int( self.bleedout_time )`, the identical
+   expression.
+
+🟡 **Residual, pre-existing, NOT introduced here:** if `level.laststandgetupallowed` is true, or the
+`is_zombie` / `no_revive_trigger` branch at `_zm_laststand.gsc:385` is taken, stock never sets
+`bleedout_time` for that down. The old code had exactly the same exposure and the bar demonstrably
+works, so this is recorded, not fixed.
+
+📝 **How to judge it:** the text element carries `hidewheninmenu = 1`, so while the pause menu is
+open the number is hidden regardless. The verdict is what you see **the moment the menu closes**.
+
+Parse-checked with gsc-tool (both files). `bleedout_bar_destroy_hud`, `n_shown` and `wait 0.05` all
+confirmed **inside the deployed `mod.iwd`**; deployed `mod.json` reads 1.99.6.
+🛑 **Deployed, NOT yet verified in game.**

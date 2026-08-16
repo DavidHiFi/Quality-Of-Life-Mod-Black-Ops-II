@@ -99,13 +99,12 @@ Bleedout_bar_hud_toggle()
 }
 Bleedout_bar_End_game_fix()
 {
-	self endon( "disconnect" ); 
+	self endon( "disconnect" );
 	level waittill("end_game");
-	if(isdefined(self.ProcessBar2) && isdefined(self.Bleedout_text))
-	{
-	self.ProcessBar2 destroyElem();
-	self.Bleedout_text destroy();
-	}
+	//  zm_qol v1.99.6 - was an `&&` of both references, which tore down NEITHER
+	//  element if only one existed. Now shares the one teardown helper with
+	//  bleedout_bar(), which checks each independently and clears both.
+	self bleedout_bar_destroy_hud();
 	return;
 }
 
@@ -115,10 +114,12 @@ bleedout_bar()
 	level endon("end_game");
 
 	//  zm_qol v1.99.1 - THE HUD TAB TOGGLE, user request 2026-08-16.
+	//  zm_qol v1.99.6 - MADE LIVE. See the note below; this is a real fix, not a
+	//  tidy-up.
 	//
-	//  Read here and nowhere else. This is the one function that creates the two
-	//  hud elements, so an early return means nothing is drawn AND nothing is
-	//  allocated - it does not merely hide the bar behind alpha 0. The caller
+	//  Read here and nowhere else. This is the one function that creates the hud
+	//  elements, so OFF means nothing is drawn AND nothing is allocated - it does
+	//  not merely hide the bar behind alpha 0. The caller
 	//  (Bleedout_bar_hud_toggle) still sets and clears self.bleeding_Out either
 	//  way, so the down/revive state machine is untouched.
 	//
@@ -126,49 +127,118 @@ bleedout_bar()
 	//  override, hud_all forces the individual rows on. Same expression as
 	//  quality_of_life::zmqol_powerup_timer_think().
 	//
-	//  📝 Toggling this OFF while already downed leaves the current bar up until
-	//  you are revived or bleed out - the check runs when the bar is created.
-	//  That matches the hud_perk_popup precedent ("takes effect on the very next
-	//  perk") and self-corrects within one down.
-	if ( !( getdvarintdefault( "hud_master", 1 ) &&
-	        ( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_bleedout_bar", 1 ) ) ) )
-	{
-		return;
-	}
+	//  ---------------------------------------------------------------------
+	//  🛑 WHY THE CHECK MOVED INSIDE THE LOOP - user report, 2026-08-16
+	//
+	//  v1.99.1 read the dvar ONCE, above the element creation, and shipped with a
+	//  note calling that acceptable ("takes effect on the very next down"). The
+	//  user tested exactly that and it is NOT acceptable to them:
+	//
+	//    "if you have the bleedout bar enabled when you go down [...] and when you
+	//     turn it off via the settings it wont update on screen and the bar will
+	//     still be there [...] basically i cant update it to on or off realtime."
+	//
+	//  So the dvar is now polled every server frame while you are down, and the
+	//  elements are created and destroyed to follow it. Both directions work:
+	//  turn it off mid-down and the bar disappears; turn it back on and it comes
+	//  straight back with the current count.
+	//
+	//  🌟 THE POLL DOES NOT ADD NETWORK TRAFFIC, and that is deliberate. The two
+	//  writes (updateBar -> setshader, setvalue) are the parts that cost reliable
+	//  commands, and they still happen only when the whole SECOND changes, which
+	//  is the same ~1/sec the old `wait 1` produced. n_shown is what enforces
+	//  that. Polling a dvar is a local read and costs nothing on the wire.
+	//  (ERROR_CATALOGUE §7b - the 128-entry reliable ring is why this matters.)
+	//
+	//  🛑 Do NOT "simplify" this back to writing every pass.
+	//  ---------------------------------------------------------------------
+	//
+	//  📝 The elements are destroyed on OFF rather than hidden, because
+	//  createPrimaryProgressBar is not cheap: _hud_util::createbar makes THREE
+	//  hudelems (bar, frame, background) and the text is a fourth. A client's
+	//  allowance is finite and this mod already spends ~13 of it, so a player who
+	//  has the row switched off must not be charged four.
+	n_shown = -1;                       // last whole second written to the HUD
 
-	//self iprintln("bleedout bar new"); //debuging
-	//we create a progress bar for the bleedout bar
-	self.ProcessBar2 = createPrimaryProgressBar();
-	self.ProcessBar2 setPoint("CENTER","CENTER",0,120);
-	self.ProcessBar2.color = (0,0,0);
-	self.ProcessBar2.bar.color = (1,0,0);
-	self.ProcessBar2.alpha = 1;
-	self.ProcessBar2.archived = 1;
-
-	//we create a text displaying the bleedout timer
-	self.Bleedout_text = newclienthudelem( self );
-	self.Bleedout_text.x = 320;
-	self.Bleedout_text.y = 345;
-	self.Bleedout_text.alignx = "center";
-	self.Bleedout_text.aligny = "middle";
-	self.Bleedout_text.horzalign = "fullscreen";
-	self.Bleedout_text.vertalign = "fullscreen";
-    self.Bleedout_text.alpha = 1;
-	self.Bleedout_text.archived = 1;
-    self.Bleedout_text.fontscale = 1.2;
-	self.Bleedout_text.hidewheninmenu = 1;
-	self.Bleedout_text.label = &"Bleeding out in:^1 ";
-	
-	//while we are down we update the bar and text
-	while(self.bleeding_Out == true)
+	while ( self.bleeding_Out == true )
 	{
-		self.ProcessBar2 updateBar(int(self.bleedout_time) / int(level.cmPlayerLaststandBleedoutTime));
-		self.Bleedout_text setvalue(int(self.bleedout_time));
-		wait 1;
-		waittillframeend;
+		b_want = ( getdvarintdefault( "hud_master", 1 ) &&
+		           ( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_bleedout_bar", 1 ) ) );
+
+		if ( b_want && !isdefined( self.ProcessBar2 ) )
+		{
+			//self iprintln("bleedout bar new"); //debuging
+			//we create a progress bar for the bleedout bar
+			self.ProcessBar2 = createPrimaryProgressBar();
+			self.ProcessBar2 setPoint("CENTER","CENTER",0,120);
+			self.ProcessBar2.color = (0,0,0);
+			self.ProcessBar2.bar.color = (1,0,0);
+			self.ProcessBar2.alpha = 1;
+			self.ProcessBar2.archived = 1;
+
+			//we create a text displaying the bleedout timer
+			self.Bleedout_text = newclienthudelem( self );
+			self.Bleedout_text.x = 320;
+			self.Bleedout_text.y = 345;
+			self.Bleedout_text.alignx = "center";
+			self.Bleedout_text.aligny = "middle";
+			self.Bleedout_text.horzalign = "fullscreen";
+			self.Bleedout_text.vertalign = "fullscreen";
+			self.Bleedout_text.alpha = 1;
+			self.Bleedout_text.archived = 1;
+			self.Bleedout_text.fontscale = 1.2;
+			self.Bleedout_text.hidewheninmenu = 1;
+			self.Bleedout_text.label = &"Bleeding out in:^1 ";
+
+			//  Force the first write, so a bar switched back on mid-down shows
+			//  the live count immediately instead of staying blank for up to a
+			//  second.
+			n_shown = -1;
+		}
+		else if ( !b_want && isdefined( self.ProcessBar2 ) )
+		{
+			self bleedout_bar_destroy_hud();
+		}
+
+		if ( b_want )
+		{
+			n_now = int( self.bleedout_time );
+
+			//  🛑 Only on change. See the note above.
+			if ( n_now != n_shown )
+			{
+				self.ProcessBar2 updateBar( n_now / int( level.cmPlayerLaststandBleedoutTime ) );
+				self.Bleedout_text setvalue( n_now );
+				n_shown = n_now;
+			}
+		}
+
+		wait 0.05;
 	}
 	//we destroy the hud so we free up hud elemets for other scripts
 	//self iprintln("hud destorty"); //debuging
-	self.ProcessBar2 destroyElem();
-	self.Bleedout_text destroy();
+	self bleedout_bar_destroy_hud();
+}
+
+//  Tear the two (four, really) elements down and CLEAR THE REFERENCES.
+//
+//  🛑 The clearing is the point. bleedout_bar() now decides what to do from
+//  isdefined( self.ProcessBar2 ), and Bleedout_bar_End_game_fix() has always
+//  keyed off the same test, so a stale reference to a destroyed element would
+//  either double-destroy or block the bar from ever coming back. Setting both
+//  to undefined makes the test mean what it says regardless of what destroy()
+//  does to the variable itself.
+bleedout_bar_destroy_hud()
+{
+	if ( isdefined( self.ProcessBar2 ) )
+	{
+		self.ProcessBar2 destroyElem();
+		self.ProcessBar2 = undefined;
+	}
+
+	if ( isdefined( self.Bleedout_text ) )
+	{
+		self.Bleedout_text destroy();
+		self.Bleedout_text = undefined;
+	}
 }

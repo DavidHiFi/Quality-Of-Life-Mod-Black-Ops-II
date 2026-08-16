@@ -82,8 +82,10 @@ init()
     //  (scripts\zm\bleedout_bar.gsc, imported from Nathan3197's mod). User asked
     //  for a switch, 2026-08-16. ON by default - it is existing behaviour, and a
     //  new toggle must not silently change what the mod already does.
-    //  Read in ONE place, at the top of bleedout_bar(), so the toggle takes
-    //  effect on the very next down with no respawn.
+    //  Read in ONE place, inside bleedout_bar()'s loop.
+    //  v1.99.6 - that read moved INTO the loop, so the row is live: flip it
+    //  while you are already downed and the bar appears or disappears at once.
+    //  v1.99.1 read it once at creation and the user reported exactly that gap.
     qol_opt_dvar( "hud_bleedout_bar", "1" );
     qol_opt_dvar( "hud_remaining",    "1" );
     qol_opt_dvar( "hud_zone",         "0" );
