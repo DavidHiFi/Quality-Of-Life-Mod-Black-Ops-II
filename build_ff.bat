@@ -60,7 +60,30 @@ if /i "%~1"=="regen" (
     echo   Regenerating zone_source\mod_base.zone from base\mod.ff ...
     "%OAT_BASE%\Unlinker.exe" --include-assets keyvaluepairs -o "%PROJ%\zone_source\_regen" "%PROJ%\zone_source\base\mod.ff"
     if errorlevel 1 ( echo   ERROR: Unlinker failed. & exit /b 1 )
-    copy /y "%PROJ%\zone_source\_regen\zone_source\mod.zone" "%PROJ%\zone_source\mod_base.zone" >nul
+    REM  v1.99.21 - STRIP EVERY `script,*.gsc` LINE ON THE WAY IN.
+    REM
+    REM  The donor's inventory lists seven .gsc, and a .gsc declared in a zone is
+    REM  shipped inside mod.ff as raw text and RUN by the game. One of the seven,
+    REM  scripts/zm/zm_expanded.gsc, is the pre-merge module that became
+    REM  quality_of_life.gsc and was deleted from the project months ago - so
+    REM  nothing on disk shadowed it and every build re-shipped July's copy,
+    REM  which then executed main() and init() on every map and collided with the
+    REM  current script on four replaceFunc hooks. console_zm.log names it:
+    REM        scripts/zm/zm_expanded.gsc  loaded successfully from fastfile
+    REM        scripts/zm/zm_expanded.gsc  (mod (source)): 0x6B419E9F
+    REM  while every other .gsc reads `from raw`, i.e. mod.iwd's current copy.
+    REM
+    REM  This project never needs a .gsc in the fastfile: Plutonium's Mods menu
+    REM  runs raw .gsc straight out of mod.iwd, which is how quality_of_life.gsc
+    REM  works while being declared in no zone file at all.
+    REM
+    REM  🛑 .csc lines are NOT touched - client scripts DO load from the fastfile
+    REM  and are staged from source further down.
+    REM
+    REM  Done here rather than by hand because this file is generated: a hand
+    REM  edit would be silently undone the next time anyone runs `regen`.
+    "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$src=Join-Path '%PROJ%' 'zone_source\_regen\zone_source\mod.zone'; $dst=Join-Path '%PROJ%' 'zone_source\mod_base.zone'; $in=@(Get-Content -LiteralPath $src); $out=@($in | Where-Object { $_ -notmatch '^\s*script,.*\.gsc\s*$' }); $n=$in.Count-$out.Count; Set-Content -LiteralPath $dst -Value $out -Encoding ASCII; Write-Host ('    stripped ' + $n + ' script,*.gsc line(s); ' + $out.Count + ' lines written')"
+    if errorlevel 1 ( echo   ERROR: could not write mod_base.zone. & exit /b 1 )
     rmdir /s /q "%PROJ%\zone_source\_regen"
     echo   mod_base.zone regenerated. Re-run build_ff.bat without 'regen' to link.
     exit /b 0

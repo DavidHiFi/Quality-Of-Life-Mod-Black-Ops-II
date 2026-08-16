@@ -11,13 +11,40 @@ script,scripts/zm/zm_highrise/zm_highrise.csc
 script,scripts/zm/zm_prison/zm_prison.csc
 script,scripts/zm/zm_buried/zm_buried.csc
 script,scripts/zm/zm_tomb/zm_tomb.csc
-script,scripts/zm/zm_expanded.gsc
-script,scripts/zm/zm_transit/zm_transit.gsc
-script,scripts/zm/zm_nuked/zm_nuked.gsc
-script,scripts/zm/zm_highrise/zm_highrise.gsc
-script,scripts/zm/zm_prison/zm_prison.gsc
-script,scripts/zm/zm_buried/zm_buried.gsc
-script,scripts/zm/zm_tomb/zm_tomb.gsc
+// ============================================================================
+//  v1.99.21 - THE SEVEN `.gsc` DECLARATIONS THAT WERE HERE ARE GONE ON PURPOSE.
+//
+//  They were:  zm_expanded.gsc  +  the six zm_<map>/zm_<map>.gsc
+//
+//  This file is GENERATED (build_ff.bat regen) and normally must not be
+//  hand-edited - so the regen step now strips `script,*.gsc` lines itself and
+//  cannot put these back. Do not "restore" them.
+//
+//  WHY. A .gsc declared in a zone is shipped inside mod.ff as raw text and the
+//  game will run it. console_zm.log records the source of every script, and it
+//  is unambiguous:
+//        scripts/zm/zm_expanded.gsc      loaded successfully from fastfile
+//        scripts/zm/zm_expanded.gsc      (mod (source)): 0x6B419E9F
+//        GSC Executed "scripts/zm/zm_expanded::main()"
+//        GSC Executed "scripts/zm/zm_expanded::init()"
+//  zm_expanded.gsc is the PRE-MERGE module that became quality_of_life.gsc and
+//  was deleted from the project months ago. It has no file on disk, so nothing
+//  shadowed it, and the Linker kept resolving it from the donor fastfile - so
+//  every build re-shipped July's copy and every map ran it, in full, alongside
+//  the current script. It cost four replaceFunc collisions at every map load:
+//        perks_register_clientfield · init_client_flags · give_perk ·
+//        default_vending_precaching
+//
+//  The other six were harmless but were the same trap one step from springing:
+//  the log shows each of them `loaded successfully from raw`, i.e. mod.iwd's
+//  current copy wins while a file of that name exists on disk. Rename or delete
+//  one and its day-one copy in here comes silently alive, exactly as
+//  zm_expanded did. Twelve of the thirteen shipped .gsc were measurably stale.
+//
+//  🛑 EVERY `.csc` ABOVE STAYS. Client scripts DO load from the fastfile - the
+//  same log shows `_zm_weap_freezegun.csc ... from fastfile` - and build_ff.bat
+//  stages the current sources over them so they are not stale.
+// ============================================================================
 image,specialty_ads_zombies
 techniqueset,,trivial_9z33feqw
 material,specialty_ads_zombies

@@ -15,7 +15,9 @@
 //  them from the iwd at runtime.
 // ============================================================================
 
-script,maps/mp/zombies/_zm_weap_thundergun.gsc
+// v1.99.21 - script,maps/mp/zombies/_zm_weap_thundergun.gsc REMOVED: mod.iwd's
+//            copy is what loads (console_zm.log: "loaded successfully from raw"),
+//            so the copy in here was a stale duplicate. See mod_base.zone.
 script,clientscripts/mp/zombies/_zm_weap_thundergun.csc
 techniqueset,mc_sw4_3d_unlit_3layer_nofog_falloff_5z943qe4
 image,~-gthunder_chamber_main_c
@@ -68,7 +70,7 @@ rawfile,rumble/subwoofer_heavy
 rawfile,rumble/tank_damage_heavy_h.rmb
 rawfile,rumble/tank_damage_heavy_l.rmb
 script,scripts/zm/thundergun.csc
-script,scripts/zm/thundergun.gsc
+// v1.99.21 - script,scripts/zm/thundergun.gsc REMOVED - loads from raw, see mod_base.zone.
 // ============================================================================
 //  🛑 THE 6 ANIMTREES AND 6 ANIMSTATEDEFS ARE NOT SHIPPED. THIS IS THE CRASH.
 //
@@ -147,7 +149,7 @@ script,scripts/zm/thundergun.gsc
 //   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
 //   not defined in anim tree "zm_transit_basic"
 // script,scripts/zm/zm_highrise/anims_thundergun.gsc
-script,maps/mp/zombies/_zm_weap_freezegun.gsc
+// v1.99.21 - script,maps/mp/zombies/_zm_weap_freezegun.gsc REMOVED - loads from raw, see mod_base.zone.
 script,clientscripts/mp/zombies/_zm_weap_freezegun.csc
 techniqueset,effect_910219f6
 techniqueset,,trivial_9z33feqw
@@ -312,7 +314,7 @@ image,t6_camo_tiger_jungle_solid
 image,t6_camo_tiger_jungle_pattern
 camo,camo_freezegun
 script,scripts/zm/Freeze.csc
-script,scripts/zm/freeze.gsc
+// v1.99.21 - script,scripts/zm/freeze.gsc REMOVED - loads from raw, see mod_base.zone.
 // zm_qol: REMOVED. These files exist only so the Linker walks their %anim
 // references - which it does not do (see the xanim block below). With the
 // modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
@@ -355,7 +357,7 @@ script,scripts/zm/freeze.gsc
 //   Server script compile error: animation "ai_zombie_thundergun_hit_jackiespin_left"
 //   not defined in anim tree "zm_transit_basic"
 // script,scripts/zm/zm_highrise/anims_freeze.gsc
-script,maps/mp/zombies/_zm_weap_tesla.gsc
+// v1.99.21 - script,maps/mp/zombies/_zm_weap_tesla.gsc REMOVED - loads from raw, see mod_base.zone.
 script,clientscripts/mp/zombies/_zm_weap_tesla.csc
 techniqueset,effect_8e1qf0qq
 image,fxt_env_electric_arc1
@@ -456,7 +458,7 @@ material,hud_tesla
 xmodel,t6_wpn_zmb_tesla_view
 xmodel,t6_wpn_zmb_tesla_world
 script,scripts/zm/teslagun.csc
-script,scripts/zm/teslagun.gsc
+// v1.99.21 - script,scripts/zm/teslagun.gsc REMOVED - loads from raw, see mod_base.zone.
 // zm_qol: REMOVED. These files exist only so the Linker walks their %anim
 // references - which it does not do (see the xanim block below). With the
 // modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
