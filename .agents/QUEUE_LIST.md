@@ -10,7 +10,7 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **57** · mod version **1.99.9**
+- SYNCED TO: checkpoint **58** · mod version **1.99.9**
 - LAST VERIFIED: 2026-08-16 — every line below was checked against the checkpoints, the bottom of
   `QUEUE.md`, or the source tree on this date.
 - BUILT, AWAITING THE USER'S BOOT: **1, 2, 4**.  Built ≠ done, so they are **not** struck through.
