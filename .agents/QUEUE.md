@@ -5604,3 +5604,85 @@ open the number is hidden regardless. The verdict is what you see **the moment t
 Parse-checked with gsc-tool (both files). `bleedout_bar_destroy_hud`, `n_shown` and `wait 0.05` all
 confirmed **inside the deployed `mod.iwd`**; deployed `mod.json` reads 1.99.6.
 🛑 **Deployed, NOT yet verified in game.**
+
+---
+
+## v1.99.7 — 2026-08-16. B-WHOWL ROOT-CAUSED. The flash was rendering in the wrong pass.
+
+User: *"ok i tried it, it works fine, task finished"* (queue #1, the bleedout toggle — struck
+through), then *"Now to fix the winters howl effect and get that task crossed off/completed."*
+
+### 🌟 The cause: `drawWithViewModel`, counted per element
+
+Checkpoint 52 called the offline checks exhausted. They were exhausted **at the level of names** —
+does the effect load, does the material resolve, does the def match a working port. Nobody had
+looked inside the `.efx` at the per-element render flags. That is where it was.
+
+| gun | elements with `drawWithViewModel` | user's own words |
+|---|---|---|
+| Wunderwaffe `fx_tesla_view` | **14 of 14** | *"the tesla LOOKS FINE"* |
+| Thundergun `fx_thundergun_view` | **8 of 14**, all 8 `gfx_fxt_fx_distortion_heat` | visible |
+| **Winter's Howl `fx_freezegun_view`** | **1 of 11** | *"no shooting visual fx"* |
+
+🌟 The one flagged element on the Winter's Howl is `gfx_fxt_fx_distortion_heat` — heat shimmer.
+That is exactly *"some weird looking wind effects"*. The ten unflagged ones are the flash itself:
+4 × `gfx_fxt_light_flare_star`, `gfx_fxt_smk_whisp_spiral`, `gfx_fxt_lensflare_diamond`, a light,
+and three that never spawn (`spawnOneShot 0 0`).
+
+`viewFlashEffect` spawns at the **viewmodel's** `tag_flash`; an element without `drawWithViewModel`
+renders in the world pass at the camera origin, inside the near plane — present, invisible.
+
+🛑 **The mechanism is NOT confirmed from a stock T6 file.** The workspace has no stock BO2 `.efx`;
+`hb21_black_ops_3_fx_library`'s `_t6` folder is BO3-format (`extraFlags`, `spawnLoopingSpawnCount`,
+`atlasBehavior`) and cannot settle a T6 convention. What there is: a monotonic correlation across
+three guns through the identical engine path, and a mechanism that predicts the *specific* wrong
+appearance in the failing case. The boot settles it.
+
+### The change
+
+Six live visual elements per file gained `drawWithViewModel`, in `fx_freezegun_view.efx` and
+`fx_freezegun_ug_view.efx`. Inserted after the `runRelTo*` token — the position used by all seven
+distinct `flags` lines dumped from the tesla and thundergun files.
+
+Deliberately left alone: the `light` element (the thundergun leaves its light unflagged) and the
+three `spawnOneShot 0 0` elements (they never spawn). Weapon defs untouched, so no asset name the
+loader has never resolved is introduced.
+
+Per file: 6 lines changed, **+108 bytes exactly** (6 × 18), 2677 → 2677 lines, braces 428/428,
+11 elements, LF preserved, 0 CR. Diffed line-by-line against the reference build: six differing
+lines, each the added keyword and nothing else.
+
+### Eliminated by measurement this round — do not re-check
+
+- **All 60 `.efx` are byte-identical to `Wonder_Weapons-T6ZM\wonder_wepons_zm\mod.iwd`.** 25 of them
+  legitimately contain CR and so does the reference. 📝 Checkpoint 50's prose had the split backwards
+  ("25 already identical / 35 differed only by CR" — it is 35 LF-clean / 25 CR); the end state it
+  claimed was correct and is re-verified here.
+- The `.efx` also matches a **third** source, the `T6-Declassified` freezegun module — same md5.
+- 🌟 **Raw `.efx` DO load.** `fx_zombie_tesla_tube_view` is in no retail fastfile and not in
+  `mod.ff`, and the log prints `Loaded fx:` for it. **The free discriminator open since checkpoint 47
+  is answered and closed.**
+- Every material of all 60 `.efx` tested against the real Diner fastfile set (patch_zm, common_zm,
+  code_post_gfx_zm, the dlc loads, zm_transit_patch, zm_transit, so_zsurvival_zm_transit,
+  zm_transit_gump_diner, plus mod.ff — taken from the session log's own load list): 18 effects have
+  gaps, **not one a freezegun effect**.
+- 🌟 The engine prints `Could not load material` when one is missing — it did for
+  `gfx_fxt_fx_distortion_water` and `menu_mp_weapons_sig556` — and says nothing about the
+  freezegun's six. That is the engine confirming the audit.
+- Weapon def vs both ports: 326/326 keys, only `camo` cleared on purpose.
+- `t5_wpn_zmb_freezegun_v2_view` has `tag_flash` (GLB dumped from `mod.ff`).
+- **Zero name collisions** between the 60 raw `.efx` and `mod.ff`'s 151 compiled `fx`.
+- The four flash `.iwi` are valid `IWi` v27 DXT5 with real pixel data.
+- `_zm_weap_freezegun.csc` in `mod.ff` is 15,621 bytes = the project's source, not the donor's;
+  `build_ff.bat:84` stages `clientscripts` as well as `scripts`.
+
+### 🟡 Found, NOT fixed, stated rather than quietly shipped
+
+`worldFlashEffect` on both freezegun defs points at the **view** effect. The properly authored
+`fx_freezegun_world.efx` (14 elements, real names like `flash` / `spiral_flare` / `xspiral`) ships
+and is referenced by nothing — it never appears in any `Loaded fx:` line. Tesla and thundergun both
+point at their own `_world` twins. **Both reference ports have the identical defect**, so it is the
+port's. It affects only what other players see, is invisible in solo and so unverifiable in solo,
+and repointing it would introduce a name the loader has never resolved. Deferred on purpose.
+
+🛑 **Deployed, NOT yet verified in game.**

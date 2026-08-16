@@ -10,15 +10,19 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **55** · mod version **1.99.6**
+- SYNCED TO: checkpoint **56** · mod version **1.99.7**
 - LAST VERIFIED: 2026-08-16 — every line below was checked against the checkpoints, the bottom of
   `QUEUE.md`, or the source tree on this date.
-- BUILT, AWAITING THE USER'S BOOT: **1–5** — bookkeeping for the closing "do this now" line only.
+- BUILT, AWAITING THE USER'S BOOT: **2–5** — bookkeeping for the closing "do this now" line only.
   Built ≠ done, so these are **not** struck through.
+- **1 CONFIRMED IN GAME 2026-08-16** at v1.99.6 (*"i tried it, it works fine, task finished"*) — the
+  live mid-down toggle. Struck through, kept on the list until the user says to remove it.
+- IN FLIGHT: **7** — Winter's Howl firing fx (B-WHOWL). Root-caused and fixed in **v1.99.7**
+  (only 1 of 11 muzzle-flash elements was flagged `drawWithViewModel`); deployed, **not yet booted**.
 
 <!-- LIST -->
 
-1. **Bleedout bar toggle**
+1. ~~**Bleedout bar toggle**~~
 2. **Origins Death Machine ammo counter**
 3. **Who's Who description** — the joke line removed
 4. **Wonder-weapon box odds reversed** (`zmqol_box_ww_rarity`)
