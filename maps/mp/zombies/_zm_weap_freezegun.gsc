@@ -146,9 +146,15 @@ wait_for_thundergun_fired()
         {
             self thread freezegun_fired( currentweapon == "freezegun_upgraded_zm" );
 
-            view_pos = self GetTagOrigin( "tag_flash" ) - self GetPlayerViewHeight();
-            view_angles = self GetTagAngles( "tag_flash" );
-            playfx( level._effect["freezegun_smoke_cloud"], view_pos, AnglesToForward( view_angles ), AnglesToUp( view_angles ) );
+            // v1.99.10 - the "wind blow" the user reported on the Winter's Howl.
+            // This world-space cloud (fx_freezegun_smoke_cloud: 10 x gfx_fxt_smk_spiral,
+            // size 400, 1000ms) is spawned at the player every shot and is structurally
+            // the Thundergun's smoke cloud scaled down. Identified by the user 2026-08-16
+            // as the effect to remove. The muzzle flash itself (fx_freezegun_view) is
+            // untouched. Restore by uncommenting the three lines below.
+            // view_pos = self GetTagOrigin( "tag_flash" ) - self GetPlayerViewHeight();
+            // view_angles = self GetTagAngles( "tag_flash" );
+            // playfx( level._effect["freezegun_smoke_cloud"], view_pos, AnglesToForward( view_angles ), AnglesToUp( view_angles ) );
         }
     }
 }

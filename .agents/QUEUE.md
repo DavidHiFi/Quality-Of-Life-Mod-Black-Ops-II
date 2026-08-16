@@ -5957,3 +5957,89 @@ exists; what is unverified is whether the data behind it is real. Extract `dirt_
 the audio dumper, check length and format, and compare against `powerup\grab\grab_00` from the same
 bank. If the entry is empty or malformed, ship the sound in `mod.all` under a mod-private alias and
 play that instead of the stock name.
+
+---
+
+## v1.99.10 — 2026-08-16. B-WHOWL: v1.99.9 reverted, and the wind IDENTIFIED BY THE USER.
+
+### 🛑 v1.99.9 WAS WRONG. The boot said so and it is reverted.
+
+*"you got rid of the right effects for shots for the winters howl and the incorrect wind blow
+effects are still there, so you got rid of the wrong effect and kept the wrong one in."*
+
+`wraith_looping_def0` (`gfx_fxt_fx_distortion_heat`) is **part of the correct shot fx**, not the
+wind. `spawnLooping 50 3` / `spawnOneShot 50 3` restored in `fx_freezegun_view.efx` and
+`fx_freezegun_ug_view.efx`. Both files now diff the reference port by exactly **12 lines** — the six
+v1.99.7 `drawWithViewModel` flags and nothing else, i.e. the exact state the user approved.
+
+🛑 **The `.efx` was NOT broken by the edit** — `console_zm.log` line 4540 prints
+`Loaded fx: weapon/muzzleflashes/fx_freezegun_view` on the v1.99.9 boot, and the deployed `mod.iwd`
+carried `spawnLooping 0 0`. So the user really did test the change and the verdict is sound.
+
+### 🌟 THE LESSON: checkpoint 56's "the wind is def0" was a block diff, and a block diff is not a verdict
+
+The reasoning was: def0 is 2 lines off the Thundergun's element, and it was the only element flagged
+`drawWithViewModel` before v1.99.7, so it was the only thing visible when the flash was not —
+therefore it is what the user called "weird wind". Every step is true and the conclusion is false.
+**Being the only visible element explains why they saw *something*; it does not identify *what*.**
+The same evidence was equally consistent with def0 being a correct-but-lonely part of the flash,
+which is what it turned out to be.
+
+### The audit the user actually asked for — *"only its effects, not other weapons' fx"*
+
+Run in full, offline:
+
+| surface | result |
+|---|---|
+| `weapons/zm/freezegun_zm`, `freezegun_upgraded_zm` | only `fx_freezegun_view` / `fx_freezegun_ug_view` ✅ |
+| `maps/mp/zombies/_zm_weap_freezegun.gsc` | 9 `level._effect` entries, all `freeze_gun/` or `maps/zombie/fx_zombie_freeze_*` ✅ |
+| `clientscripts/.../_zm_weap_freezegun.csc` | loads, never plays, the smoke cloud ✅ |
+| `_zm_weap_thundergun.gsc`'s fire hook | correctly gated on `thundergun_zm`, no leak ✅ |
+| `fx_trail_freezegun_ring_emit` / `_geotail` | declared in `mod_freezefx.zone`, referenced by nothing — inert ✅ |
+
+**No foreign fx leak exists.** Everything the gun plays is its own file, so the wind had to be one of
+its own elements. Exactly two things spawn on a shot: `fx_freezegun_view` (8 live elements) and
+`fx_freezegun_smoke_cloud` (world, via GSC).
+
+### ✅ THE USER PICKED IT, FROM DESCRIPTIONS MEASURED OUT OF THE FILES
+
+Rather than spend a boot on a probe, the three candidates were described from their own parameters
+and the user chose. They picked **"big soft cloud that lingers"** =
+**`fx_freezegun_smoke_cloud`** — 10 × `gfx_fxt_smk_spiral`, size **400**, life **1000 ms**, spawned
+in world space at the player on **every shot** by `_zm_weap_freezegun.gsc:151`. It is four times
+larger and ten times longer-lived than anything in the muzzle flash, and it is structurally the
+Thundergun's own smoke cloud scaled down (same three materials, same flags, same lifespans; only
+counts, sizes and curves differ — 400 vs 1200, 10 vs 25 particles).
+
+The two rejected candidates, for the record: `wraith_looping_def1` (`gfx_fxt_lensflare_diamond`, a
+static muzzle glint, and the *other* Thundergun near-copy) and `wraith_looping_def2`
+(`gfx_fxt_smk_whisp_spiral`, 40 fast forward streaks, 500 ms — the gun's own element).
+
+### The change
+
+Three lines commented out at `_zm_weap_freezegun.gsc:149-151`, with the reason and a one-step
+restore note. `loadfx` left in place, so the asset still loads and reverting is uncommenting.
+
+🛑 **PARITY NOTE — this is a deliberate deviation from the port.** All three freezegun ports in the
+workspace (zm_qol, `Wonder_Weapons-T6ZM`, `SRS_T5_WonderWeapons_portable`) play this cloud, and the
+file is freezegun-tuned rather than a raw copy, so it is very likely authentic T5 content.
+[[zm-qol-port-never-tune]] would normally forbid removing it. It is removed because the user
+identified it specifically and asked for it gone. One line restores it.
+
+### Pre-mortem, all three checked offline
+
+1. **Something else draws the cloud** — grep of every `.gsc`/`.csc`: exactly one play site. ✅
+2. **The edit does not reach the game** — 🛑 `_zm_weap_freezegun.gsc` **is** zone-declared
+   (`mod_wonderweapons.zone:150`), so a copy also lives in `mod.ff`, and the two copies **already
+   differ** (the `zone_assets` one lacks the v1.93.0 boss-hit hook). `console_zm.log:1299` reads
+   `(raw (source))`, and the boss-hit feature works in game, so **the raw copy wins** and
+   `build.bat` alone is correct. `zone_assets` deliberately left alone — touching it forces a
+   `mod.ff` relink for no benefit. The `.csc` by contrast loads `from fastfile`.
+3. **Removing it degrades the gun** — it is a world cloud with no gameplay role; the muzzle flash,
+   impact, shatter, crumple and damage fx are all untouched.
+
+Parse-checked with gsc-tool. Verified **inside the deployed `mod.iwd`**: both `.efx` at
+`spawnLooping 50 3`, the `.gsc` with `live-playfx=0 commented=1`, `mod.json` at 1.99.10.
+README known-issues row rewritten — it still carried the disproven def0 theory.
+
+🛑 **Deployed, NOT yet verified in game.**
