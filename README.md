@@ -45,10 +45,10 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   buildable riot shield, teddy bears and secret song.
 
 **HUD and menus**
-- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 26 toggles, so you never
+- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 27 toggles, so you never
   have to type a chat command.
-- Hitmarkers, on-screen counters, round summary, game and round timers, health bar, zombies
-  remaining, zone names, velocity meter, Cold-War round HUD, perk pop-ups.
+- Hitmarkers, on-screen counters, round summary, game and round timers, health bar, bleedout bar,
+  zombies remaining, zone names, velocity meter, Cold-War round HUD, perk pop-ups.
 - **Power-up timers** — seconds remaining above each power-up icon, the mod's own **Death Machine**
   power-up included. Confirmed working in game.
 - **Instant match start** — no lobby countdown.
