@@ -111,4 +111,23 @@ LANG_ENGLISH        "Xtreme Pain Releaser 5000"
 REFERENCE           ZMWEAPON_TITUS6_EXPLOSIVE_UPGRADED
 LANG_ENGLISH        "Augustus-9"
 
+// ============================================================================
+//  v1.99.13 - THE TAC-45 (asset name `fnp45`), weapon 12.
+//
+//  Only the Pack-a-Punch name ships. The BASE name WEAPON_FNP45 already resolves
+//  on a zombies map - it is present in en_code_post_gfx_zm.ff (and in
+//  en_code_post_gfx_mp.ff and en_patch.ff), found by grepping an index of all
+//  191 fastfiles for `localize, WEAPON_FNP45`. Re-declaring it would put a
+//  second definition in front of the fastfile that owns it for no gain - the
+//  same call made for the XPR-50 and the Titus-6.
+//
+//  🛑 ZMWEAPON_FNP45_UPGRADED is in NO fastfile, so it has to be ours. Text
+//  below is BO2-Reimagined's, read out of english\localizedstrings\reimagined.str
+//  line 1214 - not invented, same rule as the eleven above. It is a dual-wield
+//  pair when packed, which is what the name is playing on.
+// ============================================================================
+
+REFERENCE           ZMWEAPON_FNP45_UPGRADED
+LANG_ENGLISH        "Toughguy & Crybaby"
+
 ENDMARKER

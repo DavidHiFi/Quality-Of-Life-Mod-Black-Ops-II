@@ -517,9 +517,21 @@ is safe either way (its pixels are in the base pak).
   owns them. Its PaP camo was missing on Mob, Buried and Origins until v1.95.2 — those three use
   camo index **40** where every other map uses 39, and `camo_titus6` had real materials at slot 3
   (index 39) but an empty filler at slot 8 (index 40). It now carries slots 3, 8, 11 and 12.
-- **Reload sounds** work on all eleven as of v1.93.0. SWAT-556 and Peacekeeper shipped with no
-  foley aliases at all (six each); the other nine matched their source one for one.
-- **`zmqol_mp_weapons 0`** turns all eleven off; **`zmqol_ww 0`** turns the three wonder weapons off.
+- **Tac-45** (v1.99.13, weapon 12) is stored under its development name `fnp45` — the same trap the
+  XPR-50 sprang. **Three defs ship**, because it becomes dual-wield when Pack-a-Punched:
+  `fnp45_zm`, `fnp45_upgraded_zm` and `fnp45lh_upgraded_zm`, the last two naming each other through
+  `DualWieldWeapon`. Only the base may be a box result; the left-hand half is a variant, the shape
+  stock uses for Mustang & Sally. No `pap_attach` row and no `attachmentunique`: all three defs
+  carry an empty `attachments` field, identical to mk48 / insas / crossbow / titus6. Cost 500 and
+  an empty vox pack are BO2-Reimagined's own values for this gun — the pistol class maps to
+  `wpck_crappy`, which is in no zombies sound bank, so naming it would be silence. Its 54 sound
+  aliases and 15 payloads ship in `mod.all`; the fire payload was confirmed present in the built
+  bank rather than assumed. 🟡 The knife-bash whoosh is silent, because `wpn_tac_knife_whoosh_*`
+  exists in no zombies bank — stock's own Executioner (`judge_zm`) has the identical gap.
+- **Reload sounds** work on all twelve as of v1.93.0. SWAT-556 and Peacekeeper shipped with no
+  foley aliases at all (six each); the other nine matched their source one for one, and the Tac-45
+  brought its five (`fly_fnp45_hammer` / `_mag_in` / `_mag_out` / `_slide_back` / `_slide_forward`).
+- **`zmqol_mp_weapons 0`** turns all twelve off; **`zmqol_ww 0`** turns the three wonder weapons off.
 
 ## 11c. Wonder-weapon detail
 

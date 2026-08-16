@@ -6210,6 +6210,12 @@ zmqol_weapon_give_table()
     a[a.size] = zmqol_give_row( "crossbow bow",                     "crossbow_zm",    "Crossbow" );
     a[a.size] = zmqol_give_row( "xpr xpr50 as50 sniper",            "as50_zm",        "XPR-50" );
     a[a.size] = zmqol_give_row( "titus titus6 dart",                "titus6_zm",      "Titus-6" );
+    //  v1.99.13 - the Tac-45. The def is `fnp45`, so both names are accepted keys.
+    //  `.give tac45 pap` hands over fnp45_upgraded_zm, and the engine brings the
+    //  left-hand half with it off the def's DualWieldWeapon field - no separate
+    //  give for fnp45lh_upgraded_zm, which is not a weapon a player may hold on
+    //  its own.
+    a[a.size] = zmqol_give_row( "tac45 tac-45 tac fnp45 fnp",       "fnp45_zm",       "Tac-45" );
 
     return a;
 }
@@ -6710,6 +6716,30 @@ zmqol_mp_weapons_init()
     //  no wpck for a dart launcher in the stock table.
     zmqol_add_mp_weapon( "titus6_zm",      "titus6_upgraded_zm",      &"WEAPON_TITUS6_EXPLOSIVE",   1000, "wpck_shotgun" );
 
+    //  v1.99.13 - the Tac-45, weapon 12. User request, 2026-08-16: "the only
+    //  weapon missing" from the multiplayer port.
+    //
+    //  🌟 The def is `fnp45_zm` and the gun is the Tac-45 - Treyarch shipped it
+    //  under its development name, exactly like the XPR-50's `as50`. See
+    //  zone_source\mod_tac45.zone.
+    //
+    //  🛑 IT BECOMES DUAL-WIELD WHEN PACK-A-PUNCHED, so a third def has to be
+    //  included below or the upgraded pair cannot resolve each other.
+    //
+    //  Cost 500 and vox "" are BO2-Reimagined's own values for THIS weapon, read
+    //  out of scripts\zm\_zm_reimagined.gsc:2038, not chosen:
+    //      add_zombie_weapon("fnp45_zm","fnp45_upgraded_zm",&"WEAPON_FNP45",500,"",...)
+    //  The empty vox pack is correct and is not an omission: the pistol class
+    //  maps to `wpck_crappy` (_zm_audio.gsc:123) and that alias is in NO zombies
+    //  sound bank - dumped zmb_survival_transit, zmb_tomb and zmb_buried and it
+    //  is absent from all three - so naming it would be silently nothing. Stock
+    //  passes "" for m1911_zm and beretta93r_zm for the same reason.
+    //
+    //  📝 Reimagined includes it with in_box 0 because there it REPLACES the
+    //  starting pistol. Here it goes in the box like the other eleven, which is
+    //  what zmqol_add_mp_weapon() does by default.
+    zmqol_add_mp_weapon( "fnp45_zm",       "fnp45_upgraded_zm",       &"WEAPON_FNP45",              500,  "" );
+
     // Reachable only via a PaP attachment or as a projectile - never a box
     // result, but they must be included or their owner cannot resolve them.
     zmqol_include_variant( "vector_extclip_zm" );
@@ -6726,7 +6756,13 @@ zmqol_mp_weapons_init()
     zmqol_include_variant( "titus6_explosive_dart_zm" );
     zmqol_include_variant( "titus6_explosive_dart_upgraded_zm" );
 
-    println( "[zm_qol] mp_weapons: 11 registered for the box on " + getdvar( "mapname" ) );
+    //  The Tac-45's left-hand half. NEVER a box result - it is the off-hand gun
+    //  of the Pack-a-Punched pair, inventoryType `dwlefthand`, and
+    //  fnp45_upgraded_zm's DualWieldWeapon field names it. Same shape as stock's
+    //  m1911lh_upgraded_zm behind Mustang & Sally.
+    zmqol_include_variant( "fnp45lh_upgraded_zm" );
+
+    println( "[zm_qol] mp_weapons: 12 registered for the box on " + getdvar( "mapname" ) );
 }
 
 zmqol_add_mp_weapon( str_base, str_upgraded, str_hint, n_cost, str_vox )

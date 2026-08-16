@@ -1,0 +1,149 @@
+// ============================================================================
+//  mod_tac45.zone  -  the Tac-45, weapon 12 and the last multiplayer pistol.
+//
+//  User request, 2026-08-16: "The Tac-45 pistol needs to be added to the mystery
+//  box weapon addition like all the other weapons ported from the multiplayer,
+//  i just realised that's the only weapon missing. Make sure all the required fx
+//  both visual and audio wise are working for it, no exceptions."
+//
+//  🌟 THE DEF IS `fnp45`, NOT `tac45`. Black Ops II ships this gun under its
+//  development name - the real-world FNP-45 Tactical it is modelled on - in the
+//  weapon def, the art, the camo, the HUD material and every sound alias. The
+//  release name "Tac-45" appears only in the localized string. Same trap the
+//  XPR-50 sprang (def `as50`, art `xpr50`), and it was settled the same way:
+//  BO2-Reimagined ships weapons\zm\fnp45_zm, and grepping the fastfile index for
+//  "tac45" finds only two loose MP menu .dds in the IPAK dump. [[t6-asset-vs-def-name-mismatch]]
+//
+//  🛑 IT IS DUAL-WIELD WHEN PACK-A-PUNCHED, so THREE defs ship, not two:
+//        fnp45_zm              dualWield 0, playerAnimType default
+//        fnp45_upgraded_zm     dualWield 1, playerAnimType dualwield,
+//                              DualWieldWeapon = fnp45lh_upgraded_zm
+//        fnp45lh_upgraded_zm   dualWield 1, inventoryType dwlefthand,
+//                              DualWieldWeapon = fnp45_upgraded_zm
+//  The two upgraded defs point at each other, so both must ship or neither
+//  resolves. This is the same shape as stock's Mustang & Sally
+//  (m1911_upgraded_zm / m1911lh_upgraded_zm), which this project already ships -
+//  checked rather than assumed, and that pair needs no attachmentunique either.
+//  Only fnp45_zm may be a box result; the left-hand half is included as a
+//  variant, exactly like the Titus-6's alt-fire half.
+//
+//  📝 NO PACK-A-PUNCH ATTACHMENT ROW NEEDED. All three defs have an EMPTY
+//  `attachments` field - the same shape as mk48 / insas / crossbow / titus6 - so
+//  add_attachments() has nothing to look up and the v1.89.3 freeze cannot apply.
+//  For the same reason no attachmentunique is required, unlike the XPR-50.
+//
+//  📝 THE PACK-A-PUNCH CAMO IS ALREADY CORRECT, unlike the Titus-6's. Measured:
+//  camo_fnp45's camoMaterials[3] - the slot zombies uses - already maps
+//  mc/mtl_t6_wpn_pistol_fnp45 -> mc/mtl_weapon_camo_zombies. One override, which
+//  is Treyarch's own authoring for this gun (camo_sig556 has one too). Nothing to
+//  repair.
+//
+//  WHERE EVERY ASSET COMES FROM
+//    all four xmodels, all 71 xanims, camo_fnp45, menu_mp_weapons_fnp45
+//        ->  common_mp.ff, which build_ff.bat already --loads (line 339).
+//            NO new --load, so the load order and every shared-asset decision
+//            it encodes are untouched.
+//
+//  📝 NOT DECLARED, BECAUSE THEY ALREADY RESOLVE ON EVERY ZOMBIES MAP. Checked
+//  one by one against an index of all 191 fastfiles in zone\all - each of these
+//  is present in zm_transit, zm_buried, zm_tomb, zm_prison, zm_highrise AND
+//  zm_nuked:
+//        fx,weapon/muzzleflashes/fx_muz_smg_flash_1p / _3p
+//        fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_sm_gas_flash_1p
+//        fx,weapon/muzzleflashes_zmb_ug/fx_zmb_muz_smg_flash_3p
+//        fx,weapon/shellejects/fx_pistol
+//        fx,temp_effects/fx_tmp_m203_flash
+//  and fx,weapon/grenade/fx_trail_grenade is in common_zm. material
+//  hud_mp_firerate_single, material reticle_side_small and xmodel
+//  projectile_m203grenade are already inside mod.ff.
+//
+//  📝 NO .iwi ARE STAGED FOR THE GUN. A fastfile carries only image headers, but
+//  the XPR-50 and the Titus-6 both ship as bare xmodel declarations out of
+//  common_mp / monsoon with no loose .iwi and both render correctly in game, so
+//  the pixels reach the renderer from the IPAKs. Precedent, not assumption.
+//
+//  🔊 THE SOUND HALF IS NOT HERE - it is 54 alias rows in
+//  soundbank\mod.all.aliases.additions.csv plus 15 payloads under sound\.
+//  See the block above those rows.
+// ============================================================================
+
+xmodel,t6_wpn_pistol_fnp45_view
+xmodel,t6_wpn_pistol_fnp45_world
+xmodel,t6_wpn_pistol_fnp45_view_lh
+xmodel,t6_wpn_pistol_fnp45_world_lh
+
+material,menu_mp_weapons_fnp45
+
+camo,camo_fnp45
+
+xanim,viewmodel_fnp45_ads_down
+xanim,viewmodel_fnp45_ads_fire
+xanim,viewmodel_fnp45_ads_up
+xanim,viewmodel_fnp45_crawl_back
+xanim,viewmodel_fnp45_crawl_back_empty
+xanim,viewmodel_fnp45_crawl_forward
+xanim,viewmodel_fnp45_crawl_forward_empty
+xanim,viewmodel_fnp45_crawl_in
+xanim,viewmodel_fnp45_crawl_in_empty
+xanim,viewmodel_fnp45_crawl_left
+xanim,viewmodel_fnp45_crawl_left_empty
+xanim,viewmodel_fnp45_crawl_out
+xanim,viewmodel_fnp45_crawl_out_empty
+xanim,viewmodel_fnp45_crawl_right
+xanim,viewmodel_fnp45_crawl_right_empty
+xanim,viewmodel_fnp45_d2p_in
+xanim,viewmodel_fnp45_d2p_in_empty
+xanim,viewmodel_fnp45_d2p_loop
+xanim,viewmodel_fnp45_d2p_loop_empty
+xanim,viewmodel_fnp45_d2p_out
+xanim,viewmodel_fnp45_d2p_out_empty
+xanim,viewmodel_fnp45_dw_ads_down
+xanim,viewmodel_fnp45_dw_ads_up
+xanim,viewmodel_fnp45_dw_crawl_back
+xanim,viewmodel_fnp45_dw_crawl_back_empty
+xanim,viewmodel_fnp45_dw_crawl_forward
+xanim,viewmodel_fnp45_dw_crawl_forward_empty
+xanim,viewmodel_fnp45_dw_crawl_in
+xanim,viewmodel_fnp45_dw_crawl_in_empty
+xanim,viewmodel_fnp45_dw_crawl_left
+xanim,viewmodel_fnp45_dw_crawl_left_empty
+xanim,viewmodel_fnp45_dw_crawl_out
+xanim,viewmodel_fnp45_dw_crawl_out_empty
+xanim,viewmodel_fnp45_dw_crawl_right
+xanim,viewmodel_fnp45_dw_crawl_right_empty
+xanim,viewmodel_fnp45_dw_d2p_in
+xanim,viewmodel_fnp45_dw_d2p_in_empty
+xanim,viewmodel_fnp45_dw_d2p_loop
+xanim,viewmodel_fnp45_dw_d2p_loop_empty
+xanim,viewmodel_fnp45_dw_d2p_out
+xanim,viewmodel_fnp45_dw_d2p_out_empty
+xanim,viewmodel_fnp45_dw_first_raise
+xanim,viewmodel_fnp45_dw_pullout
+xanim,viewmodel_fnp45_dw_pullout_empty
+xanim,viewmodel_fnp45_dw_putaway
+xanim,viewmodel_fnp45_dw_putaway_empty
+xanim,viewmodel_fnp45_dw_right_fire
+xanim,viewmodel_fnp45_dw_right_idle
+xanim,viewmodel_fnp45_dw_right_idle_empty
+xanim,viewmodel_fnp45_dw_right_lastshot
+xanim,viewmodel_fnp45_dw_right_reload_empty
+xanim,viewmodel_fnp45_dw_sprint_in
+xanim,viewmodel_fnp45_dw_sprint_in_empty
+xanim,viewmodel_fnp45_dw_sprint_loop
+xanim,viewmodel_fnp45_dw_sprint_loop_empty
+xanim,viewmodel_fnp45_dw_sprint_out
+xanim,viewmodel_fnp45_dw_sprint_out_empty
+xanim,viewmodel_fnp45_fire
+xanim,viewmodel_fnp45_first_raise
+xanim,viewmodel_fnp45_idle
+xanim,viewmodel_fnp45_idle_empty
+xanim,viewmodel_fnp45_lastshot
+xanim,viewmodel_fnp45_pullout
+xanim,viewmodel_fnp45_pullout_empty
+xanim,viewmodel_fnp45_putaway
+xanim,viewmodel_fnp45_putaway_empty
+xanim,viewmodel_fnp45_reload
+xanim,viewmodel_fnp45_reload_empty
+xanim,viewmodel_fnp45_sprint_loop
+xanim,viewmodel_fnp45_sprint_loop_empty
+xanim,viewmodel_fnp45_tactical_melee

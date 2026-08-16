@@ -6143,3 +6143,135 @@ Verified in the deployed `mod.iwd`: both defs repointed, both `_world.efx` prese
 `mod_freezefx.zone`, so no `mod.ff` relink was needed.
 
 🛑 **Deployed, NOT yet verified in game.**
+
+---
+
+## v1.99.13 — 2026-08-16. THREE ITEMS AT ONCE, on the user's explicit instruction to skip the one-at-a-time rule.
+
+User: *"Do all of this all at once, right now no queue additions just get all of these requests."*
+Stated back to them plainly: three changes in flight means a bad boot will not name its own cause.
+Their call, taken.
+
+### 1. 🌟 B-WHOWL — v1.99.12 WAS WRONG, AND THE REASON IS ONE FIELD NOBODY READ
+
+v1.99.12 set **both** `viewFlashEffect` and `worldFlashEffect` to `fx_freezegun_world`. The right
+half of that was noticing the `_world` file is the real one; the wrong half was aiming the
+**first-person** field at it.
+
+🌟 **THE MEASUREMENT THAT SETTLES IT: a muzzle flash is played as a ONE-SHOT, so `spawnOneShot` is
+the count that matters and `spawnLooping` is an interval.** Confirmed from Treyarch's own
+`fx_muz_sm_gas_flash_1p.efx` / `fx_muz_md_gas_flash_1p.efx`, which carry an explicit
+`spawnLoopingSpawnCount 1` alongside `spawnLooping 200` — the two fields are not the same quantity.
+
+Read the two freezegun files with that lens and the three-round mystery collapses:
+
+| file | spawnOneShot per element | viewmodel-drawn total |
+|---|---|---|
+| `fx_freezegun_view.efx` | 50, 5, 40, 10, 20, 100, 40 | ~265 particles |
+| `fx_freezegun_world.efx` | 1, 2, 4, 1, 4, 4, 0, 5, 4, 0, 1, 1, 0, 1 | **8 particles** |
+
+So v1.99.12 replaced a 265-particle first-person flash with an 8-particle one. That is precisely
+*"still doesn't have its proper visual effects."*
+
+📝 **And `_view` is a lossy re-save of `_world`, not a different effect.** Element by element the
+bodies match on every spawn range, cull radius, lifespan and origin — the diff was inflated purely
+by float formatting (`0.000000` vs `0`). The converter renamed the elements to editor defaults,
+**dropped three** (both `gfx_fxt_env_snow_flakes` emitters and `smoke_rings_large_in`) and set every
+`spawnOneShot` equal to `spawnLooping`. 🛑 Checkpoint 60's "hand-authored names = the real file,
+template names = junk" is therefore **wrong and retired**: `wraith_oneshot_def*` naming appears in
+Treyarch's own shipped muzzle flashes.
+
+**The change, two parts:**
+1. `viewFlashEffect` → `_view`, `worldFlashEffect` → `_world` on both defs. That is the convention
+   the Thundergun and the Tesla use, and it restores the exact flash the user approved at v1.99.7.
+2. The two snow elements copied **verbatim** out of `fx_freezegun_world.efx` into
+   `fx_freezegun_view.efx`, `fx_freezegun_ug_view.efx` and `fx_freezegun_ug_world.efx` (201 lines
+   each, byte for byte). Both already carry `drawWithViewModel`, so they render in the viewmodel
+   pass — the mechanism v1.99.7 proved. This also fixes the PaP gun, whose `_ug_world` had no snow
+   at all in stock's own authoring.
+
+**Why verbatim and not "scaled up to the file's convention":** the three freezegun effects the user
+has confirmed seeing — `fx_freezegun_shatter`, `fx_exp_freezegun_impact`, `fx_freezegun_crumple` —
+all use single-digit `spawnOneShot` on their large elements (1, 3, 4, 6 at size 145–370). The snow
+elements are `spawnOneShot 1` and `5` at size 200, spawned 300 units ahead with a 2 s life. Squarely
+inside the confirmed-visible range, so no tuning was needed and none was done.
+
+### 2. 🌟 B-TAC45 — the Tac-45, weapon 12, complete port
+
+User: *"i just realised that's the only weapon missing. Make sure all the required fx both visual and
+audio wise are working for it, no exceptions."*
+
+**The def is `fnp45`** — Treyarch shipped it under its development name, exactly like the XPR-50's
+`as50`. **It becomes dual-wield when Pack-a-Punched**, so three defs ship, not two.
+
+What went in, each verified in the built artefact rather than assumed:
+
+| part | state |
+|---|---|
+| 3 weapon defs, verbatim from BO2-Reimagined | in the deployed `mod.iwd` |
+| 4 xmodels, 71 xanims, `camo_fnp45`, `menu_mp_weapons_fnp45` | in the deployed `mod.ff`, all out of `common_mp.ff` which was **already** `--load`ed — no load-order change |
+| 54 sound aliases + 15 payloads | in `mod.all`; `wpn_fnp45_fire_plr`'s payload dumped back out at 176,750 bytes, and **no `Could not find data for sound`** — the exact check that solved the riser |
+| `ZMWEAPON_FNP45_UPGRADED` = "Toughguy & Crybaby" | in `mod.str`; the base name `WEAPON_FNP45` = "Tac-45" already resolves from `en_code_post_gfx_zm.ff` |
+| box registration, `.give tac45` row | `quality_of_life.gsc`, parse-checked |
+
+📝 **Nothing needed for attachments.** All three defs carry an *empty* `attachments` field — checked
+against mk48 / insas / crossbow / titus6, the four that already ship without a `pap_attach_qol.csv`
+row — so the v1.89.3 Pack-a-Punch freeze cannot apply. No `attachmentunique` either, same as stock's
+Mustang & Sally.
+
+📝 **No fx declarations needed:** all seven effects the defs name are present in all six zombies map
+fastfiles (or `common_zm`), checked one by one against an index of all 191 fastfiles.
+
+🟡 **Reported, not silently shipped:** the knife-bash whoosh is silent. `wpn_tac_knife_whoosh_npc/plr`
+exists in no zombies sound bank, and neither BO2-Reimagined nor stock's own `judge_zm` ships it.
+Adding it would also change the Executioner's melee audio, which is outside this request.
+
+### 3. 🌟 B-WHOSWHO2 — SOLVED. Five assets ship only in Die Rise.
+
+User: *"the audio fx are still working ... like the guy saying 'who's who' subtly while in the who's
+who downed state, all you gotta do is make sure the currently missing overlay fx ... are there."*
+
+🌟 **The audio still working is what killed every remaining script theory in one step.** Stock's
+`_zm_chugabud::activate_chugabud_effects_and_audio()` (:745-762) writes the visionset activation and
+**both** clientfields from the same four consecutive lines. Audible sting + looper ⇒ that function
+ran, `level.whos_who_client_setup` was set, `create_corpse` was 1, and
+`clientfield_whos_who_filter` was written in the same breath. The script half was correct all along.
+
+Measured against an index of all 191 fastfiles in `zone\all` plus `zone\english`, **every one of
+these lives in `zm_highrise.ff` and nowhere else**:
+
+```
+zm_highrise:3953   rawfile,      vision/zm_whos_who.vision
+zm_highrise:7445   techniqueset, sw4_2d_afterlife_q51e4w21
+zm_highrise:7446   image,        zm_whoswho_warpblur
+zm_highrise:7447   image,        zm_whoswho_mask
+zm_highrise:7448   material,     generic_filter_afterlife
+```
+
+Off Die Rise the client handed filter pass 5 a material that was not loaded and activated a
+visionset that did not exist. **Neither is an error in T6** — the pass draws nothing, the visionset
+is a no-op. Exactly the reported symptom.
+
+📝 *"It worked at some point"* is true and consistent: `zmqol_whoswho_enabled()` returns 0 on Die
+Rise because that map ships the perk itself, so there the overlay has always come from stock with
+all five assets present.
+
+**The fix:** `zone_source\mod_whoswho.zone`. No new `--load` — `zm_highrise.ff` was already in the
+list at line 332. The techset came along transitively (checked in the built `mod.ff`, not assumed).
+The two images were rebuilt from Treyarch's own source PNGs via `png2dds.ps1` → `ImageConverter` and
+land in `images\` as well, so their pixels travel — a fastfile carries only the header.
+
+🛑 **Pre-mortem, the one that mattered: does mod.ff owning a Die Rise asset break Die Rise?**
+Measured rather than feared — the built `mod.ff` **already shares 2,546 asset names with
+`zm_highrise.ff`** (and 1,801–2,422 with every other map) and boots on all of them. The recorded
+`Attempting to override asset` failure was a `soundbank`, a different asset class.
+
+### Verification done before hand-off
+
+All six files hash-identical source ↔ Plutonium folder. Inside the deployed `mod.iwd`: three fnp45
+defs, both freezegun defs pointing at `_view`/`_world`, both `_view.efx` carrying 2 snow elements and
+9 `drawWithViewModel` flags, both whoswho `.iwi`. Inside the deployed `mod.ff`: all five Who's Who
+assets and all four fnp45 xmodels + camo + material + anims (5,090 assets total). `gsc-tool` parsed
+both edited scripts.
+
+🛑 **Deployed, NOT yet verified in game — and three changes are in flight at once.**

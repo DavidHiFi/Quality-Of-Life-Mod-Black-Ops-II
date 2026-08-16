@@ -22,10 +22,13 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 
 **Weapons**
 - Every weapon on every map, plus Pack-a-Punch on the maps that lack it.
-- **Eleven MP and campaign guns in the mystery box**, each with its Pack-a-Punch upgrade:
+- **Twelve MP and campaign guns in the mystery box**, each with its Pack-a-Punch upgrade:
   SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50,
-  Titus-6. Real models, animations and camos — nothing is a stand-in. Audio is stock's own,
-  which for the Titus-6 means it is incomplete; see the known-issues table.
+  Titus-6, Tac-45. Real models, animations and camos — nothing is a stand-in. Audio is stock's
+  own, which for the Titus-6 means it is incomplete; see the known-issues table.
+  The Tac-45 becomes **dual-wield when Pack-a-Punched** ("Toughguy & Crybaby"), the same way
+  stock's Mustang & Sally does, and ships its full multiplayer sound set — fire, dry-fire,
+  distance, decay, LFE and the five reload foley cues.
 - **Three Black Ops 1 wonder weapons**: Thundergun, Wunderwaffe DG-2, Winter's Howl, each with
   its upgrade. They handle the special enemies properly — Brutus dies in two hits from any of
   them, helmet off on the first.
@@ -68,10 +71,10 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 | issue | detail |
 |---|---|
 | Origins and Mob can crash | `EXE_ERR_RELIABLE_CYCLED_OUT`, roughly 20–35 s into a match. Under active investigation. |
-| Winter's Howl firing effects | 🌟 ROOT CAUSE FOUND in v1.99.12 (deployed, not yet confirmed in game): the gun was pointed at the WRONG effect file. `fx_freezegun_view.efx` is a generic `wraith_*` template — distortion, lens flare, light flares — with **no snow material in it at all**. `fx_freezegun_world.efx` is the real Winter's Howl effect: named elements (`flash`, `freeze_trailer`, `distortion_aftermath_long`) and two 400-particle `gfx_fxt_env_snow_flakes` emitters — the freezing storm. It shipped in the mod, declared in the zone, referenced by nothing. Both weapon defs now point at it. Earlier attempts (v1.99.9, v1.99.10) tried to delete elements instead and were both reverted. |
-| Kill-feed icons missing | Kills with the eleven added guns show a blank icon in the feed. |
+| Winter's Howl firing effects | 🌟 v1.99.13 (deployed, not yet confirmed in game). v1.99.12 was wrong: it pointed **both** flash fields at `fx_freezegun_world`, whose `spawnOneShot` counts are 1–5 per element, so the first-person flash all but vanished. Muzzle flashes are played as **one-shots**, and `spawnOneShot` — not `spawnLooping` — is the count that matters; confirmed against Treyarch's own `fx_muz_*_gas_flash_1p` files. The assignment is now the convention both other wonder weapons use (`view` → `_view`, `world` → `_world`), which restores the flash the user approved in v1.99.7, and the two `gfx_fxt_env_snow_flakes` elements — the freezing storm, present only in the `_world` file — were copied **verbatim** into both `_view` files. They already carry `drawWithViewModel`, so they render in first person. |
+| Kill-feed icons missing | Kills with the twelve added guns show a blank icon in the feed. |
 | Titus-6 is partly silent | Its dart makes no in-flight sound and it reloads silently. Measured: BO2 ships only four Titus sounds and none is a reload, so the audio has to come from the animation notetracks. |
-| Who's Who has no screen overlay | The perk works and the clone spawns; the afterlife filter does not draw off Die Rise. |
+| Who's Who has no screen overlay | 🌟 SOLVED in v1.99.13 (deployed, not yet confirmed in game), and it was never a script bug. The audio still working was the clue: stock writes the audio and filter clientfields from the same four lines, so the whole effect path was running. **Five assets ship in `zm_highrise.ff` and nowhere else** — `material generic_filter_afterlife`, its two images `zm_whoswho_warpblur` / `zm_whoswho_mask`, its techset, and `rawfile vision/zm_whos_who.vision`. Off Die Rise the client asked for a filter material and a visionset that were not loaded, which in T6 is silent, not an error. All five now ship in `mod.ff`, the two images rebuilt from Treyarch's own source PNGs so their pixels travel too. |
 | Bouncing Betty is not included | Its viewmodel animations and HUD icon do not exist anywhere to ship. |
 
 ## For developers

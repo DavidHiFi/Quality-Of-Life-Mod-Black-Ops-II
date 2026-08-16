@@ -1,0 +1,77 @@
+// ============================================================================
+//  mod_whoswho.zone  -  the five assets Who's Who's DOWNED-STATE OVERLAY needs,
+//                       none of which ship outside Die Rise.
+//
+//  User, 2026-08-16: "the visual effect overlay screen effect was working at
+//  some point in the mod's development but recently stopped working correctly,
+//  the audio fx are still working after going down in who's who though ... all
+//  you gotta do is make sure the currently missing overlay fx while downed in
+//  the who's who perk state are there and not missing."
+//
+//  🌟 THE AUDIO WORKING IS WHAT NAILED THIS DOWN, AND IT RULED OUT EVERY SCRIPT
+//  THEORY IN ONE STEP. Stock's _zm_chugabud::activate_chugabud_effects_and_audio()
+//  (:745-762) writes BOTH clientfields from the same four lines:
+//
+//        maps\mp\_visionset_mgr::vsmgr_activate( "visionset", "zm_whos_who", self );
+//        self setclientfieldtoplayer( "clientfield_whos_who_audio",  1 );
+//        self setclientfieldtoplayer( "clientfield_whos_who_filter", 1 );
+//
+//  If the sting and the looper are audible then that function ran, the gate
+//  level.whos_who_client_setup was set, create_corpse was 1, and the filter
+//  clientfield was written in the same breath. So the script half is CORRECT and
+//  has been all along - what is missing is on the other side of the callback.
+//
+//  🛑 THE OVERLAY IS TWO SEPARATE EFFECTS AND BOTH OF THEM NEED A DIE RISE ASSET:
+//
+//    1. the screen FILTER - zm_expanded.csc::zmqol_whoswho_filter() calls
+//       _zm_perks::enable_filter_afterlife( player, 5 ), which hands filter pass
+//       5 the material `generic_filter_afterlife`.
+//    2. the COLOUR GRADE - _visionset_mgr applies the visionset named
+//       "zm_whos_who", which is the rawfile vision/zm_whos_who.vision.
+//
+//  Measured across an index of all 191 fastfiles in zone\all plus zone\english,
+//  generated with Unlinker --list. Every one of these appears in EXACTLY ONE
+//  fastfile, zm_highrise.ff:
+//
+//      zm_highrise.txt:3953   rawfile,     vision/zm_whos_who.vision
+//      zm_highrise.txt:7445   techniqueset,sw4_2d_afterlife_q51e4w21
+//      zm_highrise.txt:7446   image,       zm_whoswho_warpblur
+//      zm_highrise.txt:7447   image,       zm_whoswho_mask
+//      zm_highrise.txt:7448   material,    generic_filter_afterlife
+//
+//  So on TranZit / Diner / Nuketown / Origins the client asked for a material
+//  and a visionset that are not loaded. Neither of those is an error in T6 - the
+//  filter pass draws nothing and the visionset is a no-op - which is exactly the
+//  reported symptom: audio yes, picture no.
+//
+//  📝 "It worked at some point" is true and consistent: zmqol_whoswho_enabled()
+//  returns 0 on zm_highrise because that map ships the perk itself, so on Die
+//  Rise the overlay has always come from stock with all five assets present.
+//  Every other map has never had them.
+//
+//  🛑 NO NEW --load IS NEEDED. build_ff.bat already loads zm_highrise.ff (line
+//  332), and it sits AFTER the zombies commons, so first-load-wins keeps every
+//  shared asset name on its zombies copy. Nothing about the load order changes.
+//
+//  📝 THE TECHSET IS DELIBERATELY NOT LISTED. The Linker resolves a material's
+//  techniqueset transitively out of the loaded donor; the built mod.ff is
+//  checked for sw4_2d_afterlife_q51e4w21 after every link rather than trusting
+//  that. If it is ever absent, add it here.
+//
+//  📝 THE TWO IMAGES CARRY THEIR OWN PIXELS. A T6 fastfile stores only an image
+//  HEADER - the pixels come from a loose .iwi - so both were rebuilt from the
+//  Treyarch source PNGs in the workspace
+//  (BlackOps3Shaders\source_data\shader_templates\_images\, which is where the
+//  BO2-era zm_whoswho_* sources live) through png2dds.ps1 -> ImageConverter,
+//  and land in zone_assets\images\ so build.bat packs them into mod.iwd.
+//  Dimensions cross-checked against the real BO2 payload: the dlczm1 IPAK dump's
+//  zm_whoswho_mask.dds is 32,896 bytes = 256x256 DXT1 + header, and the PNG is
+//  256x256. Same asset.
+// ============================================================================
+
+image,zm_whoswho_warpblur
+image,zm_whoswho_mask
+
+material,generic_filter_afterlife
+
+rawfile,vision/zm_whos_who.vision
