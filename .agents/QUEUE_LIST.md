@@ -137,12 +137,10 @@ Bugs filed twice under different IDs are ONE line. Current aliases:
 
 Short enough to stay out of the list, useful enough to keep somewhere:
 
-- **1–5** are built and deployed, waiting on a boot. Versions: 1 v1.99.1 · 2 v1.99.0 ·
-  3–4 v1.98.0 · 5 v1.97.0.
-- **14** — the Diner half of the Semtex wall-buy already shipped in v1.68; this is the Bus Depot one,
-  next to the added Speed Cola.
-- **15** — left wall as you come in the outside door.
-- **21** — measured redundant 2026-08-16.
+- **Built and deployed, waiting on a boot:** 1 (v1.98.0) · 2 (v1.97.0) · 4's wind fix (v1.99.9).
+- **4** — the muzzle **flash** half is confirmed in game at v1.99.7; only the wind is outstanding.
+- **9** — left wall as you come in the outside door.
+- **14** — measured redundant 2026-08-16.
 
 ### How to keep this file honest
 
