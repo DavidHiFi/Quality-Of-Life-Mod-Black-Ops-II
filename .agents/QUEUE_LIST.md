@@ -13,34 +13,33 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - SYNCED TO: checkpoint **54** · mod version **1.99.5**
 - LAST VERIFIED: 2026-08-16 — every line below was checked against the checkpoints, the bottom of
   `QUEUE.md`, or the source tree on this date.
-- BUILT, AWAITING THE USER'S BOOT: **1–6** — bookkeeping for the closing "do this now" line only.
+- BUILT, AWAITING THE USER'S BOOT: **1–5** — bookkeeping for the closing "do this now" line only.
   Built ≠ done, so these are **not** struck through.
 
 <!-- LIST -->
 
-1. ~~**Power-up timers** — countdown above the power-up icons, Death Machine included~~
-2. **Bleedout bar toggle**
-3. **Origins Death Machine ammo counter**
-4. **Who's Who description** — the joke line removed
-5. **Wonder-weapon box odds reversed** (`zmqol_box_ww_rarity`)
-6. **Wunderfizz first location is random** by default
-7. **Zombie riser / dig-out sound is silent** — Diner, Town, Origins
-8. **Winter's Howl has no firing fx**
-9. **Titus-6 has no reload sound**
-10. **Who's Who has no screen fx on a down** — Diner survival
-11. **Arms and gun vanish when a horde gets close** — Origins, round 100+
-12. **`mod.ff` runs a pre-merge copy of the mod's own script**, on every map
-13. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
-14. **Origins / Mob `EXE_ERR_RELIABLE_CYCLED_OUT` crash** — needs you to boot Origins with the mod OFF
-15. **Semtex wall-buy on Bus Depot survival**
-16. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
-17. **GAME-tab toggle for the 4-perk limit**
-18. **GAME-tab toggle for the backspeed fix**
-19. **Three Plutonium rows missing from CONTROLS → LOOK** — not this mod's code
-20. **Prone at Mob's Electric Cherry machine gives no +100**
-21. **Death Machine pickup voice line** — the BO1 announcer callout
-22. **Drop `deathmachine_zm.all.sabl`**
-23. **T5 wonder weapons** — reverted at v1.56.x, work is in git and reappliable
+1. **Bleedout bar toggle**
+2. **Origins Death Machine ammo counter**
+3. **Who's Who description** — the joke line removed
+4. **Wonder-weapon box odds reversed** (`zmqol_box_ww_rarity`)
+5. **Wunderfizz first location is random** by default
+6. **Zombie riser / dig-out sound is silent** — Diner, Town, Origins
+7. **Winter's Howl has no firing fx**
+8. **Titus-6 has no reload sound**
+9. **Who's Who has no screen fx on a down** — Diner survival
+10. **Arms and gun vanish when a horde gets close** — Origins, round 100+
+11. **`mod.ff` runs a pre-merge copy of the mod's own script**, on every map
+12. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
+13. **Origins / Mob `EXE_ERR_RELIABLE_CYCLED_OUT` crash** — needs you to boot Origins with the mod OFF
+14. **Semtex wall-buy on Bus Depot survival**
+15. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
+16. **GAME-tab toggle for the 4-perk limit**
+17. **GAME-tab toggle for the backspeed fix**
+18. **Three Plutonium rows missing from CONTROLS → LOOK** — not this mod's code
+19. **Prone at Mob's Electric Cherry machine gives no +100**
+20. **Death Machine pickup voice line** — the BO1 announcer callout
+21. **Drop `deathmachine_zm.all.sabl`**
+22. **T5 wonder weapons** — reverted at v1.56.x, work is in git and reappliable
 
 <!-- /LIST -->
 
@@ -76,6 +75,17 @@ give a per-item reason and none was inferred; the old number is kept so older no
 `8→7` · `9→8` · `10→9` · `11→10` · `12→11` · `13→12` · `14→13` · `15→14` · `16→15` · `17→16` ·
 `18→17` · `19→18` · `21→19` · `23→20` · `25→21` · `31→22` · `33→23`. Lines 1–6 did not move.
 
+### Closed 2026-08-16 (later the same day) — confirmed in game, then taken off the list
+
+| old # | old ID | item |
+|---|---|---|
+| 1 | — | **Power-up timers** — countdown above the power-up icons, Death Machine included. Confirmed in game at v1.99.3 (*"ok it works now"*); the user's own icon artwork shipped at v1.99.4. Struck through first, then removed on their instruction |
+
+**Renumbering that came with it:** every line moved up by one —
+`2→1` · `3→2` · `4→3` · `5→4` · `6→5` · `7→6` · `8→7` · `9→8` · `10→9` · `11→10` · `12→11` ·
+`13→12` · `14→13` · `15→14` · `16→15` · `17→16` · `18→17` · `19→18` · `20→19` · `21→20` ·
+`22→21` · `23→22`.
+
 ---
 
 ## Bookkeeping — not printed by `/queue`
@@ -84,9 +94,9 @@ give a per-item reason and none was inferred; the old number is kept so older no
 
 Kept here instead of on the lines so the printed list stays clean.
 
-`6` B-WF · `7` B-RISERSOUND · `8` B-WHOWL · `9` B-TITUSRELOAD · `10` B-WHOSWHO2 · `11` B-VIEWMODEL ·
-`12` B-STALEGSC · `13` B-CHARACTER · `15` T4 · `16` T5 · `17` B-PERKLIMIT · `18` B-BACKSPEED ·
-`19` B-CONTROLS · `20` B-CHERRY · `21` §2.9 · `22` B-DMBANK
+`5` B-WF · `6` B-RISERSOUND · `7` B-WHOWL · `8` B-TITUSRELOAD · `9` B-WHOSWHO2 · `10` B-VIEWMODEL ·
+`11` B-STALEGSC · `12` B-CHARACTER · `14` T4 · `15` T5 · `16` B-PERKLIMIT · `17` B-BACKSPEED ·
+`18` B-CONTROLS · `19` B-CHERRY · `20` §2.9 · `21` B-DMBANK
 
 Bugs filed twice under different IDs are ONE line. Current aliases:
 `B-DIG` / `B-RISERSND` / `B-TOWN` = `B-RISERSOUND` · `B-WFHOWL` = `B-WHOWL` ·
@@ -96,12 +106,12 @@ Bugs filed twice under different IDs are ONE line. Current aliases:
 
 Short enough to stay out of the list, useful enough to keep somewhere:
 
-- **1–6** are built and deployed, waiting on a boot. Versions: 1–2 v1.99.1 · 3 v1.99.0 ·
-  4–5 v1.98.0 · 6 v1.97.0.
-- **15** — the Diner half of the Semtex wall-buy already shipped in v1.68; this is the Bus Depot one,
+- **1–5** are built and deployed, waiting on a boot. Versions: 1 v1.99.1 · 2 v1.99.0 ·
+  3–4 v1.98.0 · 5 v1.97.0.
+- **14** — the Diner half of the Semtex wall-buy already shipped in v1.68; this is the Bus Depot one,
   next to the added Speed Cola.
-- **16** — left wall as you come in the outside door.
-- **22** — measured redundant 2026-08-16.
+- **15** — left wall as you come in the outside door.
+- **21** — measured redundant 2026-08-16.
 
 ### How to keep this file honest
 

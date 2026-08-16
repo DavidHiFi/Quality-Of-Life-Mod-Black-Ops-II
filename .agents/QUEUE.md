@@ -5476,3 +5476,59 @@ are both attested in stock `.csc` · printing a vector with `"" + self.origin` h
 · `build_ff.bat` reports `Loaded script "scripts/zm/zm_expanded.csc" (src: disk)`, and the string
 `RISER PROBE` was confirmed **inside the deployed `mod.ff`** by unlinking it back out
 (`--include-assets script`; note the fastfile must keep the filename `mod.ff` or OAT cannot read it).
+
+---
+
+## 2026-08-16 — queue #1 (bleedout bar): AUDITED, ALREADY COMPLETE, NOTHING BUILT
+
+The user asked to "get to adding the bleedout bar". **It is already in the mod, and so is its
+toggle.** No code was written this round; what follows is the measurement that says so, because
+"it's already done" is exactly the kind of claim this project does not accept unverified.
+
+### The bar itself — shipped long ago, and it RAN in the last boot
+
+`scripts\zm\bleedout_bar.gsc` (imported from Nathan3197's mod) first landed in commit `16cf903`
+*"seven chat commands and the bleed-out bar"*. The 08:11 boot's `console_zm.log` carries all three
+of the lines that prove it loads and runs:
+
+    1041  Script source "scripts/zm/bleedout_bar.gsc" loaded successfully from raw
+    1210  scripts/zm/bleedout_bar.gsc (raw (source)): 0x9A79F99F
+    4428  GSC Executed "scripts/zm/bleedout_bar::init()"
+
+Its two data dependencies are **stock, not invented** — checked against the gsc-dump, not assumed:
+`self.bleedout_time` is written by `_zm_laststand::laststand_bleedout` (`:395`, `:399`, `:407`) and
+the `"player_downed"` notify is raised at `_zm_laststand.gsc:215` and `:228`.
+
+### The toggle — v1.99.1, commit `b02be4a`, all three halves present
+
+| half | where | verified |
+|---|---|---|
+| dvar | `qol_options.gsc:87` — `qol_opt_dvar( "hud_bleedout_bar", "1" )` | read |
+| gate | `bleedout_bar.gsc:133` — at the top of `bleedout_bar()`, the one function that creates both hud elements, so OFF allocates nothing | read |
+| menu row | `optionssettings.lua:857` — `"BLEEDOUT BAR"`, 9th of 12 rows in the HUD tab | read |
+
+Deployed and byte-checked, not merely built:
+
+- `mod.iwd` in `…\storage\t6\mods\zm_qol\` contains all three files, each with the
+  `hud_bleedout_bar` symbol inside it.
+- the LUI shadow copy at `…\storage\t6\raw\ui\t6\menus\optionssettings.lua` is **SHA256-identical**
+  to source (`8bc9726134fe…`), so nothing stale is shadowing the row.
+
+### Pre-mortem — four ways it could still fail on the next boot, each checked offline
+
+1. **The HUD tab overflows and the row draws over the ESC prompt.** Checked: 12 rows, no spacers,
+   against the file's own measured 14.5-row-pitch budget (taken from stock's GRAPHICS tab). Inside.
+2. **The row renders but toggles nothing.** It is built by `CoD.OptionsSettings.QolToggle` →
+   `addDvarLeftRightSelector`, byte-for-byte the same helper as **HEALTH BAR**, which is on the
+   confirmed-working list; and the GSC reads it server-side with `getdvarintdefault`, the same way
+   `hud_health_bar` is read at `quality_of_life.gsc:1223`. Same mechanism end to end.
+3. **Toggling it OFF mid-down does nothing until you get up.** True, by design and documented at
+   `bleedout_bar.gsc:129` — the gate runs when the bar is created. Self-corrects within one down.
+   Matches the `hud_perk_popup` precedent.
+4. **The setting does not survive a restart.** 🟡 **Suspected, NOT proven.** No `hud_*` row appears
+   in `players\plutonium_zm.cfg`, so these are plain (non-`seta`) dvars and likely reset to their
+   defaults each launch. **This is uniform across every HUD row, not specific to this one**, so it
+   is not a defect of #1 — it is a separate question, and it is not being worked on. The test is
+   trivial: flip a row off, quit, relaunch, look.
+
+**Verdict: nothing to add. Queue #1 is built, deployed and unbooted — it needs the user, not code.**
