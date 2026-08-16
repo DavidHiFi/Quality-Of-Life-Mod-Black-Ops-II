@@ -18,28 +18,22 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
   (*"the winters howl now has the correct shot fx"*). Still open only for the **wind**: v1.99.9
   disabled the distortion element, which a block diff proved was the Thundergun's own, scaled down.
   Unbooted.
-- **3 Riser sound** — `.testsound` (v1.99.8) **answered it**: `zmb_zombie_spawn` produces no audio
-  even 2D at point blank, while a matched control alias is audible in the same second. Next step is
-  the payload bytes, not another theory.
-- **5 Titus-6 reload** — the earlier "not possible" verdict is **RETRACTED**; it is a bank job and is
+- **3 Titus-6 reload** — the earlier "not possible" verdict is **RETRACTED**; it is a bank job and is
   scoped in `QUEUE.md`. The **box pickup/raise sound** belongs to the same pass.
 
 <!-- LIST -->
 
 1. **Who's Who description** — the joke line removed
 2. **Wunderfizz first location is random** by default
-3. **Zombie riser / dig-out sound is silent** — Diner, Town, Origins
-4. **Winter's Howl has no firing fx**
-5. **Titus-6 has no reload sound**
-6. **Who's Who has no screen fx on a down** — Diner survival
-7. **`mod.ff` runs a pre-merge copy of the mod's own script**, on every map
-8. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
-9. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
-10. **GAME-tab toggle for the 4-perk limit**
-11. **GAME-tab toggle for the backspeed fix**
-12. **Prone at Mob's Electric Cherry machine gives no +100**
-13. **Death Machine pickup voice line** — the BO1 announcer callout
-14. **Drop `deathmachine_zm.all.sabl`**
+3. **Titus-6 has no reload sound**
+4. **`mod.ff` runs a pre-merge copy of the mod's own script**, on every map
+5. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
+6. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
+7. **GAME-tab toggle for the 4-perk limit**
+8. **GAME-tab toggle for the backspeed fix**
+9. **Prone at Mob's Electric Cherry machine gives no +100**
+10. **Death Machine pickup voice line** — the BO1 announcer callout
+11. **Drop `deathmachine_zm.all.sabl`**
 
 <!-- /LIST -->
 
@@ -85,6 +79,27 @@ give a per-item reason and none was inferred; the old number is kept so older no
 `2→1` · `3→2` · `4→3` · `5→4` · `6→5` · `7→6` · `8→7` · `9→8` · `10→9` · `11→10` · `12→11` ·
 `13→12` · `14→13` · `15→14` · `16→15` · `17→16` · `18→17` · `19→18` · `20→19` · `21→20` ·
 `22→21` · `23→22`.
+
+### Closed 2026-08-16 (fourth pass) — Who's Who, plus two that were confirmed earlier and never taken off
+
+*"whos who is done remove it from the queue, it's fine as is im happy with it."*
+
+| old # | item |
+|---|---|
+| 6 | **Who's Who has no screen fx on a down** — closed **by the user's decision**, v1.99.20. The log proves the grade is applied client-side (`CLIENT whoswho: vision -> zm_whos_who (was 'zm_transit')`); see checkpoint 67 for the one thing about it that is still unexplained and for the rest of the perk's audit, which is complete |
+| 3 | **Zombie riser / dig-out sound** — confirmed in game at checkpoint 60 and never removed from the list |
+| 4 | **Winter's Howl firing fx** — confirmed in game at checkpoint 63 (*"the fx are correct"*) and never removed from the list |
+
+🛑 **3 and 4 were already closed in the checkpoints; this pass only corrects the list to match.** They
+were not re-tested and must not be re-opened.
+
+**Renumbering that came with it:**
+`1→1` · `2→2` · `5→3` · `7→4` · `8→5` · `9→6` · `10→7` · `11→8` · `12→9` · `13→10` · `14→11`.
+Old 3, 4 and 6 are gone.
+
+📝 **Item 1, "Who's Who description", is deliberately still on the list.** It is a separate entry
+about the perk's description text (built v1.98.0, never booted), not about the screen fx. Say the
+word and it comes off too.
 
 ### Closed 2026-08-16 (third pass) — the user removed eight more
 
