@@ -6043,3 +6043,52 @@ Parse-checked with gsc-tool. Verified **inside the deployed `mod.iwd`**: both `.
 README known-issues row rewritten — it still carried the disproven def0 theory.
 
 🛑 **Deployed, NOT yet verified in game.**
+
+---
+
+## v1.99.11 — 2026-08-16. Winter's Howl restored to the confirmed-good state; RISER SOUND ROOT-CAUSED AND FIXED.
+
+### 🛑 B-WHOWL — v1.99.10 was wrong too. The cloud IS the frost burst.
+
+User: *"now there's just no effects at all, you had it working a second ago."* Log confirms v1.99.10
+ran (new script hash `0x0D9DDC81`), no errors, every fx loaded — so removing
+`fx_freezegun_smoke_cloud` really did empty the gun. **The muzzle-flash elements alone are not
+visible in practice; that world cloud is the white frost burst.** The `playfx` at
+`_zm_weap_freezegun.gsc:151` is restored with a do-not-remove note. Combined with the v1.99.10
+revert of `def0`, the gun is now byte-for-byte the **v1.99.7** state the user confirmed working.
+
+📝 **Two wrong removals in a row, from the same root error:** treating a structural resemblance to a
+Thundergun effect as evidence the element is unwanted. It never was. Both times the "suspicious"
+element turned out to be the thing the user liked. **Stop using block diffs to decide what to
+delete.**
+
+### 🌟 B-RISERSOUND — SOLVED. The payload data does not ship.
+
+`.testsound` proved the alias makes no sound at point blank. The reason, measured with OAT:
+
+| | |
+|---|---|
+| `zmb_zombie_spawn` | → `spawn\dirt\dirt_00/01.**LN55**.pc.snd`, `Storage=loaded` |
+| that data | **ships in NO bank** — `Could not find data for sound` in *every* bank defining the alias (`zmb_survival_transit.all`, `zmb_tomb.all`) |
+| the same audio | **does** ship, `Storage=streamed`, as `dirt_00/01.**SN50**.pc.snd.flac` (139 KB / 176 KB) under Origins' `evt_zombie_dig_dirt` |
+
+So the alias resolves, the engine plays it, and there is nothing behind it. Every earlier theory —
+origin, distance curve, bank load, mix, shadowing — was eliminated by `.testsound`; this is what was
+left, and it is a stock defect, not a mod bug.
+
+**The fix**, by the `soundbank\README.md` pipeline: the two `.flac` payloads copied into
+`sound\evt\zombie_global\spawn\dirt\`, and `zmqol_zombie_riser` added to
+`mod.all.aliases.additions.csv` as **`zmb_zombie_spawn`'s own row verbatim** — `bus_hdrfx`,
+`grp_hdrfx`, `snp_hdrfx`, VolMin/Max 88, DistMin 250, DistMaxDry 1000, DistMaxWet 1125,
+`nonlooping`, `3d` — with only `Name`, `FileSource` and `Storage` changed. No invented field values.
+`Secondary` left empty so no transitive closure is needed. `zm_expanded.csc` plays it instead.
+
+🟡 **`zmb_zombie_spawn_snow`** (the snow-map branch) is untouched and probably has the same defect.
+Not fixed blind — it needs the same OAT check first.
+
+Built `build_ff.bat` → `build.bat`. Verified: alias ×2 in the generated table, both payloads staged,
+`.csc` staged, `mod.ff`/`mod.all.sabl`/`mod.all.sabs` hash-identical source↔deployed, freezegun
+`live-playfx=1` inside the deployed `mod.iwd`, `mod.json` 1.99.11. README rows for both issues
+rewritten.
+
+🛑 **Deployed, NOT yet verified in game.**

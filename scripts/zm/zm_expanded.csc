@@ -1828,7 +1828,17 @@ zmqol_handle_zombie_risers( localclientnum, oldval, newval, bnewent, binitialsna
 			         "  bnewent=" + bnewent + "  binitialsnap=" + binitialsnap );
 		}
 
-		str_snd = "zmb_zombie_spawn";
+		//  v1.99.11 - ROOT CAUSE FOUND, and it is not the wiring.
+		//  Stock "zmb_zombie_spawn" names payloads dirt_00/dirt_01 ".LN55.pc.snd" with
+		//  Storage=loaded, and that audio data ships in NO bank - OAT reports
+		//  'Could not find data for sound' for both, in every bank that defines the
+		//  alias (zmb_survival_transit.all and zmb_tomb.all). The alias resolves and
+		//  plays silence, which is exactly what .testsound measured in v1.99.8.
+		//  The SAME dirt audio does ship, STREAMED, as dirt_00/01 ".SN50.pc.snd.flac"
+		//  under Origins' own alias evt_zombie_dig_dirt. zmqol_zombie_riser is
+		//  zmb_zombie_spawn's own row verbatim - bus_hdrfx, VolMin/Max 88, DistMin 250,
+		//  DistMaxDry 1000 - repointed at that working payload, shipped in mod.all.
+		str_snd = "zmqol_zombie_riser";
 
 		if ( isdefined( level.riser_type ) && level.riser_type == "snow" )
 			str_snd = "zmb_zombie_spawn_snow";
