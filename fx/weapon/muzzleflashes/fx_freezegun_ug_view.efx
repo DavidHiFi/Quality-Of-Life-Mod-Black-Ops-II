@@ -8,8 +8,8 @@ iwfx 2
 	fadeInRange 0.000000 0.000000;
 	fadeOutRange 0.000000 0.000000;
 	spawnFrustumCullRadius 300.000000;
-	spawnLooping 50 3;
-	spawnOneShot 50 3;
+	spawnLooping 0 0;
+	spawnOneShot 0 0;
 	spawnDelayMsec 0 0;
 	lifeSpanMsec 100 0;
 	spawnOrgX 50.000000 0.000000;

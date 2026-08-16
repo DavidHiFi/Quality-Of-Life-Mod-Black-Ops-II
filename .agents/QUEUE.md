@@ -5864,3 +5864,96 @@ Who's Who and no Zombie Blood) — but with the collision dead it now separates 
 *something map-specific* rather than confirming Zombie Blood.
 
 🛑 Nothing shipped for this. Two unverified changes (#6, #7) are already in flight.
+
+---
+
+## v1.99.9 — 2026-08-16. The Winter's Howl "wind" WAS the Thundergun's element. Measured, and removed.
+
+### ✅ The v1.99.7 flag fix WORKED — user confirmed
+
+*"the winters howl now has the correct shot fx"*, with a screenshot showing the white frost burst.
+So `drawWithViewModel` was the gate. **That mechanism is now proven in game, not just correlated.**
+
+### 🌟 …and they were right about the wind too. The proof is a block diff.
+
+*"the wind effect is still there and that's the effect the thundergun uses, so make sure the winters
+howl is using only its effects not other weapons' fx."*
+
+`fx_freezegun_view.efx`'s `wraith_looping_def0` vs `fx_thundergun_view.efx`'s `wraith_looping_def1`:
+
+| | |
+|---|---|
+| both blocks | **195 lines** |
+| differing lines | **2** — `sizeGraph0` / `sizeGraph1`, `100` vs `600` |
+| everything else | material `gfx_fxt_fx_distortion_heat`, 50 particles, same ranges, same lifetime — identical |
+
+**That is the Thundergun's distortion element scaled down, not an independently authored effect.**
+It is also the only element that was already flagged `drawWithViewModel` before v1.99.7, which is why
+it was the one thing visible when the real flash was not — and why the user called the bug "weird
+wind effects" both before and after.
+
+📝 Control for the method: the same diff on `wraith_looping_def3` (`gfx_fxt_light_flare_star`) vs the
+thundergun's ring element gives **73** differing lines. It is not matching everything.
+
+### The change
+
+`spawnLooping 0 0` / `spawnOneShot 0 0` on `wraith_looping_def0` in both freezegun view files,
+**−2 bytes each**. That is the file's OWN idiom for a disabled element — `wraith_oneshot_def1/2/3`
+already ship that way — so nothing structural moves: 11 elements, braces 428/428, LF,
+`drawWithViewModel` still ×7. Reversible by restoring `50 3`.
+
+🟡 **FOUND AND DELIBERATELY LEFT — the user's call.** `wraith_looping_def1`
+(`gfx_fxt_lensflare_diamond`) is **also** a near-copy of the thundergun's: 195 lines, **3** differing.
+Not disabled, because it is a small bright glint that reads as part of the flash they just approved,
+and they named the *wind* specifically. Removing more than was reported risks degrading a result
+they are happy with.
+
+### 🛑 B-TITUSRELOAD — MY "NOT POSSIBLE" VERDICT WAS WRONG. Retracted.
+
+**The user is right and the error is mine.** I searched the audio dumper's identifier files for
+payload paths containing `titus`, found four, and concluded the audio does not exist. **That is the
+exact mistake this project already wrote down for the riser bug** — `zmb_zombie_spawn`'s payload is
+`spawn\dirt\dirt_00`, with no "riser" anywhere in the path. A payload's filename says nothing about
+which alias uses it. I recorded that lesson and repeated it a day later.
+
+**What is actually true**, measured against `BO2-Reimagined\soundbank\mod.all.aliases.csv`:
+Reimagined defines **16** `*titus*` aliases, two of which are exactly this pattern —
+`fly_titus_slide_back` and `fly_titus_slide_forward` both point at the **toggle-flip** payloads
+(`titus_flip_up` / `titus_flip_down`). Treyarch does the same: every `wpn_titus_*_pap` row points at
+the shared `raw\sound\wpn\pap\pap_shot_st` payload.
+
+🌟 **Mapping a missing alias onto an existing stock payload is Treyarch's own convention and
+Reimagined's — not a "lookalike".** [[t6-soundbank-facts]] already says this about the `_pap` family.
+
+▶️ **THE REAL JOB (not started — a bank rebuild, its own round):** define `fly_titus_bolt_back`,
+`fly_titus_bolt_release`, `fly_titus_futz`, `fly_titus_mag_in`, `fly_titus_mag_out`, `fly_titus_tap`
+and `fly_tar21_futz` in `mod.all.aliases.additions.csv` against suitable stock payloads, take the
+transitive closure over the `Secondary` column, rebuild. **Same pass must cover the user's second
+report — the pickup/raise sound when the gun comes out of the box** — and audit every ported weapon
+for the same class of gap.
+
+### 🔴 B-RISERSOUND — `.testsound` ANSWERED: the alias produces NO AUDIO
+
+All three plays are in the log:
+
+```
+[zm_qol] TESTSOUND 1/3  2D       'zmb_zombie_spawn'
+[zm_qol] TESTSOUND 2/3  3D@you   'zmb_zombie_spawn'
+[zm_qol] TESTSOUND 3/3  CONTROL  'zmb_powerup_grabbed'
+```
+
+User: *"i heard some other effect entirely unrelated to the dirt sort of sound."* That is the
+**control**, and only the control.
+
+🌟 **`zmb_zombie_spawn` is silent even played 2D at point blank with no distance model at all, while
+a matched alias from the same bank, same bus, same `Storage` and the same payload `.sabl` is audible
+in the same second.** Every explanation involving the riser wiring, the origin, the distance curve or
+the mix is now dead. The fault is alias→payload resolution itself.
+
+📝 The riser probe fired again this session at **dist=324**. Origin: dead twice over.
+
+▶️ **NEXT:** the payload bytes. Both hashes sit in `zmb_common.all.sabl`'s index, so the entry
+exists; what is unverified is whether the data behind it is real. Extract `dirt_00`/`dirt_01` with
+the audio dumper, check length and format, and compare against `powerup\grab\grab_00` from the same
+bank. If the entry is empty or malformed, ship the sound in `mod.all` under a mod-private alias and
+play that instead of the stock name.
