@@ -451,9 +451,53 @@ zmqol_whoswho_filter( localclientnum, oldval, newval, bnewent, binitialsnap, fie
         return;
 
     if ( newval == 1 )
+    {
+        if ( !isdefined( level.zmqol_whoswho_saved_vision ) )
+            level.zmqol_whoswho_saved_vision = [];
+
+        level.zmqol_whoswho_saved_vision[localclientnum] = getvisionsetnaked( localclientnum );
+        visionsetnaked( localclientnum, "zm_whos_who", 0.5 );
+        println( "[zm_qol] CLIENT whoswho: vision -> zm_whos_who (was '" + level.zmqol_whoswho_saved_vision[localclientnum] + "')" );
         clientscripts\mp\zombies\_zm_perks::enable_filter_afterlife( player, 5 );
+    }
     else
+    {
         clientscripts\mp\zombies\_zm_perks::disable_filter_afterlife( player, 5 );
+        str_restore = undefined;
+
+        if ( isdefined( level.zmqol_whoswho_saved_vision ) )
+            str_restore = level.zmqol_whoswho_saved_vision[localclientnum];
+
+        if ( !isdefined( str_restore ) || str_restore == "" || str_restore == "undefined" )
+            str_restore = getdvar( "mapname" );
+
+        visionsetnaked( localclientnum, str_restore, 0.5 );
+        println( "[zm_qol] CLIENT whoswho: filter OFF, vision -> '" + str_restore + "'" );
+    }
+}
+
+zmqol_whoswho_visionset_probe()
+{
+    wait 1;
+
+    if ( !isdefined( level.vsmgr ) || !isdefined( level.vsmgr["visionset"] ) )
+    {
+        println( "[zm_qol] CLIENT whoswho visionset: no manager" );
+        return;
+    }
+
+    if ( !isdefined( level.vsmgr["visionset"].info["zm_whos_who"] ) )
+    {
+        println( "[zm_qol] CLIENT whoswho visionset: NOT REGISTERED - total visionsets " + level.vsmgr["visionset"].info.size );
+        return;
+    }
+
+    str_slot = "UNASSIGNED";
+
+    if ( isdefined( level.vsmgr["visionset"].info["zm_whos_who"].slot_index ) )
+        str_slot = "" + level.vsmgr["visionset"].info["zm_whos_who"].slot_index;
+
+    println( "[zm_qol] CLIENT whoswho visionset: registered, slot_index " + str_slot + ", total visionsets " + level.vsmgr["visionset"].info.size );
 }
 
 zmqol_whoswho_audio( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
@@ -933,7 +977,10 @@ perks_register_clientfield()
     }
 
     if ( zmqol_whoswho_enabled() && isdefined( level.vsmgr ) && isdefined( level.vsmgr["visionset"] ) )
+    {
         clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "zm_whos_who", 5000, 1, "zm_whos_who", "zm_whos_who" );
+        level thread zmqol_whoswho_visionset_probe();
+    }
 
     zmqol_zb_register();
     level thread perk_init_code_callbacks();

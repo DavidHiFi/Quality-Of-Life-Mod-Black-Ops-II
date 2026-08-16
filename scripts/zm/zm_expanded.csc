@@ -891,7 +891,49 @@ zmqol_enable_whoswho()
 //  Line-for-line clientscripts\mp\zm_highrise_amb::whoswhofilter (:152-164),
 //  rewritten here only because that file is map-specific (see above). Filter
 //  slot 5 is Die Rise's own choice and is kept.
-// ============================================================================
+//
+//  ============================================================================
+//  🌟 v1.99.20 - AND THE COLOUR GRADE IS APPLIED FROM HERE TOO, DIRECTLY.
+//
+//  v1.99.19 handed the grade back to stock's visionset manager and the screen
+//  still did not go red. The server-side probe it shipped says the server half
+//  is perfect:
+//        [zm_qol] whoswho visionset: registered, slot_index 3, total visionsets 4
+//  and the session's dvar dump says night_mode was "0" throughout, so nothing
+//  was overriding the renderer either. The server picked slot 3 and the screen
+//  did not change - which puts the fault in the ROUTING between the two sides.
+//
+//  🛑 AND THE ROUTING CAN BREAK IN COMPLETE SILENCE. I claimed last round that a
+//  clean boot proves both sides registered the same visionsets, because
+//  finalize_type_clientfields() derives visionset_slot's width from the count.
+//  THAT INFERENCE IS WRONG and this is the counter-example:
+//        getminbitcountfornum( 3 - 1 ) = 2 bits      <- client, 3 visionsets
+//        getminbitcountfornum( 4 - 1 ) = 2 bits      <- server, 4 visionsets
+//  Identical width, no mismatch, no error - and the server then sends slot 3 to
+//  a client whose sorted list stops at index 2. get_info() returns undefined and
+//  nothing is applied, forever, without a single line in any log.
+//  The client can drop a registration silently too: _visionset_mgr.csc's
+//  validate_info() returns false whenever version > getserverhighestclientfieldversion(),
+//  and vsmgr_register_visionset_info() discards that false without a word.
+//
+//  THE FIX IS TO STOP DEPENDING ON THE ROUTING. visionsetnaked() applies a
+//  .vision file to a local client directly - it is what the manager itself ends
+//  up calling (_visionset_mgr.csc:375, and visionsetnakedlerp in
+//  visionset_update_cb) - and the save/restore shape here is stock's own, from
+//  clientscripts\mp\_proximity_grenade.csc:170-189:
+//        saved = getvisionsetnaked( localclientnum );
+//        visionsetnaked( localclientnum, "taser_mine_shock", transition );
+//        ... visionsetnaked( localclientnum, saved, transition );
+//  Same asset, same engine call, no slot table in between.
+//
+//  📝 THIS IS THE RIGHT CALLBACK TO DO IT FROM, not a convenience. Stock writes
+//  clientfield_whos_who_filter and activates the visionset from the SAME four
+//  consecutive lines of _zm_chugabud::activate_chugabud_effects_and_audio()
+//  (:753-760), so the filter going on IS the visionset going on. They cannot
+//  drift apart.
+//
+//  📝 The transition time is Die Rise's own filter timing (5), kept for both.
+//  ============================================================================
 zmqol_whoswho_filter( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
 {
 	player = getlocalplayers()[localclientnum];
@@ -900,9 +942,84 @@ zmqol_whoswho_filter( localclientnum, oldval, newval, bnewent, binitialsnap, fie
 		return;
 
 	if ( newval == 1 )
+	{
+		//  Save what the map is currently showing so the restore is exact rather
+		//  than a guess at what this map's default vision is called.
+		if ( !isdefined( level.zmqol_whoswho_saved_vision ) )
+			level.zmqol_whoswho_saved_vision = [];
+
+		level.zmqol_whoswho_saved_vision[ localclientnum ] = getvisionsetnaked( localclientnum );
+
+		//  🛑 THE GRADE GOES FIRST, DELIBERATELY. enable_filter_afterlife()
+		//  depends on level.filter_matid, which is set up by a separate thread;
+		//  if it ever faults, a call placed after it would never run. The two are
+		//  independent effects, so the order between them is free - and this
+		//  ordering means the thing the user is waiting on cannot be blocked by
+		//  the thing that already works.
+		visionsetnaked( localclientnum, "zm_whos_who", 0.5 );
+
+		println( "[zm_qol] CLIENT whoswho: vision -> zm_whos_who (was '" +
+		         level.zmqol_whoswho_saved_vision[ localclientnum ] + "')" );
+
 		clientscripts\mp\zombies\_zm_perks::enable_filter_afterlife( player, 5 );
+	}
 	else
+	{
 		clientscripts\mp\zombies\_zm_perks::disable_filter_afterlife( player, 5 );
+
+		//  Fall back to the map name, which IS the name of a map's own visionset -
+		//  the same fallback _proximity_grenade.csc:199 uses.
+		str_restore = undefined;
+
+		if ( isdefined( level.zmqol_whoswho_saved_vision ) )
+			str_restore = level.zmqol_whoswho_saved_vision[ localclientnum ];
+
+		if ( !isdefined( str_restore ) || str_restore == "" || str_restore == "undefined" )
+			str_restore = getdvar( "mapname" );
+
+		visionsetnaked( localclientnum, str_restore, 0.5 );
+
+		println( "[zm_qol] CLIENT whoswho: filter OFF, vision -> '" + str_restore + "'" );
+	}
+}
+
+// ============================================================================
+//  zmqol_whoswho_visionset_probe  (CLIENT)  -  v1.99.20
+//
+//  The server prints its own half of this at map load. This is the other half,
+//  and together they settle the routing question for good: if the two counts or
+//  the two slot indices disagree, the manager was never going to deliver the
+//  grade and the direct visionsetnaked() above is not a workaround but the only
+//  route there was.
+//
+//  Threaded with a wait so it reads the table AFTER finalize_type_clientfields()
+//  has assigned slot_index - registration itself happens much earlier, inside
+//  perks_register_clientfield().
+// ============================================================================
+zmqol_whoswho_visionset_probe()
+{
+	wait 1;
+
+	if ( !isdefined( level.vsmgr ) || !isdefined( level.vsmgr[ "visionset" ] ) )
+	{
+		println( "[zm_qol] CLIENT whoswho visionset: no manager" );
+		return;
+	}
+
+	if ( !isdefined( level.vsmgr[ "visionset" ].info[ "zm_whos_who" ] ) )
+	{
+		println( "[zm_qol] CLIENT whoswho visionset: NOT REGISTERED - total visionsets " +
+		         level.vsmgr[ "visionset" ].info.size );
+		return;
+	}
+
+	str_slot = "UNASSIGNED";
+
+	if ( isdefined( level.vsmgr[ "visionset" ].info[ "zm_whos_who" ].slot_index ) )
+		str_slot = "" + level.vsmgr[ "visionset" ].info[ "zm_whos_who" ].slot_index;
+
+	println( "[zm_qol] CLIENT whoswho visionset: registered, slot_index " + str_slot +
+	         ", total visionsets " + level.vsmgr[ "visionset" ].info.size );
 }
 
 // ============================================================================
@@ -1701,7 +1818,14 @@ perks_register_clientfield()
 	//  whole clientfield pass, which would break far more than Who's Who.
 	// ========================================================================
 	if ( zmqol_whoswho_enabled() && isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "visionset" ] ) )
+	{
 		clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "zm_whos_who", 5000, 1, "zm_whos_who", "zm_whos_who" );
+
+		//  v1.99.20 - report what the table actually ended up holding. The server
+		//  prints its own half; the pair of them is what proves or disproves that
+		//  the slot the server sends is the slot this client resolves.
+		level thread zmqol_whoswho_visionset_probe();
+	}
 
 	//  ZOMBIE BLOOD'S ENTIRE CLIENT REGISTRATION, v1.65.0, and it is here for the
 	//  same reason the Who's Who visionset above is: this function is the one

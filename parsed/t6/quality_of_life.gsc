@@ -2646,6 +2646,7 @@ zmqol_dev_command_listener()
             if ( isdefined( player.zmqol_wwfx ) && player.zmqol_wwfx )
             {
                 player.zmqol_wwfx = 0;
+                player setclientfieldtoplayer( "clientfield_whos_who_filter", 0 );
                 maps\mp\_visionset_mgr::vsmgr_deactivate( "visionset", "zm_whos_who", player );
                 player zmqol_whoswho_overlay_off();
                 player iprintln( "^1[zm_qol] Who's Who overlay OFF" );
@@ -2668,6 +2669,7 @@ zmqol_dev_command_listener()
 
                 player.zmqol_wwfx = 1;
                 player zmqol_whoswho_overlay_on();
+                player setclientfieldtoplayer( "clientfield_whos_who_filter", 1 );
                 maps\mp\_visionset_mgr::vsmgr_activate( "visionset", "zm_whos_who", player );
                 player iprintln( "^2[zm_qol] Who's Who overlay ON (slot " + str_slot + ")" );
                 println( "[zm_qol] wwfx: zm_whos_who registered, slot_index " + str_slot );
