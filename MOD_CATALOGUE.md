@@ -91,6 +91,7 @@ Prefix `.` `!` or `/`. Verified against every `cmd == "…"` branch in
 | `.hud on` / `.hud off` | | master HUD switch - also hides the GAME's own hud (points, ammo, round, perks) via `setclientuivisibilityflag( "hud_visible" )`. Console twin `hud_master` |
 | `.powerups` | | list every power-up registered on this map |
 | `.powerup <name>` / `.drop <name>` | | spawn one. Every power-up is also its own command; short forms `.dm .nuke .maxammo .insta .dp .carp .sale` |
+| `.testsound [alias]` | v1.99.8 | 🔬 **diagnostic.** Plays a sound alias three ways so you can hear which part is broken: **2D** (no distance model), **3D at your own feet**, then a fixed **control** (`zmb_powerup_grabbed`). Defaults to `zmb_zombie_spawn`, the riser sound. Console twin `zmqol_testsound <alias>` works on its own — it is a CLIENT dvar the client script polls, so it does not need the server. Built for B-RISERSOUND |
 
 ## 2b. Console dvars 📄
 

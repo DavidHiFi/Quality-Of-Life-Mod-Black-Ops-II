@@ -3578,6 +3578,7 @@ zmqol_console_command_names()
     a[a.size] = "tesla";        a[a.size] = "thundergun";   a[a.size] = "zeus";
     a[a.size] = "freezegun";    a[a.size] = "winters";      a[a.size] = "wintershowl";
     a[a.size] = "wunderwaffe";  a[a.size] = "dg2";
+    a[a.size] = "testsound";
 
     return a;
 }
@@ -4000,6 +4001,35 @@ zmqol_dev_command_listener()
         else if ( cmd == "wintershowl" || cmd == "winters" || cmd == "freezegun" )
         {
             player zmqol_give_wonder_weapon( "freezegun_zm", "4", "Winter's Howl" );
+        }
+        else if ( cmd == "testsound" )
+        {
+            //  B-RISERSOUND instrument (v1.99.8). The work happens CLIENT-side -
+            //  see zmqol_testsound_watch() at the bottom of zm_expanded.csc for
+            //  what it plays and how to read the result. All this does is hand
+            //  the alias name across.
+            //
+            //  🛑 setclientdvar, NOT setdvar. The riser sound is played by a
+            //  CLIENT script, so the test has to happen there to be a fair test;
+            //  a server dvar never reaches the client. One reliable command per
+            //  invocation, on demand only - ERROR_CATALOGUE §7b is about
+            //  sustained emitters, not one-shots.
+            //
+            //  The counter is what makes asking for the SAME alias twice work:
+            //  the watcher fires on a CHANGE, and "zmb_zombie_spawn" set twice
+            //  is not a change. The client takes token 0 and ignores the rest.
+            str_alias = "zmb_zombie_spawn";
+
+            if ( tokens.size > 1 )
+                str_alias = tokens[1];
+
+            if ( !isdefined( level.zmqol_testsound_n ) )
+                level.zmqol_testsound_n = 0;
+
+            level.zmqol_testsound_n++;
+
+            player setclientdvar( "zmqol_testsound", str_alias + " " + level.zmqol_testsound_n );
+            player iprintln( "^2[zm_qol] testsound ^7" + str_alias + " ^2-> 2D, then 3D, then the control" );
         }
         else if ( cmd == "give" || cmd == "giveweapon" || cmd == "gun" )
         {

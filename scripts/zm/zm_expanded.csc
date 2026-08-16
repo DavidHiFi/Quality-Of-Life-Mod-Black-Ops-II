@@ -63,6 +63,11 @@ main()
 	zmqol_mp_weapons_init();
 
 	perks();
+
+	//  B-RISERSOUND instrument (v1.99.8). Idle until the zmqol_testsound dvar
+	//  changes; see the block comment at the bottom of this file. Threaded last
+	//  so nothing above it can be delayed by it.
+	level thread zmqol_testsound_watch();
 }
 
 // ============================================================================
@@ -1832,4 +1837,113 @@ zmqol_handle_zombie_risers( localclientnum, oldval, newval, bnewent, binitialsna
 	}
 
 	self clientscripts\mp\zombies\_zm::handle_zombie_risers( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump );
+}
+
+// ============================================================================
+//  zmqol_testsound_watch  (CLIENT)  -  B-RISERSOUND instrument            v1.99.8
+//
+//  WHY THIS EXISTS. The riser sound is silent and EVERY link in the chain is
+//  now verified by measurement, so there is nothing left to read off disk:
+//
+//    server sets zombie_riser_fx          -> the clientfield arrives (probe line)
+//    this file's handler runs             -> confirmed, v1.99.0 probe
+//    the actor origin is valid            -> 513 units from the player, v1.99.5 probe
+//    "zmb_zombie_spawn" is defined        -> 2 rows in zmb_survival_transit.all, LOADED
+//    the alias row is ordinary            -> vol 86, probability 1, 3d, DistMin 250 /
+//                                            DistMaxDry 1000, bus_hdrfx like 3,130 others
+//    its payload is present               -> hashes AAF96C0F / 77818910 found in
+//                                            zmb_common.all.SABL (the loaded bank the
+//                                            alias's Storage=loaded demands), and NOT in
+//                                            the .sabs. That bank loads at console_zm.log:349
+//    mod.all does not shadow it           -> 0 rows in the BUILT 2,280-row alias table
+//    the sound is played TWICE            -> ours, then stock's
+//
+//  ...and it is still inaudible. The one question no file can answer is whether
+//  the alias produces audio AT ALL when played point blank. This answers it.
+//
+//  HOW TO USE - either route, they end at the same dvar:
+//      console :  zmqol_testsound zmb_zombie_spawn
+//      chat    :  .testsound zmb_zombie_spawn        (or bare .testsound)
+//
+//  It plays THREE things, spaced, and prints each one:
+//      1/3  2D          playsound( 0, alias )            - no distance model at all
+//      2/3  3D          playsound( 0, alias, player )    - at your own feet, distance 0
+//      3/3  CONTROL     zmb_powerup_grabbed at the player
+//
+//  🌟 THE CONTROL IS NOT ARBITRARY. zmb_powerup_grabbed sits in the SAME alias
+//  bank, on the SAME bus (bus_hdrfx), with the SAME Storage (loaded) and the SAME
+//  DistMin (250), and its payload is in the SAME .sabl (zmb_common.all). It is
+//  the closest matched pair in the game, and the user hears it every match.
+//
+//  READING THE RESULT:
+//      all three audible      -> the alias is fine; the fault is the riser wiring
+//                                or its timing, not the audio asset
+//      control only           -> this alias produces no audio, full stop
+//      2D yes, 3D no          -> positional attenuation, not the asset
+//      nothing at all         -> the probe never reached audio; say so, do not
+//                                read it as "the alias is dead"
+//
+//  🛑 COSTS NOTHING WHEN UNUSED. One getdvar every 0.25s on the client, which is
+//  a local hash lookup - no reliable commands, no clientfields, no server work.
+//  It plays only when the dvar CHANGES, so it cannot loop or spam.
+// ============================================================================
+zmqol_testsound_watch()
+{
+	str_last = "";
+
+	for ( ;; )
+	{
+		wait 0.25;
+
+		str_now = getdvar( "zmqol_testsound" );
+
+		if ( !isdefined( str_now ) || str_now == "" || str_now == str_last )
+			continue;
+
+		str_last = str_now;
+
+		//  The server route appends a counter ("zmb_zombie_spawn 3") so that asking
+		//  for the SAME alias twice still changes the dvar and still fires. Take the
+		//  first token and ignore the rest.
+		tokens = strtok( str_now, " " );
+
+		if ( !isdefined( tokens ) || tokens.size == 0 )
+			continue;
+
+		str_alias = tokens[0];
+
+		player = getlocalplayer( 0 );
+
+		if ( !isdefined( player ) || !isdefined( player.origin ) )
+		{
+			println( "[zm_qol] TESTSOUND: no local player yet, ignored" );
+			continue;
+		}
+
+		println( "[zm_qol] TESTSOUND 1/3  2D       '" + str_alias + "'" );
+		playsound( 0, str_alias );
+
+		wait 1.2;
+
+		player = getlocalplayer( 0 );
+
+		if ( !isdefined( player ) || !isdefined( player.origin ) )
+			continue;
+
+		println( "[zm_qol] TESTSOUND 2/3  3D@you   '" + str_alias + "'" );
+		playsound( 0, str_alias, player.origin );
+
+		wait 1.2;
+
+		player = getlocalplayer( 0 );
+
+		if ( !isdefined( player ) || !isdefined( player.origin ) )
+			continue;
+
+		//  zmb_powerup_grabbed - same bank, same bus, same Storage, same DistMin,
+		//  same payload .sabl as zmb_zombie_spawn. If THIS is silent too, the probe
+		//  itself never reached audio and nothing above it can be concluded.
+		println( "[zm_qol] TESTSOUND 3/3  CONTROL  'zmb_powerup_grabbed'" );
+		playsound( 0, "zmb_powerup_grabbed", player.origin );
+	}
 }

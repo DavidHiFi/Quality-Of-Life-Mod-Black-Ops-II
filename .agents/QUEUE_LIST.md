@@ -10,15 +10,19 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **56** · mod version **1.99.7**
+- SYNCED TO: checkpoint **57** · mod version **1.99.8**
 - LAST VERIFIED: 2026-08-16 — every line below was checked against the checkpoints, the bottom of
   `QUEUE.md`, or the source tree on this date.
 - BUILT, AWAITING THE USER'S BOOT: **2–5** — bookkeeping for the closing "do this now" line only.
   Built ≠ done, so these are **not** struck through.
 - **1 CONFIRMED IN GAME 2026-08-16** at v1.99.6 (*"i tried it, it works fine, task finished"*) — the
   live mid-down toggle. Struck through, kept on the list until the user says to remove it.
-- IN FLIGHT: **7** — Winter's Howl firing fx (B-WHOWL). Root-caused and fixed in **v1.99.7**
-  (only 1 of 11 muzzle-flash elements was flagged `drawWithViewModel`); deployed, **not yet booted**.
+- IN FLIGHT, **both unbooted** — the user authorised skipping ahead (*"i'll test both when i launch
+  next"*), so two changes are outstanding at once:
+  - **7** Winter's Howl firing fx (B-WHOWL) — root-caused and fixed in **v1.99.7**; only 1 of 11
+    muzzle-flash elements was flagged `drawWithViewModel`.
+  - **6** Riser sound (B-RISERSOUND) — the whole chain is now verified end to end and it is still
+    silent, so **v1.99.8** ships `.testsound` to ask the one question no file can answer.
 
 <!-- LIST -->
 

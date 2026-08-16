@@ -5686,3 +5686,87 @@ port's. It affects only what other players see, is invisible in solo and so unve
 and repointing it would introduce a name the loader has never resolved. Deferred on purpose.
 
 🛑 **Deployed, NOT yet verified in game.**
+
+---
+
+## v1.99.8 — 2026-08-16. B-RISERSOUND: the chain is verified END TO END, and `.testsound` ships.
+
+User: *"do the next task in the queue, i'll test both when i launch next."* — explicit authorisation
+to open #6 while #7 (Winter's Howl, v1.99.7) is deployed and still unbooted.
+
+### Closed this round, by measurement — do NOT re-check any of these
+
+| link | how it was settled | result |
+|---|---|---|
+| the alias row itself | **dumped and read in full**: `VolMin/Max 86`, `Probability 1`, `PanType 3d`, `DistMin 250 / DistMaxDry 1000`, `Storage loaded`, `Bus bus_hdrfx` — shared with **3,130** other aliases in the same bank | ✅ nothing unusual |
+| 🌟 is the payload in the **right kind** of bank? | **byte-scanned both files** for the dumper's hashes: `AAF96C0F` and `77818910` each appear **once in `zmb_common.all.SABL`** — the loaded bank that `Storage=loaded` requires — and **zero times in `zmb_common.all.sabs`** | ✅ **new** |
+| does `mod.all` shadow it? | the **BUILT** 2,280-row table, not the 589-row additions file | ❌ no |
+| how much stock shadowing does the mod do at all? | 3 names in the whole bank: `zmb_buildable_piece_add`, `zmb_buildable_complete`, `zmb_buildable_loop` | 📝 noted, unrelated |
+| is the duck a suspect? | the mod ships exactly one, `zmqol_zombieblood`, and it rides on the Zombie Blood loop alias — not global | ❌ no |
+
+🛑 **METHOD NOTE worth keeping.** The obvious file to grep for mod alias shadowing is
+`soundbank\mod.all.aliases.additions.csv` — 589 rows, ours only. The bank that actually **ships** is
+the donor's cached table with ours merged over it, `zone_assets\soundbank\mod.all.aliases.csv`,
+**2,280 rows**. Checking only the additions file is a real false negative waiting to happen.
+
+📝 Also corrected: `Unlinker --include-assets soundbank` on `common_zm.ff` returns **0 alias rows**
+for `zmb_common.all` even though `zmb_common.all.sabl` is 91 MB. That is not absence — that bank
+carries **payloads** whose aliases are defined in other banks. Use the audio dumper's
+`Identifiers\*.txt` (hash → source path) to locate a payload, then byte-scan the `.sabl`/`.sabs` to
+find out which of the two actually holds it. [[t6-soundbank-facts]] again: alias and payload live in
+different banks.
+
+### So: every link verified, and it is still silent.
+
+server sets the clientfield ✅ → the handler runs ✅ → the origin is valid and 513 units away ✅ →
+the alias is defined in a loaded bank ✅ → the alias row is ordinary ✅ → the payload is in the
+loaded bank it asks for ✅ → nothing shadows it ✅ → the sound is played **twice** ✅.
+
+**There is nothing left to read off disk.**
+
+### `.testsound` — the instrument this bug has needed since checkpoint 52
+
+```
+console :  zmqol_testsound zmb_zombie_spawn      (a CLIENT dvar; needs no server)
+chat    :  .testsound [alias]                    (defaults to zmb_zombie_spawn)
+```
+
+Three plays, ~1.2 s apart, each printed:
+
+| | what | tests |
+|---|---|---|
+| 1/3 | `playsound( 0, alias )` — 2D, no distance model | does this alias produce audio, period |
+| 2/3 | `playsound( 0, alias, player.origin )` — 3D at your feet | the positional path |
+| 3/3 | `zmb_powerup_grabbed` at the player — the **control** | that the probe itself reaches audio |
+
+🌟 **The control is a matched pair.** Same alias bank, same bus (`bus_hdrfx`), same `Storage`
+(loaded), same `DistMin` (250), payload in the same `.sabl` (`zmb_common.all`). Only `VolMin 76` vs
+`86` and `DistMaxDry 2000` vs `1000` differ. Closest comparison the game contains, and the user hears
+it every match.
+
+| heard | conclusion |
+|---|---|
+| all three | the alias is fine → the fault is the riser **wiring/timing** |
+| control only | this alias produces **no audio**; next step is the payload bytes |
+| 2D yes, 3D no | positional attenuation, not the asset |
+| nothing | the probe never reached audio — not evidence about the alias |
+
+### Pre-mortem
+
+1. **`setclientdvar` on an unknown dvar name may be rejected** — the mod has only ever set *stock*
+   names this way. 🌟 Mitigated by design: **the console route bypasses the server entirely**, using
+   the same client-side `getdvar` that `freeze.csc`'s `zmqol_ww` gate already uses in shipped code.
+2. **The same alias twice does nothing** (the watcher fires on a change) — the server route appends a
+   counter and the client takes token 0.
+3. **No local player yet** — every play re-takes `getlocalplayer(0)` and checks `.origin`.
+4. **Idle cost** — one `getdvar` per 0.25 s client-side. No reliable commands, no clientfields, no
+   server work. ERROR_CATALOGUE §7b concerns sustained emitters; this emits nothing.
+
+📝 `strtok`, `getdvar`, `println` and the **two-arg** `playsound( localclientnum, alias )` form were
+all confirmed to exist client-side in the stock dump's own `.csc` files before use.
+
+🛑 **The sound was NOT moved onto the player as a fix** — checkpoint 55 forbade that and the origin
+theory is dead anyway. The riser path is untouched; `.testsound` is a user-invoked command.
+
+🛑 **Deployed, NOT yet verified in game. Two unverified changes in flight (#7 and #6), at the user's
+explicit request.**
