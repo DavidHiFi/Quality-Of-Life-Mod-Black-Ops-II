@@ -6092,3 +6092,54 @@ Built `build_ff.bat` → `build.bat`. Verified: alias ×2 in the generated table
 rewritten.
 
 🛑 **Deployed, NOT yet verified in game.**
+
+---
+
+## v1.99.12 — 2026-08-16. ✅ RISER SOUND CONFIRMED FIXED (closed). Winter's Howl: the gun was pointed at the WRONG FX FILE.
+
+### ✅ B-RISERSOUND — CLOSED. Confirmed in game by the user.
+
+*"the sound effects for the zombies crawling out of the ground are fixed... don't touch it."*
+`zmqol_zombie_riser` works. 🛑 **Do not re-open, re-probe or "improve" this.** The snow variant
+(`zmb_zombie_spawn_snow`) is a separate, untouched question — not part of this item.
+
+### 🌟 B-WHOWL — THE REAL CAUSE, after three wrong attempts at it
+
+User: *"i see a wind gust sort of effect which... the thundergun has that effect when i shoot it...
+the winters howl needs the freezing storm sort of fx."*
+
+**The gun was reading the wrong file.** Contents, dumped side by side:
+
+| file | elements | element names | key material |
+|---|---|---|---|
+| `fx_freezegun_view.efx` ← **was in use** | 11 | `wraith_looping_def0..6` — the FX editor's default template names | distortion_heat, lensflare_diamond, smk_whisp_spiral, light_flare_star ×4. **No snow material at all.** |
+| `fx_freezegun_world.efx` ← **the real one** | 14 | `light`, `distortion`, `flash`, `smoke_rings_large_out/in`, **`freeze_trailer`**, **`distortion_aftermath_long`/`longer`**, `spiral_flare`, `xcircle`, `xfigure_eight`, `xspiral` | **`gfx_fxt_env_snow_flakes` × 2 elements, `spawnLooping 400 3` each** |
+
+🌟 **Hand-authored element names and 800 snow particles versus a generic template with no snow.**
+That is the freezing storm, it shipped in the mod all along, and **nothing referenced it.**
+
+The convention confirms it — both guns the user is happy with point `worldFlashEffect` at their own
+`_world` file (`fx_thundergun_world`, `fx_tesla_world`); the Winter's Howl was the only one pointing
+**both** fields at its `_view` file. All three freezegun ports in the workspace share that mistake.
+
+**The change: two weapon defs, one field value each.** `freezegun_zm` → `fx_freezegun_world`,
+`freezegun_upgraded_zm` → `fx_freezegun_ug_world`. **No `.efx` edited, nothing deleted.**
+
+📝 The two snow elements already carry `drawWithViewModel`, so they render in the viewmodel pass
+without any flag edit — the mechanism proven in v1.99.7, applied to the correct file this time.
+🟡 `fx_freezegun_ug_world.efx` has **no** snow elements (stock's own authoring), so the Pack-a-Punched
+version will look different. Not "fixed" — reported.
+
+### 🛑 THE LESSON FROM THREE FAILED ATTEMPTS
+
+v1.99.9 deleted `def0`. v1.99.10 deleted the smoke cloud. Both were reverted, both cost a boot.
+**Both came from the same error: asking "which element looks like the Thundergun's?" instead of
+"which file is this gun supposed to be using?"** The block diff, the `drawWithViewModel` census and
+the isolation question were all measurements of the wrong file. **Check the assignment before
+auditing the contents.**
+
+Verified in the deployed `mod.iwd`: both defs repointed, both `_world.efx` present (40,084 /
+31,700 bytes), `mod.json` 1.99.12. `gfx_fxt_env_snow_flakes` is already declared in
+`mod_freezefx.zone`, so no `mod.ff` relink was needed.
+
+🛑 **Deployed, NOT yet verified in game.**
