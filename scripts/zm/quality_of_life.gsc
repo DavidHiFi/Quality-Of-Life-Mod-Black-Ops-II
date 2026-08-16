@@ -3710,22 +3710,54 @@ zmqol_dev_command_listener()
         }
         else if ( cmd == "wwfx" )
         {
-            //  v1.99.15 - apply / clear the Who's Who downed-state screen overlay
-            //  without going down. Purely a verification aid for the exact thing
-            //  the user has now reported missing three times; it drives the same
-            //  two functions the real down does.
+            //  Apply / clear the Who's Who screen effect without going down.
+            //
+            //  v1.99.19 - it now drives the REAL mechanism, which is the whole
+            //  point of a verification aid: stock's own visionset, activated
+            //  through _visionset_mgr exactly as
+            //  _zm_chugabud::activate_chugabud_effects_and_audio() does it, plus
+            //  the night-mode suspend that lets a visionset render at all.
+            //  Before this it only drove the dvar copy, so it could not have
+            //  distinguished "the visionset is broken" from "the copy is broken"
+            //  - and the copy was the thing that was broken.
+            //
+            //  It also reports whether the visionset is registered at all, which
+            //  separates "not registered" from "registered and not showing"
+            //  without costing a boot.
             if ( isdefined( player.zmqol_wwfx ) && player.zmqol_wwfx )
             {
                 player.zmqol_wwfx = 0;
+                maps\mp\_visionset_mgr::vsmgr_deactivate( "visionset", "zm_whos_who", player );
                 player zmqol_whoswho_overlay_off();
                 player iprintln( "^1[zm_qol] Who's Who overlay OFF" );
             }
             else
             {
+                b_registered = isdefined( level.vsmgr ) &&
+                               isdefined( level.vsmgr[ "visionset" ] ) &&
+                               isdefined( level.vsmgr[ "visionset" ].info ) &&
+                               isdefined( level.vsmgr[ "visionset" ].info[ "zm_whos_who" ] );
+
+                if ( !b_registered )
+                {
+                    player iprintln( "^1[zm_qol] zm_whos_who visionset NOT registered - the grade cannot show" );
+                    println( "[zm_qol] wwfx: zm_whos_who visionset NOT registered on the server" );
+                    continue;
+                }
+
+                //  slot_index is assigned in finalize_type_clientfields(), which
+                //  returns early when only the default visionset exists - so an
+                //  undefined here means the grade has no clientfield to travel on.
+                str_slot = "UNASSIGNED";
+
+                if ( isdefined( level.vsmgr[ "visionset" ].info[ "zm_whos_who" ].slot_index ) )
+                    str_slot = "" + level.vsmgr[ "visionset" ].info[ "zm_whos_who" ].slot_index;
+
                 player.zmqol_wwfx = 1;
-                zmqol_whoswho_vc_capture();
                 player zmqol_whoswho_overlay_on();
-                player iprintln( "^2[zm_qol] Who's Who overlay ON" );
+                maps\mp\_visionset_mgr::vsmgr_activate( "visionset", "zm_whos_who", player );
+                player iprintln( "^2[zm_qol] Who's Who overlay ON (slot " + str_slot + ")" );
+                println( "[zm_qol] wwfx: zm_whos_who registered, slot_index " + str_slot );
             }
         }
         else if ( cmd == "god" )
@@ -8871,7 +8903,7 @@ zmqol_enable_whoswho()
         level.vsmgr_prio_visionset_zm_whos_who = 123;
 
     level thread zmqol_whoswho_verify();
-    zmqol_whoswho_vc_capture();
+    level thread zmqol_whoswho_visionset_probe();
     level thread zmqol_whoswho_overlay_connect();
 }
 
@@ -9138,175 +9170,122 @@ zmqol_whoswho_clone_glow()
 }
 
 // ============================================================================
-//  🌟 v1.99.15 - THE FULL VISIONSET, NOT SIX OF ITS TWENTY-THREE VALUES.
+//  zmqol_whoswho_visionset_probe  -  v1.99.19. ONE LINE THAT SPLITS THE NEXT
+//  FAILURE IN TWO.
 //
-//  v1.99.14 got the CHANNEL right and the CONTENT wrong. console_zm.log:4883
-//  printed "[zm_qol] whoswho overlay: ON", so the watcher fired and the dvars
-//  were written - and the user still saw nothing. The reason is that the six
-//  dvars night mode happens to use are the lift/gain pair, and the Die Rise
-//  effect is a BLOWOUT: a reference shot of the real thing on Die Rise is a
-//  washed-out, blurred, glowing screen. That comes from the parameters that were
-//  skipped:
+//  The grade now rides stock's own visionset, and if it still does not show
+//  there are exactly two possibilities: the visionset was never registered on
+//  the server, or it was registered and something downstream drops it. Those
+//  need different fixes, and telling them apart in game costs a boot. This
+//  prints the answer at map load instead.
 //
-//        vc_hmr  7.149658 ...   the highlight matrix, a 7.1x boost on red
-//        vc_hmg / vc_hmb        the same on green and blue
-//        vc_fgm  1.345455 ...   film gamma
-//        vc_liw / vc_low  32    input/output white points
-//
-//  🛑 THE SIX WERE NOT CHOSEN, THEY WERE ALL I HAD VERIFIED. That gap is now
-//  closed properly: every vc_* dvar name was read out of the game binary itself,
-//  `t6zm.exe`, which contains all 24 of them as literal strings -
-//  vc_fbm vc_fgm vc_fsm vc_hmb vc_hmg vc_hmr vc_lib vc_lig vc_liw vc_lob vc_low
-//  vc_lut vc_mmb vc_mmg vc_mmr vc_re vc_rgbh vc_rgbl vc_rs vc_smb vc_smg vc_smr
-//  vc_yh vc_yl. They map 1:1 onto the keys of a .vision file, which is what a
-//  .vision file IS. [[t6-filmusetweaks-kills-visionsets]]
-//
-//  So all 23 entries of vision/zm_whos_who.vision are applied below, VERBATIM -
-//  dumped from zm_highrise.ff with the Unlinker, rounded to 6dp, nothing else
-//  changed. This is Die Rise's own colour grade, reproduced exactly, through the
-//  one channel proven to reach the renderer on every map in this mod.
-//
-//  📝 The stock filter pass (generic_filter_afterlife, which carries the blur and
-//  the warp) and the visionset registration are both still in place and still
-//  correct. They are the authentic path; this makes it visible.
+//  Runs one frame after the visionset manager finalizes - slot_index is only
+//  assigned inside finalize_type_clientfields(), which the engine calls through
+//  onfinalizeinitialization_callback at the end of the init pass.
 // ============================================================================
-
-//  Capture the map's own values ONCE, before anything overwrites them, so the
-//  restore is exact rather than a guess at what "neutral" means. Same pattern
-//  qol_opt_night_mode() uses for r_exposureValue.
-zmqol_whoswho_vc_names()
+zmqol_whoswho_visionset_probe()
 {
-    return array( "vc_lib", "vc_liw", "vc_lig", "vc_lob", "vc_low",
-                  "vc_rgbh", "vc_rgbl", "vc_yh", "vc_yl", "vc_rs", "vc_re",
-                  "vc_smr", "vc_smg", "vc_smb",
-                  "vc_hmr", "vc_hmg", "vc_hmb",
-                  "vc_mmr", "vc_mmg", "vc_mmb",
-                  "vc_fgm", "vc_fsm", "vc_fbm" );
-}
+    level endon( "end_game" );
 
-zmqol_whoswho_vc_capture()
-{
-    if ( isdefined( level.qol_vc_default ) )
+    wait 1;
+
+    if ( !isdefined( level.vsmgr ) || !isdefined( level.vsmgr[ "visionset" ] ) ||
+         !isdefined( level.vsmgr[ "visionset" ].info ) ||
+         !isdefined( level.vsmgr[ "visionset" ].info[ "zm_whos_who" ] ) )
+    {
+        println( "[zm_qol] whoswho visionset: NOT REGISTERED on the server - the grade cannot show" );
         return;
+    }
 
-    level.qol_vc_default = [];
-    a_names = zmqol_whoswho_vc_names();
+    if ( !isdefined( level.vsmgr[ "visionset" ].info[ "zm_whos_who" ].slot_index ) )
+    {
+        println( "[zm_qol] whoswho visionset: registered but slot_index UNASSIGNED - no clientfield to travel on" );
+        return;
+    }
 
-    for ( i = 0; i < a_names.size; i++ )
-        level.qol_vc_default[ a_names[i] ] = getdvar( a_names[i] );
+    println( "[zm_qol] whoswho visionset: registered, slot_index " +
+             level.vsmgr[ "visionset" ].info[ "zm_whos_who" ].slot_index +
+             ", total visionsets " + level.vsmgr[ "visionset" ].info.size );
 }
 
-//  All 23 values, verbatim from vision/zm_whos_who.vision.
-//
+
 //  ============================================================================
-//  🌟 v1.99.18 - WHY THE RED STILL DID NOT SHOW, AND IT IS NOT THE COLOUR.
+//  🌟 v1.99.19 - THE COPY IS GONE. WE WERE SWITCHING OFF THE THING THAT WORKS.
 //
-//  The user's shot of our Who's Who next to a reference shot of Die Rise's,
-//  measured rather than eyeballed - mean channel values over every non-black
-//  pixel:
+//  v1.99.18 lifted night mode's exposure and the red STILL did not show. That
+//  ruled out brightness and left one candidate, and it was sitting in this
+//  function's own first line since v1.99.14:
 //
-//        Die Rise (the real thing)   R 90.1  G 43.8  B 34.1   R/G 2.06
-//        ours                        R 32.7  G 28.9  B 31.0   R/G 1.13
+//        self setclientdvar( "r_filmUseTweaks", 1 );
 //
-//  Ours is not merely less red, it is 2.7x DARKER OVERALL. That is the tell,
-//  and it names the culprit: night mode sets
-//        r_exposureTweak 1      "enable the exposure dvar tweak"
-//        r_exposureValue 3.9    "exposure ev stops"     (both from Plutonium's
-//                                                        dvar_descriptions.json)
-//  and every EV stop HALVES the picture - 3.9 stops is about 1/15 brightness.
+//  🛑 r_filmUseTweaks is "Overide film effects with tweak dvar values"
+//  (Plutonium's dvar_descriptions.json). Setting it to 1 makes the renderer
+//  ignore EVERY VISIONSET - including stock's own zm_whos_who, the exact effect
+//  this function exists to produce. So every version since v1.99.14 has turned
+//  the real mechanism off and then tried to hand-reproduce it through the dvars,
+//  on maps where the real mechanism would have worked unaided.
 //
-//  🛑 A COLOUR GRADE CANNOT COLOUR LIGHT THAT IS NOT THERE. With the whole
-//  image crushed into the shadow end, the only part of the grade still acting
-//  is vc_SM* (the shadow matrices), which in this vision file are near-neutral.
-//  vc_HMR's 7.15x boost on red lives in the HIGHLIGHT matrix and there are no
-//  highlights left for it to touch. The 23 values were landing correctly the
-//  whole time - the log's "ON (23 vc_* applied)" was true, and the faint R/G
-//  1.13 tilt in the measurement is them, working, on a black picture.
+//  🌟 AND THE REAL MECHANISM IS FULLY WIRED UP. Both halves were verified before
+//  this rewrite, not assumed:
+//    * server - stock's own _zm_perks::turn_chugabud_on() (:1448-1449) calls
+//      vsmgr_register_info( "visionset", "zm_whos_who", ... ), gated on
+//      level.vsmgr_prio_visionset_zm_whos_who, which zmqol_enable_whoswho() sets.
+//    * client - zm_expanded.csc::perks_register_clientfield() registers the
+//      twin (v1.63.1), in the one place in that script that runs inside the
+//      visionset manager's window.
+//    * 🌟 AND THE FACT THAT THE MAP BOOTS AT ALL IS THE PROOF THEY AGREE.
+//      _visionset_mgr::finalize_type_clientfields() derives visionset_slot's bit
+//      width from how many visionsets each side registered; one side short is
+//      "visionset_slot ... [CLIENT: 1 SERVER: 2]" at load, which is exactly the
+//      error v1.63.1 hit and fixed. No error now = symmetric now.
+//    * the vision file itself, vision/zm_whos_who.vision, ships inside mod.ff
+//      (confirmed with Unlinker --list on the DEPLOYED file).
 //
-//  THE FIX IS ONE DVAR: suspend night mode's exposure override for the duration
-//  of the effect. Not the tint, not the sun, not the sky - just the thing that
-//  is turning the lights off. Die Rise's Who's Who is a bright red blowout and
-//  it cannot read as one at 1/15 brightness on any map.
+//  So there is nothing to reproduce. stock's activate_chugabud_effects_and_audio()
+//  already calls vsmgr_activate( "visionset", "zm_whos_who", self ) - and we know
+//  that function runs, because its audio siblings are confirmed working in game.
 //
-//  📝 Night mode's own value comes back on the way out. qol_options.gsc stashes
-//  it on the player as self.qol_night_exposure when it applies it, so the
-//  map-by-map table stays in exactly one place - see qol_opt_night_on().
+//  THIS FUNCTION'S WHOLE JOB IS NOW TO GET NIGHT MODE OUT OF THE WAY: drop the
+//  three overrides that make the renderer ignore visionsets and dim the picture,
+//  and put them back on the way out. Treyarch's own grade then renders through
+//  Treyarch's own path, byte for byte, on every map.
+//
+//  📝 The 23 copied values are deleted rather than kept as a fallback. Two
+//  mechanisms fighting over the same screen is what produced this bug.
+//  📝 Night mode's exposure comes back from self.qol_night_exposure, which
+//  qol_opt_night_on() stashes, so its per-map table stays in one place.
 //  ============================================================================
 zmqol_whoswho_overlay_on()
 {
-    self setclientdvar( "r_filmUseTweaks", 1 );
+    //  🛑 0, NOT 1. See the block above - this one line was the bug.
+    self setclientdvar( "r_filmUseTweaks", 0 );
     self setclientdvar( "r_exposureTweak", 0 );
+    self setclientdvar( "r_bloomTweaks", 0 );
 
-    self setclientdvar( "vc_lib",  "0 0 0 0" );
-    self setclientdvar( "vc_liw",  "32 32 32 32" );
-    self setclientdvar( "vc_lig",  "1 1 1 1" );
-    self setclientdvar( "vc_lob",  "0 0 0 0" );
-    self setclientdvar( "vc_low",  "32 32 32 32" );
-    self setclientdvar( "vc_rgbh", "0.544885 0.019366 0.027131 0.3" );
-    self setclientdvar( "vc_rgbl", "0.181628 0.006455 0.009044 1" );
-    self setclientdvar( "vc_yh",   "0.1575 0.068845 0.031512 0.34" );
-    self setclientdvar( "vc_yl",   "0.016506 0.036062 0.0825 0.76" );
-    self setclientdvar( "vc_rs",   "0 0.35 0 0.5" );
-    self setclientdvar( "vc_re",   "0.52 1 0.5 1" );
-    self setclientdvar( "vc_smr",  "1.292399 2.459266 0.248335 0" );
-    self setclientdvar( "vc_smg",  "0.730996 3.020669 0.248335 0" );
-    self setclientdvar( "vc_smb",  "0.730996 2.459266 0.809738 0" );
-    self setclientdvar( "vc_hmr",  "7.149658 -2.860779 -0.288879 0" );
-    self setclientdvar( "vc_hmg",  "-0.850342 5.139221 -0.288879 0" );
-    self setclientdvar( "vc_hmb",  "-0.850342 -2.860779 7.711121 0" );
-    self setclientdvar( "vc_mmr",  "2.065999 1.756619 0.177382 0" );
-    self setclientdvar( "vc_mmg",  "0.52214 3.300478 0.177382 0" );
-    self setclientdvar( "vc_mmb",  "0.52214 1.756619 1.721241 0" );
-    self setclientdvar( "vc_fgm",  "1.345455 1.345455 1.345455 0" );
-    self setclientdvar( "vc_fsm",  "0.212585 0.715195 0.07222 1" );
-    self setclientdvar( "vc_fbm",  "1 1 1 0" );
-
-    println( "[zm_qol] whoswho overlay: ON (23 vc_* applied)" );
+    println( "[zm_qol] whoswho overlay: ON (night mode suspended, stock visionset in charge)" );
 }
 
-//  Hand the screen back. Every one of the 23 goes back to the value it had at map
-//  load, so nothing of Who's Who can survive the revive; then the owner of the
-//  screen is restored - night mode's own six if it is running, otherwise
-//  r_filmUseTweaks 0, which makes the renderer use the map's real visionset again.
+//  Hand night mode its screen back. Only the three switches zmqol_whoswho_overlay_on()
+//  turned off are turned on again - the vc_* values themselves were never touched,
+//  so with r_filmUseTweaks 1 the map's night grade resumes exactly where it left off.
+//
+//  v1.99.19 - the 23-value restore that used to open this function is gone with the
+//  23-value apply it existed to undo.
 zmqol_whoswho_overlay_off()
 {
-    a_names = zmqol_whoswho_vc_names();
-
-    if ( isdefined( level.qol_vc_default ) )
-    {
-        for ( i = 0; i < a_names.size; i++ )
-        {
-            str_val = level.qol_vc_default[ a_names[i] ];
-
-            if ( isdefined( str_val ) && str_val != "" )
-                self setclientdvar( a_names[i], str_val );
-        }
-    }
-
     if ( getdvarintdefault( "night_mode", 0 ) )
     {
-        //  Exact twin of qol_options.gsc::qol_opt_night_on()'s colour block.
         self setclientdvar( "r_filmUseTweaks", 1 );
-        self setclientdvar( "vc_fbm",  "0 0 0 0" );
-        self setclientdvar( "vc_fsm",  "1 1 1 1" );
-        self setclientdvar( "vc_rgbh", "0.1 0 0.3 0" );
-        self setclientdvar( "vc_yl",   "0 0 0.25 0" );
-        self setclientdvar( "vc_yh",   "0.02 0 0.1 0" );
-        self setclientdvar( "vc_rgbl", "0.02 0 0.1 0" );
+        self setclientdvar( "r_bloomTweaks", 1 );
 
-        //  v1.99.18 - and give night mode its darkness back. The value is the
-        //  one qol_opt_night_on() actually applied to THIS player, stashed by
-        //  that function, so the per-map table is not copied here.
+        //  Night mode's darkness. The value is the one qol_opt_night_on()
+        //  actually applied to THIS player, stashed by that function, so the
+        //  per-map table is not copied here.
         if ( isdefined( self.qol_night_exposure ) )
         {
             self setclientdvar( "r_exposureTweak", 1 );
             self setclientdvar( "r_exposureValue", self.qol_night_exposure );
         }
-    }
-    else
-    {
-        self setclientdvar( "r_filmUseTweaks", 0 );
-        self setclientdvar( "r_exposureTweak", 0 );
     }
 
     println( "[zm_qol] whoswho overlay: OFF (night_mode=" + getdvarintdefault( "night_mode", 0 ) + ")" );

@@ -2646,15 +2646,31 @@ zmqol_dev_command_listener()
             if ( isdefined( player.zmqol_wwfx ) && player.zmqol_wwfx )
             {
                 player.zmqol_wwfx = 0;
+                maps\mp\_visionset_mgr::vsmgr_deactivate( "visionset", "zm_whos_who", player );
                 player zmqol_whoswho_overlay_off();
                 player iprintln( "^1[zm_qol] Who's Who overlay OFF" );
             }
             else
             {
+                b_registered = isdefined( level.vsmgr ) && isdefined( level.vsmgr["visionset"] ) && isdefined( level.vsmgr["visionset"].info ) && isdefined( level.vsmgr["visionset"].info["zm_whos_who"] );
+
+                if ( !b_registered )
+                {
+                    player iprintln( "^1[zm_qol] zm_whos_who visionset NOT registered - the grade cannot show" );
+                    println( "[zm_qol] wwfx: zm_whos_who visionset NOT registered on the server" );
+                    continue;
+                }
+
+                str_slot = "UNASSIGNED";
+
+                if ( isdefined( level.vsmgr["visionset"].info["zm_whos_who"].slot_index ) )
+                    str_slot = "" + level.vsmgr["visionset"].info["zm_whos_who"].slot_index;
+
                 player.zmqol_wwfx = 1;
-                zmqol_whoswho_vc_capture();
                 player zmqol_whoswho_overlay_on();
-                player iprintln( "^2[zm_qol] Who's Who overlay ON" );
+                maps\mp\_visionset_mgr::vsmgr_activate( "visionset", "zm_whos_who", player );
+                player iprintln( "^2[zm_qol] Who's Who overlay ON (slot " + str_slot + ")" );
+                println( "[zm_qol] wwfx: zm_whos_who registered, slot_index " + str_slot );
             }
         }
         else if ( cmd == "god" )
@@ -5263,7 +5279,7 @@ zmqol_enable_whoswho()
         level.vsmgr_prio_visionset_zm_whos_who = 123;
 
     level thread zmqol_whoswho_verify();
-    zmqol_whoswho_vc_capture();
+    level thread zmqol_whoswho_visionset_probe();
     level thread zmqol_whoswho_overlay_connect();
 }
 
@@ -5366,88 +5382,46 @@ zmqol_whoswho_clone_glow()
     println( "[zm_qol] whoswho: clone glow set on a script_model corpse" );
 }
 
-zmqol_whoswho_vc_names()
+zmqol_whoswho_visionset_probe()
 {
-    return array( "vc_lib", "vc_liw", "vc_lig", "vc_lob", "vc_low", "vc_rgbh", "vc_rgbl", "vc_yh", "vc_yl", "vc_rs", "vc_re", "vc_smr", "vc_smg", "vc_smb", "vc_hmr", "vc_hmg", "vc_hmb", "vc_mmr", "vc_mmg", "vc_mmb", "vc_fgm", "vc_fsm", "vc_fbm" );
-}
+    level endon( "end_game" );
+    wait 1;
 
-zmqol_whoswho_vc_capture()
-{
-    if ( isdefined( level.qol_vc_default ) )
+    if ( !isdefined( level.vsmgr ) || !isdefined( level.vsmgr["visionset"] ) || !isdefined( level.vsmgr["visionset"].info ) || !isdefined( level.vsmgr["visionset"].info["zm_whos_who"] ) )
+    {
+        println( "[zm_qol] whoswho visionset: NOT REGISTERED on the server - the grade cannot show" );
         return;
+    }
 
-    level.qol_vc_default = [];
-    a_names = zmqol_whoswho_vc_names();
+    if ( !isdefined( level.vsmgr["visionset"].info["zm_whos_who"].slot_index ) )
+    {
+        println( "[zm_qol] whoswho visionset: registered but slot_index UNASSIGNED - no clientfield to travel on" );
+        return;
+    }
 
-    for ( i = 0; i < a_names.size; i++ )
-        level.qol_vc_default[a_names[i]] = getdvar( a_names[i] );
+    println( "[zm_qol] whoswho visionset: registered, slot_index " + level.vsmgr["visionset"].info["zm_whos_who"].slot_index + ", total visionsets " + level.vsmgr["visionset"].info.size );
 }
 
 zmqol_whoswho_overlay_on()
 {
-    self setclientdvar( "r_filmUseTweaks", 1 );
+    self setclientdvar( "r_filmUseTweaks", 0 );
     self setclientdvar( "r_exposureTweak", 0 );
-    self setclientdvar( "vc_lib", "0 0 0 0" );
-    self setclientdvar( "vc_liw", "32 32 32 32" );
-    self setclientdvar( "vc_lig", "1 1 1 1" );
-    self setclientdvar( "vc_lob", "0 0 0 0" );
-    self setclientdvar( "vc_low", "32 32 32 32" );
-    self setclientdvar( "vc_rgbh", "0.544885 0.019366 0.027131 0.3" );
-    self setclientdvar( "vc_rgbl", "0.181628 0.006455 0.009044 1" );
-    self setclientdvar( "vc_yh", "0.1575 0.068845 0.031512 0.34" );
-    self setclientdvar( "vc_yl", "0.016506 0.036062 0.0825 0.76" );
-    self setclientdvar( "vc_rs", "0 0.35 0 0.5" );
-    self setclientdvar( "vc_re", "0.52 1 0.5 1" );
-    self setclientdvar( "vc_smr", "1.292399 2.459266 0.248335 0" );
-    self setclientdvar( "vc_smg", "0.730996 3.020669 0.248335 0" );
-    self setclientdvar( "vc_smb", "0.730996 2.459266 0.809738 0" );
-    self setclientdvar( "vc_hmr", "7.149658 -2.860779 -0.288879 0" );
-    self setclientdvar( "vc_hmg", "-0.850342 5.139221 -0.288879 0" );
-    self setclientdvar( "vc_hmb", "-0.850342 -2.860779 7.711121 0" );
-    self setclientdvar( "vc_mmr", "2.065999 1.756619 0.177382 0" );
-    self setclientdvar( "vc_mmg", "0.52214 3.300478 0.177382 0" );
-    self setclientdvar( "vc_mmb", "0.52214 1.756619 1.721241 0" );
-    self setclientdvar( "vc_fgm", "1.345455 1.345455 1.345455 0" );
-    self setclientdvar( "vc_fsm", "0.212585 0.715195 0.07222 1" );
-    self setclientdvar( "vc_fbm", "1 1 1 0" );
-    println( "[zm_qol] whoswho overlay: ON (23 vc_* applied)" );
+    self setclientdvar( "r_bloomTweaks", 0 );
+    println( "[zm_qol] whoswho overlay: ON (night mode suspended, stock visionset in charge)" );
 }
 
 zmqol_whoswho_overlay_off()
 {
-    a_names = zmqol_whoswho_vc_names();
-
-    if ( isdefined( level.qol_vc_default ) )
-    {
-        for ( i = 0; i < a_names.size; i++ )
-        {
-            str_val = level.qol_vc_default[a_names[i]];
-
-            if ( isdefined( str_val ) && str_val != "" )
-                self setclientdvar( a_names[i], str_val );
-        }
-    }
-
     if ( getdvarintdefault( "night_mode", 0 ) )
     {
         self setclientdvar( "r_filmUseTweaks", 1 );
-        self setclientdvar( "vc_fbm", "0 0 0 0" );
-        self setclientdvar( "vc_fsm", "1 1 1 1" );
-        self setclientdvar( "vc_rgbh", "0.1 0 0.3 0" );
-        self setclientdvar( "vc_yl", "0 0 0.25 0" );
-        self setclientdvar( "vc_yh", "0.02 0 0.1 0" );
-        self setclientdvar( "vc_rgbl", "0.02 0 0.1 0" );
+        self setclientdvar( "r_bloomTweaks", 1 );
 
         if ( isdefined( self.qol_night_exposure ) )
         {
             self setclientdvar( "r_exposureTweak", 1 );
             self setclientdvar( "r_exposureValue", self.qol_night_exposure );
         }
-    }
-    else
-    {
-        self setclientdvar( "r_filmUseTweaks", 0 );
-        self setclientdvar( "r_exposureTweak", 0 );
     }
 
     println( "[zm_qol] whoswho overlay: OFF (night_mode=" + getdvarintdefault( "night_mode", 0 ) + ")" );
