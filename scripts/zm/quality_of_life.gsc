@@ -8861,7 +8861,89 @@ zmqol_whoswho_overlay_connect()
     {
         level waittill( "connected", player );
         player thread zmqol_whoswho_overlay_watch();
+        player thread zmqol_whoswho_glow_model_watch();
     }
+}
+
+// ============================================================================
+//  zmqol_whoswho_glow_model_watch  -  v1.99.17. THE CLONE'S GLOW, SOLVED.
+//
+//  User, with a reference shot of Die Rise: the downed clone should have a
+//  bright orange rim glow. Ours had none, even after v1.99.16 delivered the
+//  clientfield to the corpse - the log confirms "clone glow set on a
+//  script_model corpse" fired, and still nothing glowed.
+//
+//  🌟 THE REASON IS THE MATERIALS, AND IT IS MEASURABLE. Stock's glow works by
+//  writing a shader constant to the corpse:
+//        self mapshaderconstant( localclientnum, 0, "scriptVector3" );
+//        self setshaderconstant( localclientnum, 0, 1.0, 0, 0, 0 );
+//  A shader constant only does something if the model's MATERIAL is authored to
+//  read it. Dumping both clone models and reading the material names out of the
+//  GLB settles it:
+//
+//    c_zom_player_reporter_dlc1_fb  (Die Rise) -> ..._arm_g, ..._body_g,
+//                                                 ..._gear_g, ..._head_g
+//    c_zom_player_reporter_fb       (TranZit)  -> ..._arm,   ..._body,
+//                                                 ..._gear,  ..._head
+//
+//  🛑 The `_g` suffix is the glow-capable variant, and a fastfile sweep finds
+//  every `mc/mtl_c_zom_player_*_g` material in **zm_highrise.ff and nowhere
+//  else**. So off Die Rise the clone is built from materials that cannot glow,
+//  and the shader constant lands on nothing. Silently, as ever.
+//
+//  THE FIX IS STOCK'S OWN AND IT WAS SITTING IN PLAIN SIGHT: Die Rise sets
+//  self.whos_who_shader (zm_highrise.gsc:1185/1194/1203/1213), which
+//  _zm_chugabud::chugabud_spawn_corpse() passes to spawn_player_clone() as
+//  `forcemodel`. Nothing outside Die Rise ever sets it, so nothing outside Die
+//  Rise gets the glow-capable model. Setting it is the whole fix.
+//
+//  🛑 zm_transit ONLY, and that is an asset limit, not a shortcut:
+//    zm_transit  Victis crew, same four characters as Die Rise -> works
+//    zm_nuked    CIA / CDC agents (zm_nuked.gsc:653-665). No `_g` materials
+//                exist for them anywhere in the game.
+//    zm_tomb     Richtofen / Dempsey / Nikolai / Takeo. A sweep for
+//                `mc/mtl_c_zom_tomb*_g` returns nothing - Treyarch never made
+//                glow materials for the Origins crew.
+//  Rather than put a Victis body on a Nuketown agent or an Origins hero, those
+//  two keep the plain clone. Reported, not silently bodged.
+//
+//  📝 The index mapping is TranZit's own switch (zm_transit.gsc:1155-1181), not
+//  Die Rise's assumed to carry over - they happen to agree: 0 oldman,
+//  1 reporter, 2 farmgirl, 3 engineer.
+// ============================================================================
+zmqol_whoswho_glow_model_watch()
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+
+    if ( !isdefined( level.script ) || level.script != "zm_transit" )
+        return;
+
+    for (;;)
+    {
+        self waittill( "spawned_player" );
+
+        if ( !isdefined( self.characterindex ) )
+            continue;
+
+        str_model = zmqol_whoswho_glow_model( self.characterindex );
+
+        if ( isdefined( str_model ) )
+            self.whos_who_shader = str_model;
+    }
+}
+
+zmqol_whoswho_glow_model( n_index )
+{
+    switch ( n_index )
+    {
+        case 0:  return "c_zom_player_oldman_dlc1_fb";
+        case 1:  return "c_zom_player_reporter_dlc1_fb";
+        case 2:  return "c_zom_player_farmgirl_dlc1_fb";
+        case 3:  return "c_zom_player_engineer_dlc1_fb";
+    }
+
+    return undefined;
 }
 
 //  Polls stock's own flag rather than hooking anything: chugabud_laststand()
@@ -8900,17 +8982,40 @@ zmqol_whoswho_overlay_watch()
         //  chugabud_laststand() sets whos_who_effects_active -> chugabud_fake_revive()
         //  stands the player up as the ghost. Gating on player_is_in_laststand()
         //  puts the grade exactly where Die Rise puts it: after the red, not over it.
-        b_want = b_active && !( self maps\mp\zombies\_zm_laststand::player_is_in_laststand() );
+        b_down = self maps\mp\zombies\_zm_laststand::player_is_in_laststand();
 
-        if ( b_want && !b_on )
+        //  v1.99.17 - THREE STATES, NOT TWO, BECAUSE THE RED IS A VISIONSET TOO.
+        //
+        //  1 = on the floor  -> zombie_last_stand's grade (the red)
+        //  2 = up as the ghost -> zm_whos_who's grade (the wash-out)
+        //  0 = neither         -> hand the screen back
+        //
+        //  🛑 Why the red has to be driven here at all: night_mode is ON in the
+        //  user's sessions (console_zm.log records night_mode "1"), and night mode
+        //  sets r_filmUseTweaks 1, which makes the renderer use the vc_* dvars
+        //  INSTEAD of any active visionset - including the engine's own
+        //  visionsetlaststand( "zombie_last_stand", 1 ) at _zm.gsc:2022. So the red
+        //  is suppressed on EVERY down while night mode is on, Who's Who or not.
+        //  Driving its 23 values through the same channel is the only way it can
+        //  survive, and they are Treyarch's own, dumped from
+        //  vision/zombie_last_stand.vision out of common_zm.ff.
+        n_want = 0;
+
+        if ( b_active && b_down )
+            n_want = 1;
+        else if ( b_active )
+            n_want = 2;
+
+        if ( n_want != b_on )
         {
-            b_on = 1;
-            self zmqol_whoswho_overlay_on();
-        }
-        else if ( !b_active && b_on )
-        {
-            b_on = 0;
-            self zmqol_whoswho_overlay_off();
+            b_on = n_want;
+
+            if ( n_want == 1 )
+                self zmqol_whoswho_laststand_on();
+            else if ( n_want == 2 )
+                self zmqol_whoswho_overlay_on();
+            else
+                self zmqol_whoswho_overlay_off();
         }
 
         //  The clone's glow is a separate clientfield and a separate bug - see
@@ -9037,6 +9142,50 @@ zmqol_whoswho_vc_capture()
 
     for ( i = 0; i < a_names.size; i++ )
         level.qol_vc_default[ a_names[i] ] = getdvar( a_names[i] );
+}
+
+//  All 23 values, verbatim from vision/zombie_last_stand.vision (dumped out of
+//  common_zm.ff). This is the RED downed screen - stock's own grade, driven
+//  through the dvars because night mode's r_filmUseTweaks 1 overrides the
+//  engine's visionsetlaststand() call.
+//
+//  🟡 Reported, not faked: the vision file ALSO carries r_reviveFX_* entries -
+//  the blurred vignette around the edges. Those names (contrastEdge,
+//  brightnessEdge, blurRadiusEdge ...) do NOT exist in the shipped engine; a
+//  scan of t6zm.exe's string table finds a different, later set
+//  (edgeAmount, edgeContrast, edgeSaturation, edgeScale, edgeOffset,
+//  edgeMaskAdjust, edgeColorTemp) with no Treyarch values anywhere to copy, and
+//  r_reviveFX_edgeAmount sits at 0 by default. So the colour is reproduced
+//  exactly and the edge blur is left alone rather than invented.
+zmqol_whoswho_laststand_on()
+{
+    self setclientdvar( "r_filmUseTweaks", 1 );
+
+    self setclientdvar( "vc_lib",  "0 0 0 0" );
+    self setclientdvar( "vc_liw",  "32 32 32 32" );
+    self setclientdvar( "vc_lig",  "1 1 1 1" );
+    self setclientdvar( "vc_lob",  "0 0 0 0" );
+    self setclientdvar( "vc_low",  "32 32 32 32" );
+    self setclientdvar( "vc_rgbh", "0.329219 0.609989 0.855 0.51" );
+    self setclientdvar( "vc_rgbl", "0.4025 0.227593 0.124631 1.92" );
+    self setclientdvar( "vc_yh",   "0.68 0.475423 0.343214 0" );
+    self setclientdvar( "vc_yl",   "0.32655 0.158061 0.023532 1.17" );
+    self setclientdvar( "vc_rs",   "0 0.5 0 0.75" );
+    self setclientdvar( "vc_re",   "0.5 1 0.25 1" );
+    self setclientdvar( "vc_smr",  "0.169865 0.454763 0.043661 0" );
+    self setclientdvar( "vc_smg",  "0.017119 0.062171 0.005558 0" );
+    self setclientdvar( "vc_smb",  "0.024673 0.078736 0.018721 0" );
+    self setclientdvar( "vc_hmr",  "0.473762 0.620054 0.062613 0" );
+    self setclientdvar( "vc_hmg",  "0.162697 0.802876 0.055272 0" );
+    self setclientdvar( "vc_hmb",  "0.131026 0.440808 0.250292 0" );
+    self setclientdvar( "vc_mmr",  "0.312295 0.766712 0.077422 0" );
+    self setclientdvar( "vc_mmg",  "0.201179 0.751321 0.068345 0" );
+    self setclientdvar( "vc_mmb",  "0.162017 0.54507 0.11504 0" );
+    self setclientdvar( "vc_fgm",  "1 1 1 0" );
+    self setclientdvar( "vc_fsm",  "0.212585 0.715195 0.07222 1" );
+    self setclientdvar( "vc_fbm",  "1 1 1 0" );
+
+    println( "[zm_qol] whoswho overlay: LAST STAND (red grade applied)" );
 }
 
 //  All 23 values, verbatim from vision/zm_whos_who.vision.

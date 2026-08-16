@@ -6547,3 +6547,81 @@ last-stand gate, `zmqol_whoswho_clone_glow` and the scriptmover registration; th
 `gsc-tool` parsed both halves.
 
 🛑 **Deployed, NOT yet verified in game.**
+
+---
+
+## v1.99.17 — 2026-08-16. Who's Who: the clone glow root-caused to MATERIALS, and the red driven through the one working channel.
+
+### 🌟 THE CLONE GLOW — IT WAS NEVER THE CLIENTFIELD, IT WAS THE MATERIALS
+
+v1.99.16 delivered the clientfield to the corpse and the log proves it
+(`[zm_qol] whoswho: clone glow set on a script_model corpse`). Still no glow. That cleared the
+delivery path and pointed at what receives it.
+
+Stock's glow is a **shader constant** written to the corpse:
+`mapshaderconstant( localclientnum, 0, "scriptVector3" )` then `setshaderconstant( ..., 1.0, ... )`.
+A shader constant does nothing unless the model's **material** is authored to read it. Dumped both
+clone models and read the material names straight out of the GLB:
+
+| model | materials |
+|---|---|
+| `c_zom_player_reporter_dlc1_fb` (Die Rise) | `..._arm_**g**`, `..._body_**g**`, `..._gear_**g**`, `..._head_**g**` |
+| `c_zom_player_reporter_fb` (TranZit) | `..._arm`, `..._body`, `..._gear`, `..._head` |
+
+🛑 **`_g` is the glow-capable variant, and a sweep of all 191 fastfiles finds every
+`mc/mtl_c_zom_player_*_g` material in `zm_highrise.ff` and nowhere else.** Off Die Rise the clone is
+built from materials that physically cannot glow, so the constant lands on nothing.
+
+**The fix is stock's own and it was in plain sight the whole time.** Die Rise sets
+`self.whos_who_shader` (`zm_highrise.gsc:1185/1194/1203/1213`), and
+`_zm_chugabud::chugabud_spawn_corpse()` passes it to `spawn_player_clone()` as `forcemodel`. Nothing
+outside Die Rise ever sets it. Setting it — plus declaring the four models, whose `_g` materials come
+along transitively — is the whole fix.
+
+📝 I looked at `whos_who_shader` in v1.99.16 and **dismissed it** on the grounds that `_fb` is the
+normal player model on both maps, so forcing it "changes nothing". True of the model *name* and false
+of the *materials*. **Comparing names is not comparing contents.**
+
+🛑 **zm_transit only, and that is an asset limit rather than a shortcut.** Nuketown uses the CIA/CDC
+agents and Origins the Richtofen crew; neither has `_g` materials anywhere in the game
+(`mc/mtl_c_zom_tomb*_g` returns nothing). Those two keep the plain clone rather than wearing a Victis
+body. Reported, not bodged.
+
+🟡 On TranZit the clone now wears the **Die Rise** outfit, because that is the only glow-capable
+version of these characters that exists. Under the orange rim glow it is barely readable, but it is
+a real difference and the user should know.
+
+### 🌟 THE RED DOWNED SCREEN — night mode suppresses it on EVERY down, not just Who's Who
+
+`night_mode "1"` is recorded in the session's dvar dump. Night mode sets `r_filmUseTweaks 1`, and
+that makes the renderer use the `vc_*` dvars **instead of** any visionset — including the engine's
+own `visionsetlaststand( "zombie_last_stand", 1 )` at `_zm.gsc:2022`. So the red has been suppressed
+on every down while night mode is on, Who's Who or not. Not a Who's Who bug at all.
+
+**Fix:** the watcher is now three-state — on the floor → `zombie_last_stand`'s 23 `vc_*` values (the
+red), up as the ghost → `zm_whos_who`'s 23, neither → restore. Values dumped from
+`vision/zombie_last_stand.vision` out of `common_zm.ff`.
+
+🟡 **Reported, not faked:** that vision file also carries `r_reviveFX_*` entries — the blurred edge
+vignette. **Those names do not exist in the shipped engine.** A scan of `t6zm.exe`'s string table
+returns a different, later set (`edgeAmount`, `edgeContrast`, `edgeSaturation`, `edgeScale`,
+`edgeOffset`, `edgeMaskAdjust`, `edgeColorTemp`), there are no Treyarch values anywhere to copy onto
+them, and `r_reviveFX_edgeAmount` sits at 0 by default. The colour is reproduced exactly; the edge
+blur is left alone rather than invented.
+
+### 📝 A REAL BUG FOUND ALONG THE WAY, NOT YET FIXED
+`console_zm.log:4447-4450` — **four** `replaceFunc` collisions, all on the perk path:
+`perks_register_clientfield`, `init_client_flags`, `give_perk`, `default_vending_precaching`, each
+replaced by both the **stale `scripts/zm/zm_expanded.gsc` baked into `mod.ff`** and by
+`quality_of_life.gsc`. `quality_of_life` wins all four, so it is not the cause of these fx — but the
+stale script's `main()`/`init()` still run, doing duplicate work. `mod.ff` also carries stale
+day-one copies of every per-map `.gsc`. This is the standing "mod.ff stale script" queue item and it
+now has evidence. **Next candidate to fix.**
+
+### Verified before hand-off
+Six files hash-identical source ↔ Plutonium. Deployed `mod.ff` (5,219 assets) carries all four
+`_dlc1_fb` models and their `_g` materials, pulled `(src: zm_highrise)`. Deployed `mod.iwd`'s
+`quality_of_life.gsc` carries `zmqol_whoswho_glow_model_watch`, `zmqol_whoswho_laststand_on` and the
+model names. `gsc-tool` parsed it.
+
+🛑 **Deployed, NOT yet verified in game.**

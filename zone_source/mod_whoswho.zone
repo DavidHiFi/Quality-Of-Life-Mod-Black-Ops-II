@@ -75,3 +75,32 @@ image,zm_whoswho_mask
 material,generic_filter_afterlife
 
 rawfile,vision/zm_whos_who.vision
+
+// ---------------------------------------------------------------------------
+//  v1.99.17 - THE FOUR GLOW-CAPABLE CLONE MODELS.
+//
+//  The Who's Who corpse glows because the model it is built from uses the `_g`
+//  material variants, which are authored to read the shader constant stock
+//  writes (`scriptVector3`). Read straight out of the dumped GLBs:
+//
+//    c_zom_player_reporter_dlc1_fb (Die Rise) -> mtl_..._arm_g / _body_g /
+//                                                _gear_g / _head_g
+//    c_zom_player_reporter_fb      (TranZit)  -> mtl_..._arm / _body /
+//                                                _gear / _head
+//
+//  🛑 Every `mc/mtl_c_zom_player_*_g` material in the game lives in
+//  zm_highrise.ff and nowhere else, so off Die Rise the clone is made of
+//  materials that cannot glow and the shader constant lands on nothing.
+//
+//  Declaring the four models brings their `_g` materials and images with them
+//  transitively. zm_highrise.ff is already in build_ff.bat's --load list, so no
+//  load-order change.
+//
+//  📝 Only the Victis four exist. The Nuketown agents and the Origins crew have
+//  no `_g` materials anywhere in the game, which is why
+//  zmqol_whoswho_glow_model_watch() is gated to zm_transit.
+// ---------------------------------------------------------------------------
+xmodel,c_zom_player_oldman_dlc1_fb
+xmodel,c_zom_player_reporter_dlc1_fb
+xmodel,c_zom_player_farmgirl_dlc1_fb
+xmodel,c_zom_player_engineer_dlc1_fb
