@@ -6275,3 +6275,110 @@ assets and all four fnp45 xmodels + camo + material + anims (5,090 assets total)
 both edited scripts.
 
 🛑 **Deployed, NOT yet verified in game — and three changes are in flight at once.**
+
+---
+
+## v1.99.14 — 2026-08-16. ALL THREE v1.99.13 ITEMS FAILED IN GAME. Re-diagnosed from the log, plus the first full "revise" audit.
+
+User: *"All 3 failed... you really just waited 44 minutes and 35 seconds and barely achieved anything...
+Revise and stop hallucinating, stop introducing broken implementations."* Fair. The Tac-45's
+Pack-a-Punch was a regression **I** introduced. Standing instruction recorded in memory:
+[[zm-qol-revise-and-no-broken-features]].
+
+🌟 **WHAT CHANGED IN METHOD:** the console log was pulled FIRST this round, and it settled in two
+greps what the previous round spent an hour theorising about — every new asset loaded, nothing
+failed, so all three causes were logical, not asset-level.
+
+### 1. 🛑 B-TAC45 PACK-A-PUNCH — MY REGRESSION. Five left-hand animations were never declared.
+
+Screenshot: the packed gun drawn enormous and misplaced, arms wrong. That is a viewmodel with **no
+animation to play**, rendering at bind pose.
+
+**Cause:** the first pass enumerated the weapon's anims by matching the FIELD NAME suffix
+(`*Anim`, `*_in`, `*_loop`, `*_out`). The dual-wield left-hand fields are `idleAnimLeft`,
+`emptyIdleAnimLeft`, `fireAnimLeft`, `lastShotAnimLeft`, `reloadAnimLeft`, `reloadEmptyAnimLeft`
+— they end in **Left** — and `meleeAnimEmpty` ends in **Empty**. All six fell outside the pattern
+and were declared nowhere. All six are in `common_mp.ff`, already `--load`ed. Six lines fixed it.
+
+🌟 **THE RULE THIS PRODUCED: ENUMERATE BY VALUE, NEVER BY FIELD NAME.** Any value starting with
+`viewmodel_` is an xanim, whatever the field is called.
+
+### 2. 🌟 B-WHOWL — FOUR ROUNDS ON MUZZLE FLASHES AND IT WAS NEVER THE MUZZLE FLASH.
+
+`freezegun_zm` is `weaponType projectile`, `projectileSpeed 2000` — and it had **no
+`projTrailEffect` and no `projExplosionEffect` at all**. It fires an invisible projectile. The
+Wunderwaffe, which the user is happy with, has both; the Thundergun has the explosion.
+
+And the mod has shipped **`fx_trail_freezegun_geotail`** and **`fx_trail_freezegun_ring_emit`**
+since the port landed. Both declared in `mod_freezefx.zone`, both confirmed loading in this
+session's log (`console_zm.log:4469-4470`), **both referenced by nothing**. `geotail`'s `emission`
+field names `ring_emit`, so the two are one trail: a smoke wisp with dust motes, water droplets and
+light flares travelling with the shot. That is "the freezing storm".
+
+**Change:** `projTrailEffect` inserted into both defs (the field did not exist — the T5-era def
+never carried it), pointing at `weapon/freeze_gun/fx_trail_freezegun_geotail`. Plus
+`gfx_fxt_smk_trail_wisp` + its image, the one trail material that is **absent on zm_transit** (it
+ships only in zm_highrise / zm_nuked / zm_tomb / the two so_zclassic zones). The other five
+materials already resolve — three in `mod.ff`, two in `common_zm`.
+
+📝 `projExplosionType` and `projExplosionEffect` deliberately untouched: changing the explosion type
+would change damage, which is gameplay, not fx.
+
+📝 Also fixed: the defs asked for `viewmodel_freeze_gun_ADS_up/_ADS_down` while `mod.ff` declares
+them **lowercase**. Lowercased in the defs so they match exactly.
+
+### 3. 🌟 B-WHOSWHO2 — THE CAUSE IS THIS MOD'S OWN NIGHT MODE. Checkpoint 60 named it and it was not chased.
+
+v1.99.13 shipped the five Die-Rise-only assets. Necessary, and **not sufficient**.
+
+`qol_options.gsc::qol_opt_night_on()` sets:
+
+```
+r_filmUseTweaks 1
+vc_rgbh / vc_yl / vc_yh / vc_rgbl / vc_fsm / vc_fbm
+```
+
+🌟 **Those vc_* dvars are the SAME colour-grade parameters a `.vision` file carries.** Compare the
+dumped `zm_whos_who.vision`, which is literally a list of `vc_LIB`, `vc_RGBH`, `vc_YL`, `vc_SMR`…
+values. `r_filmUseTweaks 1` tells the renderer to use the **dvars instead of the active visionset**.
+So `vsmgr_activate()` succeeded, the visionset became current, and the renderer ignored it —
+silently. The user plays with night mode on; the screenshots are night mode.
+
+**Fix:** drive the overlay through the same channel night mode uses — the one channel proven to
+reach the renderer on every map in this mod. `zmqol_whoswho_overlay_watch()` polls stock's own
+`self.whos_who_effects_active` (the call that sets it is unqualified and same-file, so `replaceFunc`
+cannot reach it) and sets the six vc_* dvars **to the values read out of `zm_whos_who.vision`**,
+restoring night-mode values or the neutral set on revive. Only the six dvars night mode itself
+proves exist are used; the file's `vc_SMR`/`vc_HMR`/`vc_MMR` entries were left alone rather than
+guessed at.
+
+📝 The stock filter pass and the visionset are kept — they are the authentic Die Rise path and with
+night mode off they do the work.
+
+### 4. 🌟 THE FIRST "REVISE" — a reusable audit, and it found a documented bug's cause
+
+`.agents\audit_weapon_assets.js`. Enumerates every asset every weapon this mod adds references, **by
+value**, and resolves each against what `mod.ff` declares plus the fastfiles each map actually loads
+(taken from the `Loading fastfile` lines of a real log, not guessed). **112 findings**, now 1.
+
+| finding | outcome |
+|---|---|
+| 9 × `menu_mp_weapons_*` missing on every map | 🌟 **This is the README's "kill-feed icons missing" bug.** They ship only in `code_post_gfx_mp.ff` / `frontend.ff`, which no zombies map loads. Fixed. |
+| 5 left-hand + 1 melee anim, Tac-45 | fixed, §1 |
+| 6 × Titus-6 dive-to-prone anims (`_gl_d2p_*`, `_mk_d2p_*`) | declared nowhere → bind pose on a dive. Fixed from `monsoon.ff`. |
+| `gfx_fxt_smk_trail_wisp` | fixed, §2 |
+| `fx_saw` missing on zm_prison | Mk 48 / QBB shell brass vanished on Mob. Fixed. |
+| `fx_zombie_heavy_flash_base_ug` missing on zm_tomb | packed XPR-50 had no muzzle flash on Origins. Fixed. |
+| `reticle_center_cross_glow` missing on 5 maps | Titus dart reticle. Fixed. |
+| `viewmodel_freeze_gun_ADS_up/down` case mismatch | fixed, §2 |
+| `viewmodel_base_viewhands` (Thundergun `handModel`) | 🟡 **Left alone deliberately.** Exists in no zombies fastfile, but the Thundergun is confirmed working and the user is happy with it — declaring it would change a gun that already looks right. Reported, not touched. |
+
+### Verified before hand-off
+
+Six files hash-identical source ↔ Plutonium. In the deployed `mod.ff` (5,122 assets): all six Tac-45
+anims, `gfx_fxt_smk_trail_wisp` + image, all nine weapon icons, the Titus d2p anims, `fx_saw`,
+`reticle_center_cross_glow`, and v1.99.13's five Who's Who assets. In the deployed `mod.iwd`:
+`freezegun_zm` carrying `projTrailEffect` → `fx_trail_freezegun_geotail` and the lowercased ADS
+anims. `gsc-tool` parsed the edited script.
+
+🛑 **Deployed, NOT yet verified in game.**

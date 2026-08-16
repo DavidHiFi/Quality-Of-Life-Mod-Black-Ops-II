@@ -1,0 +1,103 @@
+// ============================================================================
+//  mod_revise.zone  -  assets found MISSING by .agents\audit_weapon_assets.js.
+//
+//  Written 2026-08-16 (v1.99.14) on the user's "revise" instruction: go over the
+//  whole mod and check that everything added is integrated properly and is not
+//  missing effects.
+//
+//  🌟 HOW THESE WERE FOUND. The audit enumerates every asset a weapon def names
+//  BY VALUE - not by field-name pattern - and resolves each one against
+//  (a) what mod.ff declares and (b) the fastfiles each zombies map actually
+//  loads, taken from the "Loading fastfile" lines of a real console_zm.log.
+//  Anything in neither is a SILENT failure in T6: no log line, no error, just a
+//  missing effect or a bind-pose model.
+//
+//  The bug that prompted the tool: the Tac-45's five left-hand dual-wield anims
+//  were referenced and declared nowhere, so the Pack-a-Punched gun drew at bind
+//  pose - an enormous misplaced model. See mod_tac45.zone.
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+//  1. THE KILL-FEED / HUD ICONS FOR TEN PORTED WEAPONS.
+//
+//  🌟 This is the README's long-standing "Kill-feed icons missing" known issue,
+//  and this is its cause. Every ported MP weapon names a hudIcon / killIcon /
+//  ammoCounterIcon material, and for ten of the twelve that material ships ONLY
+//  in code_post_gfx_mp.ff and frontend.ff - neither of which a zombies map
+//  loads. So the icon resolved to nothing and the feed drew a blank.
+//
+//  The XPR-50, the Titus-6 and the Tac-45 were already correct: menu_mp_weapons_as50,
+//  menu_mp_weapons_titus and menu_mp_weapons_fnp45 are declared in their own
+//  zone files. These ten complete the set.
+//
+//  📝 Names are the defs' own values, read out of each weapon file - note
+//  peacekeeper uses `_pm` and vector uses `_kriss`, both development names.
+//  code_post_gfx_mp.ff is already in build_ff.bat's --load list, so no load-order
+//  change and no new fastfile.
+// ---------------------------------------------------------------------------
+material,menu_mp_weapons_sig556
+material,menu_mp_weapons_sa58
+material,menu_mp_weapons_mk48
+material,menu_mp_weapons_qbb95
+material,menu_mp_weapons_mp7
+material,menu_mp_weapons_kriss
+material,menu_mp_weapons_insas
+material,menu_mp_weapons_pm
+material,menu_mp_weapons_crossbow
+
+// ---------------------------------------------------------------------------
+//  2. THE WINTER'S HOWL'S PROJECTILE TRAIL MATERIAL.
+//
+//  🌟 The gun is weaponType `projectile` with projectileSpeed 2000 and had NO
+//  projTrailEffect at all - so it fired an invisible projectile. The Wunderwaffe,
+//  which the user is happy with, has both projTrailEffect and projExplosionEffect.
+//  The mod has shipped fx_trail_freezegun_geotail and fx_trail_freezegun_ring_emit
+//  since the port went in; both are declared, both load (console_zm.log:4469-4470)
+//  and NOTHING referenced either of them. geotail's `emission` field names
+//  ring_emit, so the two are one trail.
+//
+//  Of the six materials that trail needs, five already resolve:
+//        gfx_fxt_light_flare                 already in mod.ff
+//        gfx_fxt_env_water_droplets_add      already in mod.ff
+//        gfx_fxt_env_dust_mote_pcloud_2_add  already in mod.ff
+//        gfx_fxt_muz_vert_gen                common_zm  (every map)
+//        gfx_fxt_smk_puff                    common_zm  (every map)
+//  The sixth - the main wisp of the trail - ships only in zm_highrise, zm_nuked,
+//  zm_tomb and the two so_zclassic zones. It is ABSENT on zm_transit, which is
+//  the map this is tested on, so it has to come with the mod.
+//  zm_highrise.ff is already --load'ed.
+// ---------------------------------------------------------------------------
+image,fxt_smk_trail_wisp
+material,gfx_fxt_smk_trail_wisp
+
+// ---------------------------------------------------------------------------
+//  3. THE TITUS-6'S DIVE-TO-PRONE ANIMATIONS, BOTH FIRE MODES.
+//
+//  Referenced by titus6_zm / titus6_upgraded_zm (dtp_in/loop/out) and by
+//  mk_titus6_zm / mk_titus6_upgraded_zm, declared nowhere. Diving to prone with
+//  the Titus in hand would have dropped the viewmodel to bind pose - the same
+//  class of defect as the Tac-45's left hand, just on a rarer input.
+//  All six are in monsoon.ff, already --load'ed for this weapon.
+// ---------------------------------------------------------------------------
+xanim,viewmodel_titus_gl_d2p_in
+xanim,viewmodel_titus_gl_d2p_loop
+xanim,viewmodel_titus_gl_d2p_out
+xanim,viewmodel_titus_mk_d2p_in
+xanim,viewmodel_titus_mk_d2p_loop
+xanim,viewmodel_titus_mk_d2p_out
+
+// ---------------------------------------------------------------------------
+//  4. SHELL EJECT AND MUZZLE EFFECTS THAT ARE NOT ON EVERY MAP.
+//
+//  fx_saw          - the Mk 48 / QBB LSW shell eject. On every zombies map
+//                    EXCEPT zm_prison, so belt-fed brass vanished on Mob.
+//                    From common_mp.ff.
+//  fx_zombie_heavy_flash_base_ug - the XPR-50's Pack-a-Punched muzzle flash.
+//                    On every map except zm_tomb, so the packed XPR-50 fired
+//                    with no flash on Origins. From zm_buried.ff.
+//  reticle_center_cross_glow - the Titus-6 dart's reticle. Only in zm_prison
+//                    and common.ff of the zones this build loads.
+// ---------------------------------------------------------------------------
+fx,weapon/shellejects/fx_saw
+fx,weapon/muzzleflashes/fx_zombie_heavy_flash_base_ug
+material,reticle_center_cross_glow

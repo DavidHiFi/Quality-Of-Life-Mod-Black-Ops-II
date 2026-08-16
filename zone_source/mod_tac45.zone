@@ -147,3 +147,29 @@ xanim,viewmodel_fnp45_reload_empty
 xanim,viewmodel_fnp45_sprint_loop
 xanim,viewmodel_fnp45_sprint_loop_empty
 xanim,viewmodel_fnp45_tactical_melee
+
+// ---------------------------------------------------------------------------
+//  v1.99.14 - THE SIX ANIMS THAT WERE MISSED, AND WHY THE PACK-A-PUNCHED GUN
+//  RENDERED AS A GIANT MISPLACED MODEL.
+//
+//  Five of these are the LEFT-HAND half of the dual-wield pair. With no
+//  idleAnimLeft loaded the left gun has no animation to play, so it draws at
+//  its bind pose - at the view origin, which reads as an enormous object
+//  filling the screen. That is exactly what the user reported and screenshotted.
+//
+//  🛑 THE MISTAKE THAT CAUSED IT: the first pass enumerated anims by matching
+//  the FIELD NAME suffix (*Anim, *_in, *_loop, *_out). The left-hand fields are
+//  idleAnimLeft / fireAnimLeft / lastShotAnimLeft / reloadAnimLeft /
+//  reloadEmptyAnimLeft / emptyIdleAnimLeft - they end in "Left" - and
+//  meleeAnimEmpty ends in "Empty". All six fell outside the pattern.
+//
+//  🌟 THE CORRECT METHOD, used now and applied to every weapon this mod ships:
+//  enumerate by VALUE, not by field name. Every value that starts with
+//  "viewmodel_" is an xanim, full stop. See .agentsaudit_weapon_assets.js.
+// ---------------------------------------------------------------------------
+xanim,viewmodel_fnp45_dw_left_fire
+xanim,viewmodel_fnp45_dw_left_idle
+xanim,viewmodel_fnp45_dw_left_idle_empty
+xanim,viewmodel_fnp45_dw_left_lastshot
+xanim,viewmodel_fnp45_dw_left_reload_empty
+xanim,viewmodel_fnp45_tactical_melee_empty

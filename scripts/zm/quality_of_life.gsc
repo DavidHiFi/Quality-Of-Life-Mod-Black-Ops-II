@@ -8783,6 +8783,127 @@ zmqol_enable_whoswho()
         level.vsmgr_prio_visionset_zm_whos_who = 123;
 
     level thread zmqol_whoswho_verify();
+    level thread zmqol_whoswho_overlay_connect();
+}
+
+// ============================================================================
+//  zmqol_whoswho_overlay_*  -  v1.99.14. THE DOWNED-STATE SCREEN OVERLAY.
+//
+//  User, three rounds running: "who's who is still missing it's visual fx",
+//  while confirming the AUDIO works. That combination proved the script half was
+//  already correct - stock's activate_chugabud_effects_and_audio() (:745-762)
+//  activates the visionset and writes both clientfields from the same four
+//  consecutive lines, so if the sting and looper are audible, all of it ran.
+//
+//  🛑 THE CAUSE IS THIS MOD'S OWN NIGHT MODE, AND CHECKPOINT 60 NAMED IT AS THE
+//  SUSPECT BEFORE THIS WAS CHASED. qol_options.gsc::qol_opt_night_on() sets
+//
+//        r_filmUseTweaks 1
+//        vc_rgbh / vc_yl / vc_yh / vc_rgbl / vc_fsm / vc_fbm
+//
+//  and those vc_* dvars are the SAME colour-grade parameters a .vision file
+//  carries - compare zm_whos_who.vision, which is literally a list of vc_LIB,
+//  vc_RGBH, vc_YL, vc_SMR ... values. r_filmUseTweaks 1 tells the renderer to
+//  use the dvars INSTEAD of the active visionset. So vsmgr_activate() succeeds,
+//  the visionset becomes current, and the renderer ignores it. Silently.
+//
+//  That also explains why shipping the five Die-Rise-only assets in v1.99.13
+//  changed nothing visible: they were necessary and they were not sufficient.
+//
+//  THE FIX: drive the overlay through the same channel night mode uses, which is
+//  the one channel proven to reach the renderer on every map in this mod.
+//  🛑 The values are NOT invented - they are read straight out of
+//  vision/zm_whos_who.vision as dumped from zm_highrise.ff with the Unlinker,
+//  and only the six vc_* dvars night mode itself proves exist are used. The
+//  file's other entries (vc_SMR, vc_HMR, vc_MMR ...) are left alone rather than
+//  guessed at.
+//
+//  📝 The stock filter pass and the visionset are NOT removed. They are the
+//  authentic Die Rise path, their assets now ship (mod_whoswho.zone), and with
+//  night mode off they do the work. This runs on top and is what makes the
+//  effect survive night mode.
+// ============================================================================
+zmqol_whoswho_overlay_connect()
+{
+    for (;;)
+    {
+        level waittill( "connected", player );
+        player thread zmqol_whoswho_overlay_watch();
+    }
+}
+
+//  Polls stock's own flag rather than hooking anything: chugabud_laststand()
+//  threads activate_chugabud_effects_and_audio(), which sets
+//  self.whos_who_effects_active = 1 and threads the deactivate that clears it.
+//  That call is UNQUALIFIED and same-file, so replaceFunc cannot reach it
+//  (AI_CONTEXT rule / CLAUDE.md §4 failure mode 1) - a watcher is the correct
+//  shape, and it is the same conclusion [[t6-replacefunc-threaded-calls]] records.
+zmqol_whoswho_overlay_watch()
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+
+    b_on = 0;
+
+    for (;;)
+    {
+        b_want = isdefined( self.whos_who_effects_active ) && self.whos_who_effects_active == 1;
+
+        if ( b_want && !b_on )
+        {
+            b_on = 1;
+            self zmqol_whoswho_overlay_on();
+        }
+        else if ( !b_want && b_on )
+        {
+            b_on = 0;
+            self zmqol_whoswho_overlay_off();
+        }
+
+        wait 0.05;
+    }
+}
+
+//  Values verbatim from vision/zm_whos_who.vision.
+zmqol_whoswho_overlay_on()
+{
+    self setclientdvar( "r_filmUseTweaks", 1 );
+    self setclientdvar( "vc_rgbh", "0.544885 0.019366 0.027131 0.3" );
+    self setclientdvar( "vc_rgbl", "0.181628 0.006455 0.009044 1" );
+    self setclientdvar( "vc_yh",   "0.157500 0.068845 0.031512 0.34" );
+    self setclientdvar( "vc_yl",   "0.016506 0.036062 0.082500 0.76" );
+    self setclientdvar( "vc_fsm",  "0.212585 0.715195 0.072220 1" );
+    self setclientdvar( "vc_fbm",  "1 1 1 0" );
+    println( "[zm_qol] whoswho overlay: ON" );
+}
+
+//  Hand the screen back to whoever owns it. Night mode's own values if it is
+//  running, otherwise the neutral set qol_opt_night_off() restores - so this
+//  cannot leave a tint behind in either mode.
+zmqol_whoswho_overlay_off()
+{
+    if ( getdvarintdefault( "night_mode", 0 ) )
+    {
+        self setclientdvar( "r_filmUseTweaks", 1 );
+        self setclientdvar( "vc_rgbh", "0.1 0 0.3 0" );
+        self setclientdvar( "vc_yl",   "0 0 0.25 0" );
+        self setclientdvar( "vc_yh",   "0.02 0 0.1 0" );
+        self setclientdvar( "vc_rgbl", "0.02 0 0.1 0" );
+        self setclientdvar( "vc_fbm",  "0 0 0 0" );
+        self setclientdvar( "vc_fsm",  "1 1 1 1" );
+    }
+    else
+    {
+        self setclientdvar( "vc_rgbh", "0 0 0 0" );
+        self setclientdvar( "vc_yl",   "0 0 0 0" );
+        self setclientdvar( "vc_yh",   "0 0 0 0" );
+        self setclientdvar( "vc_rgbl", "0 0 0 0" );
+        self setclientdvar( "vc_fbm",  "0 0 0 0" );
+        self setclientdvar( "vc_fsm",  "1 1 1 1" );
+        self setclientdvar( "r_filmUseTweaks", 0 );
+    }
+
+    println( "[zm_qol] whoswho overlay: OFF (night_mode=" + getdvarintdefault( "night_mode", 0 ) + ")" );
 }
 
 // ============================================================================
