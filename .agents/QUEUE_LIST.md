@@ -10,7 +10,7 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **53** · mod version **1.99.3**
+- SYNCED TO: checkpoint **53** · mod version **1.99.4**
 - LAST VERIFIED: 2026-08-16 — every line below was checked against the checkpoints, the bottom of
   `QUEUE.md`, or the source tree on this date.
 - BUILT, AWAITING THE USER'S BOOT: **1–6** — bookkeeping for the closing "do this now" line only.
@@ -18,7 +18,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 
 <!-- LIST -->
 
-1. **Power-up timers** — countdown above the power-up icons, Death Machine included
+1. ~~**Power-up timers** — countdown above the power-up icons, Death Machine included~~
 2. **Bleedout bar toggle**
 3. **Origins Death Machine ammo counter**
 4. **Who's Who description** — the joke line removed
@@ -109,6 +109,8 @@ Short enough to stay out of the list, useful enough to keep somewhere:
    mean **not done** — leave those lines unstruck.
 2. When the user confirms an item in game → **strike its line through in place** (`~~like this~~`)
    and note the version in `QUEUE.md`. Do not renumber for a strikethrough.
+   🛑 Strike the **text only**, leaving the number outside: `1. ~~item~~`, never `~~1. item~~` —
+   the second form stops the line being a list item and markdown then renumbers everything below it.
 3. When the user says an item is **resolved / no longer needed** → cut it from the list, renumber
    the rest, add it to *Closed* above with its old number, and record the renumbering map.
 4. When the user asks for something new → **append it at the end** with the next number.

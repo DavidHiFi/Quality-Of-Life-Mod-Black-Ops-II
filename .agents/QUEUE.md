@@ -5393,3 +5393,54 @@ who wrote it is offered here, because none is supported.** If it returns, the ch
 Whether the icon was broken *before* today is **not established**: the registration-time
 `Could not load material` line is normal noise (stock's own `zm_hud_icon_battery` and
 `zom_icon_minigun` log it too and work fine), so it is not evidence on its own.
+
+---
+
+## 2026-08-16 — v1.99.4: the user's own Death Machine icon, and the reason their export was rejected
+
+v1.99.3 confirmed in game: *"ok it works now"* — the power-up timers **and** the Death Machine icon.
+Queue item 1 is struck. The user then supplied their own icon to match the pack they run:
+`D:\Custom Downloads\IDM Downloads\Lubes 2nd Perk Icon Pack\6 - Power Ups\3 - Barless Version\`.
+
+### 🛑 The file they handed over was the SAME broken file removed in v1.99.3
+
+SHA256-identical: 262,228 bytes, format byte 0. So the 07:14 mystery in the v1.99.3 entry is
+answered — **the user installed their own icon**, and it never rendered. Nothing wrote it behind
+anyone's back.
+
+### Why their export was invalid, measured
+
+| check | result |
+|---|---|
+| the pack's other 64 `.iwi` | **all** format 11 (DXT1), flags 2, 512×512, 131,136 bytes — valid, and identical to each other in header shape |
+| theirs | the only format-0 file in the pack |
+| their source `.dds` | `fourCC = DX10`, **`dxgiFormat = 98` = `DXGI_FORMAT_BC7_UNORM`** |
+
+**T6 has no BC7.** IWI supports DXT1 (11), DXT3 (12), DXT5 (13) and the uncompressed formats — so
+whatever wrote the `.iwi` had no format code to emit and wrote **0**. The 84-byte header and the
+20-byte tail also come from that: the DX10 DDS header is 148 bytes and the payload is BC7's
+262,144, neither of which fits the IWI layout. That is also why the payload never decoded cleanly as
+DXT1/DXT3/DXT5 at any offset — it was never any of them.
+
+### The fix used the path this project already documented
+
+`png2dds.ps1`'s own header comment describes the working chain, including the trap that names this
+exact failure: *"ImageConverter turns A8R8G8B8 into IWI format 0, which is rejected downstream.
+A8B8G8R8 gives format 1."* Their `.png` (512×512, 32bpp) went:
+
+    ui_powerup_deathmachine.png -> png2dds.ps1 -> A8B8G8R8 .dds -> ImageConverter --t6 -> .iwi
+
+giving **version 27, format 1, 512×512, 1,048,640 bytes** (64-byte header + 512·512·4 exactly).
+`ImageConverter` round-trips it without error, and the raw pixels were rendered back to PNG and
+**visually confirmed to be their artwork** — the metal-bordered badge with five bullets — before
+shipping, so this is not "it parses, hope it draws".
+
+Uncompressed rather than DXT1 like its siblings: no block compressor exists on this machine
+(`png2dds.ps1` says so), format 1 is already proven in this mod by the Wunderfizz textures, and 1 MB
+for one HUD icon is not worth a compromise on the alpha edges.
+
+📝 **If they replace another icon**, the same rule applies: **BC7 / DX10 DDS cannot ship**. Give the
+PNG to `png2dds.ps1`, or export DXT1/DXT5 with a non-DX10 header. Check with
+`xxd -l 12 <file>.iwi` — byte 4 must be 1, 11, 12 or 13, never 0.
+
+Verified in the deployed `mod.iwd`: 1,048,640 / v27 / fmt 1 / 512×512. **Not yet booted.**
