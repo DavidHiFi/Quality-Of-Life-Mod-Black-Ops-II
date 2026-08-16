@@ -6458,3 +6458,92 @@ Six files hash-identical source ↔ Plutonium. The deployed `mod.iwd`'s `quality
 `gsc-tool` parsed it. `.gsc`-only change, so no `mod.ff` relink was needed.
 
 🛑 **Deployed, NOT yet verified in game.**
+
+---
+
+## v1.99.16 — 2026-08-16. Who's Who: the ghost grade landed; the red downed screen and the clone glow are the last two, both root-caused.
+
+User: *"you're making progress, but my downed character model is missing the glow sort of fx, also
+when i went down the red overlay was missing ... make sure whos who has all it's genuine fx none
+missing triple check."*
+
+### ✅ The ghost-state colour grade works
+The 23-value `vc_*` drive is confirmed on screen. 🛑 Do not disturb it.
+
+### 🛑 THE RED DOWNED SCREEN — MY REGRESSION, INTRODUCED IN v1.99.14
+
+The red is **stock's own**, applied by the engine at `_zm.gsc:2022`:
+
+```
+if ( !b_alt_visionset )
+    visionsetlaststand( "zombie_last_stand", 1 );
+```
+
+and `b_alt_visionset` is set to 1 in exactly one place — `if ( self hasperk( "specialty_grenadepulldeath" ) )`,
+i.e. Electric Cherry. **So with Who's Who the red does run in stock.** Read, not assumed.
+
+🌟 **And a visionset is precisely what `r_filmUseTweaks 1` overrides — that is the entire reason the
+vc_* drive exists.** Switching the override on the instant `whos_who_effects_active` went up stamped
+on the red before the player had even stood up.
+
+**Fix:** the grade now waits for `player_is_in_laststand()` to go false. Stock's real sequence is
+`player_laststand()` paints the red → `chugabud_laststand()` sets the flag → `chugabud_fake_revive()`
+stands you up as the ghost. Gating on last stand puts the grade exactly where Die Rise puts it —
+*after* the red, not over it.
+
+📝 **The general trap, worth keeping:** anything that sets `r_filmUseTweaks 1` suppresses **every**
+visionset, including engine-driven ones like last stand and death. Scope it as tightly as possible.
+
+### 🌟 THE CLONE GLOW — AN `actor` CLIENTFIELD ON A NON-ACTOR
+
+Stock lights the corpse with `corpse setclientfield( "clientfield_whos_who_clone_glow_shader", 1 )`
+(`_zm_chugabud.gsc:72`), and that field is registered on the **actor** set. But `_zm_clone.gsc:27-38`:
+
+```
+spawner = getent( "fake_player_spawner", "targetname" );
+if ( isdefined( spawner ) ) { clone = spawner spawnactor();          clone.isactor = 1; }
+else                        { clone = spawn( "script_model", origin ); clone.isactor = 0; }
+```
+
+**The clone is an actor only on maps that ship a `fake_player_spawner` entity.** Counted in a
+`mapents` dump rather than guessed:
+
+| map | `fake_player_spawner` | clone is |
+|---|---|---|
+| `zm_highrise` | **1** | actor → stock's field lands → it glows |
+| `zm_transit` | **0** | script_model → field lands nowhere |
+| `zm_tomb` | **0** | script_model → field lands nowhere |
+
+An `actor`-set clientfield written to a script_model is delivered to nothing, silently. That is why
+the glow has only ever worked on Die Rise.
+
+**Fix:** a `scriptmover` twin, `zmqol_whoswho_clone_glow`, set on the corpse when it is not an actor.
+The callback is stock's **own** `_zm_perks::chugabud_whos_who_shader` — core client code, named
+directly, nothing reimplemented. 📝 The bit goes on the `scriptmover` set, **not** `actor`: the actor
+set is the scarce one (Origins sits at 32/32 after Who's Who, which is why Buried is excluded),
+while scriptmover already carries Vulture's 4-bit field with room to spare. Server and client
+registrations are exact twins behind the same `zmqol_whoswho_enabled()` gate.
+
+### 🌟 THE TRIPLE CHECK — every effect stock gives Who's Who, and where it stands
+
+| # | effect | source | state |
+|---|---|---|---|
+| 1 | red last-stand vision | `visionsetlaststand( "zombie_last_stand", 1 )`, `_zm.gsc:2022` | 🟡 fixed this round |
+| 2 | `zm_whos_who` ghost colour grade | `vsmgr_activate` + the 23 `vc_*` values | ✅ confirmed in game |
+| 3 | afterlife screen filter (blur + boost + warp) | `enable_filter_afterlife( player, 5 )`, material `generic_filter_afterlife` | ✅ assets ship since v1.99.13 |
+| 4 | audio — sting, looper, `zmb_duck_ww` snapshot | `clientfield_whos_who_audio` | ✅ confirmed in game |
+| 5 | clone glow | `clientfield_whos_who_clone_glow_shader` | 🟡 fixed this round |
+| 6 | revive icon + HUD over the corpse | `chugabud_corpse_revive_icon` / `chugabud_revive_hud_create` | ✅ stock, and **not** behind the `whos_who_client_setup` gate, so it has always run |
+| 7 | shellshock `"whoswho"` | gated on `level.chugabud_shellshock` | ⛔ **correctly absent** — grepping all 2,093 stock scripts finds that var assigned **nowhere**, so it never fires in stock either. Adding it would make this port louder than the original. |
+
+That is the complete list from `activate_chugabud_effects_and_audio()` (`_zm_chugabud.gsc:745-762`)
+plus the two calls around it at `:66-72`.
+
+### Verified before hand-off
+Six files hash-identical source ↔ Plutonium. Deployed `mod.iwd`'s `quality_of_life.gsc` carries the
+last-stand gate, `zmqol_whoswho_clone_glow` and the scriptmover registration; the deployed `mod.ff`'s
+`zm_expanded.csc` carries the client twin and names stock's callback — dumped back out with
+`Unlinker --include-assets script` and grepped, and it linked `(src: disk)`, not from the donor.
+`gsc-tool` parsed both halves.
+
+🛑 **Deployed, NOT yet verified in game.**

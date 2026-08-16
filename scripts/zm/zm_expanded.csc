@@ -835,6 +835,16 @@ zmqol_enable_whoswho()
 	//  name directly.
 	// ========================================================================
 	registerclientfield( "actor", "clientfield_whos_who_clone_glow_shader", 5000, 1, "int", clientscripts\mp\zombies\_zm_perks::chugabud_whos_who_shader, 0 );
+
+	//  v1.99.16 - THE SCRIPTMOVER TWIN, and the reason the clone never glowed off
+	//  Die Rise. _zm_clone.gsc:27-38 spawns the corpse as an ACTOR only when the
+	//  map ships a `fake_player_spawner` entity, and a `mapents` dump counts
+	//  1 on zm_highrise, 0 on zm_transit, 0 on zm_tomb. Everywhere else the corpse
+	//  is a script_model, so the actor field above is delivered to nothing.
+	//  🛑 EXACT TWIN of the server registration in quality_of_life.gsc.
+	//  📝 The callback is stock's OWN chugabud_whos_who_shader - core client code,
+	//  safe to name from a root script, and nothing is reimplemented.
+	registerclientfield( "scriptmover", "zmqol_whoswho_clone_glow", 5000, 1, "int", clientscripts\mp\zombies\_zm_perks::chugabud_whos_who_shader, 0 );
 	registerclientfield( "toplayer", "clientfield_whos_who_audio", 5000, 1, "int", ::zmqol_whoswho_audio, 0 );
 	registerclientfield( "toplayer", "clientfield_whos_who_filter", 5000, 1, "int", ::zmqol_whoswho_filter, 0 );
 

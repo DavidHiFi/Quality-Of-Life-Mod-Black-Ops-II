@@ -8795,6 +8795,14 @@ zmqol_enable_whoswho()
     registerclientfield( "toplayer", "clientfield_whos_who_audio",             5000, 1, "int" );
     registerclientfield( "toplayer", "clientfield_whos_who_filter",            5000, 1, "int" );
 
+    //  v1.99.16 - the scriptmover twin of the clone-glow field. Off Die Rise the
+    //  Who's Who corpse is a script_model, not an actor, so the stock actor field
+    //  above reaches nothing. Full reasoning on zmqol_whoswho_clone_glow().
+    //  🛑 EXACT TWIN in zm_expanded.csc::zmqol_enable_whoswho() - both sides
+    //  register it on the same map list or the scriptmover set is one bit wider
+    //  on one side, which is EXE_CLIENT_FIELD_MISMATCH at load.
+    registerclientfield( "scriptmover", "zmqol_whoswho_clone_glow",            5000, 1, "int" );
+
     level.whos_who_client_setup = 1;
 
     // Gates the zm_whos_who visionset. Stock registers it inside
@@ -8871,21 +8879,105 @@ zmqol_whoswho_overlay_watch()
 
     for (;;)
     {
-        b_want = isdefined( self.whos_who_effects_active ) && self.whos_who_effects_active == 1;
+        b_active = isdefined( self.whos_who_effects_active ) && self.whos_who_effects_active == 1;
+
+        //  🛑 v1.99.16 - THE OVERLAY MUST WAIT UNTIL THE PLAYER IS BACK ON THEIR
+        //  FEET, AND v1.99.15 NOT DOING SO IS WHAT KILLED THE RED DOWNED SCREEN.
+        //
+        //  User: "when i went down the red overlay was missing ... it's just blank".
+        //  That red is stock's own last-stand vision, applied by the ENGINE at
+        //  _zm.gsc:2022 - `visionsetlaststand( "zombie_last_stand", 1 )` - and
+        //  read the guard above it: `if ( !b_alt_visionset )`, where
+        //  b_alt_visionset is set to 1 for exactly one perk, specialty_grenadepulldeath
+        //  (Electric Cherry). So with Who's Who the red DOES run in stock.
+        //
+        //  🌟 And a visionset is precisely what r_filmUseTweaks 1 overrides - that
+        //  is the whole reason this function exists. So switching the override on
+        //  the instant whos_who_effects_active went up stamped on the red before
+        //  the player had even stood up. My regression, introduced in v1.99.14.
+        //
+        //  The real sequence, from stock: player_laststand() paints the red ->
+        //  chugabud_laststand() sets whos_who_effects_active -> chugabud_fake_revive()
+        //  stands the player up as the ghost. Gating on player_is_in_laststand()
+        //  puts the grade exactly where Die Rise puts it: after the red, not over it.
+        b_want = b_active && !( self maps\mp\zombies\_zm_laststand::player_is_in_laststand() );
 
         if ( b_want && !b_on )
         {
             b_on = 1;
             self zmqol_whoswho_overlay_on();
         }
-        else if ( !b_want && b_on )
+        else if ( !b_active && b_on )
         {
             b_on = 0;
             self zmqol_whoswho_overlay_off();
         }
 
+        //  The clone's glow is a separate clientfield and a separate bug - see
+        //  zmqol_whoswho_clone_glow(). Driven from here because stock's own write
+        //  sits inline in chugabud_laststand(), which nothing can hook.
+        if ( b_active )
+            self zmqol_whoswho_clone_glow();
+        else
+            self.zmqol_clone_glow_done = undefined;   // re-arm for the next down
+
         wait 0.05;
     }
+}
+
+// ============================================================================
+//  zmqol_whoswho_clone_glow  -  v1.99.16. THE DOWNED CLONE'S GLOW.
+//
+//  User: "my downed character model is missing the glow sort of fx".
+//
+//  🌟 THE CAUSE, MEASURED, NOT GUESSED. Stock lights the clone with
+//        corpse setclientfield( "clientfield_whos_who_clone_glow_shader", 1 );
+//  (_zm_chugabud.gsc:72) and that field is registered on the **actor** set.
+//  But look at how the clone is created - _zm_clone.gsc:27-38:
+//
+//        spawner = getent( "fake_player_spawner", "targetname" );
+//        if ( isdefined( spawner ) )  { clone = spawner spawnactor(); clone.isactor = 1; }
+//        else                         { clone = spawn( "script_model", origin ); clone.isactor = 0; }
+//
+//  🛑 So the clone is an ACTOR only on maps that ship a `fake_player_spawner`
+//  entity. Dumped `mapents` with the Unlinker and counted the occurrences:
+//
+//        zm_highrise   1     <- Die Rise, where Who's Who is native. Actor.
+//        zm_transit    0     <- script_model
+//        zm_tomb       0     <- script_model
+//
+//  An `actor`-set clientfield written to a script_model is delivered to nothing,
+//  silently. That is why the glow works on Die Rise and on no other map - and it
+//  is the same silent-failure shape as every other Who's Who defect in this saga.
+//
+//  THE FIX: a `scriptmover` twin of the same field, set on the corpse when the
+//  corpse is not an actor. The callback is stock's OWN
+//  _zm_perks::chugabud_whos_who_shader - core client code, so it can be named
+//  directly and nothing is reimplemented.
+//
+//  📝 Bit cost is on the `scriptmover` set, not `actor`. That matters: the actor
+//  set is the scarce one (Origins sits at 32/32 after Who's Who, which is why
+//  Buried is excluded), while scriptmover already carries Vulture's 4-bit field
+//  here with room to spare.
+// ============================================================================
+zmqol_whoswho_clone_glow()
+{
+    if ( isdefined( self.zmqol_clone_glow_done ) && self.zmqol_clone_glow_done )
+        return;
+
+    if ( !isdefined( self.e_chugabud_corpse ) )
+        return;
+
+    corpse = self.e_chugabud_corpse;
+    self.zmqol_clone_glow_done = 1;
+
+    //  An actor corpse is already handled by stock's own write; only the
+    //  script_model case needs ours, and doing both would be a double write.
+    if ( isdefined( corpse.isactor ) && corpse.isactor )
+        return;
+
+    corpse setclientfield( "zmqol_whoswho_clone_glow", 1 );
+    println( "[zm_qol] whoswho: clone glow set on a script_model corpse" );
 }
 
 // ============================================================================
