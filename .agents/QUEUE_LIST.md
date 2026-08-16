@@ -13,16 +13,16 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - SYNCED TO: checkpoint **57** · mod version **1.99.9**
 - LAST VERIFIED: 2026-08-16 — every line below was checked against the checkpoints, the bottom of
   `QUEUE.md`, or the source tree on this date.
-- BUILT, AWAITING THE USER'S BOOT: **2–5** — bookkeeping for the closing "do this now" line only.
-  Built ≠ done, so these are **not** struck through.
-- **1 CONFIRMED IN GAME 2026-08-16** at v1.99.6 (*"i tried it, it works fine, task finished"*) — the
-  live mid-down toggle. Struck through, kept on the list until the user says to remove it.
-- IN FLIGHT, **both unbooted** — the user authorised skipping ahead (*"i'll test both when i launch
-  next"*), so two changes are outstanding at once:
-  - **7** Winter's Howl firing fx (B-WHOWL) — root-caused and fixed in **v1.99.7**; only 1 of 11
-    muzzle-flash elements was flagged `drawWithViewModel`.
-  - **6** Riser sound (B-RISERSOUND) — the whole chain is now verified end to end and it is still
-    silent, so **v1.99.8** ships `.testsound` to ask the one question no file can answer.
+- BUILT, AWAITING THE USER'S BOOT: **1, 2, 4**.  Built ≠ done, so they are **not** struck through.
+- **4 Winter's Howl** — the v1.99.7 `drawWithViewModel` fix is **CONFIRMED IN GAME**
+  (*"the winters howl now has the correct shot fx"*). Still open only for the **wind**: v1.99.9
+  disabled the distortion element, which a block diff proved was the Thundergun's own, scaled down.
+  Unbooted.
+- **3 Riser sound** — `.testsound` (v1.99.8) **answered it**: `zmb_zombie_spawn` produces no audio
+  even 2D at point blank, while a matched control alias is audible in the same second. Next step is
+  the payload bytes, not another theory.
+- **5 Titus-6 reload** — the earlier "not possible" verdict is **RETRACTED**; it is a bank job and is
+  scoped in `QUEUE.md`. The **box pickup/raise sound** belongs to the same pass.
 
 <!-- LIST -->
 
@@ -125,9 +125,9 @@ uneeded right now"*.
 
 Kept here instead of on the lines so the printed list stays clean.
 
-`5` B-WF · `6` B-RISERSOUND · `7` B-WHOWL · `8` B-TITUSRELOAD · `9` B-WHOSWHO2 · `10` B-VIEWMODEL ·
-`11` B-STALEGSC · `12` B-CHARACTER · `14` T4 · `15` T5 · `16` B-PERKLIMIT · `17` B-BACKSPEED ·
-`18` B-CONTROLS · `19` B-CHERRY · `20` §2.9 · `21` B-DMBANK
+`2` B-WF · `3` B-RISERSOUND · `4` B-WHOWL · `5` B-TITUSRELOAD · `6` B-WHOSWHO2 · `7` B-STALEGSC ·
+`8` B-CHARACTER · `9` T5 · `10` B-PERKLIMIT · `11` B-BACKSPEED · `12` B-CHERRY · `13` §2.9 ·
+`14` B-DMBANK
 
 Bugs filed twice under different IDs are ONE line. Current aliases:
 `B-DIG` / `B-RISERSND` / `B-TOWN` = `B-RISERSOUND` · `B-WFHOWL` = `B-WHOWL` ·
