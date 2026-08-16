@@ -26,7 +26,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 1. **Who's Who description** — the joke line removed
 2. **Wunderfizz first location is random** by default
 3. **Titus-6 has no reload sound**
-4. **`mod.ff` runs a pre-merge copy of the mod's own script**, on every map
+4. ~~**`mod.ff` runs a pre-merge copy of the mod's own script**, on every map~~ — fixed v1.99.21, awaiting your boot
 5. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
 6. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
 7. **GAME-tab toggle for the 4-perk limit**
