@@ -5770,3 +5770,97 @@ theory is dead anyway. The riser path is untouched; `.testsound` is a user-invok
 
 🛑 **Deployed, NOT yet verified in game. Two unverified changes in flight (#7 and #6), at the user's
 explicit request.**
+
+---
+
+## 2026-08-16 — queue pass: eight items removed, and two investigated to a verdict (NO code shipped)
+
+User: *"remove 1, 2, 4, 10, 13, 14, 18, 22 ... Also quickly do these tasks ... 3, 5, 6, 7, 8, 9."*
+Numbers are against the list as `/queue` printed it immediately before the message.
+
+**Four of the six were already answered or are blocked on the boot, and saying so is the answer:**
+
+| old # | item | state, re-verified in the tree today |
+|---|---|---|
+| 3 | Who's Who description | built at v1.98.0, never booted |
+| 5 | Wunderfizz random first location | built at **v1.97.0** — `wunderfizz.gsc:196` `getDvarIntDefault("wunderfizzUseRandomStart", 1)`, default now ON. Diner logs `placed 1 of 6 ... starting at location 1` because Diner filters to ONE machine, which is correct by design — **it needs a multi-machine map to verify** |
+| 6 | riser sound | `.testsound` shipped **v1.99.8** this session; the boot IS the next step |
+| 7 | Winter's Howl fx | fix shipped **v1.99.7** this session; the boot IS the next step |
+
+### ✅ B-TITUSRELOAD (old #8) — ROOT-CAUSED, AND IT IS **NOT POSSIBLE** WITH BO2'S OWN AUDIO
+
+Checkpoint 52 left this at *"the audio has to come from the animation notetracks — next, dump
+`viewmodel_titus_mk_reload` from `mod.ff` and read its notetrack names"*. Done.
+
+**The notetracks, extracted from the xanims dumped out of `mod.ff`** (they are binary; the
+`sndnt#` / `rmbnt#` strings sit in the string table):
+
+| animation | `sndnt#` notetracks |
+|---|---|
+| `viewmodel_titus_mk_reload` | `fly_tar21_futz`, `fly_tar21_mag_in`, `fly_tar21_mag_out` |
+| `viewmodel_titus_mk_reload_empty` | `fly_titus_bolt_back`, `fly_titus_bolt_release`, `fly_titus_futz`, `fly_titus_mag_in`, `fly_titus_mag_out` |
+| `viewmodel_titus_gl_reload_empty` | the same five **plus** `fly_titus_tap` |
+
+📝 Worth noting on its own: the **masterkey** reload asks for **TAR-21** sounds, not Titus ones.
+That is Treyarch's own copy-paste inside the animation, not a porting error.
+
+**Which of those nine aliases resolve** (checked against `zmb_survival_transit.all`'s 10,195 rows
+and the mod's BUILT 2,280-row `mod.all` table):
+
+| resolves | missing |
+|---|---|
+| `fly_tar21_mag_in`, `fly_tar21_mag_out` (both banks) | the other **seven**, in neither |
+
+🛑 **AND THE AUDIO DOES NOT EXIST TO IMPORT.** The audio dumper's `Identifiers\*.txt` — all 96 banks
+— contains exactly **four** payloads with `titus` anywhere in the path:
+
+```
+raw\sound\wpn\shotgun\titus\dart\alert\wpn_dart_alert.LN65.pc.snd
+raw\sound\wpn\shotgun\titus\dart\wpn_titus_dart.LN65.pc.snd
+raw\sound\wpn\shotgun\titus\toggle\titus_flip_down.LN65.pc.snd
+raw\sound\wpn\shotgun\titus\toggle\titus_flip_up.LN65.pc.snd
+```
+
+A dart alert, the dart, and the two toggle flips. **No magazine, no bolt, no futz, no tap.** So the
+normal fix for a missing alias in this project — import the rows and payloads into `mod.all`, the
+pipeline that gave the nine ported MP weapons their audio — **has nothing to import**.
+
+▶️ **THE USER'S CALL, and it is a real fork:**
+- **(a) Leave it.** The GL reload stays silent; the masterkey reload keeps its two TAR-21 magazine
+  sounds. This is what ships today. The README already says the Titus-6 is partly silent.
+- **(b) Substitute another weapon's reload audio** under `zmqol_*` alias names. It would sound like a
+  reload — but it would be **a lookalike, not the real asset**, which is exactly what
+  `CLAUDE.md`'s "use the real thing" rule forbids without them asking for it.
+
+🛑 Nothing was shipped. Under "perfectly, or not at all", (b) is not something to do quietly.
+
+### 🔴 B-WHOSWHO2 (old #9) — THE LEADING THEORY IS **DISPROVEN**. Still open, no fix.
+
+The standing suspect was a **filter-slot collision with Zombie Blood** (QUEUE, 2026-08-14 late):
+*"Who's Who ... calls `enable_filter_afterlife( player, 5 )` with a hardcoded pass index of 5 ...
+Zombie Blood now claims a slot from that same counter."* **Both halves of that are wrong**, read out
+of stock source rather than reasoned:
+
+1. **The material slot is NOT hardcoded and cannot collide.** `_zm_perks.csc:191-193` does
+   `set_filter_pass_material( filterid, 0, level.filter_matid["generic_filter_afterlife"] )` — a
+   **lookup by name**, which is stock's universal convention (`_filter.csc:73`, `:90` do the same).
+   And `init_filter_indices()` (`_filter.csc:4-11`) is **guarded** by
+   `level.genericfilterinitialized`, so the counter is set to 4 exactly once per map;
+   `map_material_helper` is idempotent per material name and increments once per *new* name. Zombie
+   Blood and Who's Who therefore get **different slots**, and each finds its own by name.
+2. **The `5` is a FILTER index, not a material index — and it does not collide either.** Measured
+   from the `vsmgr_register_overlay_info_style_filter( name, version, lerp_step_count, filter_index,
+   pass_index, material_name, constant_index )` signature: Zombie Blood registers **filter_index 1**
+   (`zm_expanded.csc:678`), Vulture **0** (`:1139`), Who's Who uses **5**. Three distinct indices.
+
+✅ Also re-verified: `zmqol_enable_whoswho()` **is** reached (`zm_expanded.csc:568`, from `perks()`,
+from `main()`), and it threads `chugabud_setup_afterlife_filters()` exactly as Die Rise does.
+
+▶️ **What is left.** The overlay's own note already named the fallback suspect and it is now the
+leading one: **night mode**, which pins `r_filmUseTweaks` and the whole `vc_*` grade the filter rides
+on, and `night_mode "1"` is in the user's saved config. The free discriminator in the earlier entry
+still stands and still costs nothing — **go down with Who's Who on Origins** (the only map with
+Who's Who and no Zombie Blood) — but with the collision dead it now separates *night mode* from
+*something map-specific* rather than confirming Zombie Blood.
+
+🛑 Nothing shipped for this. Two unverified changes (#6, #7) are already in flight.

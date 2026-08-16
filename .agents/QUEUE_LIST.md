@@ -26,28 +26,20 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 
 <!-- LIST -->
 
-1. ~~**Bleedout bar toggle**~~
-2. **Origins Death Machine ammo counter**
-3. **Who's Who description** — the joke line removed
-4. **Wonder-weapon box odds reversed** (`zmqol_box_ww_rarity`)
-5. **Wunderfizz first location is random** by default
-6. **Zombie riser / dig-out sound is silent** — Diner, Town, Origins
-7. **Winter's Howl has no firing fx**
-8. **Titus-6 has no reload sound**
-9. **Who's Who has no screen fx on a down** — Diner survival
-10. **Arms and gun vanish when a horde gets close** — Origins, round 100+
-11. **`mod.ff` runs a pre-merge copy of the mod's own script**, on every map
-12. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
-13. **Origins / Mob `EXE_ERR_RELIABLE_CYCLED_OUT` crash** — needs you to boot Origins with the mod OFF
-14. **Semtex wall-buy on Bus Depot survival**
-15. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
-16. **GAME-tab toggle for the 4-perk limit**
-17. **GAME-tab toggle for the backspeed fix**
-18. **Three Plutonium rows missing from CONTROLS → LOOK** — not this mod's code
-19. **Prone at Mob's Electric Cherry machine gives no +100**
-20. **Death Machine pickup voice line** — the BO1 announcer callout
-21. **Drop `deathmachine_zm.all.sabl`**
-22. **T5 wonder weapons** — reverted at v1.56.x, work is in git and reappliable
+1. **Who's Who description** — the joke line removed
+2. **Wunderfizz first location is random** by default
+3. **Zombie riser / dig-out sound is silent** — Diner, Town, Origins
+4. **Winter's Howl has no firing fx**
+5. **Titus-6 has no reload sound**
+6. **Who's Who has no screen fx on a down** — Diner survival
+7. **`mod.ff` runs a pre-merge copy of the mod's own script**, on every map
+8. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
+9. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
+10. **GAME-tab toggle for the 4-perk limit**
+11. **GAME-tab toggle for the backspeed fix**
+12. **Prone at Mob's Electric Cherry machine gives no +100**
+13. **Death Machine pickup voice line** — the BO1 announcer callout
+14. **Drop `deathmachine_zm.all.sabl`**
 
 <!-- /LIST -->
 
@@ -93,6 +85,37 @@ give a per-item reason and none was inferred; the old number is kept so older no
 `2→1` · `3→2` · `4→3` · `5→4` · `6→5` · `7→6` · `8→7` · `9→8` · `10→9` · `11→10` · `12→11` ·
 `13→12` · `14→13` · `15→14` · `16→15` · `17→16` · `18→17` · `19→18` · `20→19` · `21→20` ·
 `22→21` · `23→22`.
+
+### Closed 2026-08-16 (third pass) — the user removed eight more
+
+*"remove 1, 2, 4, 10, 13, 14, 18, 22 get rid of all these from the queue, it's dealt with and/or
+uneeded right now"*.
+
+| old # | old ID | item |
+|---|---|---|
+| 1 | — | **Bleedout bar toggle** — confirmed in game at v1.99.6 |
+| 2 | — | **Origins Death Machine ammo counter** — ⚠️ built v1.99.0, **never booted** |
+| 4 | — | **Wonder-weapon box odds reversed** (`zmqol_box_ww_rarity`) — ⚠️ built v1.98.0, **never booted** |
+| 10 | B-VIEWMODEL | **Arms and gun vanish when a horde gets close** — Origins, round 100+ |
+| 13 | — | 🛑 **Origins / Mob `EXE_ERR_RELIABLE_CYCLED_OUT` crash** — see the warning below |
+| 14 | T4 | **Semtex wall-buy on Bus Depot survival** — never built |
+| 18 | B-CONTROLS | **Three Plutonium rows missing from CONTROLS → LOOK** — not this mod's code |
+| 22 | T5 | **T5 wonder weapons** — reverted at v1.56.x, work is in git and reappliable |
+
+**Renumbering that came with it:** `3→1` · `5→2` · `6→3` · `7→4` · `8→5` · `9→6` · `11→7` ·
+`12→8` · `15→9` · `16→10` · `17→11` · `19→12` · `20→13` · `21→14`.
+
+🛑 **FLAGGED AT REMOVAL, as the user asked — these three can resurface:**
+
+1. **Old 13 is a CRASH, and removing the line does not fix it.** Origins and Mob of the Dead can
+   still `EXE_ERR_RELIABLE_CYCLED_OUT` roughly 20–35 s into a match. It is off the list, not solved.
+   If a future session sees Origins or Mob die early, this is the first thing to read — checkpoint 48
+   §2 and `ERROR_CATALOGUE` §7b, **not** a fresh investigation.
+2. **Old 2 and old 4 were closed having NEVER RUN.** Both ship live code (`zmqol_box_ww_rarity`, the
+   Origins Death Machine ammo counter). Closed means "stop asking about it", not "verified" — if
+   either misbehaves later it will look like a brand-new bug.
+3. **Old 10** is a real rendering fault at Origins round 100+, never investigated. It will still
+   happen; it is simply no longer tracked.
 
 ---
 
