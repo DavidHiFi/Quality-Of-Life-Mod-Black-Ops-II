@@ -3579,6 +3579,9 @@ zmqol_console_command_names()
     a[a.size] = "freezegun";    a[a.size] = "winters";      a[a.size] = "wintershowl";
     a[a.size] = "wunderwaffe";  a[a.size] = "dg2";
     a[a.size] = "testsound";
+    //  v1.99.15 - .wwfx toggles the Who's Who downed-state overlay on demand, so
+    //  it can be checked in two seconds instead of by dying for it.
+    a[a.size] = "wwfx";
 
     return a;
 }
@@ -3704,6 +3707,26 @@ zmqol_dev_command_listener()
             }
 
             level thread zmqol_goto_round( int( tokens[1] ), player );
+        }
+        else if ( cmd == "wwfx" )
+        {
+            //  v1.99.15 - apply / clear the Who's Who downed-state screen overlay
+            //  without going down. Purely a verification aid for the exact thing
+            //  the user has now reported missing three times; it drives the same
+            //  two functions the real down does.
+            if ( isdefined( player.zmqol_wwfx ) && player.zmqol_wwfx )
+            {
+                player.zmqol_wwfx = 0;
+                player zmqol_whoswho_overlay_off();
+                player iprintln( "^1[zm_qol] Who's Who overlay OFF" );
+            }
+            else
+            {
+                player.zmqol_wwfx = 1;
+                zmqol_whoswho_vc_capture();
+                player zmqol_whoswho_overlay_on();
+                player iprintln( "^2[zm_qol] Who's Who overlay ON" );
+            }
         }
         else if ( cmd == "god" )
         {
@@ -5112,7 +5135,7 @@ zmqol_help_lines()
     //  so it rides on the same line as the syntax rather than getting its own.
     a_lines[a_lines.size] = "^3.give^7/^3.remove^7 + ^3jug speed dtap stam mule revive deadshot phd tombstone whoswho cherry vulture";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
-    a_lines[a_lines.size] = "^5console: ^3fly velocity night_mode rapid_fire character coop_pause no_power lod_fix";
+    a_lines[a_lines.size] = "^5console: ^3fly velocity night_mode rapid_fire character coop_pause no_power lod_fix wwfx";
     a_lines[a_lines.size] = "^5console: ^3give_weapon \"titus\" ^7or ^3\"titus pap\" ^8- bindable, self-clearing";
     a_lines[a_lines.size] = "^5console: ^3spawn_brutus ^7n ^3spawn_panzer ^7n ^3spawn_jumpingjacks ^7n";
     //  Chat commands are console dvars too - folded onto the line below rather
@@ -8783,6 +8806,7 @@ zmqol_enable_whoswho()
         level.vsmgr_prio_visionset_zm_whos_who = 123;
 
     level thread zmqol_whoswho_verify();
+    zmqol_whoswho_vc_capture();
     level thread zmqol_whoswho_overlay_connect();
 }
 
@@ -8864,44 +8888,129 @@ zmqol_whoswho_overlay_watch()
     }
 }
 
-//  Values verbatim from vision/zm_whos_who.vision.
+// ============================================================================
+//  🌟 v1.99.15 - THE FULL VISIONSET, NOT SIX OF ITS TWENTY-THREE VALUES.
+//
+//  v1.99.14 got the CHANNEL right and the CONTENT wrong. console_zm.log:4883
+//  printed "[zm_qol] whoswho overlay: ON", so the watcher fired and the dvars
+//  were written - and the user still saw nothing. The reason is that the six
+//  dvars night mode happens to use are the lift/gain pair, and the Die Rise
+//  effect is a BLOWOUT: a reference shot of the real thing on Die Rise is a
+//  washed-out, blurred, glowing screen. That comes from the parameters that were
+//  skipped:
+//
+//        vc_hmr  7.149658 ...   the highlight matrix, a 7.1x boost on red
+//        vc_hmg / vc_hmb        the same on green and blue
+//        vc_fgm  1.345455 ...   film gamma
+//        vc_liw / vc_low  32    input/output white points
+//
+//  🛑 THE SIX WERE NOT CHOSEN, THEY WERE ALL I HAD VERIFIED. That gap is now
+//  closed properly: every vc_* dvar name was read out of the game binary itself,
+//  `t6zm.exe`, which contains all 24 of them as literal strings -
+//  vc_fbm vc_fgm vc_fsm vc_hmb vc_hmg vc_hmr vc_lib vc_lig vc_liw vc_lob vc_low
+//  vc_lut vc_mmb vc_mmg vc_mmr vc_re vc_rgbh vc_rgbl vc_rs vc_smb vc_smg vc_smr
+//  vc_yh vc_yl. They map 1:1 onto the keys of a .vision file, which is what a
+//  .vision file IS. [[t6-filmusetweaks-kills-visionsets]]
+//
+//  So all 23 entries of vision/zm_whos_who.vision are applied below, VERBATIM -
+//  dumped from zm_highrise.ff with the Unlinker, rounded to 6dp, nothing else
+//  changed. This is Die Rise's own colour grade, reproduced exactly, through the
+//  one channel proven to reach the renderer on every map in this mod.
+//
+//  📝 The stock filter pass (generic_filter_afterlife, which carries the blur and
+//  the warp) and the visionset registration are both still in place and still
+//  correct. They are the authentic path; this makes it visible.
+// ============================================================================
+
+//  Capture the map's own values ONCE, before anything overwrites them, so the
+//  restore is exact rather than a guess at what "neutral" means. Same pattern
+//  qol_opt_night_mode() uses for r_exposureValue.
+zmqol_whoswho_vc_names()
+{
+    return array( "vc_lib", "vc_liw", "vc_lig", "vc_lob", "vc_low",
+                  "vc_rgbh", "vc_rgbl", "vc_yh", "vc_yl", "vc_rs", "vc_re",
+                  "vc_smr", "vc_smg", "vc_smb",
+                  "vc_hmr", "vc_hmg", "vc_hmb",
+                  "vc_mmr", "vc_mmg", "vc_mmb",
+                  "vc_fgm", "vc_fsm", "vc_fbm" );
+}
+
+zmqol_whoswho_vc_capture()
+{
+    if ( isdefined( level.qol_vc_default ) )
+        return;
+
+    level.qol_vc_default = [];
+    a_names = zmqol_whoswho_vc_names();
+
+    for ( i = 0; i < a_names.size; i++ )
+        level.qol_vc_default[ a_names[i] ] = getdvar( a_names[i] );
+}
+
+//  All 23 values, verbatim from vision/zm_whos_who.vision.
 zmqol_whoswho_overlay_on()
 {
     self setclientdvar( "r_filmUseTweaks", 1 );
+
+    self setclientdvar( "vc_lib",  "0 0 0 0" );
+    self setclientdvar( "vc_liw",  "32 32 32 32" );
+    self setclientdvar( "vc_lig",  "1 1 1 1" );
+    self setclientdvar( "vc_lob",  "0 0 0 0" );
+    self setclientdvar( "vc_low",  "32 32 32 32" );
     self setclientdvar( "vc_rgbh", "0.544885 0.019366 0.027131 0.3" );
     self setclientdvar( "vc_rgbl", "0.181628 0.006455 0.009044 1" );
-    self setclientdvar( "vc_yh",   "0.157500 0.068845 0.031512 0.34" );
-    self setclientdvar( "vc_yl",   "0.016506 0.036062 0.082500 0.76" );
-    self setclientdvar( "vc_fsm",  "0.212585 0.715195 0.072220 1" );
+    self setclientdvar( "vc_yh",   "0.1575 0.068845 0.031512 0.34" );
+    self setclientdvar( "vc_yl",   "0.016506 0.036062 0.0825 0.76" );
+    self setclientdvar( "vc_rs",   "0 0.35 0 0.5" );
+    self setclientdvar( "vc_re",   "0.52 1 0.5 1" );
+    self setclientdvar( "vc_smr",  "1.292399 2.459266 0.248335 0" );
+    self setclientdvar( "vc_smg",  "0.730996 3.020669 0.248335 0" );
+    self setclientdvar( "vc_smb",  "0.730996 2.459266 0.809738 0" );
+    self setclientdvar( "vc_hmr",  "7.149658 -2.860779 -0.288879 0" );
+    self setclientdvar( "vc_hmg",  "-0.850342 5.139221 -0.288879 0" );
+    self setclientdvar( "vc_hmb",  "-0.850342 -2.860779 7.711121 0" );
+    self setclientdvar( "vc_mmr",  "2.065999 1.756619 0.177382 0" );
+    self setclientdvar( "vc_mmg",  "0.52214 3.300478 0.177382 0" );
+    self setclientdvar( "vc_mmb",  "0.52214 1.756619 1.721241 0" );
+    self setclientdvar( "vc_fgm",  "1.345455 1.345455 1.345455 0" );
+    self setclientdvar( "vc_fsm",  "0.212585 0.715195 0.07222 1" );
     self setclientdvar( "vc_fbm",  "1 1 1 0" );
-    println( "[zm_qol] whoswho overlay: ON" );
+
+    println( "[zm_qol] whoswho overlay: ON (23 vc_* applied)" );
 }
 
-//  Hand the screen back to whoever owns it. Night mode's own values if it is
-//  running, otherwise the neutral set qol_opt_night_off() restores - so this
-//  cannot leave a tint behind in either mode.
+//  Hand the screen back. Every one of the 23 goes back to the value it had at map
+//  load, so nothing of Who's Who can survive the revive; then the owner of the
+//  screen is restored - night mode's own six if it is running, otherwise
+//  r_filmUseTweaks 0, which makes the renderer use the map's real visionset again.
 zmqol_whoswho_overlay_off()
 {
+    a_names = zmqol_whoswho_vc_names();
+
+    if ( isdefined( level.qol_vc_default ) )
+    {
+        for ( i = 0; i < a_names.size; i++ )
+        {
+            str_val = level.qol_vc_default[ a_names[i] ];
+
+            if ( isdefined( str_val ) && str_val != "" )
+                self setclientdvar( a_names[i], str_val );
+        }
+    }
+
     if ( getdvarintdefault( "night_mode", 0 ) )
     {
+        //  Exact twin of qol_options.gsc::qol_opt_night_on()'s colour block.
         self setclientdvar( "r_filmUseTweaks", 1 );
+        self setclientdvar( "vc_fbm",  "0 0 0 0" );
+        self setclientdvar( "vc_fsm",  "1 1 1 1" );
         self setclientdvar( "vc_rgbh", "0.1 0 0.3 0" );
         self setclientdvar( "vc_yl",   "0 0 0.25 0" );
         self setclientdvar( "vc_yh",   "0.02 0 0.1 0" );
         self setclientdvar( "vc_rgbl", "0.02 0 0.1 0" );
-        self setclientdvar( "vc_fbm",  "0 0 0 0" );
-        self setclientdvar( "vc_fsm",  "1 1 1 1" );
     }
     else
-    {
-        self setclientdvar( "vc_rgbh", "0 0 0 0" );
-        self setclientdvar( "vc_yl",   "0 0 0 0" );
-        self setclientdvar( "vc_yh",   "0 0 0 0" );
-        self setclientdvar( "vc_rgbl", "0 0 0 0" );
-        self setclientdvar( "vc_fbm",  "0 0 0 0" );
-        self setclientdvar( "vc_fsm",  "1 1 1 1" );
         self setclientdvar( "r_filmUseTweaks", 0 );
-    }
 
     println( "[zm_qol] whoswho overlay: OFF (night_mode=" + getdvarintdefault( "night_mode", 0 ) + ")" );
 }

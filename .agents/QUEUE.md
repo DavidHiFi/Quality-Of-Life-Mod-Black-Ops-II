@@ -6382,3 +6382,79 @@ anims, `gfx_fxt_smk_trail_wisp` + image, all nine weapon icons, the Titus d2p an
 anims. `gsc-tool` parsed the edited script.
 
 🛑 **Deployed, NOT yet verified in game.**
+
+---
+
+## v1.99.15 — 2026-08-16. ✅ TAC-45 AND WINTER'S HOWL CONFIRMED AND CLOSED. Who's Who: the full visionset, not six of its twenty-three values.
+
+### ✅ B-TAC45 — CLOSED. *"tac 45 is fixed and working, its done"*
+The Pack-a-Punch dual-wield renders correctly. 🛑 Do not re-open. The cause was five undeclared
+left-hand animations; the rule that came out of it — **enumerate a weapon def's assets BY VALUE,
+never by field name** — is encoded in `.agents\audit_weapon_assets.js`.
+
+### ✅ B-WHOWL — CLOSED. *"same with winters howl the fx are correct"*
+Four rounds on the muzzle flash, and the answer was that the gun is `weaponType projectile` and had
+**no `projTrailEffect`**. `fx_trail_freezegun_geotail` had shipped with the mod the whole time,
+declared, loading, referenced by nothing. 🛑 Do not re-open.
+
+📝 **The standing lesson from that one:** checkpoint 60 listed those two unused trail effects as
+"the obvious next lead" and the following round went back to the muzzle flash anyway. **When a
+checkpoint names an unchased lead, chase it before re-opening one that has already failed.** The same
+thing happened with night mode and Who's Who.
+
+---
+
+### 🌟 B-WHOSWHO2 — THE CHANNEL WAS RIGHT, THE CONTENT WAS WRONG
+
+v1.99.14's `[zm_qol] whoswho overlay: ON` **is in the log** (`console_zm.log:4883`), so the watcher
+fired on the down and the dvars were written — and the user still saw nothing. That eliminates the
+whole delivery path as a suspect and points at the values.
+
+**The user supplied the answer by supplying a reference screenshot** of the real thing on Die Rise:
+a washed-out, blurred, glowing screen. A **blowout**. v1.99.14 set six dvars, and those six are the
+lift/gain pair — values in the 0–0.5 range. Nothing in them can blow out a picture. The blowout is
+in the entries that were skipped:
+
+| | |
+|---|---|
+| `vc_hmr 7.149658 …` | highlight matrix, a **7.1× boost** on red (and `vc_hmg`/`vc_hmb` likewise) |
+| `vc_fgm 1.345455 …` | film gamma |
+| `vc_liw` / `vc_low` `32 32 32 32` | input / output white points |
+
+🛑 **The six were not chosen — they were all that had been verified to exist.** That gap is now
+closed with evidence rather than left open: **every `vc_*` dvar name was read out of `t6zm.exe`
+itself**, which carries all 24 as literal strings —
+`vc_fbm vc_fgm vc_fsm vc_hmb vc_hmg vc_hmr vc_lib vc_lig vc_liw vc_lob vc_low vc_lut vc_mmb vc_mmg
+vc_mmr vc_re vc_rgbh vc_rgbl vc_rs vc_smb vc_smg vc_smr vc_yh vc_yl`. They map 1:1 onto the keys of
+a `.vision` file, which is what a `.vision` file is.
+
+📝 **The general fact worth keeping:** Plutonium's `dvar_descriptions.json` does not list `vc_*`, and
+that absence was once read as "not on this build". **The executable's own string table is the
+authority** — grep it before concluding a dvar does not exist.
+
+**The change:** all 23 entries of `vision/zm_whos_who.vision` applied verbatim (Unlinker dump of
+`zm_highrise.ff`, rounded to 6dp, nothing else altered), through `setclientdvar` — the one channel
+proven to reach the renderer on every map in this mod.
+
+**The restore is now exact rather than a guess at "neutral":** `zmqol_whoswho_vc_capture()` records
+all 23 at map init, the same pattern `qol_opt_night_mode()` uses for `r_exposureValue`, and the
+revive puts every one back before handing the screen to night mode (its own six) or to
+`r_filmUseTweaks 0`, which makes the renderer use the map's real visionset again.
+
+📝 The stock filter pass (`generic_filter_afterlife`, which carries the blur and the warp) and the
+visionset registration both stay. They are the authentic Die Rise path and their assets ship as of
+v1.99.13; this makes the grade visible on top of them.
+
+### 🌟 `.wwfx` — a toggle, so this stops costing a death per test
+
+`.wwfx` applies and clears the overlay on demand, driving the same two functions a real down does.
+Console twin registered in `zmqol_console_command_names()` per the standing "every chat command is
+also a dvar" rule. Added specifically because this item has now cost three boots and the failure is
+purely visual — it can be judged in two seconds.
+
+### Verified before hand-off
+Six files hash-identical source ↔ Plutonium. The deployed `mod.iwd`'s `quality_of_life.gsc` carries
+`vc_hmr`, `vc_fgm`, `wwfx` and 29 `vc_*` setters (23 for the overlay + 6 for the night-mode restore).
+`gsc-tool` parsed it. `.gsc`-only change, so no `mod.ff` relink was needed.
+
+🛑 **Deployed, NOT yet verified in game.**
