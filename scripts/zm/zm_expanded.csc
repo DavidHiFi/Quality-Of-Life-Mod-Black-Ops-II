@@ -1773,10 +1773,54 @@ zmqol_handle_zombie_risers( localclientnum, oldval, newval, bnewent, binitialsna
 {
 	if ( !oldval && newval )
 	{
+		//  ----------------------------------------------------------------
+		//  v1.99.5 ORIGIN PROBE - B-RISERSOUND.
+		//
+		//  Everything else is eliminated by measurement (see QUEUE.md): the
+		//  alias exists, its bank is loaded, its payload is in zmb_common.all,
+		//  our registration is line-for-line stock, the clientfield fires and
+		//  this handler runs. The sound is played twice and is still inaudible.
+		//
+		//  The one mechanism left is WHERE it is played. playsound() takes a
+		//  world position, and zmb_zombie_spawn's curve is DistMin 250 /
+		//  DistMaxDry 1000 - so anything emitted past ~1000 units from the
+		//  listener is silent by design. If the actor's CLIENT-side origin is
+		//  not populated yet when its clientfield arrives (the bnewent /
+		//  initial-snapshot case), the sound is thrown somewhere far away and
+		//  cannot be heard, with no error anywhere.
+		//
+		//  This prints, and only prints. It changes no behaviour, so a boot
+		//  with it in cannot regress anything - it just makes the next step
+		//  decidable instead of arguable:
+		//    dist well under 1000  -> the origin theory is DEAD, look elsewhere
+		//    dist huge, or origin (0,0,0)/undefined -> theory CONFIRMED, and
+		//    the fix is to emit once the origin is valid, not to move the
+		//    sound to the player.
+		//  ----------------------------------------------------------------
 		if ( !isdefined( level.zmqol_riser_logged ) )
 		{
 			level.zmqol_riser_logged = 1;
-			println( "[zm_qol] CLIENT riser clientfield FIRED - handler is running, playing zmb_zombie_spawn" );
+
+			str_org = "UNDEFINED";
+			str_ply = "UNDEFINED";
+			str_dist = "n/a";
+
+			player = getlocalplayer( localclientnum );
+
+			if ( isdefined( self.origin ) )
+				str_org = "" + self.origin;
+
+			if ( isdefined( player ) && isdefined( player.origin ) )
+			{
+				str_ply = "" + player.origin;
+
+				if ( isdefined( self.origin ) )
+					str_dist = "" + int( distance( self.origin, player.origin ) );
+			}
+
+			println( "[zm_qol] RISER PROBE  riser=" + str_org + "  player=" + str_ply +
+			         "  dist=" + str_dist + "  (alias goes silent past ~1000)" +
+			         "  bnewent=" + bnewent + "  binitialsnap=" + binitialsnap );
 		}
 
 		str_snd = "zmb_zombie_spawn";

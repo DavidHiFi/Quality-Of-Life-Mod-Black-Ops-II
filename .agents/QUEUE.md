@@ -5444,3 +5444,35 @@ PNG to `png2dds.ps1`, or export DXT1/DXT5 with a non-DX10 header. Check with
 `xxd -l 12 <file>.iwi` — byte 4 must be 1, 11, 12 or 13, never 0.
 
 Verified in the deployed `mod.iwd`: 1,048,640 / v27 / fmt 1 / 512×512. **Not yet booted.**
+
+---
+
+## 2026-08-16 — v1.99.5: B-RISERSOUND origin probe (queue #7), print-only
+
+Taking the step this file's own revised lead called for. Everything else is already eliminated by
+measurement; the one mechanism left is **where** the sound is emitted. `zmb_zombie_spawn`'s curve is
+`DistMin 250 / DistMaxDry 1000`, so a sound thrown past ~1000 units is silent by design and reports
+no error.
+
+`zm_expanded.csc::zmqol_handle_zombie_risers` now logs, **once per match**, on the first riser:
+
+    [zm_qol] RISER PROBE  riser=(x y z)  player=(x y z)  dist=N  (alias goes silent past ~1000)
+             bnewent=0/1  binitialsnap=0/1
+
+**It only prints** — the two `playsound` calls and the chain into stock's handler are untouched, so
+a boot with this in cannot regress the dirt burst or anything else.
+
+How to read the result:
+
+| result | verdict |
+|---|---|
+| `dist` well under 1000 | origin theory is **dead** — the sound is being emitted next to the player and is still inaudible, so look at mix/occlusion instead |
+| `dist` huge, or `riser=UNDEFINED` / `(0 0 0)` | theory **confirmed** — and the fix is to emit once the actor's origin is valid, **not** to move the sound onto the player |
+| `bnewent=1` / `binitialsnap=1` alongside a bad origin | names the exact cause, which is what makes the fix safe to write |
+
+Verified before hand-off: `gsc-tool -m parse -i client` clean · `getlocalplayer()` and `distance()`
+are both attested in stock `.csc` · printing a vector with `"" + self.origin` has stock precedent
+(`_fxanim.csc:150`), which matters because a runtime error here would take the riser fx down with it
+· `build_ff.bat` reports `Loaded script "scripts/zm/zm_expanded.csc" (src: disk)`, and the string
+`RISER PROBE` was confirmed **inside the deployed `mod.ff`** by unlinking it back out
+(`--include-assets script`; note the fastfile must keep the filename `mod.ff` or OAT cannot read it).
