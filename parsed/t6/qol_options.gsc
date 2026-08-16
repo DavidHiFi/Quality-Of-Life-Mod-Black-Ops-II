@@ -7,6 +7,8 @@
 
 init()
 {
+    qol_opt_dvar( "zmqol_minimal", "0" );
+    println( "[zm_qol] minimal mode: " + zmqol_minimal() + "  (1 = all 18 periodic threads disabled)" );
     qol_opt_dvar( "rapid_fire", "0" );
     qol_opt_dvar( "night_mode", "0" );
     qol_opt_dvar( "character", "0" );
@@ -17,15 +19,21 @@ init()
     qol_opt_dvar( "hud_timer", "1" );
     qol_opt_dvar( "hud_round_timer", "1" );
     qol_opt_dvar( "hud_health_bar", "1" );
+    qol_opt_dvar( "hud_bleedout_bar", "1" );
     qol_opt_dvar( "hud_remaining", "1" );
     qol_opt_dvar( "hud_zone", "0" );
+    qol_opt_dvar( "hud_perk_popup", "1" );
+    qol_opt_dvar( "hud_powerup_timers", "1" );
     qol_opt_dvar( "hud_color", "1 1 1" );
     qol_opt_dvar( "hud_color_health", "1 1 1" );
-    qol_opt_dvar( "hud_color_timer", "1 1 0" );
-    qol_opt_dvar( "hud_color_round_timer", "0.4 0.75 1" );
+    qol_opt_dvar( "hud_color_timer", "0.2 0.3 0.6" );
+    qol_opt_dvar( "hud_color_round_timer", "0.2 0.3 0.6" );
     qol_opt_dvar( "anim_pap_camo_mob", "1" );
     qol_opt_dvar( "anim_pap_camo_buried", "1" );
     qol_opt_dvar( "anim_pap_camo_origins", "1" );
+    qol_opt_dvar( "hitmarkers", "1" );
+    qol_opt_dvar( "round_summary", "1" );
+    qol_opt_dvar( "intro_credits", "1" );
     qol_opt_dvar( "no_power", "0" );
     qol_opt_dvar( "lod_fix", "1" );
     level thread qol_opt_coop_pause();
@@ -38,6 +46,9 @@ init()
 
 qol_opt_roundcounter_master()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level endon( "end_game" );
     n_prev = 1;
 
@@ -67,6 +78,9 @@ qol_opt_roundcounter_master()
 
 qol_opt_lod_fix()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level endon( "end_game" );
     n_prev = -1;
 
@@ -235,6 +249,9 @@ qol_opt_night_mode()
 
 qol_opt_night_on()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self setclientdvar( "r_dof_enable", 0 );
     self setclientdvar( "r_enablePlayerShadow", 1 );
     self setclientdvar( "r_skyTransition", 1 );
@@ -262,6 +279,7 @@ qol_opt_night_on()
         n_exposure = 3.9;
 
     self setclientdvar( "r_exposureValue", n_exposure );
+    self.qol_night_exposure = n_exposure;
     self thread qol_opt_night_visual_fix();
     println( "[zm_qol] night_mode ON - ported from _zm_nightmode.gsc, exposure " + n_exposure );
 }
@@ -274,31 +292,32 @@ qol_opt_night_visual_fix()
 
     if ( level.script == "zm_buried" )
     {
-        for (;;)
-        {
-            self setclientdvar( "r_lightTweakSunLight", 1 );
-            self setclientdvar( "r_sky_intensity_factor0", 0 );
-            wait 0.2;
-        }
+        self setclientdvar( "r_lightTweakSunLight", 1 );
+        self setclientdvar( "r_sky_intensity_factor0", 0 );
+        return;
     }
-    else if ( level.script == "zm_prison" || level.script == "zm_tomb" )
-    {
-        for (;;)
-        {
-            for ( i = float( getdvar( "r_lightTweakSunLight" ) ); i >= 0; i = ( i - 0.2 ) )
-            {
-                self setclientdvar( "r_lightTweakSunLight", i );
-                wait 0.2;
-            }
 
-            wait 0.2;
+    if ( level.script == "zm_prison" || level.script == "zm_tomb" )
+    {
+        n_start = float( getdvar( "r_lightTweakSunLight" ) );
+
+        if ( n_start > 2 )
+            n_start = 2;
+
+        for ( i = n_start; i >= 0; i = ( i - 0.05 ) )
+        {
+            self setclientdvar( "r_lightTweakSunLight", i );
+            wait 0.05;
         }
+
+        self setclientdvar( "r_lightTweakSunLight", 0 );
     }
 }
 
 qol_opt_night_off()
 {
     self notify( "disable_nightmode" );
+    self.qol_night_exposure = undefined;
     self setclientdvar( "r_lightGridEnableTweaks", 0 );
     self setclientdvar( "r_lightGridIntensity", 1 );
     self setclientdvar( "r_filmUseTweaks", 0 );
@@ -350,6 +369,9 @@ qol_opt_character()
 
 qol_opt_coop_pause()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level endon( "end_game" );
     b_paused = 0;
 
@@ -417,12 +439,15 @@ qol_opt_nullptr()
 
 qol_opt_hud_watcher()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "end_game" );
     flag_wait( "initial_blackscreen_passed" );
     str_prev_color = "1 1 1";
-    str_prev_color_timer = "1 1 0";
-    str_prev_color_round = "0.4 0.75 1";
+    str_prev_color_timer = "0.2 0.3 0.6";
+    str_prev_color_round = "0.2 0.3 0.6";
     n_prev_master = -1;
     n_tick = 0;
 
@@ -538,7 +563,11 @@ qol_opt_zone_hud( b_on )
     if ( isdefined( self.zone_name ) )
         str_zone = self.zone_name;
 
-    self.qol_hud_zone settext( str_zone );
+    if ( !isdefined( self.qol_hud_zone.qol_last_zone ) || self.qol_hud_zone.qol_last_zone != str_zone )
+    {
+        self.qol_hud_zone settext( str_zone );
+        self.qol_hud_zone.qol_last_zone = str_zone;
+    }
 }
 
 qol_opt_round_timer_hud( b_on )
@@ -557,13 +586,13 @@ qol_opt_round_timer_hud( b_on )
     if ( !isdefined( self.qol_hud_roundtimer ) )
     {
         self.qol_hud_roundtimer = self createfontstring( "hudsmall", 1.2 );
-        self.qol_hud_roundtimer.alignx = "left";
+        self.qol_hud_roundtimer.alignx = "center";
         self.qol_hud_roundtimer.aligny = "top";
-        self.qol_hud_roundtimer.horzalign = "left";
+        self.qol_hud_roundtimer.horzalign = "right";
         self.qol_hud_roundtimer.vertalign = "user_top";
-        self.qol_hud_roundtimer.x = -64;
-        self.qol_hud_roundtimer.y = 12;
-        self.qol_hud_roundtimer.color = ( 0.4, 0.75, 1 );
+        self.qol_hud_roundtimer.x = 25;
+        self.qol_hud_roundtimer.y = 94;
+        self.qol_hud_roundtimer.color = ( 0.2, 0.3, 0.6 );
         self.qol_hud_roundtimer.hidewheninmenu = 1;
 
         if ( isdefined( level.qol_round_start_time ) )
@@ -588,4 +617,9 @@ qol_opt_round_clock()
                 player.qol_hud_roundtimer settimerup( 0 );
         }
     }
+}
+
+zmqol_minimal()
+{
+    return getdvarintdefault( "zmqol_minimal", 0 );
 }

@@ -808,6 +808,19 @@ zmqol_whoswho_enabled()
 	return 1;
 }
 
+// 🛑 EXACT TWIN of quality_of_life.gsc::zmqol_whoswho_clone_glow_enabled().
+// The corpse-glow scriptmover field only exists on the maps this returns 1 for:
+// the `_g` glow-capable materials cover the Victis crew only, and Origins has no
+// free scriptmover bit for the field even if it could use one. Read the server
+// copy for the counts.
+zmqol_whoswho_clone_glow_enabled()
+{
+	if ( !zmqol_whoswho_enabled() )
+		return 0;
+
+	return getDvar( "mapname" ) == "zm_transit";
+}
+
 zmqol_enable_whoswho()
 {
 	if ( !zmqol_whoswho_enabled() )
@@ -844,7 +857,19 @@ zmqol_enable_whoswho()
 	//  🛑 EXACT TWIN of the server registration in quality_of_life.gsc.
 	//  📝 The callback is stock's OWN chugabud_whos_who_shader - core client code,
 	//  safe to name from a root script, and nothing is reimplemented.
-	registerclientfield( "scriptmover", "zmqol_whoswho_clone_glow", 5000, 1, "int", clientscripts\mp\zombies\_zm_perks::chugabud_whos_who_shader, 0 );
+	//
+	//  🛑 v1.99.18 - GATED TO zm_transit, AND UNGATED IT KILLED ORIGINS AT THE
+	//  LOADING SCREEN: "Trying to assign 1 bits for netfield zone_captured but
+	//  Client Field Set scriptmover is out of space." Origins sits at exactly
+	//  32/32 on `scriptmover` in both classic and survival - the per-map runtime
+	//  dumps have the field-by-field counts, and the server copy of this comment
+	//  reproduces them. EXACT TWIN of
+	//  quality_of_life.gsc::zmqol_whoswho_clone_glow_enabled(): if the two lists
+	//  ever disagree the set is one bit wider on one side, which is
+	//  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+	if ( zmqol_whoswho_clone_glow_enabled() )
+		registerclientfield( "scriptmover", "zmqol_whoswho_clone_glow", 5000, 1, "int", clientscripts\mp\zombies\_zm_perks::chugabud_whos_who_shader, 0 );
+
 	registerclientfield( "toplayer", "clientfield_whos_who_audio", 5000, 1, "int", ::zmqol_whoswho_audio, 0 );
 	registerclientfield( "toplayer", "clientfield_whos_who_filter", 5000, 1, "int", ::zmqol_whoswho_filter, 0 );
 

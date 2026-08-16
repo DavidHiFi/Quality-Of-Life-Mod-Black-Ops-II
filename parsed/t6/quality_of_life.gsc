@@ -66,6 +66,84 @@ main()
     replacefunc( common_scripts\utility::struct_class_init, scripts\zm\replaced\utility::struct_class_init );
 }
 
+zmqol_powerup_timer_think()
+{
+    flag_wait( "start_zombie_round_logic" );
+
+    if ( isdefined( level.current_game_module ) && level.current_game_module == 2 )
+        return;
+
+    if ( !isdefined( level.zombie_powerups ) )
+        return;
+
+    for (;;)
+    {
+        wait 0.5;
+        str = "";
+        powerup_keys = getarraykeys( level.zombie_powerups );
+        players = get_players();
+        b_on = getdvarintdefault( "hud_master", 1 ) && ( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_powerup_timers", 1 ) );
+
+        for ( p = 0; p < players.size; p++ )
+        {
+            player = players[p];
+            str = "";
+
+            if ( b_on )
+            {
+                for ( k = 0; k < powerup_keys.size; k++ )
+                {
+                    pu = level.zombie_powerups[powerup_keys[k]];
+
+                    if ( !isdefined( pu.client_field_name ) || !isdefined( pu.time_name ) || !isdefined( pu.on_name ) )
+                        continue;
+
+                    n_time = undefined;
+                    n_on = undefined;
+
+                    if ( isdefined( pu.solo ) && pu.solo )
+                    {
+                        if ( isdefined( player._show_solo_hud ) && player._show_solo_hud == 1 )
+                        {
+                            n_time = player.zombie_vars[pu.time_name];
+                            n_on = player.zombie_vars[pu.on_name];
+                        }
+                    }
+                    else if ( isdefined( level.zombie_vars[player.team] ) && isdefined( level.zombie_vars[player.team][pu.time_name] ) )
+                    {
+                        n_time = level.zombie_vars[player.team][pu.time_name];
+                        n_on = level.zombie_vars[player.team][pu.on_name];
+                    }
+                    else if ( isdefined( level.zombie_vars[pu.time_name] ) )
+                    {
+                        n_time = level.zombie_vars[pu.time_name];
+                        n_on = level.zombie_vars[pu.on_name];
+                    }
+
+                    if ( !isdefined( n_time ) || !isdefined( n_on ) || !n_on || n_time <= 0 )
+                        continue;
+
+                    str = str + pu.client_field_name + ":" + int( n_time + 0.999 ) + ",";
+                }
+
+                if ( isdefined( player.deathmachine_active ) && player.deathmachine_active && isdefined( player.zmqol_deathmachine_end_time ) )
+                {
+                    n_dm_left = ( player.zmqol_deathmachine_end_time - gettime() ) / 1000;
+
+                    if ( n_dm_left > 0 )
+                        str = str + "deathmachine_powerup:" + int( n_dm_left + 0.999 ) + ",";
+                }
+            }
+
+            if ( !isdefined( player.zmqol_powerup_times_sent ) || player.zmqol_powerup_times_sent != str )
+            {
+                player.zmqol_powerup_times_sent = str;
+                player setclientdvar( "powerup_times", str );
+            }
+        }
+    }
+}
+
 zmqol_restore_perk_bottles_on_survival()
 {
     if ( is_classic() )
@@ -108,6 +186,7 @@ init()
     level thread zmqol_perk_slot_connect();
     level thread zmqol_blood_money_natural_drop();
     level thread zmqol_register_announcer_vox();
+    level thread zmqol_powerup_timer_think();
     precacheitem( "uzi_zm" );
     precacheitem( "uzi_upgraded_zm" );
     precacheitem( "thompson_zm" );
@@ -348,6 +427,9 @@ new_full_ammo_powerup( drop_item, player )
 
 round_hud()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level waittill( "start_of_round" );
 
     switch ( level.round_number )
@@ -669,13 +751,9 @@ counters_onplayerspawned()
 
 qol_health_hud_create()
 {
-    if ( isdefined( self.qol_hud_health ) && self.qol_hud_health.size == 5 )
+    if ( isdefined( self.qol_hud_health ) && self.qol_hud_health.size == 3 )
         return;
 
-    healthvalue = self createfontstring( "default", 1 );
-    healthvalue setpoint( "RIGHT", "BOTTOM_LEFT", 58, 18 );
-    healthvalue.hidewheninmenu = 1;
-    healthvalue.sort = -1;
     healthbar_bg = newclienthudelem( self );
     healthbar_bg.x = 0;
     healthbar_bg.y = 0;
@@ -707,16 +785,10 @@ qol_health_hud_create()
     playername setpoint( "LEFT", "BOTTOM_LEFT", -45, 18 );
     playername settext( self.name );
     playername.hidewheninmenu = 1;
-    healthbar_mas = self createfontstring( "default", 1.5 );
-    healthbar_mas setpoint( "LEFT", "BOTTOM_LEFT", 12, 17 );
-    healthbar_mas settext( "+" );
-    healthbar_mas.hidewheninmenu = 1;
     self.qol_hud_health = [];
-    self.qol_hud_health[0] = healthvalue;
-    self.qol_hud_health[1] = healthbar_bg;
-    self.qol_hud_health[2] = healthbar;
-    self.qol_hud_health[3] = playername;
-    self.qol_hud_health[4] = healthbar_mas;
+    self.qol_hud_health[0] = healthbar_bg;
+    self.qol_hud_health[1] = healthbar;
+    self.qol_hud_health[2] = playername;
 }
 
 qol_health_hud_destroy()
@@ -754,38 +826,31 @@ first_spawn()
         }
 
         self qol_health_hud_create();
-        healthvalue = self.qol_hud_health[0];
-        healthbar_bg = self.qol_hud_health[1];
-        healthbar = self.qol_hud_health[2];
-        playername = self.qol_hud_health[3];
-        healthbar_mas = self.qol_hud_health[4];
+        healthbar_bg = self.qol_hud_health[0];
+        healthbar = self.qol_hud_health[1];
+        playername = self.qol_hud_health[2];
 
         if ( isdefined( self.e_afterlife_corpse ) )
         {
             healthbar.alpha = 0;
-            healthvalue.alpha = 0;
             playername.alpha = 0;
             healthbar_bg.alpha = 0;
-            healthbar_mas.alpha = 0;
             wait 0.05;
             continue;
         }
 
-        if ( healthbar_mas.alpha == 0 || healthbar_bg.alpha == 0 || ( playername.alpha == 0 || healthvalue.alpha == 0 ) || healthbar.alpha == 0 )
+        if ( healthbar_bg.alpha == 0 || playername.alpha == 0 || healthbar.alpha == 0 )
         {
             healthbar.alpha = 1;
-            healthvalue.alpha = 1;
             playername.alpha = 1;
             healthbar_bg.alpha = 0.5;
-            healthbar_mas.alpha = 1;
         }
 
-        if ( isdefined( self.health ) && ( !isdefined( healthvalue.qol_last_health ) || healthvalue.qol_last_health != self.health || healthvalue.qol_last_maxhealth != self.maxhealth ) )
+        if ( isdefined( self.health ) && ( !isdefined( healthbar.qol_last_health ) || healthbar.qol_last_health != self.health || healthbar.qol_last_maxhealth != self.maxhealth ) )
         {
             healthbar setshader( "progress_bar_fill", int( 100 * ( self.health / self.maxhealth ) ), 3 );
-            healthvalue settext( self.health + ( "^8 / " + self.maxhealth ) );
-            healthvalue.qol_last_health = self.health;
-            healthvalue.qol_last_maxhealth = self.maxhealth;
+            healthbar.qol_last_health = self.health;
+            healthbar.qol_last_maxhealth = self.maxhealth;
         }
 
         str_hc = getdvar( "hud_color_health" );
@@ -797,8 +862,6 @@ first_spawn()
             if ( isdefined( a_hc ) && a_hc.size == 3 )
             {
                 v_hc = ( string_to_float( a_hc[0] ), string_to_float( a_hc[1] ), string_to_float( a_hc[2] ) );
-                healthvalue.color = v_hc;
-                healthbar_mas.color = v_hc;
                 healthbar.color = v_hc;
             }
 
@@ -807,29 +870,13 @@ first_spawn()
         }
 
         if ( self.health >= 71 && self.health <= self.maxhealth )
-        {
-            healthvalue.color = ( 0, 1, 0.5 );
-            healthbar_mas.color = ( 0, 1, 0.5 );
             healthbar.color = ( 0, 1, 0.5 );
-        }
         else if ( self.health >= 50 && self.health <= 70 )
-        {
-            healthvalue.color = ( 1, 1, 0 );
-            healthbar_mas.color = ( 1, 1, 0 );
             healthbar.color = ( 1, 1, 0 );
-        }
         else if ( self.health >= 25 && self.health <= 49 )
-        {
-            healthvalue.color = ( 1, 0.5, 0 );
-            healthbar_mas.color = ( 1, 0.5, 0 );
             healthbar.color = ( 1, 0.5, 0 );
-        }
         else if ( self.health >= 0 && self.health <= 24 )
-        {
-            healthvalue.color = ( 0.5, 0, 0 );
-            healthbar_mas.color = ( 0.5, 0, 0 );
             healthbar.color = ( 0.5, 0, 0 );
-        }
 
         wait 0.1;
     }
@@ -837,16 +884,19 @@ first_spawn()
 
 timer()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     timer = newclienthudelem( self );
-    timer.alignx = "left";
+    timer.alignx = "center";
     timer.aligny = "top";
-    timer.horzalign = "left";
+    timer.horzalign = "right";
     timer.vertalign = "user_top";
-    timer.x = -64;
-    timer.y = -2;
+    timer.x = 25;
+    timer.y = 80;
     timer.fontscale = 1.4;
-    timer.color = ( 1, 1, 0 );
+    timer.color = ( 0.2, 0.3, 0.6 );
     timer.alpha = 0;
     timer.hidewheninmenu = 1;
     flag_wait( "initial_blackscreen_passed" );
@@ -857,6 +907,9 @@ timer()
 
 zombiecounter()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "end_game" );
     flag_wait( "initial_blackscreen_passed" );
@@ -1170,8 +1223,13 @@ cs_on_round_change( new_round )
     }
 
     self.cs_last_popup_time = now;
-    self notify( "cs_popup_kill3" );
-    self thread cs_popup( completed_round, round_time, round_kills, old_pb_time, old_pb_kills, new_pb_time, new_pb_kills );
+
+    if ( getdvarintdefault( "round_summary", 1 ) )
+    {
+        self notify( "cs_popup_kill3" );
+        self thread cs_popup( completed_round, round_time, round_kills, old_pb_time, old_pb_kills, new_pb_time, new_pb_kills );
+    }
+
     self.cs_last_round = new_round;
     self.cs_round_start_time = gettime();
     self.cs_kills_start = kills_now;
@@ -1433,6 +1491,7 @@ deathmachine_clear_powerup_state( player )
     }
 
     player.deathmachine_active = undefined;
+    player.zmqol_deathmachine_end_time = undefined;
     player.has_minigun = 0;
     player.has_powerup_weapon = 0;
     player._show_solo_hud = 0;
@@ -1476,6 +1535,7 @@ deathmachine_powerup( m_powerup, e_player )
     e_player notify( "end_deathmachine" );
     wait 0.05;
     e_player playsound( "death_machine" );
+    e_player.zmqol_deathmachine_end_time = gettime() + ( level.deathmachine_duration * 1000 );
     e_player thread powerup_state_monitor();
     e_player thread start_deathmachine();
     e_player thread notify_deathmachine_end();
@@ -1483,6 +1543,9 @@ deathmachine_powerup( m_powerup, e_player )
 
 powerup_state_monitor()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level endon( "end_game" );
     self endon( "disconnect" );
     self endon( "death" );
@@ -2422,10 +2485,17 @@ zmqol_credits_banner()
 
 zmqol_credits_banner_print()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "end_game" );
     flag_wait( "initial_blackscreen_passed" );
     wait 1;
+
+    if ( !getdvarintdefault( "intro_credits", 1 ) )
+        return;
+
     self iprintln( "^5Quality Of Life Mod | Credits: DavidHiFi & Synarxis" );
 }
 
@@ -2474,11 +2544,16 @@ zmqol_console_command_names()
     a[a.size] = "wintershowl";
     a[a.size] = "wunderwaffe";
     a[a.size] = "dg2";
+    a[a.size] = "testsound";
+    a[a.size] = "wwfx";
     return a;
 }
 
 zmqol_console_command_watcher()
 {
+    if ( zmqol_minimal() )
+        return;
+
     level endon( "game_ended" );
     a_names = zmqol_console_command_names();
 
@@ -2566,18 +2641,36 @@ zmqol_dev_command_listener()
 
             level thread zmqol_goto_round( int( tokens[1] ), player );
         }
+        else if ( cmd == "wwfx" )
+        {
+            if ( isdefined( player.zmqol_wwfx ) && player.zmqol_wwfx )
+            {
+                player.zmqol_wwfx = 0;
+                player zmqol_whoswho_overlay_off();
+                player iprintln( "^1[zm_qol] Who's Who overlay OFF" );
+            }
+            else
+            {
+                player.zmqol_wwfx = 1;
+                zmqol_whoswho_vc_capture();
+                player zmqol_whoswho_overlay_on();
+                player iprintln( "^2[zm_qol] Who's Who overlay ON" );
+            }
+        }
         else if ( cmd == "god" )
         {
             if ( isdefined( player.zmqol_god ) && player.zmqol_god )
             {
                 player.zmqol_god = 0;
                 player disableinvulnerability();
+                setdvar( "godmode", "0" );
                 player iprintln( "^1[zm_qol] godmode OFF" );
             }
             else
             {
                 player.zmqol_god = 1;
                 player enableinvulnerability();
+                setdvar( "godmode", "1" );
                 player iprintln( "^2[zm_qol] godmode ON" );
             }
         }
@@ -2613,6 +2706,7 @@ zmqol_dev_command_listener()
             {
                 player.zmqol_ghost = 0;
                 player.ignoreme = 0;
+                setdvar( "ghostmode", "0" );
                 player iprintln( "^1[zm_qol] ghost OFF ^7- zombies can see you" );
             }
             else
@@ -2620,6 +2714,7 @@ zmqol_dev_command_listener()
                 player.zmqol_ghost = 1;
                 player.ignoreme = 1;
                 player thread zmqol_ghost_enforce();
+                setdvar( "ghostmode", "1" );
                 player iprintln( "^2[zm_qol] ghost ON ^7- zombies ignore you" );
             }
         }
@@ -2743,12 +2838,14 @@ zmqol_dev_command_listener()
             {
                 player.zmqol_infammo = 0;
                 player notify( "zmqol_infammo_off" );
+                setdvar( "infinite_ammo", "0" );
                 player iprintln( "^1[zm_qol] infinite ammo OFF" );
             }
             else
             {
                 player.zmqol_infammo = 1;
                 player thread zmqol_infinite_ammo_think();
+                setdvar( "infinite_ammo", "1" );
                 player iprintln( "^2[zm_qol] infinite ammo ON" );
             }
         }
@@ -2764,6 +2861,31 @@ zmqol_dev_command_listener()
         {
             player zmqol_give_wonder_weapon( "freezegun_zm", "4", "Winter's Howl" );
         }
+        else if ( cmd == "testsound" )
+        {
+            str_alias = "zmb_zombie_spawn";
+
+            if ( tokens.size > 1 )
+                str_alias = tokens[1];
+
+            if ( !isdefined( level.zmqol_testsound_n ) )
+                level.zmqol_testsound_n = 0;
+
+            level.zmqol_testsound_n++;
+            player setclientdvar( "zmqol_testsound", str_alias + " " + level.zmqol_testsound_n );
+            player iprintln( "^2[zm_qol] testsound ^7" + str_alias + " ^2-> 2D, then 3D, then the control" );
+        }
+        else if ( cmd == "give" || cmd == "giveweapon" || cmd == "gun" )
+        {
+            if ( tokens.size < 2 )
+            {
+                player iprintln( "^3[zm_qol] usage: ^7.give <weapon> [pap]   ^3try ^7.give list" );
+                continue;
+            }
+
+            b_pap = tokens.size > 2 && ( tokens[2] == "pap" || tokens[2] == "packed" || tokens[2] == "upgraded" );
+            player zmqol_give_named_weapon( tokens[1], b_pap );
+        }
         else if ( cmd == "infinitesprint" || cmd == "infsprint" )
         {
             if ( isdefined( player.zmqol_infsprint ) && player.zmqol_infsprint )
@@ -2771,12 +2893,14 @@ zmqol_dev_command_listener()
                 player.zmqol_infsprint = 0;
                 player notify( "zmqol_infsprint_off" );
                 player unsetperk( "specialty_unlimitedsprint" );
+                setdvar( "infinite_sprint", "0" );
                 player iprintln( "^1[zm_qol] infinite sprint OFF" );
             }
             else
             {
                 player.zmqol_infsprint = 1;
                 player thread zmqol_infinite_sprint_think();
+                setdvar( "infinite_sprint", "1" );
                 player iprintln( "^2[zm_qol] infinite sprint ON" );
             }
         }
@@ -3382,13 +3506,15 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.god ^7god   ^3.ghost ^7ignored   ^3.afk ^7both   ^3.nightmode ^7on/off";
     a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance, melee stops)   ^3.fog ^7on/off";
     a_lines[a_lines.size] = "^3.velocity ^7on/off ^8(also .vel/.speed)";
+    a_lines[a_lines.size] = "^3.give <weapon> [pap] ^7every added gun ^8(.give list)";
     a_lines[a_lines.size] = "^3.brutus^7/^3.panzer^7/^3.jumpingjacks ^7(amount) ^8- Mob / Origins / Die Rise";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
     a_lines[a_lines.size] = "^3.giveperks^7/^3.removeperks ^7  ^3.nozmspawns ^7spawns   ^3.hud ^7on/off";
     a_lines[a_lines.size] = "^3.give^7/^3.remove^7 + ^3jug speed dtap stam mule revive deadshot phd tombstone whoswho cherry vulture";
     a_lines[a_lines.size] = "^3.powerups ^7list   ^3.powerup <name> ^7/ ^3.drop <name> ^7spawn one";
-    a_lines[a_lines.size] = "^5console: ^3fly velocity night_mode rapid_fire character coop_pause no_power lod_fix";
+    a_lines[a_lines.size] = "^5console: ^3fly velocity night_mode rapid_fire character coop_pause no_power lod_fix wwfx";
+    a_lines[a_lines.size] = "^5console: ^3give_weapon \"titus\" ^7or ^3\"titus pap\" ^8- bindable, self-clearing";
     a_lines[a_lines.size] = "^5console: ^3spawn_brutus ^7n ^3spawn_panzer ^7n ^3spawn_jumpingjacks ^7n";
     a_lines[a_lines.size] = "^5console: ^3hud_all hud_timer hud_health_bar hud_remaining hud_zone";
     a_lines[a_lines.size] = "^5console: ^3hud_round_timer hud_master ^7| chat cmds are dvars: ^3round 100^7 ^3pack 1";
@@ -3784,6 +3910,8 @@ zmqol_fly_key_bind()
     self thread zmqol_fly_key_toggle();
     self thread zmqol_fly_dvar_watch();
     self thread zmqol_ww_give_dvar_watch();
+    self thread zmqol_give_weapon_dvar_watch();
+    self thread zmqol_toggle_dvar_watch();
     self thread zmqol_velocity_dvar_watch();
     self thread zmqol_boss_spawn_dvar_watch();
 }
@@ -3824,6 +3952,9 @@ zmqol_boss_spawn_request( str_boss, n_amount )
 
 zmqol_boss_spawn_dvar_watch()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "game_ended" );
 
@@ -3865,8 +3996,11 @@ zmqol_boss_spawn_dvar_watch()
     }
 }
 
-zmqol_velocity_set( b_on )
+zmqol_velocity_set( b_on, b_quiet )
 {
+    if ( !isdefined( b_quiet ) )
+        b_quiet = 0;
+
     if ( b_on )
     {
         if ( isdefined( self.zmqol_vel_hud ) )
@@ -3879,14 +4013,17 @@ zmqol_velocity_set( b_on )
         self.zmqol_vel_hud.vertalign = "bottom";
         self.zmqol_vel_hud.x = 0;
         self.zmqol_vel_hud.y = -62;
-        self.zmqol_vel_hud.color = ( 1, 1, 0 );
+        self.zmqol_vel_hud.color = ( 0, 1, 0 );
+        self.zmqol_vel_band = 0;
         self.zmqol_vel_hud.alpha = 1;
         self.zmqol_vel_hud.hidewheninmenu = 1;
         self.zmqol_vel_hud.sort = 10;
         self.zmqol_vel_hud setvalue( 0 );
         self thread zmqol_velocity_think();
         setdvar( "velocity", "1" );
-        self iprintln( "^2[zm_qol] velocity meter ON ^7- horizontal speed in units/sec" );
+
+        if ( !b_quiet )
+            self iprintln( "^2[zm_qol] velocity meter ON ^7- horizontal speed, ^2green ^7/ ^3330+ ^7/ ^1370+" );
     }
     else
     {
@@ -3898,13 +4035,19 @@ zmqol_velocity_set( b_on )
             self.zmqol_vel_hud = undefined;
         }
 
+        self.zmqol_vel_band = undefined;
         setdvar( "velocity", "0" );
-        self iprintln( "^1[zm_qol] velocity meter OFF" );
+
+        if ( !b_quiet )
+            self iprintln( "^1[zm_qol] velocity meter OFF" );
     }
 }
 
 zmqol_velocity_think()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     self endon( "zmqol_velocity_off" );
     level endon( "game_ended" );
@@ -3914,18 +4057,43 @@ zmqol_velocity_think()
         if ( !isdefined( self.zmqol_vel_hud ) )
             return;
 
-        self.zmqol_vel_hud setvalue( int( length( self getvelocity() * ( 1, 1, 0 ) ) ) );
+        n_speed = int( length( self getvelocity() * ( 1, 1, 0 ) ) );
+        self.zmqol_vel_hud setvalue( n_speed );
+        n_band = 0;
+
+        if ( n_speed >= 370 )
+            n_band = 2;
+        else if ( n_speed >= 330 )
+            n_band = 1;
+
+        if ( !isdefined( self.zmqol_vel_band ) || n_band != self.zmqol_vel_band )
+        {
+            self.zmqol_vel_band = n_band;
+
+            if ( n_band == 2 )
+                self.zmqol_vel_hud.color = ( 1, 0, 0 );
+            else if ( n_band == 1 )
+                self.zmqol_vel_hud.color = ( 1, 1, 0 );
+            else
+                self.zmqol_vel_hud.color = ( 0, 1, 0 );
+        }
+
         wait 0.05;
     }
 }
 
 zmqol_velocity_dvar_watch()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "game_ended" );
 
     if ( getdvar( "velocity" ) == "" )
         setdvar( "velocity", "0" );
+
+    b_first = 1;
 
     for (;;)
     {
@@ -3934,9 +4102,11 @@ zmqol_velocity_dvar_watch()
         b_have = isdefined( self.zmqol_vel_hud );
 
         if ( b_want && !b_have )
-            self zmqol_velocity_set( 1 );
+            self zmqol_velocity_set( 1, b_first );
         else if ( !b_want && b_have )
-            self zmqol_velocity_set( 0 );
+            self zmqol_velocity_set( 0, b_first );
+
+        b_first = 0;
     }
 }
 
@@ -3958,8 +4128,245 @@ zmqol_give_wonder_weapon( str_weapon, str_which, str_name )
     self iprintln( "^2[zm_qol] gave ^7" + str_name );
 }
 
+zmqol_weapon_give_table()
+{
+    a = [];
+    a[a.size] = zmqol_give_row( "swat swat556 sig556", "sig556_zm", "SWAT-556" );
+    a[a.size] = zmqol_give_row( "fal falosw sa58 osw", "sa58_zm", "FAL OSW" );
+    a[a.size] = zmqol_give_row( "mk48", "mk48_zm", "Mk 48" );
+    a[a.size] = zmqol_give_row( "qbb qbb95 lsw", "qbb95_zm", "QBB LSW" );
+    a[a.size] = zmqol_give_row( "mp7", "mp7_zm", "MP7" );
+    a[a.size] = zmqol_give_row( "vector k10", "vector_zm", "Vector K10" );
+    a[a.size] = zmqol_give_row( "msmc insas", "insas_zm", "MSMC" );
+    a[a.size] = zmqol_give_row( "peacekeeper pk", "peacekeeper_zm", "Peacekeeper" );
+    a[a.size] = zmqol_give_row( "crossbow bow", "crossbow_zm", "Crossbow" );
+    a[a.size] = zmqol_give_row( "xpr xpr50 as50 sniper", "as50_zm", "XPR-50" );
+    a[a.size] = zmqol_give_row( "titus titus6 dart", "titus6_zm", "Titus-6" );
+    a[a.size] = zmqol_give_row( "tac45 tac-45 tac fnp45 fnp", "fnp45_zm", "Tac-45" );
+    return a;
+}
+
+zmqol_give_row( str_keys, str_base, str_name )
+{
+    s = spawnstruct();
+    s.keys = strtok( str_keys, " " );
+    s.base = str_base;
+    s.upgraded = getsubstr( str_base, 0, str_base.size - 3 ) + "_upgraded_zm";
+    s.name = str_name;
+    return s;
+}
+
+zmqol_give_named_weapon( str_arg, b_pap )
+{
+    if ( !isdefined( str_arg ) )
+        return;
+
+    str_arg = tolower( str_arg );
+
+    if ( !isdefined( b_pap ) )
+        b_pap = 0;
+
+    if ( str_arg == "thundergun" || str_arg == "zeus" )
+    {
+        self zmqol_give_wonder_weapon( "thundergun_zm", "2", "Thundergun" );
+        return;
+    }
+
+    if ( str_arg == "wunderwaffe" || str_arg == "dg2" || str_arg == "tesla" )
+    {
+        self zmqol_give_wonder_weapon( "tesla_gun_zm", "3", "Wunderwaffe DG-2" );
+        return;
+    }
+
+    if ( str_arg == "wintershowl" || str_arg == "winters" || str_arg == "freezegun" )
+    {
+        self zmqol_give_wonder_weapon( "freezegun_zm", "4", "Winter's Howl" );
+        return;
+    }
+
+    a_rows = zmqol_weapon_give_table();
+
+    if ( str_arg == "list" || str_arg == "help" || str_arg == "?" )
+    {
+        self iprintln( "^3[zm_qol] .give ^7swat fal mk48 qbb mp7 vector msmc peacekeeper" );
+        self iprintln( "^3[zm_qol] .give ^7crossbow xpr titus thundergun wunderwaffe wintershowl" );
+        self iprintln( "^3[zm_qol] add ^7pap ^3for the upgraded one, e.g. ^7.give titus pap" );
+        return;
+    }
+
+    foreach ( row in a_rows )
+    {
+        foreach ( key in row.keys )
+        {
+            if ( key != str_arg )
+                continue;
+
+            if ( b_pap )
+                str_weapon = row.upgraded;
+            else
+                str_weapon = row.base;
+
+            self maps\mp\zombies\_zm_weapons::weapon_give( str_weapon );
+
+            if ( b_pap )
+                self iprintln( "^2[zm_qol] gave ^7" + row.name + " ^5(Pack-a-Punched)" );
+            else
+                self iprintln( "^2[zm_qol] gave ^7" + row.name );
+
+            return;
+        }
+    }
+
+    self iprintln( "^1[zm_qol] no weapon called ^7" + str_arg + " ^1- try ^7.give list" );
+}
+
+zmqol_toggle_dvar_watch()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    if ( getdvar( "godmode" ) == "" )
+        setdvar( "godmode", "0" );
+
+    if ( getdvar( "ghostmode" ) == "" )
+        setdvar( "ghostmode", "0" );
+
+    if ( getdvar( "infinite_ammo" ) == "" )
+        setdvar( "infinite_ammo", "0" );
+
+    if ( getdvar( "infinite_sprint" ) == "" )
+        setdvar( "infinite_sprint", "0" );
+
+    b_first = 1;
+
+    for (;;)
+    {
+        b_want = getdvarintdefault( "godmode", 0 );
+        b_is = isdefined( self.zmqol_god ) && self.zmqol_god;
+
+        if ( b_want && !b_is )
+        {
+            self.zmqol_god = 1;
+            self enableinvulnerability();
+
+            if ( !b_first )
+                self iprintln( "^2[zm_qol] godmode ON" );
+        }
+        else if ( !b_want && b_is )
+        {
+            self.zmqol_god = 0;
+            self disableinvulnerability();
+
+            if ( !b_first )
+                self iprintln( "^1[zm_qol] godmode OFF" );
+        }
+
+        b_want = getdvarintdefault( "ghostmode", 0 );
+        b_is = isdefined( self.zmqol_ghost ) && self.zmqol_ghost;
+
+        if ( b_want && !b_is )
+        {
+            self.zmqol_ghost = 1;
+            self.ignoreme = 1;
+            self thread zmqol_ghost_enforce();
+
+            if ( !b_first )
+                self iprintln( "^2[zm_qol] ghost ON ^7- zombies ignore you" );
+        }
+        else if ( !b_want && b_is )
+        {
+            self.zmqol_ghost = 0;
+            self.ignoreme = 0;
+
+            if ( !b_first )
+                self iprintln( "^1[zm_qol] ghost OFF ^7- zombies can see you" );
+        }
+
+        b_want = getdvarintdefault( "infinite_ammo", 0 );
+        b_is = isdefined( self.zmqol_infammo ) && self.zmqol_infammo;
+
+        if ( b_want && !b_is )
+        {
+            self.zmqol_infammo = 1;
+            self thread zmqol_infinite_ammo_think();
+
+            if ( !b_first )
+                self iprintln( "^2[zm_qol] infinite ammo ON" );
+        }
+        else if ( !b_want && b_is )
+        {
+            self.zmqol_infammo = 0;
+            self notify( "zmqol_infammo_off" );
+
+            if ( !b_first )
+                self iprintln( "^1[zm_qol] infinite ammo OFF" );
+        }
+
+        b_want = getdvarintdefault( "infinite_sprint", 0 );
+        b_is = isdefined( self.zmqol_infsprint ) && self.zmqol_infsprint;
+
+        if ( b_want && !b_is )
+        {
+            self.zmqol_infsprint = 1;
+            self thread zmqol_infinite_sprint_think();
+
+            if ( !b_first )
+                self iprintln( "^2[zm_qol] infinite sprint ON" );
+        }
+        else if ( !b_want && b_is )
+        {
+            self.zmqol_infsprint = 0;
+            self notify( "zmqol_infsprint_off" );
+            self unsetperk( "specialty_unlimitedsprint" );
+
+            if ( !b_first )
+                self iprintln( "^1[zm_qol] infinite sprint OFF" );
+        }
+
+        b_first = 0;
+        wait 0.25;
+    }
+}
+
+zmqol_give_weapon_dvar_watch()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    if ( getdvar( "give_weapon" ) == "" )
+        setdvar( "give_weapon", "" );
+
+    for (;;)
+    {
+        str_want = getdvar( "give_weapon" );
+
+        if ( isdefined( str_want ) && str_want != "" )
+        {
+            setdvar( "give_weapon", "" );
+            a_parts = strtok( str_want, " " );
+
+            if ( isdefined( a_parts ) && a_parts.size > 0 )
+            {
+                b_pap = a_parts.size > 1 && ( a_parts[1] == "pap" || a_parts[1] == "packed" || a_parts[1] == "upgraded" );
+                self zmqol_give_named_weapon( a_parts[0], b_pap );
+            }
+        }
+
+        wait 0.25;
+    }
+}
+
 zmqol_ww_give_dvar_watch()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "game_ended" );
 
@@ -4016,13 +4423,21 @@ zmqol_mp_weapons_init()
     zmqol_add_mp_weapon( "insas_zm", "insas_upgraded_zm", &"WEAPON_INSAS", 1000, "wpck_smg" );
     zmqol_add_mp_weapon( "peacekeeper_zm", "peacekeeper_upgraded_zm", &"WEAPON_PEACEKEEPER", 1000, "wpck_smg" );
     zmqol_add_mp_weapon( "crossbow_zm", "crossbow_upgraded_zm", &"WEAPON_CROSSBOW_EXPLOSIVE", 1000, "wpck_launcher" );
+    zmqol_add_mp_weapon( "as50_zm", "as50_upgraded_zm", &"WEAPON_AS50", 1000, "sniper" );
+    zmqol_add_mp_weapon( "titus6_zm", "titus6_upgraded_zm", &"WEAPON_TITUS6_EXPLOSIVE", 1000, "wpck_shotgun" );
+    zmqol_add_mp_weapon( "fnp45_zm", "fnp45_upgraded_zm", &"WEAPON_FNP45", 500, "" );
     zmqol_include_variant( "vector_extclip_zm" );
     zmqol_include_variant( "vector_extclip_upgraded_zm" );
     zmqol_include_variant( "gl_sig556_upgraded_zm" );
     zmqol_include_variant( "sf_sa58_upgraded_zm" );
     zmqol_include_variant( "crossbow_explosive_bolt_zm" );
     zmqol_include_variant( "crossbow_explosive_bolt_upgraded_zm" );
-    println( "[zm_qol] mp_weapons: 9 registered for the box on " + getdvar( "mapname" ) );
+    zmqol_include_variant( "mk_titus6_zm" );
+    zmqol_include_variant( "mk_titus6_upgraded_zm" );
+    zmqol_include_variant( "titus6_explosive_dart_zm" );
+    zmqol_include_variant( "titus6_explosive_dart_upgraded_zm" );
+    zmqol_include_variant( "fnp45lh_upgraded_zm" );
+    println( "[zm_qol] mp_weapons: 12 registered for the box on " + getdvar( "mapname" ) );
 }
 
 zmqol_add_mp_weapon( str_base, str_upgraded, str_hint, n_cost, str_vox )
@@ -4053,40 +4468,43 @@ zmqol_box_wonder_weapon_weights( keys )
     if ( isdefined( level.zmqol_prev_box_weights ) )
         keys = self [[ level.zmqol_prev_box_weights ]]( keys );
 
-    n_extra = getdvarintdefault( "zmqol_box_wonder_weight", 2 );
+    n_rarity = getdvarintdefault( "zmqol_box_ww_rarity", 4 );
 
-    if ( n_extra <= 0 )
+    if ( n_rarity == 1 )
         return keys;
 
-    if ( !isdefined( level.round_number ) || level.round_number < 10 )
-        return keys;
-
-    if ( !isdefined( level.zombie_weapons ) )
-        return keys;
+    if ( n_rarity < 0 )
+        n_rarity = 0;
 
     guns = [];
     guns[guns.size] = "tesla_gun_zm";
     guns[guns.size] = "thundergun_zm";
     guns[guns.size] = "freezegun_zm";
+    a_out = [];
 
-    for ( i = 0; i < guns.size; i++ )
+    for ( i = 0; i < keys.size; i++ )
     {
-        str_gun = guns[i];
+        b_thin = 0;
 
-        if ( !isdefined( level.zombie_weapons[str_gun] ) )
-            continue;
+        for ( j = 0; j < guns.size; j++ )
+        {
+            if ( keys[i] != guns[j] )
+                continue;
 
-        if ( !isdefined( level.zombie_weapons[str_gun].is_in_box ) || !level.zombie_weapons[str_gun].is_in_box )
-            continue;
+            if ( n_rarity == 0 || randomint( n_rarity ) != 0 )
+                b_thin = 1;
 
-        if ( self has_weapon_or_upgrade( str_gun ) )
-            continue;
+            break;
+        }
 
-        for ( j = 0; j < n_extra; j++ )
-            keys[keys.size] = str_gun;
+        if ( !b_thin )
+            a_out[a_out.size] = keys[i];
     }
 
-    return array_randomize( keys );
+    if ( a_out.size == 0 )
+        return keys;
+
+    return a_out;
 }
 
 zmqol_stranded_zombie_probe()
@@ -4207,6 +4625,9 @@ zmqol_round_dvar_watch()
 
 zmqol_fly_dvar_watch()
 {
+    if ( zmqol_minimal() )
+        return;
+
     self endon( "disconnect" );
     level endon( "game_ended" );
 
@@ -4809,6 +5230,14 @@ zmqol_whoswho_enabled()
     return 1;
 }
 
+zmqol_whoswho_clone_glow_enabled()
+{
+    if ( !zmqol_whoswho_enabled() )
+        return 0;
+
+    return getdvar( "mapname" ) == "zm_transit";
+}
+
 zmqol_enable_whoswho()
 {
     if ( !zmqol_whoswho_enabled() )
@@ -4818,12 +5247,210 @@ zmqol_enable_whoswho()
     registerclientfield( "actor", "clientfield_whos_who_clone_glow_shader", 5000, 1, "int" );
     registerclientfield( "toplayer", "clientfield_whos_who_audio", 5000, 1, "int" );
     registerclientfield( "toplayer", "clientfield_whos_who_filter", 5000, 1, "int" );
+
+    if ( zmqol_whoswho_clone_glow_enabled() )
+    {
+        registerclientfield( "scriptmover", "zmqol_whoswho_clone_glow", 5000, 1, "int" );
+        precachemodel( "c_zom_player_oldman_dlc1_fb" );
+        precachemodel( "c_zom_player_reporter_dlc1_fb" );
+        precachemodel( "c_zom_player_farmgirl_dlc1_fb" );
+        precachemodel( "c_zom_player_engineer_dlc1_fb" );
+    }
+
     level.whos_who_client_setup = 1;
 
     if ( !isdefined( level.vsmgr_prio_visionset_zm_whos_who ) )
         level.vsmgr_prio_visionset_zm_whos_who = 123;
 
     level thread zmqol_whoswho_verify();
+    zmqol_whoswho_vc_capture();
+    level thread zmqol_whoswho_overlay_connect();
+}
+
+zmqol_whoswho_overlay_connect()
+{
+    for (;;)
+    {
+        level waittill( "connected", player );
+        player thread zmqol_whoswho_overlay_watch();
+        player thread zmqol_whoswho_glow_model_watch();
+    }
+}
+
+zmqol_whoswho_glow_model_watch()
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+
+    if ( !zmqol_whoswho_clone_glow_enabled() )
+        return;
+
+    for (;;)
+    {
+        self waittill( "spawned_player" );
+
+        if ( !isdefined( self.characterindex ) )
+            continue;
+
+        str_model = zmqol_whoswho_glow_model( self.characterindex );
+
+        if ( isdefined( str_model ) )
+            self.whos_who_shader = str_model;
+    }
+}
+
+zmqol_whoswho_glow_model( n_index )
+{
+    switch ( n_index )
+    {
+        case 0:
+            return "c_zom_player_oldman_dlc1_fb";
+        case 1:
+            return "c_zom_player_reporter_dlc1_fb";
+        case 2:
+            return "c_zom_player_farmgirl_dlc1_fb";
+        case 3:
+            return "c_zom_player_engineer_dlc1_fb";
+    }
+
+    return undefined;
+}
+
+zmqol_whoswho_overlay_watch()
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+    b_on = 0;
+
+    for (;;)
+    {
+        b_active = isdefined( self.whos_who_effects_active ) && self.whos_who_effects_active == 1;
+
+        if ( b_active != b_on )
+        {
+            b_on = b_active;
+
+            if ( b_active )
+                self zmqol_whoswho_overlay_on();
+            else
+                self zmqol_whoswho_overlay_off();
+        }
+
+        if ( b_active )
+            self zmqol_whoswho_clone_glow();
+        else
+            self.zmqol_clone_glow_done = undefined;
+
+        wait 0.05;
+    }
+}
+
+zmqol_whoswho_clone_glow()
+{
+    if ( !zmqol_whoswho_clone_glow_enabled() )
+        return;
+
+    if ( isdefined( self.zmqol_clone_glow_done ) && self.zmqol_clone_glow_done )
+        return;
+
+    if ( !isdefined( self.e_chugabud_corpse ) )
+        return;
+
+    corpse = self.e_chugabud_corpse;
+    self.zmqol_clone_glow_done = 1;
+
+    if ( isdefined( corpse.isactor ) && corpse.isactor )
+        return;
+
+    corpse setclientfield( "zmqol_whoswho_clone_glow", 1 );
+    println( "[zm_qol] whoswho: clone glow set on a script_model corpse" );
+}
+
+zmqol_whoswho_vc_names()
+{
+    return array( "vc_lib", "vc_liw", "vc_lig", "vc_lob", "vc_low", "vc_rgbh", "vc_rgbl", "vc_yh", "vc_yl", "vc_rs", "vc_re", "vc_smr", "vc_smg", "vc_smb", "vc_hmr", "vc_hmg", "vc_hmb", "vc_mmr", "vc_mmg", "vc_mmb", "vc_fgm", "vc_fsm", "vc_fbm" );
+}
+
+zmqol_whoswho_vc_capture()
+{
+    if ( isdefined( level.qol_vc_default ) )
+        return;
+
+    level.qol_vc_default = [];
+    a_names = zmqol_whoswho_vc_names();
+
+    for ( i = 0; i < a_names.size; i++ )
+        level.qol_vc_default[a_names[i]] = getdvar( a_names[i] );
+}
+
+zmqol_whoswho_overlay_on()
+{
+    self setclientdvar( "r_filmUseTweaks", 1 );
+    self setclientdvar( "r_exposureTweak", 0 );
+    self setclientdvar( "vc_lib", "0 0 0 0" );
+    self setclientdvar( "vc_liw", "32 32 32 32" );
+    self setclientdvar( "vc_lig", "1 1 1 1" );
+    self setclientdvar( "vc_lob", "0 0 0 0" );
+    self setclientdvar( "vc_low", "32 32 32 32" );
+    self setclientdvar( "vc_rgbh", "0.544885 0.019366 0.027131 0.3" );
+    self setclientdvar( "vc_rgbl", "0.181628 0.006455 0.009044 1" );
+    self setclientdvar( "vc_yh", "0.1575 0.068845 0.031512 0.34" );
+    self setclientdvar( "vc_yl", "0.016506 0.036062 0.0825 0.76" );
+    self setclientdvar( "vc_rs", "0 0.35 0 0.5" );
+    self setclientdvar( "vc_re", "0.52 1 0.5 1" );
+    self setclientdvar( "vc_smr", "1.292399 2.459266 0.248335 0" );
+    self setclientdvar( "vc_smg", "0.730996 3.020669 0.248335 0" );
+    self setclientdvar( "vc_smb", "0.730996 2.459266 0.809738 0" );
+    self setclientdvar( "vc_hmr", "7.149658 -2.860779 -0.288879 0" );
+    self setclientdvar( "vc_hmg", "-0.850342 5.139221 -0.288879 0" );
+    self setclientdvar( "vc_hmb", "-0.850342 -2.860779 7.711121 0" );
+    self setclientdvar( "vc_mmr", "2.065999 1.756619 0.177382 0" );
+    self setclientdvar( "vc_mmg", "0.52214 3.300478 0.177382 0" );
+    self setclientdvar( "vc_mmb", "0.52214 1.756619 1.721241 0" );
+    self setclientdvar( "vc_fgm", "1.345455 1.345455 1.345455 0" );
+    self setclientdvar( "vc_fsm", "0.212585 0.715195 0.07222 1" );
+    self setclientdvar( "vc_fbm", "1 1 1 0" );
+    println( "[zm_qol] whoswho overlay: ON (23 vc_* applied)" );
+}
+
+zmqol_whoswho_overlay_off()
+{
+    a_names = zmqol_whoswho_vc_names();
+
+    if ( isdefined( level.qol_vc_default ) )
+    {
+        for ( i = 0; i < a_names.size; i++ )
+        {
+            str_val = level.qol_vc_default[a_names[i]];
+
+            if ( isdefined( str_val ) && str_val != "" )
+                self setclientdvar( a_names[i], str_val );
+        }
+    }
+
+    if ( getdvarintdefault( "night_mode", 0 ) )
+    {
+        self setclientdvar( "r_filmUseTweaks", 1 );
+        self setclientdvar( "vc_fbm", "0 0 0 0" );
+        self setclientdvar( "vc_fsm", "1 1 1 1" );
+        self setclientdvar( "vc_rgbh", "0.1 0 0.3 0" );
+        self setclientdvar( "vc_yl", "0 0 0.25 0" );
+        self setclientdvar( "vc_yh", "0.02 0 0.1 0" );
+        self setclientdvar( "vc_rgbl", "0.02 0 0.1 0" );
+
+        if ( isdefined( self.qol_night_exposure ) )
+        {
+            self setclientdvar( "r_exposureTweak", 1 );
+            self setclientdvar( "r_exposureValue", self.qol_night_exposure );
+        }
+    }
+    else
+    {
+        self setclientdvar( "r_filmUseTweaks", 0 );
+        self setclientdvar( "r_exposureTweak", 0 );
+    }
+
+    println( "[zm_qol] whoswho overlay: OFF (night_mode=" + getdvarintdefault( "night_mode", 0 ) + ")" );
 }
 
 zmqol_whoswho_verify()
@@ -5361,6 +5988,13 @@ perk_bought( perk )
 {
     self endon( "disconnect" );
     self endon( "game_ended" );
+
+    if ( !getdvarintdefault( "hud_master", 1 ) )
+        return;
+
+    if ( !( getdvarintdefault( "hud_all", 0 ) || getdvarintdefault( "hud_perk_popup", 1 ) ) )
+        return;
+
     shader = getperkshader( perk );
 
     if ( shader == "" )
@@ -5543,7 +6177,7 @@ getperkdesc( perk )
         case "specialty_scavenger":
             return "When You Die, You Leave Behind a Tombstone With Your Weapons and Perks | Co-op Only";
         case "specialty_finalstand":
-            return "Create a Clone to Bring Yourself Back to Life—Wait, Why Did You Buy It?";
+            return "Create a Clone to Bring Yourself Back to Life";
         case "specialty_nomotionsensor":
             return "Displays Ammo and Money Icons. Creates Green Clouds That Hide You From the Zombies";
         case "specialty_grenadepulldeath":
@@ -5586,6 +6220,9 @@ init_hitmarkers()
 updatedamagefeedback( mod, inflictor, death )
 {
     if ( !isplayer( self ) || isdefined( self.disable_hitmarkers ) )
+        return;
+
+    if ( !getdvarintdefault( "hitmarkers", 1 ) )
         return;
 
     if ( zmqol_perf_probe() )
@@ -6488,4 +7125,9 @@ zmqol_spawn_baseline_probe()
 
         println( "[zm_qol] BASE " + str_where + " t=" + ( ( i + 1 ) * 10 ) + " pool=" + n_pool + " total=" + n_total + " alive=" + get_current_zombie_count() + " actors=" + get_current_actor_count() + " ailim=" + n_ailim + " actlim=" + n_actlim + " flag=" + flag( "spawn_zombies" ) );
     }
+}
+
+zmqol_minimal()
+{
+    return getdvarintdefault( "zmqol_minimal", 0 );
 }

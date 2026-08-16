@@ -589,6 +589,14 @@ qol_opt_night_on()
 
     self setclientdvar( "r_exposureValue", n_exposure );
 
+    //  v1.99.18 - stashed so anything that has to SUSPEND night mode for a
+    //  moment can put it back exactly, without a second copy of the table
+    //  above. Who's Who is the first caller: its screen effect is a bright
+    //  blowout and cannot read at 1/15 brightness, so it drops
+    //  r_exposureTweak while the ghost state is up and restores from here.
+    //  quality_of_life.gsc::zmqol_whoswho_overlay_off().
+    self.qol_night_exposure = n_exposure;
+
     //  Buried, Mob and Origins actively re-assert their own lighting, so the
     //  working mod holds the values down in a loop. Ported with it.
     self thread qol_opt_night_visual_fix();
@@ -740,6 +748,11 @@ qol_opt_night_off()
     //  window without this notify and the ramp would fight the restore.
     //  disable_night_mode() in the source mod opens with the same notify.
     self notify( "disable_nightmode" );
+
+    //  v1.99.18 - night mode is no longer applied, so there is nothing for a
+    //  suspend/restore caller to put back. Cleared here so it cannot restore a
+    //  stale value from an earlier toggle.
+    self.qol_night_exposure = undefined;
 
     self setclientdvar( "r_lightGridEnableTweaks", 0 );
     self setclientdvar( "r_lightGridIntensity", 1 );
