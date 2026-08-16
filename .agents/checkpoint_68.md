@@ -108,3 +108,25 @@ of `mod.iwd`, which is how `quality_of_life.gsc` works while being declared in n
 `(mod (source))` vs `(raw (source))` checksum lines, answer "which copy of this script is actually
 running" directly — a question this project has previously answered by reasoning about load order.
 Added to [[t6-modff-runs-stale-gsc]].
+
+---
+
+## 7. CHECKPOINT + RELEASE — done 2026-08-16
+
+On the user's *"checkpoint and release"*:
+
+- **Tag `v1.99.21`** (annotated) created and pushed, along with **9 unpushed commits**
+  (`7febb0d..f2c6842`). Previous tag was `v1.99.17`.
+- **GitHub release published:** https://github.com/DavidHiFi/zm_qol/releases/tag/v1.99.21 — marked
+  Latest, not a draft, asset `state=uploaded`.
+- **Asset:** `zm_qol-v1.99.21.zip`, 137,499,133 bytes (131.1 MB). Top-level folder `zm_qol/`, so it
+  drag-and-drops straight into `…\storage\t6\mods\`. **Exactly the 6 files**, sourced from the
+  deployed folder after the hash check; entry count verified as 6 and
+  🛑 `cmn_root.all.sabl` confirmed **absent** ([[zm-qol-github-release-workflow]]).
+- **README's ⚠️ WORK IN PROGRESS notice is still in place** (README.md:7) and the release notes open
+  with the same warning, plus an explicit line that **this build has not been played through**.
+  The GitHub repo description still opens with `WORK IN PROGRESS` and remains accurate.
+
+🛑 **The release ships an unbooted build.** That matches this project's established practice —
+v1.99.17 was released the same way this morning — and the notes say so plainly rather than implying
+it was tested. §0's grep is still the outstanding verification.
