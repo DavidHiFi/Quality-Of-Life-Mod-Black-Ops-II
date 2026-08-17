@@ -11,78 +11,80 @@ When the user says an item is **resolved and can come off the list**, delete its
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
 - SYNCED TO: checkpoint **75** · mod version **1.99.50**
-- **29 is now struck** — confirmed in game 2026-08-18 (*"works perfectly toggled it on or off"*).
-- **28 is CONFIRMED BY THE LOG, not by the user**: 5 of 6 marker paths printed after v1.99.47 —
-  thundergun hit+kill, tesla hit+kill, freezegun kill. The freezegun HIT path was never printed in
-  that session, which is expected if every freezegun hit they landed was lethal. Left unstruck.
-- **29 is new**, asked 2026-08-18 and built the same hour at v1.99.48, **not verified**. The GAME-tab
-  rename ("WHO'S WHO KNIFE" -> "BETTER WHO'S WHO") came in the same message and is not a numbered
-  line - it is a label, and the dvar `whoswho_knife` is deliberately unchanged.
-- **27 is now struck** — confirmed in game 2026-08-18 (*"it's good"*). Shipped v1.99.46.
-- **28 is new**, asked in the same message: the three BO1 wonder weapons get no hitmarker or crit
-  feedback. Built at v1.99.47, **not verified**.
-- **25 and 26 are now struck** — both confirmed in game 2026-08-18. 25: *"the monkey bomb effect
-  works perfectly as expected."* 26: confirmed twice over — the user's word, and the mod's own
-  config now carries every option as a `seta` line with their chosen values
-  (`round_summary "0"`, `hud_compass "0"`, `crit_sound "2"`…) while the CHEATS rows are correctly
-  absent, which is the mechanism proving itself rather than one good run.
-- **23 is now struck** — confirmed in game 2026-08-18: the gun (v1.99.39), the revive off Die Rise
-  (v1.99.44) and the mid-down toggle (v1.99.43) all work. *"that works exactly how i want it."*
-  Left on the list because only the user removes an item. 🛑 Origins is still excluded by 43 missing
-  assets — that is a separate open decision, not part of this line.
-- **26 and 27 are new**, asked 2026-08-18. Neither is started.
-- LAST VERIFIED: 2026-08-17 — every line below was re-checked against `checkpoint_69.md` §0, the
-  bottom of `QUEUE.md`, and the source tree on this date.
-- BUILT, AWAITING THE USER'S BOOT: **1, 2, 14, 16-part, 17, 20, 21**.  Built ≠ done, so they are **not** struck through.
-- **4 is now struck** — confirmed in game on the 2026-08-17 Origins boot (checkpoint 69 §6). It is
-  left on the list because only the user removes an item.
-- **14 was missing from this list entirely** and was added 2026-08-17. It is tracked in
-  checkpoint 68/69 §0 and in the README's Known issues, and was never a numbered line; it is not a
-  new request. It traces to a checkpoint, per rule 5.
-- **3 is now struck** — confirmed in game 2026-08-18 at v1.99.50 (*"all sound fx are working all 3 of
-  them"*): reload, empty reload and masterkey reload. The earlier "not possible" verdict was wrong
-  and was retracted before the work started. 📝 `fly_titus_futz` / `fly_tar21_futz` were offered and
-  NOT taken — they exist in no bank in the game, so they are silent in stock too.
-- **(old note) 3 Titus-6 reload** — the RETRACTED verdict; it was a bank job and is
-  scoped in `QUEUE.md`. The **box pickup/raise sound** belongs to the same pass.
+- LAST VERIFIED: 2026-08-18 — **ten confirmed items were removed and the list renumbered** on the
+  user's instruction (*"remove anything from the queue that is already completed"*). All ten, their
+  old numbers and the full old→new map are in **Closed 2026-08-18** at the bottom. Nothing was lost;
+  the list simply stops printing them.
+- BUILT, AWAITING THE USER'S BOOT: **1, 2, 12, 13-part, 14, 16**. Built ≠ done, so they are **not**
+  struck through.
+- **19 is confirmed by the LOG, not by the user** (old 28): 5 of 6 marker paths printed after
+  v1.99.47 — thundergun hit+kill, tesla hit+kill, freezegun kill. The freezegun HIT path was never
+  printed in that session, which is what you would expect if every freezegun hit landed was lethal.
+  It stays open on the strength of that absence.
+- **12 was missing from this list entirely** (old 14) and was added 2026-08-17. It traces to
+  checkpoint 68/69 §0 and the README's Known issues, per rule 5.
+- 🛑 Who's Who on **Origins** is blocked by 43 absent assets (checkpoint 75 §3) and is an open
+  decision for the user. It is deliberately not a numbered line: old 23, the perk itself, is
+  finished and closed.
 
 <!-- LIST -->
 
 1. **Who's Who description** — the joke line removed
 2. **Wunderfizz first location is random** by default
-3. ~~**Titus-6 has no reload sound**~~
-4. ~~**`mod.ff` runs a pre-merge copy of the mod's own script**, on every map~~
-5. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
-6. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
-7. **GAME-tab toggle for the 4-perk limit**
-8. **GAME-tab toggle for the backspeed fix**
-9. **Prone at Mob's Electric Cherry machine gives no +100**
-10. **Death Machine pickup voice line** — the BO1 announcer callout
-11. **Drop `deathmachine_zm.all.sabl`**
-12. **PhD Flopper's HUD icon may be missing**
-13. **`fxanim_props` animtree re-registration warning** on Origins, Mob and TranZit
-14. **Kill-feed icons missing** for the ported weapons
-15. ~~**Jet gun: confirm it behaves as stock when built at the bench**~~
-16. **Jet gun in a real weapon slot**, and it never breaks
-17. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
-18. **Ammo counter for the jet gun** in the bottom right
-19. ~~**INSTANT PAP toggle** in the GAME tab~~
-20. **Compass** in the HUD tab
-21. ~~**PERK LIMIT selector** in the pre-game lobby~~
-22. **Five-seven wall-buy removed from Origins** (the bunker one)
-23. ~~**Who's Who gives a Pack-a-Punched ballistic knife**, GAME-tab toggle~~
-24. **BO4 MAX AMMO toggle** in the GAME tab
-25. ~~**Awful Lawton bolts distract zombies** like a monkey bomb~~
-26. ~~**The mod's own menu settings do not survive a game restart** — they have to be set again, and inconsistently~~
-27. ~~**Hitmarker sounds are far quieter than gunfire** — inaudible under most weapons~~
-28. **Hitmarker / crit feedback missing on the three BO1 wonder weapons** — and on anything else with its own damage callback
-29. ~~**INSTANT NUKE toggle** in the GAME tab~~
+3. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
+4. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
+5. **GAME-tab toggle for the 4-perk limit**
+6. **GAME-tab toggle for the backspeed fix**
+7. **Prone at Mob's Electric Cherry machine gives no +100**
+8. **Death Machine pickup voice line** — the BO1 announcer callout
+9. **Drop `deathmachine_zm.all.sabl`**
+10. **PhD Flopper's HUD icon may be missing**
+11. **`fxanim_props` animtree re-registration warning** on Origins, Mob and TranZit
+12. **Kill-feed icons missing** for the ported weapons
+13. **Jet gun in a real weapon slot**, and it never breaks
+14. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
+15. **Ammo counter for the jet gun** in the bottom right
+16. **Compass** in the HUD tab
+17. **Five-seven wall-buy removed from Origins** (the bunker one)
+18. **BO4 MAX AMMO toggle** in the GAME tab
+19. **Hitmarker / crit feedback missing on the three BO1 wonder weapons** — and on anything else with its own damage callback
 
 <!-- /LIST -->
 
 ---
 
 ## Closed — off the list, kept for the record
+
+### Closed 2026-08-18 — every confirmed item, removed in one pass
+
+*"remove anything from the queue that is already completed and/or i've given confirmation that it's
+ticked off the list because i confirmed it working."*
+
+All ten were struck through **because the user confirmed them in game**; this pass only stops the
+list printing them. Every one traces to a dated entry in `QUEUE.md`.
+
+| old # | item | shipped | confirmed |
+|---|---|---|---|
+| 3 | **Titus-6 has no reload sound** — reload, empty reload, masterkey reload, and the first-raise cue when it leaves the box. Five aliases defined from the campaign's own `spl_monsoon.all` rows | v1.99.50 | 2026-08-18 *"all sound fx are working all 3 of them"* |
+| 4 | **`mod.ff` ran a pre-merge copy of the mod's own script**, on every map | v1.99.22 | 2026-08-17, checkpoint 69 §6 — the 4 `replaceFunc` collision warnings gone |
+| 15 | **Jet gun behaves as stock when built at the bench** | — | 2026-08-16 |
+| 19 | **INSTANT PAP toggle** in the GAME tab | v1.99.30 | 2026-08-17 |
+| 21 | **PERK LIMIT selector** in the pre-game lobby | v1.99.29 | 2026-08-17 |
+| 23 | **Who's Who gives a Pack-a-Punched ballistic knife**, GAME-tab toggle | gun v1.99.39 · mid-down toggle v1.99.43 · revive v1.99.44 | 2026-08-18 *"that works exactly how i want it"* |
+| 25 | **Awful Lawton bolts distract zombies** like a monkey bomb | v1.99.39 | 2026-08-18 *"works perfectly as expected"* |
+| 26 | **The mod's own menu settings did not survive a restart** — every option row now marks its dvar archived as it is built | v1.99.45 | 2026-08-18, and by the config file itself carrying the user's own values as `seta` lines |
+| 27 | **Hitmarker sounds far quieter than gunfire** — the feedback aliases were on the same compressed bus as gunfire; rerouted to stock's own hitmarker routing | v1.99.46 | 2026-08-18 *"it's good"* |
+| 29 | **INSTANT NUKE toggle** in the GAME tab | v1.99.48 | 2026-08-18 *"works perfectly toggled it on or off"* |
+
+**Renumbering that came with it** — 29 lines to 19, no gaps:
+
+`1→1` · `2→2` · `5→3` · `6→4` · `7→5` · `8→6` · `9→7` · `10→8` · `11→9` · `12→10` · `13→11` ·
+`14→12` · `16→13` · `17→14` · `18→15` · `20→16` · `22→17` · `24→18` · `28→19`.
+Old 3, 4, 15, 19, 21, 23, 25, 26, 27 and 29 are gone.
+
+📝 Two things that were part of these items and are **not** closed with them: Who's Who on **Origins**
+(43 absent assets — the user's decision to make, checkpoint 75 §3), and `fly_titus_futz` /
+`fly_tar21_futz`, which exist in no bank in the game and were offered and not taken.
 
 ### Closed 2026-08-17 — confirmed in game, then taken off the list
 
