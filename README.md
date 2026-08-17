@@ -70,9 +70,12 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   magazine, high-round fix, animated camos, prone at a perk machine for +100 points.
 - **Who's Who hands you a Pack-a-Punched ballistic knife** instead of the starting pistol, so you
   can revive your own downed body from range — stock already wires the upgraded ballistic knife to
-  revive a player clone, the perk just never gave you one. GAME-tab switch. **Not on Origins:** that
-  map ships no ballistic knife asset at all, so the perk stays stock there.
-  **New in v1.99.39 — deployed, not yet confirmed in game.**
+  revive a player clone, the perk just never gave you one. GAME-tab switch, live while you are down.
+  **Not on Origins:** every one of the 43 assets that weapon needs is absent from every fastfile
+  Origins loads, so the perk stays stock there.
+  **The gun itself is confirmed in game (v1.99.39).** The revive-on-hit half needed a second fix:
+  off Die Rise the corpse is a `script_model`, not an actor, so stock's own damage callback never
+  ran — **repaired in v1.99.43, deployed, not yet confirmed in game.**
 - **The Awful Lawton** (Pack-a-Punched crossbow) — its explosive bolts draw zombies to where they
   stick, like a monkey bomb, as in BO1. Upgraded only; the box crossbow is unchanged.
   **New in v1.99.39 — deployed, not yet confirmed in game.**

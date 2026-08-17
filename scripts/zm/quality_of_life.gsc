@@ -9706,9 +9706,19 @@ zmqol_whoswho_overlay_watch()
         //  zmqol_whoswho_clone_glow(). Driven from here because stock's own write
         //  sits inline in chugabud_laststand(), which nothing can hook.
         if ( b_active )
+        {
             self zmqol_whoswho_clone_glow();
+
+            //  v1.99.43 - and the corpse's DAMAGE callback has exactly the same
+            //  actor-vs-script_model bug as its glow did. Armed from the same
+            //  loop, for the same reason. See zmqol_whoswho_corpse_revive_arm().
+            self zmqol_whoswho_corpse_revive_arm();
+        }
         else
-            self.zmqol_clone_glow_done = undefined;   // re-arm for the next down
+        {
+            self.zmqol_clone_glow_done = undefined;      // re-arm for the next down
+            self.zmqol_corpse_revive_armed = undefined;
+        }
 
         wait 0.05;
     }
@@ -9772,6 +9782,133 @@ zmqol_whoswho_clone_glow()
 
     corpse setclientfield( "zmqol_whoswho_clone_glow", 1 );
     println( "[zm_qol] whoswho: clone glow set on a script_model corpse" );
+}
+
+// ============================================================================
+//  zmqol_whoswho_corpse_revive_arm  -  v1.99.43. SHOOTING YOUR OWN CORPSE WITH
+//  THE PACK-A-PUNCHED BALLISTIC KNIFE NOW REVIVES YOU OFF DIE RISE.
+//
+//  User, 2026-08-18, on TranZit: "whenever I shot my downed character model it
+//  didn't revive me like how the pap'd ballistic knife is supposed to do."
+//
+//  🌟 THE CAUSE IS THE GLOW BUG AGAIN, ONE LAYER DOWN, AND IT IS MEASURED.
+//  _zm_clone::spawn_player_clone() ends with
+//
+//        clone.actor_damage_func = ::clone_damage_func;
+//
+//  and clone_damage_func() is what notifies "player_revived" for the four
+//  upgraded ballistic-knife names (_zm_clone.gsc:65-73). But .actor_damage_func
+//  is read in exactly ONE place in the entire stock dump -
+//  _zm.gsc:4435, inside actor_damage_override(), which is reached only through
+//        level.callbackactordamage = ::actor_damage_override_wrapper   (_zm.gsc:976)
+//  🛑 That is the engine's ACTOR damage callback. A script_model never goes
+//  through it, so on a script_model corpse clone_damage_func is dead code.
+//
+//  And the corpse is a script_model on every map but Die Rise. Same
+//  fake_player_spawner census as the glow, re-dumped from mapents to be sure:
+//
+//        zm_highrise   1     <- actor.       Stock revive works, natively.
+//        zm_transit    0     <- script_model. Dead.
+//        zm_nuked      0     <- script_model. Dead.
+//        zm_buried     0     <- script_model. Dead.
+//
+//  Corroborated live: this same session's log prints
+//  "[zm_qol] whoswho: clone glow set on a script_model corpse" on TranZit, which
+//  is the branch that only runs when corpse.isactor is false.
+//
+//  🛑 THIS IS PARITY, NOT A NEW FEATURE. The notify, its argument and the four
+//  weapon names are all stock's; _zm_chugabud.gsc:89 waits on exactly
+//  `corpse waittill( "player_revived", e_reviver )` and :91-92 has a dedicated
+//  self-revive branch (`if ( e_reviver == self ) self notify( "whos_who_self_revive" )`),
+//  so Treyarch wrote for the player shooting their OWN body. Nothing here
+//  reimplements a revive; it re-delivers a message the engine stopped carrying.
+//
+//  📝 Die Rise is deliberately skipped - its corpse IS an actor, stock's own
+//  path already fires, and arming both would notify twice.
+// ============================================================================
+zmqol_whoswho_corpse_revive_arm()
+{
+    if ( isdefined( self.zmqol_corpse_revive_armed ) && self.zmqol_corpse_revive_armed )
+        return;
+
+    if ( !isdefined( self.e_chugabud_corpse ) )
+        return;
+
+    corpse = self.e_chugabud_corpse;
+    self.zmqol_corpse_revive_armed = 1;
+
+    if ( isdefined( corpse.isactor ) && corpse.isactor )
+        return;
+
+    corpse thread zmqol_whoswho_corpse_damage_watch();
+}
+
+// ============================================================================
+//  zmqol_whoswho_corpse_damage_watch  -  runs ON THE CORPSE
+//
+//  🛑 THE SHAPE IS STOCK'S, NOT INVENTED. A script_model takes damage through
+//  setcandamage() + the "damage" notify, and the zombies codebase does this in
+//  two places already:
+//      _zm_equipment.gsc:1377-1387    setcandamage(1); health; waittill("damage")
+//      _weaponobjects.gsc:495-502     + maxhealth, and switches on weaponname
+//  The long argument list is copied from _weaponobjects.gsc:502 and cross-checked
+//  against _zm_ai_basic.gsc:462 - the two disagree about whether slots 6/7 are
+//  (modelname, tagname) or (tagname, modelname), but BOTH put **weaponname at
+//  slot 9**, which is the only one read here.
+//
+//  🛑 WHY HEALTH IS KEPT TOPPED UP. Stock's clone_damage_func returns
+//  `idamage = 0` - the actor corpse takes no damage at all. Restoring health on
+//  every hit is how a script_model reproduces that, and it is why a zombie
+//  mauling the body cannot destroy it.
+//
+//  📝 setcandamage() makes the corpse stop bullets. That is not a regression -
+//  it is what the Die Rise corpse already does, being an actor. This brings the
+//  other maps to Die Rise's behaviour rather than away from it.
+//
+//  📝 THE PRINT IS A PROBE AND IT IS CAPPED. The one thing that could not be
+//  settled offline is whether a ballistic-knife bolt generates a "damage" notify
+//  on a script_model at all. This prints the weapon name of the first few hits,
+//  so one game distinguishes "the bolt never reaches the corpse" from "it
+//  reaches it under a different name" without another round trip. Capped at 12
+//  lines so a zombie chewing on the body cannot flood the log.
+// ============================================================================
+zmqol_whoswho_corpse_damage_watch()
+{
+    self endon( "death" );
+    level endon( "end_game" );
+
+    self setcandamage( 1 );
+    self.maxhealth = 100000;
+    self.health = self.maxhealth;
+
+    n_printed = 0;
+
+    for (;;)
+    {
+        self waittill( "damage", n_amount, e_attacker, v_dir, v_point, str_type, str_model, str_tag, str_part, str_weapon, n_idflags );
+
+        //  Never let the body die, exactly as clone_damage_func's idamage = 0.
+        self.health = self.maxhealth;
+
+        if ( !isdefined( str_weapon ) )
+            str_weapon = "<undefined>";
+
+        if ( n_printed < 12 )
+        {
+            n_printed++;
+            println( "[zm_qol] whoswho corpse: damage weapon='" + str_weapon + "'" );
+        }
+
+        if ( str_weapon == "knife_ballistic_upgraded_zm" ||
+             str_weapon == "knife_ballistic_bowie_upgraded_zm" ||
+             str_weapon == "knife_ballistic_no_melee_upgraded_zm" ||
+             str_weapon == "knife_ballistic_sickle_upgraded_zm" )
+        {
+            println( "[zm_qol] whoswho corpse: ballistic knife hit - notifying player_revived" );
+            self notify( "player_revived", e_attacker );
+            return;
+        }
+    }
 }
 
 // ============================================================================
@@ -12702,6 +12839,80 @@ zmqol_whoswho_knife_watch()
         self switchtoweapon( str_knife );
 
         println( "[zm_qol] whoswho knife: gave " + str_knife + " in place of " + level.start_weapon );
+
+        //  v1.99.43 - the option now takes effect WHILE you are still down.
+        self thread zmqol_whoswho_knife_toggle_watch( str_knife );
+    }
+}
+
+// ============================================================================
+//  zmqol_whoswho_knife_toggle_watch  -  v1.99.43. THE OPTION IS LIVE MID-DOWN.
+//
+//  User, 2026-08-18: "while still down in the who's who perk state, i quickly
+//  paused and went to game settings, then disabled the who's who knife option
+//  and it didn't toggle it i still have the ballistic knife".
+//
+//  🛑 IT WAS NOT A BROKEN DVAR - IT WAS READ ONCE AND NEVER AGAIN. The old code
+//  tested `whoswho_knife` a single time, at the instant of the "fake_revive"
+//  notify, and the swap had already happened by the time the pause menu opened.
+//  The dvar itself was fine; the screenshot shows DISABLED and the log for that
+//  same session shows the value it was given the knife under. Nothing was
+//  reverted because nothing was watching.
+//
+//  📝 WHY IT ENDS ON e_chugabud_corpse. _zm_chugabud.gsc:68 sets
+//  self.e_chugabud_corpse **before** :75 calls chugabud_fake_revive(), which is
+//  what emits the notify this thread hangs off - so the handle is already there
+//  when we start, no polling race. :183 clears it in chugabud_corpse_cleanup(),
+//  which is the one point every exit from the Who's Who state passes through
+//  (revived, bled out, or timed out). That makes it the state's real lifetime
+//  rather than a guess at one.
+//
+//  📝 Giving the pistol back goes through stock's own
+//  _zm_utility::give_start_weapon( 1 ) - giveweapon + givestartammo +
+//  switchtoweapon - so "off" lands on exactly what the perk hands you normally,
+//  with stock's ammo, not a reconstruction of it.
+// ============================================================================
+zmqol_whoswho_knife_toggle_watch( str_knife )
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+
+    //  A second down retires the previous watcher. Safe to arm here because this
+    //  thread is started FROM the "fake_revive" handler - the notify that would
+    //  end it has already passed by the time we are listening.
+    self endon( "fake_revive" );
+
+    b_have_knife = 1;
+
+    while ( isdefined( self.e_chugabud_corpse ) )
+    {
+        b_want_knife = getdvarintdefault( "whoswho_knife", 1 ) != 0;
+
+        if ( b_want_knife != b_have_knife )
+        {
+            if ( b_want_knife )
+            {
+                if ( self hasweapon( level.start_weapon ) )
+                    self takeweapon( level.start_weapon );
+
+                self giveweapon( str_knife );
+                self givemaxammo( str_knife );
+                self switchtoweapon( str_knife );
+                println( "[zm_qol] whoswho knife: toggled ON mid-down -> " + str_knife );
+            }
+            else
+            {
+                if ( self hasweapon( str_knife ) )
+                    self takeweapon( str_knife );
+
+                self maps\mp\zombies\_zm_utility::give_start_weapon( 1 );
+                println( "[zm_qol] whoswho knife: toggled OFF mid-down -> " + level.start_weapon );
+            }
+
+            b_have_knife = b_want_knife;
+        }
+
+        wait 0.1;
     }
 }
 
