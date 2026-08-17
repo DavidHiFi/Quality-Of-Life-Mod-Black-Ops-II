@@ -11431,11 +11431,16 @@ getPerkDesc( perk )
 init_hitmarkers()
 {
     precacheshader( "damage_feedback" );
-    maps\mp\zombies\_zm_spawner::register_zombie_damage_callback( ::do_hitmarker );
+
+    //  🛑 v1.99.47 - ::do_hitmarker IS DELIBERATELY *NOT* REGISTERED HERE.
+    //  It is put at the FRONT of the list below instead. See
+    //  zmqol_hitmarker_callback_first().
     maps\mp\zombies\_zm_spawner::register_zombie_death_event_callback( ::do_hitmarker_death );
     for (;;)
     {
         level waittill( "connected", player );
+
+        zmqol_hitmarker_callback_first();
         player.hud_damagefeedback = newdamageindicatorhudelem( player );
         player.hud_damagefeedback.horzalign = "center";
         player.hud_damagefeedback.vertalign = "middle";
@@ -11550,6 +11555,7 @@ do_hitmarker_death()
                 b_crit = 1;
         }
 
+        self zmqol_ww_marker_probe( "kill" );
         self.attacker thread updatedamagefeedback( self.damagemod, self.attacker, 1, b_crit );
     }
     return false;
@@ -11558,8 +11564,131 @@ do_hitmarker_death()
 do_hitmarker( mod, hitloc, hitorig, player, damage )
 {
     if ( isdefined( player ) && isplayer( player ) && player != self )
+    {
+        //  🛑 v1.99.47 - THE DEATH MACHINE IS EXEMPT, AND NOT BY OVERSIGHT.
+        //  Moving this callback to index 0 puts it ahead of
+        //  deathmachine_damage_response(), which is the one callback that turns
+        //  the SAME damage event into a kill (it adds 34-75% of the zombie's
+        //  remaining health and re-DoDamages). Marking here would then fire the
+        //  white hit marker and its sound one frame before the red kill marker
+        //  and its sound, on every lethal round of a minigun. The Death Machine
+        //  works today and must not be degraded to fix something else, so its
+        //  own callback keeps sole ownership of its feedback exactly as before.
+        //  Its non-lethal hits stay unmarked - unchanged from every build so
+        //  far, deliberately not "improved" in the same pass.
+        if ( isdefined( self.damageweapon ) && isdefined( level.deathmachine_weapon ) &&
+             self.damageweapon == level.deathmachine_weapon )
+            return false;
+
+        self zmqol_ww_marker_probe( "hit" );
         player thread updatedamagefeedback( mod, player, 0 );
+    }
     return false;
+}
+
+// ============================================================================
+//  zmqol_hitmarker_callback_first  -  v1.99.47. THE MARKER MUST BE THE FIRST
+//  DAMAGE CALLBACK, OR A SPECIAL WEAPON EATS THE EVENT BEFORE IT.
+//
+//  User, 2026-08-18: "make sure all weapons have the hitmarkers sounds, crit
+//  sounds etc. applied to them like the 3 black ops 1 zombies wonder weapon
+//  ports... it doesn't seem like they have the hitmarker/crit sound effects
+//  working on them."
+//
+//  🌟 THE CAUSE IS ONE `return true` IN STOCK, AND IT IS EXACT.
+//  _zm_spawner::check_zombie_damage_callbacks() (:2025-2037) is a SHORT-CIRCUIT
+//  loop, not a broadcast:
+//
+//        for ( i = 0; i < level.zombie_damage_callbacks.size; i++ )
+//            if ( self [[ level.zombie_damage_callbacks[i] ]]( ... ) )
+//                return true;          <-- every LATER callback is skipped
+//
+//  and three of the four callbacks in this mod claim their own damage that way:
+//
+//    | callback                          | registered in            | returns |
+//    |-----------------------------------|--------------------------|---------|
+//    | deathmachine_damage_response      | this file, init()        | true    |
+//    | tesla_zombie_damage_response      | _zm_weap_tesla.gsc:47    | true    |
+//    | freezegun_zombie_damage_response  | _zm_weap_freezegun.gsc:23| true    |
+//    | do_hitmarker                      | here                     | ALWAYS false |
+//
+//  So any of those registering ahead of the marker silently deletes the hit
+//  feedback for its own weapon - which is exactly the Wunderwaffe and the
+//  Winter's Howl, and the Death Machine besides.
+//
+//  📝 THE THUNDERGUN IS NOT IN THAT TABLE and never was: it registers no damage
+//  callback at all. It one-shots (DoDamage self.health + 666,
+//  _zm_weap_thundergun.gsc:256), so the zombie is already dead when
+//  enemy_death_detection() re-checks isalive() and the HIT path cannot apply to
+//  it by construction. Only the KILL marker can, and that runs down a different
+//  road with no early-out at all - check_zombie_death_event_callbacks()
+//  (:2284-2291) calls every registered function. The probe below reports which
+//  of the two actually fires, per weapon, so one game says which without
+//  guessing at it.
+//
+//  🛑 WHY PREPEND RATHER THAN REGISTER. Registration order is load order, and
+//  load order is Plutonium's, not this mod's - the three wonder weapons are
+//  separate root scripts. Being index 0 is the only position that cannot be
+//  taken away. Nothing else is disturbed: the other callbacks keep their
+//  relative order, and do_hitmarker returns false unconditionally, so it can
+//  never consume an event that belonged to one of them.
+//
+//  📝 Done on "connected" rather than in init() because every root script's
+//  init() has run by the time a player connects - including the ones this has
+//  to get ahead of. Once per match; the level flag makes a second player a
+//  no-op.
+// ============================================================================
+zmqol_hitmarker_callback_first()
+{
+    if ( isdefined( level.zmqol_hitmarker_first_done ) )
+        return;
+
+    level.zmqol_hitmarker_first_done = 1;
+
+    a_new = [];
+    a_new[0] = ::do_hitmarker;
+
+    if ( isdefined( level.zombie_damage_callbacks ) )
+    {
+        for ( i = 0; i < level.zombie_damage_callbacks.size; i++ )
+            a_new[ a_new.size ] = level.zombie_damage_callbacks[i];
+    }
+
+    level.zombie_damage_callbacks = a_new;
+
+    println( "[zm_qol] hitmarker: damage callback moved to index 0 of " + a_new.size );
+}
+
+// ============================================================================
+//  zmqol_ww_marker_probe  -  v1.99.47. ONE LINE PER WEAPON PER PATH, THEN QUIET.
+//
+//  Runs on the ZOMBIE, so self.damageweapon is the engine's own record of what
+//  killed it - the same field stock reads in zombie_death_event() to decide a
+//  headshot. Capped by a level table: at most 12 lines in a session (6 weapon
+//  names x 2 paths), so an automatic weapon into a horde cannot flood the log.
+// ============================================================================
+zmqol_ww_marker_probe( str_path )
+{
+    if ( !isdefined( self.damageweapon ) )
+        return;
+
+    str_w = self.damageweapon;
+
+    if ( str_w != "thundergun_zm" && str_w != "thundergun_upgraded_zm" &&
+         str_w != "tesla_gun_zm" && str_w != "tesla_gun_upgraded_zm" &&
+         str_w != "freezegun_zm" && str_w != "freezegun_upgraded_zm" )
+        return;
+
+    if ( !isdefined( level.zmqol_ww_probe ) )
+        level.zmqol_ww_probe = [];
+
+    str_key = str_w + "_" + str_path;
+
+    if ( isdefined( level.zmqol_ww_probe[ str_key ] ) )
+        return;
+
+    level.zmqol_ww_probe[ str_key ] = 1;
+    println( "[zm_qol] ww marker: " + str_path + " path fired for " + str_w );
 }
 
 // ============================================================================

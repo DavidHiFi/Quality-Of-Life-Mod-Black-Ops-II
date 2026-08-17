@@ -10,7 +10,10 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **75** · mod version **1.99.45**
+- SYNCED TO: checkpoint **75** · mod version **1.99.47**
+- **27 is now struck** — confirmed in game 2026-08-18 (*"it's good"*). Shipped v1.99.46.
+- **28 is new**, asked in the same message: the three BO1 wonder weapons get no hitmarker or crit
+  feedback. Built at v1.99.47, **not verified**.
 - **25 and 26 are now struck** — both confirmed in game 2026-08-18. 25: *"the monkey bomb effect
   works perfectly as expected."* 26: confirmed twice over — the user's word, and the mod's own
   config now carries every option as a `seta` line with their chosen values
@@ -60,7 +63,8 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 24. **BO4 MAX AMMO toggle** in the GAME tab
 25. ~~**Awful Lawton bolts distract zombies** like a monkey bomb~~
 26. ~~**The mod's own menu settings do not survive a game restart** — they have to be set again, and inconsistently~~
-27. **Hitmarker sounds are far quieter than gunfire** — inaudible under most weapons
+27. ~~**Hitmarker sounds are far quieter than gunfire** — inaudible under most weapons~~
+28. **Hitmarker / crit feedback missing on the three BO1 wonder weapons** — and on anything else with its own damage callback
 
 <!-- /LIST -->
 

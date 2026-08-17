@@ -7066,3 +7066,44 @@ Both struck in `QUEUE_LIST.md`. **Only 27 (hitmarker loudness) remains of the th
 
 **Deployed v1.99.46: `mod.ff` relinked and the new routing confirmed inside the DEPLOYED `mod.ff`
 by re-dumping it with the Unlinker. NOT VERIFIED IN GAME.**
+
+**Queue 27 confirmed in game** (*"ok it's good"*), v1.99.46. Struck.
+
+---
+
+# 2026-08-18 — queue 28: no hitmarker / crit feedback on the three BO1 wonder weapons
+
+User: *"make sure all weapons have the hitmarkers sounds, crit sounds etc. applied to them like the
+3 black ops 1 zombies wonder weapon ports that are in my mod... just make sure all weapons function
+with them and the toggles."*
+
+🌟 **The cause is one `return true` in stock, and it is exact.**
+`_zm_spawner::check_zombie_damage_callbacks()` (:2025-2037) is a **short-circuit** loop, not a
+broadcast — the first callback that returns true ends it and **every later callback is skipped**.
+Three of the four damage callbacks in this mod claim their own damage that way:
+
+| callback | registered in | returns |
+|---|---|---|
+| `deathmachine_damage_response` | `quality_of_life.gsc` init() | **true** |
+| `tesla_zombie_damage_response` | `_zm_weap_tesla.gsc:47` | **true** |
+| `freezegun_zombie_damage_response` | `_zm_weap_freezegun.gsc:23` | **true** |
+| `do_hitmarker` | here | **always false** |
+
+Registration order is Plutonium's load order across four separate root scripts, so the marker was
+never guaranteed a turn. **v1.99.47 prepends it at index 0** (on the first `connected`, by which
+time every root init has run) — the only position that cannot be taken away. Nothing else moves,
+and since `do_hitmarker` returns false unconditionally it can never consume an event that belonged
+to one of the others.
+
+🛑 **The Death Machine is deliberately exempt.** It is the one callback that turns the *same* event
+into a kill, so marking ahead of it would fire the white marker + hit sound one frame before the red
+marker + kill sound, on every lethal round of a minigun. It works today; it is left bit-identical.
+
+📝 **The thundergun registers no damage callback at all** and one-shots
+(`DoDamage self.health + 666`), so the zombie is already dead when `enemy_death_detection()`
+re-checks `isalive()` — the HIT path cannot apply to it by construction. Only the KILL marker can,
+and that road has no early-out (`check_zombie_death_event_callbacks()`, :2284-2291, calls every
+registered function). A capped probe now prints which of the two paths fires per weapon, max 12
+lines a session, so the next game settles it rather than another round of theory.
+
+**Deployed v1.99.47. NOT VERIFIED IN GAME.**
