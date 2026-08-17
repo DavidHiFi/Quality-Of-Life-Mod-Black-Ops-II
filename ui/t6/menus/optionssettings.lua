@@ -672,6 +672,61 @@ CoD.OptionsSettings.CreateSoundTab = function (SoundTab, LocalClientIndex)
 		local SoundSystemTest = SoundTabButtonList:addButton(Engine.Localize("MENU_SYSTEM_TEST_CAPS"), Engine.Localize("MENU_SYSTEM_TEST_DESC"))
 		SoundSystemTest:registerEventHandler("button_action", CoD.AudioSettings.Button_SystemTestButton)
 	end
+
+	-- ========================================================================
+	--  v1.99.31 - THE MOD'S FOUR FEEDBACK SOUND PACKS, user request 2026-08-17.
+	--
+	--  🛑 SOUND is a STOCK tab. Everything above this line is Treyarch's, and it
+	--  is only editable at all because this mod ships a full replacement of
+	--  optionssettings.lua. So the mod's rows go at the BOTTOM, behind a spacer,
+	--  and touch nothing above.
+	--
+	--  🛑 IN-GAME ONLY, and that is a row-budget decision, not a preference.
+	--  This file's proven ceiling is 14.5 row-pitches (stock's GRAPHICS tab, 13
+	--  rows + 3 half spacers, renders cleanly hint line and ESC prompt included;
+	--  CoD.ButtonList neither clips nor scrolls, it just draws past both ends).
+	--  SOUND is 9 rows + 2 spacers = 10 pitches in game, and 11 out of it -
+	--  SYSTEM TEST above is itself out-of-game only. 10 + 0.5 + 4 = 14.5 fits
+	--  exactly; 11 + 4.5 = 15.5 would collide with the ESC prompt, which is the
+	--  precise fault the user reported against the v1.94.0 menu.
+	--  The pause menu is where these were asked for and where they are set.
+	-- ========================================================================
+	if InGame then
+		SoundTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
+
+		local C = CoD.OptionsSettings.QolChoice
+
+		--  1..8 keep the donor mod's own pack numbering so the two cannot drift.
+		--  0 = DEFAULT is this mod's own addition: the mpl_hit_alert it has
+		--  always played. 9 = NO SOUND silences the marker entirely.
+		local MarkerPacks = {
+			{ "DEFAULT",      0 },
+			{ "COLD WAR",     1 },
+			{ "MW 2019",      2 },
+			{ "BLACK OPS 4",  3 },
+			{ "OVERWATCH",    4 },
+			{ "APEX LEGENDS", 5 },
+			{ "8 BIT",        6 },
+			{ "MW CLASSIC",   7 },
+			{ "BLACK OPS 7",  8 },
+			{ "NO SOUND",     9 }
+		}
+
+		C(SoundTabButtonList, LocalClientIndex, "HITMARKER HIT SOUND",  "hit_sound",    "Plays when you hit a zombie.",        MarkerPacks)
+		C(SoundTabButtonList, LocalClientIndex, "HITMARKER KILL SOUND", "kill_sound",   "Plays when you kill a zombie.",       MarkerPacks)
+		C(SoundTabButtonList, LocalClientIndex, "CRITS SOUND",          "crit_sound",   "Extra sound on a headshot or melee kill.", {
+			{ "NO SOUND",    0 },
+			{ "BLACK OPS 7", 1 },
+			{ "MW 2019",     2 }
+		})
+		C(SoundTabButtonList, LocalClientIndex, "DOWNED SOUND",         "downed_sound", "Plays for everyone when a player goes down.", {
+			{ "NO SOUND",     0 },
+			{ "BLACK OPS 4",  1 },
+			{ "COLD WAR",     2 },
+			{ "MW 2019",      3 }
+		})
+	end
+
 	return SoundTabContainer
 end
 
@@ -737,6 +792,21 @@ end
 --  the same one optionscontrols.lua uses for cl_freelook and m_pitch, which are
 --  known to work both ways.
 -- ============================================================================
+-- ============================================================================
+--  v1.99.31 - the same widget as QolToggle, but with N named values instead of
+--  DISABLED/ENABLED. Choices is a list of { LABEL, value } pairs, in the order
+--  they should cycle. The callback argument is left nil for the same reason
+--  QolToggle leaves it nil - see the note below; passing one replaces the
+--  widget's own DvarSelectorSetDvarFunc and the row then will not set back.
+-- ============================================================================
+CoD.OptionsSettings.QolChoice = function (ButtonList, LocalClientIndex, Label, DvarName, Description, Choices)
+	local Selector = ButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize(Label), DvarName, Engine.Localize(Description))
+	for i = 1, #Choices do
+		Selector:addChoice(LocalClientIndex, Engine.Localize(Choices[i][1]), Choices[i][2])
+	end
+	return Selector
+end
+
 CoD.OptionsSettings.QolToggle = function (ButtonList, LocalClientIndex, Label, DvarName, Description)
 	local Selector = ButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize(Label), DvarName, Engine.Localize(Description))
 	Selector:addChoice(LocalClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0)
@@ -829,11 +899,12 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
 	-- Gameplay rules.                                                 1 row
-	-- v1.99.26, user request 2026-08-17. Reads at map load, not live - see the
-	-- note in quality_of_life.gsc's init(): every part of instant Pack-a-Punch
-	-- is map-init work, so this takes effect next match rather than pretending
-	-- to switch mid-game.
-	T(QolButtons, LocalClientIndex, "INSTANT PAP",        "instant_pap",          "Pack-a-Punch with no wait. Applies next match.")
+	-- v1.99.26, user request 2026-08-17.
+	-- v1.99.30: LIVE now, both ways. The claim that used to sit here - that it
+	-- could only take effect next match - was wrong, and the row did nothing at
+	-- all when flipped mid-game. Off hands the machine back to stock's own
+	-- Pack-a-Punch: put the gun in, wait, take it out.
+	T(QolButtons, LocalClientIndex, "INSTANT PAP",        "instant_pap",          "Pack-a-Punch with no wait. Off uses the stock machine.")
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 

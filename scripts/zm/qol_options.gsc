@@ -139,6 +139,18 @@ init()
     //  the rest so they appear in console autocomplete and so the menu row reads
     //  a real value instead of an empty string on the first open.
     qol_opt_dvar( "hitmarkers",    "1" );
+
+    //  v1.99.31 - the SOUND tab's four feedback packs, user request 2026-08-17.
+    //  All default "0", which for hit/kill means the alert this mod has always
+    //  played and for downed/crit means silence - so nothing changes for anyone
+    //  who does not go looking. The numbering and the alias tables live in
+    //  quality_of_life.gsc's zmqol_init_feedback_sounds(); registered here with
+    //  the rest so the console autocompletes them and the menu row reads a real
+    //  value the first time it is opened instead of an empty string.
+    qol_opt_dvar( "hit_sound",     "0" );
+    qol_opt_dvar( "kill_sound",    "0" );
+    qol_opt_dvar( "downed_sound",  "0" );
+    qol_opt_dvar( "crit_sound",    "0" );
     qol_opt_dvar( "round_summary", "1" );
     qol_opt_dvar( "intro_credits", "1" );
 

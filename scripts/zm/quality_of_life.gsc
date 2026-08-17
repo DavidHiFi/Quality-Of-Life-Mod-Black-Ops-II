@@ -423,6 +423,18 @@ zmqol_restore_perk_bottles_on_survival()
         level.custom_vending_precaching = maps\mp\zombies\_zm_perks::default_vending_precaching;
 
     [[ level.custom_vending_precaching ]]();
+
+    //  v1.99.30 - THE SAME BAIL ALSO SKIPS STOCK'S PACK-A-PUNCH THREAD.
+    //  _zm_perks::init() reaches `if ( vending_triggers.size < 1 ) return;`
+    //  BEFORE its `array_thread( vending_weapon_upgrade_trigger,
+    //  ::vending_weapon_upgrade )`, so on every location listed above there is no
+    //  stock Pack-a-Punch machine logic running at all - the mod's own trigger is
+    //  the only Pack-a-Punch those locations have ever had.
+    //
+    //  So the INSTANT PAP switch has nothing to hand the machine back TO here,
+    //  and qol_pap_mode_watch() keeps instant mode on when it sees this. Turning
+    //  it off would otherwise leave the location with no working Pack-a-Punch.
+    level.qol_pap_stock_missing = 1;
 }
 
 // ============================================================================
@@ -601,21 +613,24 @@ init()
     //  ON by default, because it is what the mod has always done and a new toggle
     //  must not silently change existing behaviour.
     //
-    //  🛑 READ ONCE, HERE, AND NOT WATCHED - the same arrangement as
-    //  qol_options.gsc's no_power, and for the same reason. All three lines below
-    //  are map-init work: the reusable-PaP flag is read by stock during setup,
-    //  the attachment pass runs once after the blackscreen, and new_pap_trigger()
-    //  replaces the machine's trigger wiring. Flipping it mid-game could not undo
-    //  any of that, and a live-looking switch that does nothing is worse than one
-    //  that plainly takes effect next match.
+    //  🛑 v1.99.30 CORRECTION - THIS USED TO BE READ ONCE, HERE, AND THE SWITCH
+    //  DID NOTHING. The note that used to sit here claimed all three lines were
+    //  map-init work that a mid-game flip "could not undo". Two of the three were
+    //  never map-init work at all:
+    //
+    //    - level.zombiemode_reusing_pack_a_punch is read at USE time by stock
+    //      (_zm_weapons.gsc:1771/1797/1814, _zm_perks.gsc:653/691/700), and
+    //      🛑 EVERY retail map already sets it to 1 itself (zm_transit.gsc:286,
+    //      zm_buried:254, zm_highrise:164, zm_prison:101, zm_nuked:109,
+    //      zm_tomb:167), so this line never changed anything on a stock map.
+    //    - setup_pap_attachments() only fills in attachment lists, and it skips
+    //      weapons that already have one, so it is safe to run at any time.
+    //
+    //  Only the machine takeover is real, and it is now a live handover between
+    //  the mod's trigger and stock's own - see qol_pap_mode_watch().
     create_dvar( "instant_pap", 1 );
 
-    if ( getdvarintdefault( "instant_pap", 1 ) )
-    {
-        level.zombiemode_reusing_pack_a_punch = 1;
-        level thread setup_pap_attachments();
-        level thread new_pap_trigger();
-    }
+    level thread new_pap_trigger();
 
     // --- No_Fog ---
     // (Disable_Fog_Transition moved OUT of this file on 2026-07-30 - it now
@@ -640,6 +655,10 @@ init()
 
     // --- zm_hitmarkers ---
     level thread init_hitmarkers();
+    //  v1.99.31 - the four SOUND-tab feedback packs. Tables first, then the
+    //  downed listener; see zmqol_init_feedback_sounds().
+    zmqol_init_feedback_sounds();
+    level thread zmqol_downed_sound_connect();
 
     // --- areanotifier ---
     level thread an_onplayerconnect();
@@ -2458,21 +2477,46 @@ new_pap_trigger()
 {
     level waittill("Pack_A_Punch_on");
     wait 2;
-    if( getdvar( "mapname" ) == "zm_transit" && getdvar ( "g_gametype")  == "zstandard" )
-    {
-    }
-    else
-    {
-        level notify("Pack_A_Punch_off");
-        level thread pap_off();
-    }
+    //  v1.99.30 - THE SWITCH IS LIVE NOW, AND THIS IS WHY STOCK'S THREAD LIVES.
+    //
+    //  User, 2026-08-17: *"i set instant pap to disabled here in the game tab,
+    //  pack a punched a weapon and it still had instant pap ... so if players
+    //  want to use the default pack a punch where you have to put it in the
+    //  machine (stock game) they can choose between that or instant pap"*.
+    //
+    //  What used to be here was:
+    //      level notify( "Pack_A_Punch_off" );  level thread pap_off();
+    //  which KILLS stock's maps\mp\zombies\_zm_perks::vending_weapon_upgrade()
+    //  outright - it carries `level endon( "Pack_A_Punch_off" )` on its first
+    //  line - and pap_off() then re-killed it every time power came back. So
+    //  there was nothing left to switch BACK to, and the switch could only ever
+    //  be read once, at map load. That is the whole bug.
+    //
+    //  Now stock's thread stays alive and simply parks on `self waittill(
+    //  "trigger", player )`, which cannot fire while its trigger is off. Exactly
+    //  ONE of the two triggers is enabled at any moment - see
+    //  qol_pap_mode_watch() below - so they can never both answer the use key.
+    //
+    //  🌟 NOT NEW GROUND. TranZit SURVIVAL has always run this exact
+    //  arrangement: the old branch above deliberately skipped the kill for
+    //  zm_transit/zstandard, and instant PaP works there. This just applies the
+    //  shipped, working case to every map.
+    //
+    //  🛑 One behaviour comes back with stock's thread, and it is stock's own:
+    //  the machine keeps its "zmb_perks_packa_loop" hum. The Pack_A_Punch_off
+    //  notify used to reach stock's shutoffpapsounds() and silence the machine
+    //  for the rest of the match.
     if( getdvar( "mapname" ) == "zm_nuked" )
     {
         level waittill( "Pack_A_Punch_on" );
     }
     perk_machine = getent( "vending_packapunch", "targetname" );
     weapon_upgrade_trigger = getentarray( "specialty_weapupgrade", "script_noteworthy" );
-    weapon_upgrade_trigger[0] trigger_off();
+    //  🛑 getentarray, so guard the index - a map with no such trigger used to
+    //  crash this thread on weapon_upgrade_trigger[0].
+    stock_trigger = undefined;
+    if ( weapon_upgrade_trigger.size > 0 )
+        stock_trigger = weapon_upgrade_trigger[0];
     if( getdvar( "mapname" ) == "zm_transit" && getdvar ( "g_gametype")  == "zclassic" )
     {
         if(!level.buildables_built[ "pap" ])
@@ -2501,6 +2545,18 @@ new_pap_trigger()
     Trigger sethintstring( "			Hold ^3&&1^7 for Pack-a-Punch [Cost: " + getDvarInt("pap_price") + "]" );
     Trigger usetriggerrequirelookat();
     perk_machine thread maps\mp\zombies\_zm_perks::activate_packapunch();
+    //  v1.99.30 - hand the machine to whichever mode the switch is in RIGHT NOW,
+    //  then keep watching it. Applied before the loop so a match that starts
+    //  with INSTANT PAP disabled never shows this trigger at all.
+    level.qol_pap_busy = 0;
+    level.qol_pap_sank_stock = 0;
+    b_instant_now = getdvarintdefault( "instant_pap", 1 ) != 0;
+    //  🛑 Where stock's Pack-a-Punch thread does not exist, instant mode is the
+    //  only Pack-a-Punch there is - never sink this trigger. See the watcher.
+    if ( is_true( level.qol_pap_stock_missing ) || !isdefined( stock_trigger ) )
+        b_instant_now = 1;
+    level qol_pap_apply_mode( b_instant_now, Trigger, stock_trigger );
+    level thread qol_pap_mode_watch( Trigger, stock_trigger );
     for(;;)
     {
         Trigger waittill("trigger", player);
@@ -2525,6 +2581,10 @@ new_pap_trigger()
         }
         if(player UseButtonPressed() && player.score >= cost && current_weapon != "riotshield_zm" && player can_buy_weapon() && !player.is_drinking && !is_placeable_mine( current_weapon ) && !is_equipment( current_weapon ) && level.revive_tool != current_weapon && current_weapon != "none" && can_upgrade_weapon( current_weapon ))
         {
+            //  v1.99.30 - held while this upgrade runs, so qol_pap_mode_watch()
+            //  cannot hand the machine over mid-upgrade and strand the player's
+            //  weapon. Cleared at the bottom of the same branch.
+            level.qol_pap_busy = 1;
             player.score -= cost;
             player thread maps\mp\zombies\_zm_audio::play_jingle_or_stinger( "mus_perks_packa_sting" );
             trigger setinvisibletoall();
@@ -2569,6 +2629,7 @@ new_pap_trigger()
             trigger setvisibletoall();
             self.pack_player = undefined;
             flag_clear( "pack_machine_in_use" );
+            level.qol_pap_busy = 0;
         }
         if ( isDefined( player ) )
         {
@@ -2595,6 +2656,142 @@ new_pap_trigger()
     }
 }
 
+// ----------------------------------------------------------------------------
+//  v1.99.30 - INSTANT PAP IS A LIVE SWITCH
+//
+//  Two triggers sit on the Pack-a-Punch machine and exactly one of them is ever
+//  enabled:
+//
+//      instant_pap 1  ->  the mod's radius trigger (hold F, gun comes back
+//                         upgraded on the spot)
+//      instant_pap 0  ->  stock's own "specialty_weapupgrade" trigger, driven by
+//                         stock's own vending_weapon_upgrade() thread: the gun
+//                         goes INTO the machine, the machine works, the upgraded
+//                         gun pops out and you walk up and take it.
+//
+//  🌟 Stock mode is stock's real code, not a re-creation of it. Nothing here
+//  reimplements the machine - the mod only decides which trigger is standing.
+//
+//  🛑 trigger_on()/trigger_off() (common_scripts\utility) move a trigger 10000
+//  units down and remember `realorigin`. Stock's own enable_trigger()/
+//  disable_trigger() (_zm_utility) do the SAME 10000-unit move through a
+//  DIFFERENT field, `.disabled`. Handing the machine over while stock has its
+//  trigger sunk mid-upgrade would make trigger_off() record the sunken origin as
+//  `realorigin`, and the following trigger_on() would restore the trigger to
+//  underground - dead for the rest of the match. That is why the watcher below
+//  refuses to switch while either side is mid-upgrade.
+// ----------------------------------------------------------------------------
+//  🛑 THE MOD RAISES ONLY WHAT THE MOD SANK. level.qol_pap_sank_stock records
+//  whether stock's trigger is down because of us. Without it this would happily
+//  trigger_on() a stock trigger that stock itself had turned off for its own
+//  reasons - on TranZit CLASSIC stock keeps that trigger off until the
+//  Pack-a-Punch is BUILT, so a blind trigger_on() would open Pack-a-Punch before
+//  the machine exists.
+qol_pap_apply_mode( b_instant, qol_trigger, stock_trigger )
+{
+    if ( b_instant )
+    {
+        //  The attachment pass is idempotent (it skips weapons that already have
+        //  a list), so running it on every switch-on is safe and covers a match
+        //  that started with the switch off.
+        level.zombiemode_reusing_pack_a_punch = 1;
+        level thread setup_pap_attachments();
+
+        if ( isdefined( stock_trigger ) && !is_true( stock_trigger.trigger_off ) )
+        {
+            stock_trigger trigger_off();
+            level.qol_pap_sank_stock = 1;
+        }
+
+        if ( isdefined( qol_trigger ) && is_true( qol_trigger.trigger_off ) )
+        {
+            qol_trigger trigger_on();
+            qol_trigger setvisibletoall();
+        }
+    }
+    else
+    {
+        if ( isdefined( qol_trigger ) && !is_true( qol_trigger.trigger_off ) )
+        {
+            qol_trigger trigger_off();
+            qol_trigger setinvisibletoall();
+        }
+
+        if ( isdefined( stock_trigger ) && is_true( level.qol_pap_sank_stock ) && is_true( stock_trigger.trigger_off ) )
+        {
+            stock_trigger trigger_on();
+            level.qol_pap_sank_stock = 0;
+        }
+    }
+}
+
+//  🌟 STATE-BASED, NOT EDGE-BASED, ON PURPOSE. It compares the switch against
+//  what the triggers ACTUALLY are, not against what it last wrote, so it repairs
+//  itself if anything else moves a trigger behind its back. That is a real case,
+//  not a hypothetical: on TranZit CLASSIC the Pack-a-Punch is buildable, and
+//  stock's own vending_weapon_upgrade() calls `self trigger_on()` the moment the
+//  build finishes - which lands within a second of this thread's own setup and
+//  would otherwise leave BOTH triggers standing on the machine.
+qol_pap_mode_watch( qol_trigger, stock_trigger )
+{
+    //  🛑 Nothing to switch to. On the custom survival locations stock's own
+    //  Pack-a-Punch thread was never started - see the note at the bottom of
+    //  zmqol_restore_perk_bottles_on_survival() - so instant mode stays on and
+    //  this thread has no work. Same if the map has no stock trigger at all.
+    if ( is_true( level.qol_pap_stock_missing ) || !isdefined( stock_trigger ) )
+        return;
+
+    for (;;)
+    {
+        wait 0.5;
+
+        b_want = getdvarintdefault( "instant_pap", 1 ) != 0;
+
+        //  What the machine is actually wearing right now. trigger_off_proc()
+        //  sets .trigger_off on the entity it sinks.
+        b_qol_on   = isdefined( qol_trigger ) && !is_true( qol_trigger.trigger_off );
+        b_mismatch = 0;
+
+        if ( b_want )
+        {
+            if ( !b_qol_on )
+                b_mismatch = 1;
+
+            if ( isdefined( stock_trigger ) && !is_true( stock_trigger.trigger_off ) )
+                b_mismatch = 1;
+        }
+        else
+        {
+            if ( b_qol_on )
+                b_mismatch = 1;
+
+            if ( isdefined( stock_trigger ) && is_true( level.qol_pap_sank_stock ) && is_true( stock_trigger.trigger_off ) )
+                b_mismatch = 1;
+        }
+
+        if ( !b_mismatch )
+            continue;
+
+        //  Never hand the machine over while a weapon is inside it - see the
+        //  realorigin note above qol_pap_apply_mode().
+        if ( is_true( level.qol_pap_busy ) )
+            continue;
+
+        if ( flag( "pack_machine_in_use" ) )
+            continue;
+
+        if ( isdefined( stock_trigger ) && is_true( stock_trigger.disabled ) )
+            continue;
+
+        level qol_pap_apply_mode( b_want, qol_trigger, stock_trigger );
+    }
+}
+
+//  🛑 NO LONGER CALLED as of v1.99.30 and deliberately kept, because what it did
+//  is the thing that broke the switch: it re-fired level notify(
+//  "Pack_A_Punch_off" ) every time power came back, which permanently killed
+//  stock's vending_weapon_upgrade() thread and left nothing to switch back to.
+//  Kept here, unreferenced, so the next reader can see what was removed.
 pap_off()
 {
     wait 5;
@@ -10992,7 +11189,7 @@ init_hitmarkers()
     }
 }
 
-updatedamagefeedback( mod, inflictor, death )
+updatedamagefeedback( mod, inflictor, death, crit )
 {
     if ( !isplayer( self ) || isdefined( self.disable_hitmarkers ) )
         return;
@@ -11014,7 +11211,21 @@ updatedamagefeedback( mod, inflictor, death )
     if ( isdefined( mod ) && mod != "MOD_CRUSH" && ( mod != "MOD_GRENADE_SPLASH" && mod != "MOD_HIT_BY_OBJECT" ) )
     {
         if ( isdefined( inflictor ) )
-            self playlocalsound( "mpl_hit_alert" );
+        {
+            //  v1.99.31 - HIT / KILL / CRIT sound packs, SOUND tab.
+            //  A kill takes the kill sound INSTEAD of the hit sound - the same
+            //  split the packs were authored for - and a critical kill layers
+            //  the crit sound on top of it.
+            if ( death )
+            {
+                self zmqol_play_feedback_sound( "kill_sound", level.zmqol_snd_kill );
+
+                if ( is_true( crit ) )
+                    self zmqol_play_feedback_sound( "crit_sound", level.zmqol_snd_crit );
+            }
+            else
+                self zmqol_play_feedback_sound( "hit_sound", level.zmqol_snd_hit );
+        }
         if ( death && getdvarintdefault( "redhitmarkers", 1 ) )
         {
             self.hud_damagefeedback_red setshader( "damage_feedback", 24, 48 );
@@ -11036,7 +11247,24 @@ updatedamagefeedback( mod, inflictor, death )
 do_hitmarker_death()
 {
     if ( isdefined( self.attacker ) && isplayer( self.attacker ) && self.attacker != self )
-        self.attacker thread updatedamagefeedback( self.damagemod, self.attacker, 1 );
+    {
+        //  v1.99.31 - CRITS SOUND. A "crit" is a headshot kill or a melee kill,
+        //  which is what the packs were authored against. is_headshot() is
+        //  stock's own test (maps\mp\zombies\_zm_utility::is_headshot, used by
+        //  _zm.gsc:4454/4464/4497), so this agrees with what the game already
+        //  counts as a headshot rather than re-deciding it here.
+        b_crit = 0;
+
+        if ( isdefined( self.damagemod ) && self.damagemod == "MOD_MELEE" )
+            b_crit = 1;
+        else if ( isdefined( self.damageweapon ) && isdefined( self.damagelocation ) && isdefined( self.damagemod ) )
+        {
+            if ( maps\mp\zombies\_zm_utility::is_headshot( self.damageweapon, self.damagelocation, self.damagemod ) )
+                b_crit = 1;
+        }
+
+        self.attacker thread updatedamagefeedback( self.damagemod, self.attacker, 1, b_crit );
+    }
     return false;
 }
 
@@ -11045,6 +11273,133 @@ do_hitmarker( mod, hitloc, hitorig, player, damage )
     if ( isdefined( player ) && isplayer( player ) && player != self )
         player thread updatedamagefeedback( mod, player, 0 );
     return false;
+}
+
+// ============================================================================
+//  FEEDBACK SOUND PACKS  -  HIT / KILL / CRITS / DOWNED   (v1.99.31)
+// ----------------------------------------------------------------------------
+//  User request, 2026-08-17, with the audio supplied from TechnoOps-Collection
+//  and 🛑 that import explicitly authorised by the user, overriding
+//  AI_CONTEXT.md rule 7 for these files only. Recorded because it is a standing
+//  rule being set aside, not the default.
+//
+//  Four dvars, all set from the pause menu's SOUND tab, all read at the moment
+//  the sound plays, so every one of them is live mid-match:
+//
+//      hit_sound     0 = DEFAULT (mpl_hit_alert)  1..8 = pack   9 = NO SOUND
+//      kill_sound    0 = DEFAULT (mpl_hit_alert)  1..8 = pack   9 = NO SOUND
+//      downed_sound  0 = NO SOUND                 1..3 = pack
+//      crit_sound    0 = NO SOUND                 1..2 = pack
+//
+//  🌟 DEFAULT IS 0 EVERYWHERE, so a player who never opens the menu hears
+//  exactly what this mod has always played and nothing new. 1..8 keep the
+//  donor's own numbering, so its pack order and this one cannot drift apart.
+//
+//  🛑 EVERY ALIAS IS RENAMED zmqol_* and every payload ships in this mod's own
+//  bank (soundbank\mod.all.aliases.additions.csv -> mod.all.sabl, audio under
+//  sound\zmqol\). A bank may not define a name a map bank owns, and a missing
+//  alias is SILENT, never an error - so the names are mod-private and the rows
+//  and their .wav files are added in the same change.
+// ============================================================================
+zmqol_init_feedback_sounds()
+{
+    level.zmqol_snd_hit = [];
+    level.zmqol_snd_hit[1] = "zmqol_hit_cw";
+    level.zmqol_snd_hit[2] = "zmqol_hit_mw";
+    level.zmqol_snd_hit[3] = "zmqol_hit_bo4";
+    level.zmqol_snd_hit[4] = "zmqol_hit_ow";
+    level.zmqol_snd_hit[5] = "zmqol_hit_al";
+    level.zmqol_snd_hit[6] = "zmqol_hit_8bit";
+    level.zmqol_snd_hit[7] = "zmqol_hit_mwog";
+    level.zmqol_snd_hit[8] = "zmqol_hit_bo7";
+
+    level.zmqol_snd_kill = [];
+    level.zmqol_snd_kill[1] = "zmqol_kill_cw";
+    level.zmqol_snd_kill[2] = "zmqol_kill_mw";
+    level.zmqol_snd_kill[3] = "zmqol_kill_bo4";
+    level.zmqol_snd_kill[4] = "zmqol_kill_ow";
+    level.zmqol_snd_kill[5] = "zmqol_kill_al";
+    level.zmqol_snd_kill[6] = "zmqol_kill_8bit";
+    level.zmqol_snd_kill[7] = "zmqol_kill_mwog";
+    level.zmqol_snd_kill[8] = "zmqol_kill_bo7";
+
+    level.zmqol_snd_downed = [];
+    level.zmqol_snd_downed[1] = "zmqol_downed_bo4";
+    level.zmqol_snd_downed[2] = "zmqol_downed_cw";
+    level.zmqol_snd_downed[3] = "zmqol_downed_mw";
+
+    level.zmqol_snd_crit = [];
+    level.zmqol_snd_crit[1] = "zmqol_crit_bo7";
+    level.zmqol_snd_crit[2] = "zmqol_crit_mw";
+}
+
+//  self = the player who should hear it.
+zmqol_play_feedback_sound( str_dvar, a_pack )
+{
+    if ( !isdefined( self ) || !isplayer( self ) )
+        return;
+
+    n_choice = getdvarintdefault( str_dvar, 0 );
+
+    //  0 on hit/kill means "what this mod always played". The downed and crit
+    //  rows have no such row - their 0 is NO SOUND - which is why the fallback
+    //  is keyed on the pack table having no entry 0 rather than on the number.
+    if ( n_choice == 0 )
+    {
+        if ( str_dvar == "hit_sound" || str_dvar == "kill_sound" )
+            self playlocalsound( "mpl_hit_alert" );
+
+        return;
+    }
+
+    //  Covers NO SOUND (9) and any out-of-range value typed at the console.
+    if ( !isdefined( a_pack ) || !isdefined( a_pack[n_choice] ) )
+        return;
+
+    self playlocalsound( a_pack[n_choice] );
+}
+
+zmqol_downed_sound_connect()
+{
+    for (;;)
+    {
+        level waittill( "connected", player );
+        player thread zmqol_downed_sound_listen();
+    }
+}
+
+//  🛑 Plays for EVERY player, not just the one who went down - it is a squad
+//  alert, which is what the packs are for. Solo simply means one listener.
+//  The three notifies are stock's own: "entering_last_stand" and
+//  "player_downed" from _zm_laststand.gsc:155/215, "fake_death" from
+//  _zm_chugabud.gsc (Who's Who), all raised on the player.
+zmqol_downed_sound_listen()
+{
+    self endon( "disconnect" );
+
+    for (;;)
+    {
+        self waittill_any( "player_downed", "fake_death", "entering_last_stand" );
+
+        n_choice = getdvarintdefault( "downed_sound", 0 );
+
+        if ( n_choice < 1 || !isdefined( level.zmqol_snd_downed[n_choice] ) )
+            continue;
+
+        players = get_players();
+
+        for ( i = 0; i < players.size; i++ )
+        {
+            if ( isdefined( players[i] ) )
+                players[i] playlocalsound( level.zmqol_snd_downed[n_choice] );
+        }
+
+        //  🛑 _zm_laststand raises "player_downed" a SECOND time a few lines
+        //  later when the player had perks (line 228), and "entering_last_stand"
+        //  fires on the same event. Without this the pack plays two or three
+        //  times over itself on one down.
+        wait 1;
+    }
 }
 
 // ============================================================================

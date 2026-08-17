@@ -52,6 +52,10 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 **HUD and menus**
 - **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 29 toggles, so you never
   have to type a chat command.
+- **Sound packs on the SOUND tab** (pause menu): pick the hitmarker **hit** and **kill** sound from
+  eight — Cold War, MW 2019, Black Ops 4, Overwatch, Apex, 8-bit, MW Classic, Black Ops 7 — plus a
+  **crit** sound on headshot and melee kills and a **downed** alert the whole squad hears. All four
+  default to the mod's original sound, and all four switch live.
 - Hitmarkers, on-screen counters, round summary, game and round timers, health bar, bleedout bar,
   zombies remaining, zone names, **compass**, velocity meter, Cold-War round HUD, perk pop-ups.
 - **Power-up timers** — seconds remaining above each power-up icon, the mod's own **Death Machine**
@@ -60,7 +64,8 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 - Solo Play is titled Solo Play, and the Classic intro cutscenes play again.
 
 **Quality of life**
-- Instant Pack-a-Punch (switchable off on the GAME tab), BO4 Max Ammo, wall buys refill your
+- Instant Pack-a-Punch (switch it off on the GAME tab, mid-match, and the stock machine comes
+  back — gun in, wait, gun out), BO4 Max Ammo, wall buys refill your
   magazine, high-round fix, animated camos, prone at a perk machine for +100 points.
 
 **Commands** — chat command and bindable console command for each:
