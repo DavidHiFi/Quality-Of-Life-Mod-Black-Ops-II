@@ -6740,3 +6740,76 @@ throwaway work, and the user did not ask for it. Revisit as part of 16.
   from the weapon def, and the mod ships **no** `jetgun_zm` def among its 86 — so this likely needs a
   def in `mod.ff` (`build_ff.bat`), not just script. **Not yet investigated. Do not assume it is a
   script-only change.**
+
+---
+
+## ✅ 15 CONFIRMED IN GAME 2026-08-17 — and the full spec for 16 + 17
+
+User walked TranZit, collected all three parts, built the jet gun at the bench, and it worked:
+*"the jet gun works fine but it's currently stock/vanilla."* (Video clip supplied; **I cannot play
+video** — this rests on their description, which is unambiguous.) **15 is done.**
+
+### 🌟 EVERYTHING 16 AND 17 NEED IS FIVE FIELDS AND ONE FLAG. All measured, none estimated.
+
+Dumped both weapon defs with the Unlinker — `jetgun_zm` out of `zm_transit.ff`, `slowgun_zm` (the
+Paralyzer) out of `zm_buried.ff` — parsed all **1,027 fields of each** and diffed by value:
+
+| field | jetgun_zm | slowgun_zm (Paralyzer) | what it decides |
+|---|---|---|---|
+| `inventoryType` | **item** | **primary** | 🌟 **this is "takes a real weapon slot"** |
+| `weaponClass` | **item** | **mg** | class the game files it under |
+| `overheatWeapon` | 1 | 1 | both already overheat — same engine system |
+| `overheatRate` | **17** | **10** | how fast it heats while firing |
+| `cooldownRate` | **1** | **3** | how fast it cools — Paralyzer is **3× faster** |
+| `overheatEndVal` | **77** | **87** | how far it must cool before firing again |
+| `clipSize` / `maxAmmo` / `startAmmo` | 500 / 500 / 400 | 1 / 1 / 1 | both `unlimitedAmmo 1`; on the Paralyzer the **heat is the ammo** |
+
+🌟 **17 is not a port. Both guns already use the same engine overheat system** (`overheatWeapon 1`,
+driven by `setweaponoverheating` / `isweaponoverheating`). `_zm_weap_slowgun.gsc` is 815 lines and
+contains **no** heat, cooldown or fuel logic at all — the Paralyzer's bar is entirely those three
+numbers in its weapon file. So 17 is: copy `10 / 3 / 87` onto the jet gun.
+
+### "Never breaks" is one line
+`zm_transit.gsc:1638 level.explode_overheated_jetgun = 1`. Only assignment in the game;
+`unbuild_overheated_jetgun` and `take_overheated_jetgun` are set nowhere. With none of the three set,
+`_zm_weap_jetgun.gsc:201 handle_overheated_jetgun()` does nothing and the gun just cools.
+
+### The give path has to move, and stock left the hook
+Everything the jet gun's equipment identity rests on is in `zm_transit.gsc`, and each has an off
+switch that is stock's own:
+
+| line | call | effect if suppressed |
+|---|---|---|
+| 1629 | `include_equipment( "jetgun_zm" )` | 🌟 `register_equipment` returns early (`_zm_equipment.gsc:48`) — **it is never equipment** |
+| 1637 | `limit_equipment( "jetgun_zm", 1 )` | the one-per-game equipment cap |
+| 1638 | `level.explode_overheated_jetgun = 1` | it never breaks |
+| 1854 | `register_equipment_for_level( "jetgun_zm" )` | |
+| 1935 | `include_weapon( "jetgun_zm", 0, … )` | already included as a weapon, just not boxed |
+| 2023 | `add_zombie_weapon( "jetgun_zm", …, 2000, "jet", … )` | 📝 **already registered as a normal zombie weapon** |
+
+🛑 Suppressing the equipment registration **breaks the bench**: `_zm_buildables.gsc:2143` calls
+`equipment_buy` → `equipment_give`, which returns early when `level.zombie_equipment[…]` is undefined,
+so the player would build it and get **nothing**. The fix is stock's own unused hook —
+`_zm_buildables.gsc:2140` runs `self.stub.buildablestruct.onbought( player )` **first** if defined,
+and `stub.buildablestruct` is `level.zombie_include_buildables[equipname]` (`:1342`), the same object
+`qol_options.gsc:922` already writes to. Set `onbought` → the whole give path diverts to
+`weapon_give`. **Nothing in stock ever sets `onbought`**, so nothing is being displaced.
+
+### 🛑 THE ONE REAL RISK, and the probe that settles it
+`inventoryType` cannot be set from script. It needs a modified `jetgun_zm` weapon def.
+
+**The mod's proven path for defs is raw in `mod.iwd` under `weapons\zm\`** — 40 defs ride there today
+(thundergun, tesla, freezegun, the nine MP weapons, Tac-45…), stated at `mod_locations.zone:724` and
+confirmed: **none of those 40 is a weapon asset in `mod.ff`**, and they work in game.
+
+🛑 **But every one of those 40 is a weapon that exists in NO zombies fastfile.** `jetgun_zm` **does**
+exist in `zm_transit.ff`, so this would be the first time a raw def has to *override* a fastfile def
+rather than supply a missing one. That is genuinely untested here and must not be assumed.
+📝 Putting it in `mod.ff` instead is the worse option: mod.ff would then **own** `jetgun_zm` on every
+map and drag its models/anims/materials with it — [[t6-modff-asset-ownership-trap]].
+
+**Ship a probe on the same boot:** `weaponinventorytype( "jetgun_zm" )` is a real builtin (stock uses
+it at `_zm_equipment.gsc:305`). Printing it at map start says outright whether the raw def won —
+`primary` means it did, `item` means the fastfile copy is still in charge. One boot, no guessing.
+
+**Deployed: nothing yet for 16/17.**
