@@ -38,6 +38,9 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 12. **PhD Flopper's HUD icon may be missing**
 13. **`fxanim_props` animtree re-registration warning** on Origins, Mob and TranZit
 14. **Kill-feed icons missing** for the ported weapons
+15. **Jet gun: put it away and it cannot be pulled back out** — restore stock behaviour first
+16. **Jet gun in a real weapon slot**, and it never breaks
+17. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
 
 <!-- /LIST -->
 

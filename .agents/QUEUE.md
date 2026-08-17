@@ -6625,3 +6625,78 @@ Six files hash-identical source ↔ Plutonium. Deployed `mod.ff` (5,219 assets) 
 model names. `gsc-tool` parsed it.
 
 🛑 **Deployed, NOT yet verified in game.**
+---
+
+# 2026-08-17 — THE JET GUN (queue 15, 16, 17)
+
+User, testing TranZit classic on v1.99.22: *"the Jet Gun is bugged. when i gave myself the jet gun
+and put it away, i couldn't pull it back out."* Then the goal: *"make sure the jet gun operates as it
+should base game, then once you've got it completely stock and not altered via my mod"* — and only
+then (1) a real weapon slot and never breaks, (2) the Paralyzer's cooldown to balance it.
+Reference supplied: `H:\Claude\Jetgun-Fix` (a Plutonium-forums mod, source on GitHub).
+
+**Order is the user's and it is a prerequisite chain: 15 → 16 → 17.**
+
+## VERIFIED SO FAR — offline, before any edit
+
+### 1. The jet gun is NOT a normal weapon in stock. It is *equipment*.
+`_zm_weap_jetgun.gsc:20` registers it through
+`_zm_equipment::register_equipment( "jetgun_zm", …, ::jetgun_activation_watcher_thread, undefined,
+::dropjetgun, ::pickupjetgun )`. Equipment is re-selected from **action slot 1**, which
+`_zm_equipment.gsc:270` (`equipment_give`) and `_zm_buildables.gsc:2152` (the build bench) set with
+`setactionslot( 1, "weapon", <weapon> )` — **not** the weapon-swap key. This is the first thing to
+settle about the user's report: if the jet gun arrived by any route that skipped that call, there was
+never anything bound to pull back out, and that is stock behaviour rather than a bug.
+
+### 2. zm_qol does not alter the jet gun. Checked four ways, all negative.
+- Only three code sites in the whole mod mention it: `qol_options.gsc:922` (the `no_power` option,
+  which nulls the buildable trigger and is **off unless the `no_power` dvar is 1**),
+  `zm_transit.csc:187` `include_weapon( "jetgun_zm", 0 )` (matches stock — included, not in the box),
+  and `zm_transit.gsc:236` (a fire-damage exclusion). `loc_common.gsc` only reads the name.
+- The mod **never touches action slot 1**. `grep setactionslot` over the whole tree returns only
+  actionslot **7**, which is `.fly`'s bind.
+- The mod ships **86 weapon defs and neither `jetgun_zm` nor `slowgun_zm` is among them**, so the
+  weapon file is stock.
+- No `replaceFunc` anywhere in the mod targets `_zm_weap_jetgun` or `_zm_equipment`.
+
+### 3. 🌟 A REAL STALL EXISTS IN STOCK'S OWN EQUIPMENT WATCHER, and the jet gun triggers it.
+`_zm_equipment.gsc:279 equipment_slot_watcher()` — when the equipment was registered **with a
+watcher_thread**, switching to it runs `self waittill( "equipment_select_response_done" )` at
+line 313. A grep of all 2,093 stock scripts finds that notify sent in **exactly one file**,
+`_zm_equip_gasmask.gsc` (lines 138 and 171). The jet gun registers a watcher_thread and never sends
+it, so the first switch to the jet gun **parks that watcher permanently** and no later
+`weapon_change` is processed for it.
+
+🛑 **Not yet proven to be what blocks re-selection** — `setactionslot` is not obviously gated on it.
+Recorded as a verified mechanism, not as the diagnosis. Do not build a fix on it until the actual
+re-selection path is traced.
+
+### 4. "It never breaks" is ONE stock flag, not a rewrite.
+`zm_transit.gsc:1638` sets `level.explode_overheated_jetgun = 1`. That is the only assignment in the
+game; `unbuild_overheated_jetgun` and `take_overheated_jetgun` are never set anywhere.
+`_zm_weap_jetgun.gsc:201 handle_overheated_jetgun()` does nothing at all if none of the three is
+set — the gun simply overheats and cools. So **queue 16's "never breaks" half is one flag**, and it
+lands the behaviour queue 17 asks for at the same time.
+
+### 5. The Paralyzer has NO cooldown script — it is all in the weapon def.
+`_zm_weap_slowgun.gsc` (815 lines) contains no overheat, heat, fuel or cooldown logic; it is targeting,
+slowing and damage only. The drain-and-refill bar is engine-side, from the weapon file's overheat
+fields. The jet gun already uses the **same** engine mechanism (`setweaponoverheating` /
+`isweaponoverheating`, `_zm_weap_jetgun.gsc:160 watch_overheat`), so queue 17 is a **tuning** job on a
+mechanism both guns already share, not a port. 📝 The mod ships no def for either gun, so doing this
+by weapon file means adding one to `mod.ff`.
+
+### On the supplied reference, `H:\Claude\Jetgun-Fix`
+Two files, 146 lines. It does four things: a faster cooldown thread, a Max Ammo refill, 50 points per
+kill, and a `replaceFunc` of `jetgun_check_enemies_in_range` for longer range. 🛑 It is a **balance
+mod**, and three of its four features are things the user did not ask for. It also confirms fact 1
+independently — it tests `self is_player_equipment( "jetgun_zm" )`. Use it as corroboration, not as a
+drop-in: per `AI_CONTEXT.md` rule 7 the no-import rule applies to it (it is not BO2-Reimagined).
+
+## OPEN QUESTION THAT DECIDES 15
+**How did the jet gun get into the player's hands?** Built at the workbench, or handed over by a
+command? `.give` has no jet gun entry (`zmqol_weapon_give_table()`), the mod has no build command, and
+the box excludes it — so it was not any zm_qol route. Chat and console commands are not recorded in
+`console_zm.log`, so this cannot be settled offline. Asked the user rather than guessed.
+
+**Deployed: nothing. No edit has been made for any of 15–17.**
