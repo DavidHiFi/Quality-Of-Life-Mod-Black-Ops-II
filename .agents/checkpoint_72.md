@@ -273,3 +273,46 @@ file — and byte-identical between source and the deployed `mod.iwd`.
 stock file's own 128-byte DDS header) → `ImageConverter.exe --t6` → `.iwi` → `images\` →
 `build.bat`. `verify.js` decodes the result back and diffs it against the source PNG; `dds2png.js`
 goes the other way for editing.
+
+---
+
+## 11. v1.99.37 — the glow WAS the encoder, and the fix is measured
+
+User: the outer glow under QUALITY OF LIFE is deliberate, and in game it came out *"a blocky mess"*.
+
+🛑 **It was mine, not theirs.** Decoding v1.99.36's own `.dds` back and cropping the subtitle band
+against the source PNG showed textbook 4×4 blocking in the glow while the source was smooth. The v1
+encoder picked colour endpoints from the **per-channel bounding box**, which invents a corner colour
+no pixel in the block actually has — fine on grungy logo art, visibly wrong on a soft low-contrast
+gradient.
+
+🌟 **The flat error metric hid it, and would have hidden the fix too.** Unweighted mean RGB error
+called v2 *worse* than v1 (1.973 vs 1.690) because it counts fully transparent pixels, whose colour
+nobody can see, exactly as much as the glow. Re-scoring **weighted by alpha** — error where it is
+actually visible — inverted the ranking and is what the encoders were then tuned against.
+
+| encoder | visible-weighted RGB err | subtitle band |
+|---|---|---|
+| v1 bounding box (shipped in .35/.36) | 1.700 | 1.611 |
+| v2 + PCA axis, alpha-weighted, least-squares refine | 1.561 | 1.527 |
+| **v3 + ±1 endpoint local search in 565 space** | **0.919** | **0.634** |
+
+The last step is the one that mattered: least squares finds the right colour **axis**, but rounding
+the endpoints to 5/6/5 bits is what bands a gradient, and a one-step search over each endpoint
+channel recovers most of it — 2.5× better where the glow lives. Confirmed by eye as well as by
+number: the crop of v3 is indistinguishable from the source, v1 is blotchy.
+
+Alpha was never the problem (0.40/255 through the glow in every version) and the alpha block is
+unchanged.
+
+📝 **The three tools now live with the project** rather than in a scratch folder, because this will
+come up again:
+
+| `.agents\tools_dxt5_encode.js` | PNG → DXT5 DDS (PCA + LSQ + local search, alpha-weighted) |
+| `.agents\tools_dds2png.js` | DDS → editable RGBA PNG, alpha read from the DXT5 block |
+| `.agents\tools_dxt5_verify.js` | decodes a DDS back and scores it **alpha-weighted** against the source |
+
+Route: PNG → `tools_dxt5_encode.js` (payload under the stock file's own 128-byte DDS header) →
+`ImageConverter.exe --t6` → `.iwi` → `images\` → `build.bat`. Needs `pngjs` (`npm install pngjs`).
+
+Deployed `.iwi`: `ver=27 fmt=13 flags=2 1024×512 524,352`, byte-identical to source inside `mod.iwd`.
