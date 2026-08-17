@@ -186,3 +186,52 @@ this re-permits it. zm_qol ships through the Mods menu as a solo/private mod.
 
 **Verified:** `gsc-tool` and `luaparse` clean; no `Dvars[3]` and no `sv_allowAimAssist` row survive
 in the deployed `mod.iwd`; the lobby LUI hash-matches Plutonium's `raw\` copy. **Unbooted.**
+
+---
+
+## 9. v1.99.35 — the custom title screen: the file was broken, not the shipping
+
+User: *"menu_zm_title_screen.iwi … i don't see the texture streamed at all, make sure you're shipping
+that texture .iwi file into the mod as well."*
+
+**It was already shipping.** The `.iwi` was in `images\` and inside the deployed `mod.iwd` the whole
+time. The file itself was invalid — which is also why their DDS converter answered `fatal error -8`.
+
+🌟 **The IWi v27 header layout, settled by arithmetic rather than by a spec sheet.** Reading byte 4
+as flags and byte 5 as format gives `format 0` for files that demonstrably work, so the order is the
+other way round: **byte 4 = format, byte 5 = flags**. Confirmed on `camo_off_solid.iwi` — 16×16
+DXT5 with mips is 256+64+16+16+16 = 368 bytes of payload, and the file is 432, i.e. exactly a
+**64-byte header**. Every working `.iwi` in this project fits that.
+
+| file | format | size | |
+|---|---|---|---|
+| the user's copy (from `TechnoOps-Collection\menu_zm_title_screen.iwi`) | **0** — invalid | 524,372 | 20 stray header bytes |
+| `BO2-Reimagined\images\menu_zm_title_screen.iwi` | 13 = DXT5 | 524,352 | works |
+| stock `.dds` dump | DXT5 1024×512, no mips | 524,416 | the spec |
+
+🌟 **A loose `.iwi` in `images\` IS enough to replace a stock texture — no fastfile entry.**
+BO2-Reimagined ships this exact file that way and declares nothing in its zone (checked: no
+`menu_zm_title_screen` in any `.zone` in the workspace). So `mod.ff` was left alone.
+
+**The conversion route, now known to work end to end:**
+
+1. `ImageConverter.exe --t6 <file>.dds` → `.iwi`. It takes **DDS only** (`ERROR: Unsupported
+   extension .png`), and on the stock DDS it produced exactly 524,352 bytes — the same size as
+   Reimagined's working file.
+2. Nothing on this machine compresses PNG → DXT5 (no texconv, nvcompress or ImageMagick; the
+   `convert` on PATH is Windows' filesystem tool). So `.agents\..\scratchpad\dxt5.js` does it:
+   bounding-box endpoints, 8-value alpha, and the **128-byte DDS header copied from the stock
+   file**, whose dimensions and format are identical — so only the payload is ours.
+3. 🛑 **The encode was measured, not trusted.** `verify.js` decodes the DXT5 back and diffs it
+   against the source PNG: **mean RGB error 0.000/255, worst 0.0, mean alpha error 0.053**. A bad
+   encoder is otherwise silent — the `.iwi` would be the right size and the wrong picture.
+
+Result: `ver=27 fmt=13 flags=2 1024×512 size=524,352`, header-identical to Reimagined's working
+file, byte-identical between source and the deployed `mod.iwd`.
+
+📝 **Residual risk, stated rather than discovered:** the ZM main-menu background is drawn by stock
+`ui_mp\t6\mainmenu.lua:104` (`RegisterMaterial("menu_zm_title_screen")`) — a file this mod does not
+ship. If the image is loaded once at startup, before the mod's `mod.iwd` joins the search path, it
+may only appear after the mod is loaded rather than on the very first frame of the front end. If it
+never appears, the next step is making `mod.ff` own `material,menu_zm_title_screen` (the stock
+material JSON can be dumped from `ui_zm.ff`, which owns both the image and the material).
