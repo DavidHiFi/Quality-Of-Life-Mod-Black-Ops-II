@@ -195,6 +195,98 @@ init()
     }
 
     added_weapons();
+
+    level thread zmqol_jetgun_never_breaks();
+}
+
+// ============================================================================
+//  JET GUN - IT NEVER BREAKS, AND IT COOLS LIKE THE PARALYZER   (v1.99.23)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-17: the jet gun should stop being "the terrible piece of trash
+//  it is in the stock game" - never break, so it never needs rebuilding, and to
+//  pay for that, take the Paralyzer's cooldown so it cannot be fired forever.
+//
+//  🛑 THIS IS HALF THE REQUEST. The other half - making it occupy a real weapon
+//  slot instead of the equipment slot - is queue 16 and is NOT done here. It
+//  needs `inventoryType` flipped in the weapon def, which reroutes how the gun
+//  is given, dropped and picked up, and that is a bigger change than this one.
+//  Split deliberately: this half is self-contained and its result tells us
+//  whether the other half is even deliverable. See the probe note below.
+//
+//  ---------------------------------------------------------------------------
+//  NEVER BREAKS - one flag, and it is stock's own
+//  ---------------------------------------------------------------------------
+//  `maps\mp\zm_transit.gsc:1638` sets `level.explode_overheated_jetgun = 1`.
+//  That is the ONLY assignment to it in the whole game, and its two siblings
+//  `unbuild_overheated_jetgun` / `take_overheated_jetgun` are set nowhere at
+//  all. `_zm_weap_jetgun.gsc:201 handle_overheated_jetgun()` tests all three
+//  with `isdefined( x ) && x` and, with none of them true, does NOTHING - the
+//  gun simply overheats and cools down. So clearing the flag is the entire
+//  "never breaks" feature; nothing is reimplemented and no stock function is
+//  replaced.
+//
+//  Set to 0 rather than undefined on purpose: the stock test is
+//  `isdefined( x ) && x`, so 0 satisfies it either way, and a defined 0 cannot
+//  be mistaken later for "this was never set".
+//
+//  🛑 Cleared AFTER `flag_wait( "start_zombie_round_logic" )` because line 1638
+//  runs during the map's own init and would otherwise set it back. Same
+//  ordering trick, and the same flag, that `qol_options.gsc:914` already uses.
+//
+//  ---------------------------------------------------------------------------
+//  THE COOLDOWN - three numbers, measured, not tuned by feel
+//  ---------------------------------------------------------------------------
+//  Both guns already use the SAME engine overheat system (`overheatWeapon 1`,
+//  driven by setweaponoverheating / isweaponoverheating). `_zm_weap_slowgun.gsc`
+//  is 815 lines and has no heat, cooldown or fuel logic anywhere in it - the
+//  Paralyzer's bar is entirely its weapon file. So this is not a port; it is
+//  three fields, taken by dumping both defs with the Unlinker and diffing all
+//  1,027 fields of each by value:
+//
+//      overheatRate     17 -> 10   heats up slower
+//      cooldownRate      1 ->  3   cools three times faster
+//      overheatEndVal   77 -> 87   the threshold the overheat lockout releases at
+//
+//  📝 The first two are unambiguous. `overheatEndVal` is NOT described anywhere
+//  in this workspace and its direction is UNVERIFIED - whether a higher value
+//  releases the lockout sooner or later is a guess either way, so no claim is
+//  made about it. It is set to the Paralyzer's value because copying the
+//  Paralyzer's feel is the request; the number is measured, its meaning is not.
+//
+//  They ship in `weapons\zm\jetgun_zm` and `weapons\zm\jetgun_upgraded_zm`,
+//  which are byte-for-byte the stock defs with exactly those 3 of 1,027 fields
+//  changed. The upgraded def is included because if anything in this mod ever
+//  Pack-a-Punches the jet gun, an untouched upgraded def would silently hand
+//  back the stock cooldown mid-game.
+//
+//  ---------------------------------------------------------------------------
+//  🔮 WHAT THIS IS ALSO A PROBE FOR
+//  ---------------------------------------------------------------------------
+//  Raw weapon defs in `weapons\zm\` are a proven path here - 40 ride there now
+//  (thundergun, tesla, freezegun, the MP weapons, Tac-45) and they work. BUT
+//  every one of those 40 is a weapon that exists in NO zombies fastfile, so
+//  they only prove a raw def can SUPPLY a missing weapon. `jetgun_zm` already
+//  exists inside `zm_transit.ff`, so this is the first time a raw def has to
+//  OVERRIDE one. That cannot be settled offline.
+//
+//  **If the cooldown feels different in game, the raw def overrode the fastfile**
+//  - and queue 16 becomes deliverable the same way. If it feels identical, the
+//  fastfile copy is still in charge and 16 needs a different route entirely.
+//  The inventorytype line below is the baseline for that comparison: it must
+//  read `item` today, and would read `primary` once 16 lands.
+// ============================================================================
+zmqol_jetgun_never_breaks()
+{
+    if ( level.script != "zm_transit" )
+        return;
+
+    flag_wait( "start_zombie_round_logic" );
+
+    level.explode_overheated_jetgun = 0;
+    level.unbuild_overheated_jetgun = 0;
+    level.take_overheated_jetgun = 0;
+
+    println( "[zm_qol] jetgun: never-breaks armed - explode/unbuild/take all 0; inventorytype=" + weaponinventorytype( "jetgun_zm" ) + " clipsize=" + weaponclipsize( "jetgun_zm" ) );
 }
 
 main_o()
