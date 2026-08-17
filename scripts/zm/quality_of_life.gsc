@@ -4197,6 +4197,57 @@ zmqol_dev_command_listener()
             perk = zmqol_perk_from_alias( getsubstr( cmd, 6, cmd.size ) );
             player zmqol_remove_one_perk( perk );
         }
+        //  ====================================================================
+        //  v1.99.25 - the six commands taken from the ezz_server release that
+        //  this mod did NOT already have. Everything else it offers was already
+        //  here under a different name and is deliberately NOT duplicated:
+        //    !help=.help  !pap=.pack  !round=.round  !god=.god  !ignore=.ghost
+        //    !points=.p   !ammo=.reload  !allperks/!perks=.giveperks
+        //    !drop=.drop/.powerup
+        //  and the six weapon commands (!galil !an94 !ms !monkeys !raygun !mk2)
+        //  became rows in zmqol_weapon_give_table() instead of six new commands.
+        //
+        //  🛑 `!speed` is NOT ported under that name. `.speed` is already taken
+        //  in this mod as an alias for the velocity HUD, and silently changing
+        //  what an existing command does is worse than not adding the new one.
+        //  It is `.movespeed` here.
+        //
+        //  🛑 Every reference below is either a builtin or a globally-safe
+        //  `maps\mp\zombies\_zm*` path, and every weapon is named by STRING.
+        //  Nothing map-specific is referenced by function, so AI_CONTEXT rule 2
+        //  cannot bite - this is a root script and a `maps\mp\zm_tomb::` style
+        //  reference here would crash every other map at load.
+        //  ====================================================================
+        else if ( cmd == "pay" )
+        {
+            if ( tokens.size < 3 )
+            {
+                player iprintln( "^3[zm_qol] usage: ^7.pay <player> <amount>" );
+                continue;
+            }
+
+            player zmqol_pay_points( tokens[1], int( tokens[2] ) );
+        }
+        else if ( cmd == "bring" )
+        {
+            player zmqol_bring_players();
+        }
+        else if ( cmd == "killall" )
+        {
+            player zmqol_kill_all_zombies();
+        }
+        else if ( cmd == "shield" )
+        {
+            player zmqol_give_shield();
+        }
+        else if ( cmd == "staff" )
+        {
+            player zmqol_give_staff( tokens );
+        }
+        else if ( cmd == "movespeed" )
+        {
+            player zmqol_toggle_movespeed();
+        }
         else if ( cmd == "pack" )
         {
             player zmqol_pack( 1 );
@@ -5170,6 +5221,11 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
     a_lines[a_lines.size] = "^3.giveperks^7/^3.removeperks ^7  ^3.nozmspawns ^7spawns   ^3.hud ^7on/off";
+    //  v1.99.25 - the six ported commands. Two lines, not six, because of the
+    //  line budget noted above; .movespeed is called that and not .speed
+    //  because .speed already means the velocity HUD two lines up.
+    a_lines[a_lines.size] = "^3.pay <player> <n> ^7give points   ^3.bring ^7all to you   ^3.killall";
+    a_lines[a_lines.size] = "^3.shield ^7map's shield   ^3.staff <fire/ice/lightning/wind> ^8Origins   ^3.movespeed";
     //  One line, not two - see the budget note above. The alias list has to be
     //  discoverable somewhere or the per-perk commands may as well not exist,
     //  so it rides on the same line as the syntax rather than getting its own.
@@ -6280,12 +6336,280 @@ zmqol_weapon_give_table()
     //  its own.
     a[a.size] = zmqol_give_row( "tac45 tac-45 tac fnp45 fnp",       "fnp45_zm",       "Tac-45" );
 
+    //  v1.99.25 - the six guns the ezz_server release exposed as their own
+    //  commands (!galil !an94 !ms !monkeys !raygun !mk2). They ride the EXISTING
+    //  .give table rather than becoming six more chat commands, because that is
+    //  the "no duplicates" the user asked for: one give path, one help entry,
+    //  and `pap` already works on all of them for free.
+    //
+    //  🛑 These are STOCK guns, unlike every row above, so they depend on the
+    //  map having included them - weapon_give() is the box's own path and will
+    //  simply do nothing where a weapon was never included. That is the honest
+    //  behaviour and it is why they are not advertised as universal.
+    //
+    //  📝 m1911's upgrade IS Mustang & Sally, which is why `ms`/`mustang` are
+    //  keys on the base row - `.give ms pap` hands over m1911_upgraded_zm.
+    //  zmqol_give_row() derives every `upgraded` name by swapping the "_zm"
+    //  suffix, and all six resolve: galil_upgraded_zm, an94_upgraded_zm,
+    //  m1911_upgraded_zm, ray_gun_upgraded_zm, raygun_mark2_upgraded_zm.
+    //  cymbal_monkey has no upgrade and `pap` on it is a no-op, same as stock.
+    a[a.size] = zmqol_give_row( "galil",                            "galil_zm",         "Galil" );
+    a[a.size] = zmqol_give_row( "an94 an-94",                       "an94_zm",          "AN-94" );
+    a[a.size] = zmqol_give_row( "m1911 1911 ms mustang sally",      "m1911_zm",         "M1911 (pap = Mustang & Sally)" );
+    a[a.size] = zmqol_give_row( "raygun ray rg",                    "ray_gun_zm",       "Ray Gun" );
+    a[a.size] = zmqol_give_row( "mk2 mark2 markii raygun2",         "raygun_mark2_zm",  "Ray Gun Mark II" );
+    a[a.size] = zmqol_give_row( "monkey monkeys cymbal",            "cymbal_monkey_zm", "Cymbal Monkey" );
+
     return a;
 }
 
 //  One row. The upgraded name is always base with "_upgraded" spliced in before
 //  "_zm", which is the naming every one of these defs follows - checked against
 //  weapons\zm\ rather than assumed.
+// ============================================================================
+//  .pay / .bring / .killall / .shield / .staff / .movespeed      (v1.99.25)
+// ----------------------------------------------------------------------------
+//  Ported from the ezz_server GSC release the user supplied. Only the commands
+//  this mod did not already have, per their instruction to avoid duplicates.
+//  Every stock name below was checked against the 2,093-file stock dump before
+//  it was written - minus_to_player_score, getaispeciesarray, setmovespeedscale
+//  and setactionslot all exist, as do all eleven weapon names used here.
+// ============================================================================
+
+//  Points transfer. Costs the sender, so it is the one command here that is
+//  useful in co-op rather than just a cheat.
+//  🛑 Deducts BEFORE granting and re-checks the balance at the moment of the
+//  transfer, so two .pay calls in the same frame cannot mint points.
+zmqol_pay_points( str_target, n_amount )
+{
+    if ( !isdefined( n_amount ) || n_amount <= 0 )
+    {
+        zmqol_iprintln_safe( self, "^1[zm_qol] amount must be a positive number" );
+        return;
+    }
+
+    if ( self.score < n_amount )
+    {
+        zmqol_iprintln_safe( self, "^1[zm_qol] you only have ^7" + self.score + "^1 points" );
+        return;
+    }
+
+    e_target = zmqol_player_by_name( str_target );
+
+    if ( !isdefined( e_target ) )
+    {
+        zmqol_iprintln_safe( self, "^1[zm_qol] no player matching ^7" + str_target );
+        return;
+    }
+
+    if ( e_target == self )
+    {
+        zmqol_iprintln_safe( self, "^1[zm_qol] you cannot pay yourself" );
+        return;
+    }
+
+    //  🛑 The second argument is `ignore_double_points_upgrade` and it MUST be 1.
+    //  Stock's minus_to_player_score( points ) runs the amount through
+    //  pers_upgrade_double_points_set_score() when the persistent Double Points
+    //  upgrade is active (_zm_score.gsc:333-337), so the sender would be charged
+    //  MORE than the receiver gains. add_to_player_score has no such multiplier
+    //  (:311-326), so only this side needed the flag. The donor script omits it
+    //  and silently overcharges; found by reading the signature, not assumed.
+    self maps\mp\zombies\_zm_score::minus_to_player_score( n_amount, 1 );
+    e_target maps\mp\zombies\_zm_score::add_to_player_score( n_amount );
+
+    zmqol_iprintln_safe( self, "^2[zm_qol] sent ^7" + n_amount + "^2 to ^7" + e_target.name );
+    zmqol_iprintln_safe( e_target, "^2[zm_qol] ^7" + self.name + "^2 sent you ^7" + n_amount + "^2 points" );
+}
+
+//  Case-insensitive, and matches on a PREFIX so a partial name works - typing
+//  a full name exactly is not realistic mid-round. An exact match always wins
+//  over a prefix match, so a short name can never be shadowed by a longer one.
+zmqol_player_by_name( str_name )
+{
+    if ( !isdefined( str_name ) )
+        return undefined;
+
+    str_name = tolower( str_name );
+    a_players = get_players();
+
+    for ( i = 0; i < a_players.size; i++ )
+    {
+        if ( isdefined( a_players[i].name ) && tolower( a_players[i].name ) == str_name )
+            return a_players[i];
+    }
+
+    for ( i = 0; i < a_players.size; i++ )
+    {
+        if ( !isdefined( a_players[i].name ) )
+            continue;
+
+        str_have = tolower( a_players[i].name );
+
+        if ( str_name.size <= str_have.size && getsubstr( str_have, 0, str_name.size ) == str_name )
+            return a_players[i];
+    }
+
+    return undefined;
+}
+
+//  Teleport everyone else to you.
+zmqol_bring_players()
+{
+    a_players = get_players();
+    n = 0;
+
+    for ( i = 0; i < a_players.size; i++ )
+    {
+        if ( a_players[i] == self || !isalive( a_players[i] ) )
+            continue;
+
+        a_players[i] setorigin( self.origin );
+        a_players[i] setplayerangles( self.angles );
+        n++;
+    }
+
+    zmqol_iprintln_safe( self, "^2[zm_qol] brought ^7" + n + "^2 player(s)" );
+}
+
+//  Kill every live zombie.
+//  🛑 dodamage() rather than kill() or a health write, so the stock death path
+//  runs in full - the round counter decrements, power-ups can drop and the
+//  kill is attributed. Setting health to 0 skips all of that and desyncs the
+//  round's zombie count, which is the classic way this command breaks a game.
+zmqol_kill_all_zombies()
+{
+    a_zombies = getaispeciesarray( "axis", "all" );
+
+    if ( !isdefined( a_zombies ) || a_zombies.size == 0 )
+    {
+        zmqol_iprintln_safe( self, "^3[zm_qol] no zombies alive" );
+        return;
+    }
+
+    n = 0;
+
+    for ( i = 0; i < a_zombies.size; i++ )
+    {
+        if ( !isdefined( a_zombies[i] ) || !isalive( a_zombies[i] ) )
+            continue;
+
+        a_zombies[i] dodamage( a_zombies[i].health + 666, a_zombies[i].origin, self );
+        n++;
+    }
+
+    zmqol_iprintln_safe( self, "^2[zm_qol] killed ^7" + n + "^2 zombie(s)" );
+}
+
+//  The map's own buildable shield, straight to the shield slot.
+//  🛑 Named by string, and the map test is a level VARIABLE - no map-specific
+//  function is referenced, so this is safe in a root script.
+//  Action slot 3 is stock's own shield slot (`_zm_equipment` uses slot 1 for
+//  equipment; the shield is separate), which is why it does not collide with
+//  the jet gun / turbine.
+zmqol_give_shield()
+{
+    str_shield = "";
+
+    if ( level.script == "zm_tomb" )
+        str_shield = "tomb_shield_zm";
+    else if ( level.script == "zm_prison" )
+        str_shield = "alcatraz_shield_zm";
+    else if ( level.script == "zm_transit" || level.script == "zm_nuked" )
+        str_shield = "riotshield_zm";
+
+    if ( str_shield == "" )
+    {
+        zmqol_iprintln_safe( self, "^1[zm_qol] this map has no shield" );
+        return;
+    }
+
+    if ( self hasweapon( str_shield ) )
+    {
+        zmqol_iprintln_safe( self, "^3[zm_qol] you already have the shield" );
+        return;
+    }
+
+    self giveweapon( str_shield );
+    self setactionslot( 3, "weapon", str_shield );
+    zmqol_iprintln_safe( self, "^2[zm_qol] shield equipped" );
+}
+
+//  Origins' four upgraded staffs.
+//  🌟 staff_revive_zm is the point of this command. It is "Sekhmet's Vigor",
+//  the hidden melee half of a staff, and without it in the inventory the staff
+//  viewmodel has no revive animation to fall back on - the reason handing a
+//  staff over with a plain giveweapon bugs the player's hands. Given FIRST.
+zmqol_give_staff( tokens )
+{
+    if ( level.script != "zm_tomb" )
+    {
+        zmqol_iprintln_safe( self, "^1[zm_qol] staffs are Origins only" );
+        return;
+    }
+
+    if ( !isdefined( tokens ) || tokens.size < 2 )
+    {
+        zmqol_iprintln_safe( self, "^3[zm_qol] usage: ^7.staff <fire/ice/lightning/wind>" );
+        return;
+    }
+
+    str_type = tolower( tokens[1] );
+    str_weapon = "";
+
+    if ( str_type == "fire" )
+        str_weapon = "staff_fire_upgraded_zm";
+    else if ( str_type == "ice" || str_type == "water" )
+        str_weapon = "staff_water_upgraded_zm";
+    else if ( str_type == "lightning" || str_type == "electric" )
+        str_weapon = "staff_lightning_upgraded_zm";
+    else if ( str_type == "wind" || str_type == "air" )
+        str_weapon = "staff_air_upgraded_zm";
+
+    if ( str_weapon == "" )
+    {
+        zmqol_iprintln_safe( self, "^1[zm_qol] use fire, ice, lightning or wind" );
+        return;
+    }
+
+    if ( !self hasweapon( "staff_revive_zm" ) )
+        self giveweapon( "staff_revive_zm" );
+
+    self maps\mp\zombies\_zm_weapons::weapon_give( str_weapon );
+    self switchtoweapon( str_weapon );
+    zmqol_iprintln_safe( self, "^2[zm_qol] " + str_type + " staff equipped" );
+}
+
+//  🛑 NOT called .speed - that name already belongs to the velocity HUD in this
+//  mod (see the .help panel), and quietly repurposing an existing command is a
+//  worse outcome than a slightly longer name.
+zmqol_toggle_movespeed()
+{
+    if ( !isdefined( self.zmqol_movespeed_on ) )
+        self.zmqol_movespeed_on = 0;
+
+    if ( self.zmqol_movespeed_on )
+    {
+        self.zmqol_movespeed_on = 0;
+        self setmovespeedscale( 1 );
+        zmqol_iprintln_safe( self, "^1[zm_qol] move speed: normal" );
+        return;
+    }
+
+    self.zmqol_movespeed_on = 1;
+    self setmovespeedscale( 1.5 );
+    zmqol_iprintln_safe( self, "^2[zm_qol] move speed: ^71.5x" );
+}
+
+//  One place that checks the entity is still around before printing to it -
+//  .pay prints to a SECOND player, who can disconnect between the lookup and
+//  the print.
+zmqol_iprintln_safe( e_player, str_msg )
+{
+    if ( isdefined( e_player ) && isplayer( e_player ) )
+        e_player iprintln( str_msg );
+}
+
 zmqol_give_row( str_keys, str_base, str_name )
 {
     s = spawnstruct();
@@ -6332,6 +6656,9 @@ zmqol_give_named_weapon( str_arg, b_pap )
     {
         self iprintln( "^3[zm_qol] .give ^7swat fal mk48 qbb mp7 vector msmc peacekeeper" );
         self iprintln( "^3[zm_qol] .give ^7crossbow xpr titus thundergun wunderwaffe wintershowl" );
+        //  v1.99.25 - the six stock guns added to the table. Flagged as stock so
+        //  it is clear why they can fail on a map that never included them.
+        self iprintln( "^3[zm_qol] .give ^7galil an94 ms raygun mk2 monkeys ^8(stock - map must have them)" );
         self iprintln( "^3[zm_qol] add ^7pap ^3for the upgraded one, e.g. ^7.give titus pap" );
         return;
     }
