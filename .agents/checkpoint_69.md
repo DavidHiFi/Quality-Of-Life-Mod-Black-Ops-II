@@ -114,6 +114,29 @@ absence of a warning, because it is a positive count that changed.
 
 ## 5. OUTSTANDING DECISION FOR THE USER
 
-**The published GitHub release `v1.99.21` cannot start a map.** It is marked Latest. Options are the
-user's call — leave it, delete the release, or replace it with a `v1.99.22` release once this boots.
-Nothing has been changed on GitHub, and the fix commit is **local and unpushed**.
+**The published GitHub release `v1.99.21` cannot start a map.** v1.99.22 has taken over as *Latest*,
+so `/releases/latest` now serves the working build — but **v1.99.21 is still downloadable** from the
+releases page and anyone who took it has a mod that boots to an error box. Deleting it, or editing
+its notes to warn, is an outward-facing change and has **not** been done without the user's say-so.
+v1.99.22's own notes open with a warning to replace it.
+
+---
+
+## 7. CHECKPOINT + RELEASE — done 2026-08-17
+
+On the user's *"checkpoint and release"*:
+
+- **Tag `v1.99.22`** (annotated) created and pushed, with **4 commits** (`ffe1398..0c6c7b0`).
+  Previous tag was `v1.99.21`. `origin/main` is level with local — 0 unpushed.
+- **GitHub release published:** https://github.com/DavidHiFi/zm_qol/releases/tag/v1.99.22 —
+  **Latest**, not a draft, not a prerelease, asset `state=uploaded`.
+- **Asset:** `zm_qol-v1.99.22.zip`, 137,499,560 bytes (131.1 MB). Top-level folder `zm_qol/`, so it
+  drag-and-drops straight into `…\storage\t6\mods\`. Entry count verified as **6**, sourced from the
+  deployed folder **after** a 6/6 SHA256 check against source, and
+  🛑 `cmn_root.all.sabl` confirmed **absent** ([[zm-qol-github-release-workflow]]).
+- 🌟 **This is the first release in a while that is not shipping an unbooted build** — the notes lead
+  with what was confirmed in game and how, and they tell anyone on v1.99.21 to replace it.
+- **README truth pass done in the same round** (see the commit): two stale claims corrected —
+  Who's Who now reads as finished and confirmed with its accepted limits, and the Origins/Mob crash
+  as open but not being worked on. The ⚠️ WORK IN PROGRESS notice is still at README.md:7 and opens
+  the release notes; the GitHub repo description still opens with `WORK IN PROGRESS` and is accurate.
