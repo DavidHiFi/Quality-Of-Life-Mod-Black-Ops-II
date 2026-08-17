@@ -7107,3 +7107,43 @@ registered function). A capped probe now prints which of the two paths fires per
 lines a session, so the next game settles it rather than another round of theory.
 
 **Deployed v1.99.47. NOT VERIFIED IN GAME.**
+
+---
+
+# 2026-08-18 — queue 29 (INSTANT NUKE) + the GAME-tab rename (v1.99.48)
+
+🛑 **Shipped while queue 28 is still unverified**, on the user's direct instruction in the same
+message. Recorded plainly rather than quietly: a bad boot now has three candidates. Attribution
+survives anyway because 28 prints its own named probe lines (`[zm_qol] hitmarker: damage callback
+moved to index 0 of N`, `[zm_qol] ww marker: ...`), so the log still names it on its own.
+
+**The rename.** GAME tab row `WHO'S WHO KNIFE` → `BETTER WHO'S WHO`. 🛑 **The dvar stays
+`whoswho_knife`** — it has been archived in the player's config since v1.99.45 and it is the name
+any console bind uses; renaming it would silently reset their saved setting and break the bind. A
+label is a label.
+
+**Queue 29 — INSTANT NUKE.** New GAME-tab toggle, dvar `instant_nuke`, **default 1**.
+`zmqol_nuke_powerup()` is stock's `_zm_powerups::nuke_powerup()` (:1445-1505) reproduced exactly,
+with a single line gated:
+
+```
+wait( randomfloatrange( 0.1, 0.7 ) );     <- stock, once per zombie
+```
+
+Everything else is stock's, on purpose and checked line by line: the same `wait 0.5` before any
+killing so the flash keeps its timing, the same four skip tests (`ignore_nuke`, `marked_for_death`,
+`nuke_damage_func`, magic-bullet shield) so **exactly the stock set of zombies dies**, the same
+`i < 5` cap on `flame_death_fx`, head gib, `evt_nuked`, `dodamage( health + 666, origin )` with no
+attacker, and the same 400 points through `_zm_score::player_add_points`.
+
+📝 **The hook is safe for a verified reason, not a hopeful one.** `_zm_powerups.gsc:1007` calls it as
+`level thread nuke_powerup(...)`, and the threaded same-file call is the case proven hookable in this
+project — the mod's own `new_full_ammo_powerup()` hooks **:1014**, the next line of the same switch,
+and has worked in game for many releases.
+
+📝 **Pre-mortem, killing ~24 zombies in one frame.** Considered and resolved against a stock
+precedent rather than assumed: the thundergun's own kill loop
+(`_zm_weap_thundergun.gsc`) DoDamages every zombie in its cone in a single frame with no waits, so
+mass simultaneous death is something the retail game already does.
+
+**Deployed v1.99.48. NOT VERIFIED IN GAME.**

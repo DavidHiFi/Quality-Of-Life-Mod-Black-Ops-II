@@ -78,6 +78,10 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   and a character model carries no collision, so the bolt passes through the body without damaging
   it either. v1.99.44 watches the bolt instead, through the same `ballistic_knife_stationary` notify
   that puts the pick-it-back-up prompt in the world.
+- **Instant Nuke** (GAME-tab switch, on by default) — the Nuke kills every zombie it would have
+  killed at the same instant, instead of staggering them 0.1–0.7 s apart while a survivor swings at
+  you. Same zombies, same 400 points; off is exact vanilla.
+  **New in v1.99.48 — deployed, not yet confirmed in game.**
 - **The Awful Lawton** (Pack-a-Punched crossbow) — its explosive bolts draw zombies to where they
   stick, like a monkey bomb, as in BO1. Upgraded only; the box crossbow is unchanged.
   **New in v1.99.39 — confirmed in game.**

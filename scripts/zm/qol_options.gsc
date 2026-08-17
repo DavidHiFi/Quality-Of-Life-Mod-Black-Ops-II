@@ -156,6 +156,14 @@ init()
 
     qol_opt_dvar( "no_power", "0" );
 
+    //  v1.99.48 - INSTANT NUKE, user request 2026-08-18. Read once per nuke in
+    //  quality_of_life.gsc's zmqol_nuke_powerup(), which is stock's own
+    //  nuke_powerup() with the per-zombie stagger wait gated on this and nothing
+    //  else changed. ON by default: the user asked for the feature, not merely
+    //  for a switch (the same call as the power-up timers in v1.99.0). "0" is
+    //  exact vanilla, down to the same random 0.1-0.7s wait stock takes.
+    qol_opt_dvar( "instant_nuke", "1" );
+
     //  Model pop-in. On by default - it is a pure image-quality win with no
     //  gameplay effect. See qol_opt_lod_fix() for what it actually writes.
     qol_opt_dvar( "lod_fix", "1" );

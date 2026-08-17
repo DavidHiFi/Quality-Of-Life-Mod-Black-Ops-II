@@ -97,6 +97,12 @@ main()
     // --- zm_wallbuy_fills_clip ---
     replaceFunc( maps\mp\zombies\_zm_weapons::ammo_give, ::new_ammo_give );
 
+    // --- INSTANT NUKE (v1.99.48, user request 2026-08-18) ---
+    //  See zmqol_nuke_powerup() for the whole of it. Hooked in main() next to
+    //  the others; the target only ever runs when a nuke is picked up, long
+    //  after either entry point would have registered.
+    replaceFunc( maps\mp\zombies\_zm_powerups::nuke_powerup, ::zmqol_nuke_powerup );
+
     perks();
     zmqol_enable_fire_sale();
 
@@ -747,6 +753,117 @@ bo4maxammo_onplayerspawned()
     		replaceFunc(maps\mp\zombies\_zm_powerups::full_ammo_powerup,::new_full_ammo_powerup);
         }
     }
+}
+
+// ============================================================================
+//  zmqol_nuke_powerup  -  v1.99.48. INSTANT NUKE.
+//
+//  User request, 2026-08-18: "instead of the typical stock/vanilla effect of the
+//  nuke where it sequentially kills the zombies one after another and takes a
+//  little bit to finish and then give the points... it'll skip the sequence of
+//  killing zombies, and just kill all the zombies at once that it normally
+//  would, not any more or any less zombies though stock amount of zombies die to
+//  the nuke it just is instant same with the points."
+//
+//  🌟 THIS IS STOCK'S OWN FUNCTION WITH ONE LINE GATED, AND NOTHING ELSE.
+//  _zm_powerups::nuke_powerup() (:1445-1505) is straight-line code with no
+//  branching to lose, so it can be reproduced exactly. The ONLY difference is
+//  the first line of the kill loop:
+//
+//        wait( randomfloatrange( 0.1, 0.7 ) );      <- stock, per zombie
+//
+//  which is what staggers the deaths and is the whole of what the user is asking
+//  to skip. Everything else is byte-for-byte stock's:
+//    - the same `wait 0.5` before any killing, so the flash and its sound keep
+//      their stock timing;
+//    - the same four skip tests (ignore_nuke, marked_for_death,
+//      nuke_damage_func, magic bullet shield), so **exactly the stock set of
+//      zombies dies - no more, no fewer**, which the user asked for twice;
+//    - the same `i < 5` cap on flame_death_fx, the same head gib, the same
+//      "evt_nuked" per zombie, the same dodamage( health + 666, origin ) with no
+//      attacker (which is why a nuke gives no hitmarkers, stock behaviour kept);
+//    - the same 400 points to every player on the team, through stock's own
+//      _zm_score::player_add_points.
+//
+//  🛑 THE DVAR IS READ ONCE, HERE, NOT PER ZOMBIE. Reading it inside the loop
+//  would let a mid-nuke toggle strand half a wave, which is a state no stock
+//  path can produce. One read at the top means a nuke behaves one way from start
+//  to finish.
+//
+//  📝 DEFAULT ON. Same call as the power-up timers in v1.99.0: the user asked
+//  for the feature, not merely for a switch. `instant_nuke 0` is exact vanilla -
+//  the same function, taking the same wait stock takes.
+//
+//  📝 replaceFunc on a same-file unqualified call is safe HERE and it is not a
+//  guess: _zm_powerups.gsc:1007 calls it as `level thread nuke_powerup(...)`,
+//  and the threaded form is the case verified hookable in this project - the
+//  mod's own new_full_ammo_powerup() below hooks :1014, the very next line of
+//  the same switch, and has worked in game for many releases.
+// ============================================================================
+zmqol_nuke_powerup( drop_item, player_team )
+{
+    b_instant = getdvarintdefault( "instant_nuke", 1 );
+
+    location = drop_item.origin;
+    playfx( drop_item.fx, location );
+    level thread maps\mp\zombies\_zm_powerups::nuke_flash( player_team );
+    wait 0.5;
+    zombies = getaiarray( level.zombie_team );
+    zombies = arraysort( zombies, location );
+    zombies_nuked = [];
+
+    for ( i = 0; i < zombies.size; i++ )
+    {
+        if ( isdefined( zombies[i].ignore_nuke ) && zombies[i].ignore_nuke )
+            continue;
+
+        if ( isdefined( zombies[i].marked_for_death ) && zombies[i].marked_for_death )
+            continue;
+
+        if ( isdefined( zombies[i].nuke_damage_func ) )
+        {
+            zombies[i] thread [[ zombies[i].nuke_damage_func ]]();
+            continue;
+        }
+
+        if ( is_magic_bullet_shield_enabled( zombies[i] ) )
+            continue;
+
+        zombies[i].marked_for_death = 1;
+        zombies[i].nuked = 1;
+        zombies_nuked[zombies_nuked.size] = zombies[i];
+    }
+
+    for ( i = 0; i < zombies_nuked.size; i++ )
+    {
+        //  The one line this whole feature is.
+        if ( !b_instant )
+            wait( randomfloatrange( 0.1, 0.7 ) );
+
+        if ( !isdefined( zombies_nuked[i] ) )
+            continue;
+
+        if ( is_magic_bullet_shield_enabled( zombies_nuked[i] ) )
+            continue;
+
+        if ( i < 5 && !zombies_nuked[i].isdog )
+            zombies_nuked[i] thread maps\mp\animscripts\zm_death::flame_death_fx();
+
+        if ( !zombies_nuked[i].isdog )
+        {
+            if ( !( isdefined( zombies_nuked[i].no_gib ) && zombies_nuked[i].no_gib ) )
+                zombies_nuked[i] maps\mp\zombies\_zm_spawner::zombie_head_gib();
+
+            zombies_nuked[i] playsound( "evt_nuked" );
+        }
+
+        zombies_nuked[i] dodamage( zombies_nuked[i].health + 666, zombies_nuked[i].origin );
+    }
+
+    players = get_players( player_team );
+
+    for ( i = 0; i < players.size; i++ )
+        players[i] maps\mp\zombies\_zm_score::player_add_points( "nuke_powerup", 400 );
 }
 
 new_full_ammo_powerup( drop_item, player )

@@ -1006,7 +1006,7 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
-	-- Gameplay rules.                                                 3 rows
+	-- Gameplay rules.                                                 4 rows
 	-- v1.99.26, user request 2026-08-17.
 	-- v1.99.30: LIVE now, both ways. The claim that used to sit here - that it
 	-- could only take effect next match - was wrong, and the row did nothing at
@@ -1021,14 +1021,24 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	T(QolButtons, LocalClientIndex, "BO4 MAX AMMO",       "bo4_max_ammo",         "Max Ammo fills the magazine too. Off needs a reload first.")
 	-- Origins has no ballistic knife in its fastfile at all, so the perk stays
 	-- stock there whatever this is set to. Said in the GSC, not hidden here.
-	T(QolButtons, LocalClientIndex, "WHO'S WHO KNIFE",    "whoswho_knife",        "Who's Who gives a PaP'd ballistic knife, not the pistol.")
+	-- 🛑 v1.99.48 - the LABEL is now "BETTER WHO'S WHO" (user, 2026-08-18) but
+	-- the DVAR is still whoswho_knife, deliberately: it is already archived in
+	-- the player's config from v1.99.45, and it is the name the console command
+	-- takes. Renaming it would silently reset everyone's saved setting to the
+	-- default and break any bind they have made.
+	T(QolButtons, LocalClientIndex, "BETTER WHO'S WHO",   "whoswho_knife",        "Who's Who gives a PaP'd ballistic knife, not the pistol.")
+	-- v1.99.48, user request 2026-08-18. The nuke kills its zombies all at once
+	-- instead of staggering them 0.1-0.7s apart, which is what lets a survivor
+	-- swing at you mid-nuke. Same zombies, same 400 points - only the stagger
+	-- goes. See zmqol_nuke_powerup() in quality_of_life.gsc.
+	T(QolButtons, LocalClientIndex, "INSTANT NUKE",       "instant_nuke",         "Nuke kills every zombie at once, not one by one.")
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
 	-- Startup.                                                        1 row
 	T(QolButtons, LocalClientIndex, "INTRO CREDITS",      "intro_credits",        "Mod name and credits at match start.")
 
-	return QolContainer                                            -- 13.5 total
+	return QolContainer                                            -- 14 total
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
