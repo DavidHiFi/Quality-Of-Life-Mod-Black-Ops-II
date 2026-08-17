@@ -517,6 +517,51 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 		-- reposition the panel, which is stock LUI compiled into patch_ui_zm.ff and not
 		-- editable from here.
 		PrivateGameLobbyButtonPane.body.buttonList.hintText:setLeftRight(true, false, 0, 800)
+
+		-- ====================================================================
+		--  v1.99.28 - MOVE THE MAP PREVIEW PANEL DOWN, which is what the user
+		--  asked for: "just move the image preview down a bit".
+		-- --------------------------------------------------------------------
+		--  🛑 The note above used to say the panel could not be moved from here.
+		--  That was WRONG and is corrected rather than left standing. A string
+		--  sweep of the stock `ui/t6/menus/privategamelobby.lua` bytecode
+		--  (unlinked from patch_ui_zm.ff) shows it created as
+		--  `PrivateGameLobbyButtonPane.body.mapInfoImage`, on the very pane this
+		--  function already receives - so it is reachable, just not at the
+		--  moment this function runs.
+		--
+		--  🛑 IT DOES NOT EXIST YET. The same sweep shows the creation happening
+		--  AFTER the call to PopulateButtons_Project, i.e. after this function
+		--  returns. Hence the timer: it fires once, shortly after, when the
+		--  element is there. The event name is mod-specific so it cannot collide
+		--  with a stock handler the way reusing gamelobby_update would.
+		--
+		--  🌟 MEASURED, from the user's screenshot at 2000x1125 (1.5625 px per
+		--  LUI unit), after the v1.99.27 spacer fix:
+		--      hint text     442.2 - 455.7
+		--      panel         451.2 - 627.8   (176.6 tall)
+		--  so the hint's bottom sat 4.5 units inside the panel's top border.
+		--  Dropping the panel 12 units puts it at 463.2 - 639.8: a clear 7.5-unit
+		--  gap under the hint, and still 32 units above the ESC Back row at 672.
+		--  Nothing else lives in that band.
+		-- ====================================================================
+		local ZmQolPanelNudge = LUI.UITimer.new(50, "zmqol_lobby_panel_nudge", false, PrivateGameLobbyButtonPane)
+		PrivateGameLobbyButtonPane:addElement(ZmQolPanelNudge)
+		PrivateGameLobbyButtonPane:registerEventHandler("zmqol_lobby_panel_nudge", function (Element, Event)
+			if Element.body == nil or Element.body.mapInfoImage == nil then
+				return
+			end
+
+			--  Once only. The timer repeats, and re-applying an absolute
+			--  position every 50 ms would fight anything else that lays the
+			--  panel out.
+			if Element.body.mapInfoImage.zmqolNudged == true then
+				return
+			end
+
+			Element.body.mapInfoImage.zmqolNudged = true
+			Element.body.mapInfoImage:setTopBottom(true, false, 463, 640)
+		end)
 		if CoD.useController == true and not PrivateGameLobbyButtonPane:restoreState() then
 			PrivateGameLobbyButtonPane.body.buttonList:selectElementIndex(1)
 		end
