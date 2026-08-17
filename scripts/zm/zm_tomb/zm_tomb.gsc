@@ -2037,11 +2037,20 @@ zmqol_tomb_remove_fiveseven_wallbuy()
                 if ( isdefined( a_stubs[i].clientfieldname ) )
                     level setclientfield( a_stubs[i].clientfieldname, 0 );
 
+                //  v1.99.40 - read the origin BEFORE unregistering. unregister_
+                //  unitrigger removes the stub from this same array and the entries
+                //  above it slide down, so a_stubs[i] afterwards is a DIFFERENT
+                //  stub. v1.99.39 printed the origin after the call and reported
+                //  (802,-2883,104) - a position the 64-unit distance test it had
+                //  just passed makes impossible. The removal was right; only the
+                //  log line lied, and it cost a wrong theory.
+                v_origin = a_stubs[i].origin;
+
                 maps\mp\zombies\_zm_unitrigger::unregister_unitrigger( a_stubs[i] );
                 n_gone++;
 
                 println( "[zm_qol] origins fiveseven: removed the bunker wall-buy trigger at ("
-                       + int( a_stubs[i].origin[0] ) + "," + int( a_stubs[i].origin[1] ) + "," + int( a_stubs[i].origin[2] )
+                       + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] )
                        + ") on pass " + n_passes );
                 break;
             }

@@ -79,7 +79,16 @@ zmqol_tomb_remove_fiveseven_wallbuy()
                 {
                     if ( isdefined( wallbuy.fx ) && isdefined( wallbuy.fx[c] ) )
                     {
-                        stopfx( c, wallbuy.fx[c] );
+                        //  v1.99.40 - deletefx, NOT stopfx. v1.99.39 used stopfx
+                        //  and the client printed success while the chalk was
+                        //  still on the wall in game. stopfx ends the emitter and
+                        //  lets already-spawned particles live out their lifespan;
+                        //  the chalk sprite's lifespan is effectively forever, so
+                        //  nothing visible changed. deletefx with the third arg
+                        //  set is stock's own call for removing a persistent
+                        //  looping fx immediately - _zm.csc:659 kills zombie eyes
+                        //  with exactly deletefx( localclientnum, handle, 1 ).
+                        deletefx( c, wallbuy.fx[c], 1 );
                         wallbuy.fx[c] = undefined;
                         n_found++;
 
