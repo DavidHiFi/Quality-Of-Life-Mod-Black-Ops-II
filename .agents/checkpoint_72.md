@@ -137,3 +137,52 @@ sit in their own visual block.
 
 Deployed and hash-verified (source == Plutonium `raw\`, and the new copy is inside `mod.iwd`).
 **Not yet re-checked in game.**
+
+---
+
+## 8. v1.99.34 — TARGET ASSIST: two switches in series became one
+
+User, 2026-08-17: the lobby's TARGET ASSIST row is redundant against CONTROLS > GAMEPAD > TARGET
+ASSIST, *"and make the other option in controls > gamepad toggle both those options' states … or
+just simply remove the option from the pre-game lobby menu."*
+
+**They are not duplicates — they are a permission and a setting, wired in series.**
+
+| where | writes | what it means |
+|---|---|---|
+| lobby row | `sv_allowAimAssist` (dvar) | may controller players use aim assist in this match |
+| CONTROLS > GAMEPAD | `input_targetAssist` (profile) | this player's own switch |
+
+🌟 **Plutonium's own file proves the dependency the user suspected.** `optionscontrols.lua.aside`
+line 389: `if UIExpression.IsInGame() == 1 and UIExpression.DvarBool(nil, "sv_allowAimAssist") == 0`
+→ the GAMEPAD row is replaced by a **locked** row reading *"Target Assist is disabled on this
+server."* So with the permission off, the real setting cannot be reached in game at all.
+
+🛑 **The obvious implementation was rejected.** Making the GAMEPAD row write both dvars means
+shipping this mod's own `optionscontrols.lua`, and a shipped copy **shadows** Plutonium's patched
+one — the exact mechanism that deleted RAW INPUT, MOUSE ACCELERATION and FIX HIGH POLL RATE LAG from
+the user's CONTROLS menu once already (checkpoint 48 §4), and it would go stale on their next
+update. Three working rows for one is a straight loss.
+
+**What shipped instead:** the lobby row is removed and the permission is simply always granted, so
+`input_targetAssist` is the only switch left standing — same end result, nothing shadowed.
+
+- `privategamelobby_project.lua`: `Dvars[1]` (sv_allowAimAssist) deleted; `sv_cheats` and
+  `perk_limit` renumbered to 1 and 2. 🛑 `AddGameOptionsButtons()` walks the table with
+  `for i = 1, #GameOptions`, so deleting without renumbering would have truncated the list at the
+  hole. `DvarDefaults["sv_allowAimAssist"] = 1` is **kept** — `dvarleftrightselector.lua` reads it
+  only to decide whether to draw the ⭐ "differs from default" icon, never to write the dvar.
+- `qol_options.gsc::init()`: `setdvar( "sv_allowAimAssist", 1 )`, **last in the function** so a hard
+  failure could only cost itself, not the five threads above it.
+
+🌟 **The default was confirmed to be 1 two ways** before relying on it: Plutonium's own
+`DvarDefaults` table, and the user's lobby screenshot showing TARGET ASSIST **ENABLED with no star**
+beside it. It is written explicitly anyway rather than resting on a default this project does not own.
+
+📝 Cost, recorded rather than hidden: on a dedicated server that deliberately forbids aim assist,
+this re-permits it. zm_qol ships through the Mods menu as a solo/private mod.
+
+📝 The lobby list is now one row shorter, which is what the user wanted the room for.
+
+**Verified:** `gsc-tool` and `luaparse` clean; no `Dvars[3]` and no `sv_allowAimAssist` row survive
+in the deployed `mod.iwd`; the lobby LUI hash-matches Plutonium's `raw\` copy. **Unbooted.**

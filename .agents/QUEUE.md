@@ -6925,3 +6925,22 @@ Full reasoning, the measured LUI geometry and the self-diagnosing check for the 
 **checkpoint 72**.
 
 **Deployed: v1.99.32. NOT VERIFIED IN GAME.**
+
+---
+
+# 2026-08-17 (later still) — TARGET ASSIST de-duplicated (v1.99.34)
+
+User: the lobby's TARGET ASSIST row is redundant against CONTROLS > GAMEPAD > TARGET ASSIST, and
+removing it frees a lobby row for a future option.
+
+They are a **permission** (`sv_allowAimAssist`, the lobby) and a **setting** (`input_targetAssist`,
+the gamepad tab) in series — Plutonium's `optionscontrols.lua` locks the gamepad row whenever the
+permission is 0, which is the prerequisite the user suspected. The lobby row is removed and the
+permission is granted from `qol_options.gsc::init()`, so the gamepad row is the only switch.
+**Not** by shipping our own `optionscontrols.lua` — that would shadow Plutonium's and delete three
+of their rows again (checkpoint 48 §4). Full reasoning: **checkpoint 72 §8**.
+
+🛑 Still open: the SOUND packs (queue 19) are visible and laid out correctly, but **no pack has been
+heard yet**. Said so rather than counting it done.
+
+**Deployed: v1.99.34. NOT VERIFIED IN GAME.**

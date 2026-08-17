@@ -116,28 +116,65 @@ CoD.PrivateGameLobby.DvarDefaults["sv_cheats"] = 0
 -- CoD.PrivateGameLobby.Dvars[1].values[6] = 6
 -- CoD.PrivateGameLobby.Dvars[1].values[7] = 7
 -- CoD.PrivateGameLobby.Dvars[1].values[8] = 8
+-- ===========================================================================
+--  TARGET ASSIST  -  the lobby row is REMOVED, v1.99.34, user request
+--  2026-08-17: *"there's already an option in the controls > gamepad settings
+--  ... just simply remove the option from the pre-game lobby menu, and make
+--  the other option in controls > gamepad toggle both those options' states."*
+-- ---------------------------------------------------------------------------
+--  🌟 THE TWO ROWS ARE NOT DUPLICATES, THEY ARE A PERMISSION AND A SETTING -
+--  and that is precisely why one of them can go.
+--
+--      lobby row            sv_allowAimAssist   "may controller players use
+--                                                aim assist in this match"
+--      CONTROLS > GAMEPAD   input_targetAssist  this player's own switch
+--
+--  Plutonium's own optionscontrols.lua proves the dependency the user
+--  suspected. Its GAMEPAD tab reads (raw\ui\t6\menus\optionscontrols.lua.aside,
+--  line 389):
+--
+--      if UIExpression.IsInGame() == 1 and UIExpression.DvarBool(nil,
+--         "sv_allowAimAssist") == 0 then
+--          ... a LOCKED row, "Target Assist is disabled on this server."
+--
+--  So with the permission off, the real setting cannot even be reached in game.
+--  Two switches in series, one of them buried in the lobby, is the base game's
+--  design fault - not something worth reproducing.
+--
+--  🛑 THE FIX IS NOT TO MAKE THE GAMEPAD ROW WRITE BOTH DVARS. That would mean
+--  shipping this mod's own optionscontrols.lua, and a shipped copy SHADOWS
+--  Plutonium's patched one - which is exactly how RAW INPUT, MOUSE ACCELERATION
+--  and FIX HIGH POLL RATE LAG were deleted from the user's CONTROLS menu once
+--  already (.agents\checkpoint_48.md §4). Trading three working Plutonium rows
+--  for one is a straight loss, and the copy would go stale on their next update.
+--
+--  Instead the permission is simply always granted, so input_targetAssist is
+--  the only switch left standing - the same end result with nothing shadowed.
+--  qol_options.gsc::init() sets sv_allowAimAssist to 1 at map load; see the
+--  note there for why it is set rather than left to the default.
+--
+--  📝 DvarDefaults keeps its entry on purpose. It is read only by
+--  dvarleftrightselector.lua, and only to decide whether to draw the ⭐ "differs
+--  from default" icon - it never writes the dvar. Leaving it costs nothing and
+--  records what Plutonium considers the default. 🌟 That default is 1, and it
+--  is confirmed twice over: this table, and the user's own screenshot of the
+--  lobby showing TARGET ASSIST ENABLED with no star beside it.
+-- ===========================================================================
 CoD.PrivateGameLobby.DvarDefaults["sv_allowAimAssist"] = 1
 CoD.PrivateGameLobby.Dvars = {}
+--  🛑 AddGameOptionsButtons() walks this table with `for i = 1, #GameOptions`,
+--  so the indices must stay contiguous from 1. Removing the old [1] means
+--  renumbering everything below it - it is not enough to delete the block.
 CoD.PrivateGameLobby.Dvars[1] = {}
-CoD.PrivateGameLobby.Dvars[1].id = "sv_allowAimAssist"
-CoD.PrivateGameLobby.Dvars[1].name = Engine.Localize("MENU_TARGET_ASSIST_CAPS")
-CoD.PrivateGameLobby.Dvars[1].hintText = "Allow aim assist option for all controller players."
+CoD.PrivateGameLobby.Dvars[1].id = "sv_cheats"
+CoD.PrivateGameLobby.Dvars[1].name = "CHEATS"
+CoD.PrivateGameLobby.Dvars[1].hintText = "Enable cheats on server."
 CoD.PrivateGameLobby.Dvars[1].labels = {}
 CoD.PrivateGameLobby.Dvars[1].labels[1] = "MENU_DISABLED_CAPS"
 CoD.PrivateGameLobby.Dvars[1].labels[2] = "MENU_ENABLED_CAPS"
 CoD.PrivateGameLobby.Dvars[1].values = {}
 CoD.PrivateGameLobby.Dvars[1].values[1] = 0
 CoD.PrivateGameLobby.Dvars[1].values[2] = 1
-CoD.PrivateGameLobby.Dvars[2] = {}
-CoD.PrivateGameLobby.Dvars[2].id = "sv_cheats"
-CoD.PrivateGameLobby.Dvars[2].name = "CHEATS"
-CoD.PrivateGameLobby.Dvars[2].hintText = "Enable cheats on server."
-CoD.PrivateGameLobby.Dvars[2].labels = {}
-CoD.PrivateGameLobby.Dvars[2].labels[1] = "MENU_DISABLED_CAPS"
-CoD.PrivateGameLobby.Dvars[2].labels[2] = "MENU_ENABLED_CAPS"
-CoD.PrivateGameLobby.Dvars[2].values = {}
-CoD.PrivateGameLobby.Dvars[2].values[1] = 0
-CoD.PrivateGameLobby.Dvars[2].values[2] = 1
 
 -- ===========================================================================
 --  PERK LIMIT  -  v1.99.26, user request 2026-08-17
@@ -158,38 +195,38 @@ CoD.PrivateGameLobby.Dvars[2].values[2] = 1
 --  A map that somehow offers more is still reachable through MAP MAX; the
 --  server clamps a chosen number DOWN to what the map has, never up.
 CoD.PrivateGameLobby.DvarDefaults["perk_limit"] = 0
-CoD.PrivateGameLobby.Dvars[3] = {}
-CoD.PrivateGameLobby.Dvars[3].id = "perk_limit"
-CoD.PrivateGameLobby.Dvars[3].name = "PERK LIMIT"
-CoD.PrivateGameLobby.Dvars[3].hintText = "How many perks a player may hold at once. MAP MAX allows every perk the map offers."
-CoD.PrivateGameLobby.Dvars[3].labels = {}
-CoD.PrivateGameLobby.Dvars[3].labels[1] = "MAP MAX"
-CoD.PrivateGameLobby.Dvars[3].labels[2] = "1"
-CoD.PrivateGameLobby.Dvars[3].labels[3] = "2"
-CoD.PrivateGameLobby.Dvars[3].labels[4] = "3"
-CoD.PrivateGameLobby.Dvars[3].labels[5] = "4"
-CoD.PrivateGameLobby.Dvars[3].labels[6] = "5"
-CoD.PrivateGameLobby.Dvars[3].labels[7] = "6"
-CoD.PrivateGameLobby.Dvars[3].labels[8] = "7"
-CoD.PrivateGameLobby.Dvars[3].labels[9] = "8"
-CoD.PrivateGameLobby.Dvars[3].labels[10] = "9"
-CoD.PrivateGameLobby.Dvars[3].labels[11] = "10"
-CoD.PrivateGameLobby.Dvars[3].labels[12] = "11"
-CoD.PrivateGameLobby.Dvars[3].labels[13] = "12"
-CoD.PrivateGameLobby.Dvars[3].values = {}
-CoD.PrivateGameLobby.Dvars[3].values[1] = 0
-CoD.PrivateGameLobby.Dvars[3].values[2] = 1
-CoD.PrivateGameLobby.Dvars[3].values[3] = 2
-CoD.PrivateGameLobby.Dvars[3].values[4] = 3
-CoD.PrivateGameLobby.Dvars[3].values[5] = 4
-CoD.PrivateGameLobby.Dvars[3].values[6] = 5
-CoD.PrivateGameLobby.Dvars[3].values[7] = 6
-CoD.PrivateGameLobby.Dvars[3].values[8] = 7
-CoD.PrivateGameLobby.Dvars[3].values[9] = 8
-CoD.PrivateGameLobby.Dvars[3].values[10] = 9
-CoD.PrivateGameLobby.Dvars[3].values[11] = 10
-CoD.PrivateGameLobby.Dvars[3].values[12] = 11
-CoD.PrivateGameLobby.Dvars[3].values[13] = 12
+CoD.PrivateGameLobby.Dvars[2] = {}
+CoD.PrivateGameLobby.Dvars[2].id = "perk_limit"
+CoD.PrivateGameLobby.Dvars[2].name = "PERK LIMIT"
+CoD.PrivateGameLobby.Dvars[2].hintText = "How many perks a player may hold at once. MAP MAX allows every perk the map offers."
+CoD.PrivateGameLobby.Dvars[2].labels = {}
+CoD.PrivateGameLobby.Dvars[2].labels[1] = "MAP MAX"
+CoD.PrivateGameLobby.Dvars[2].labels[2] = "1"
+CoD.PrivateGameLobby.Dvars[2].labels[3] = "2"
+CoD.PrivateGameLobby.Dvars[2].labels[4] = "3"
+CoD.PrivateGameLobby.Dvars[2].labels[5] = "4"
+CoD.PrivateGameLobby.Dvars[2].labels[6] = "5"
+CoD.PrivateGameLobby.Dvars[2].labels[7] = "6"
+CoD.PrivateGameLobby.Dvars[2].labels[8] = "7"
+CoD.PrivateGameLobby.Dvars[2].labels[9] = "8"
+CoD.PrivateGameLobby.Dvars[2].labels[10] = "9"
+CoD.PrivateGameLobby.Dvars[2].labels[11] = "10"
+CoD.PrivateGameLobby.Dvars[2].labels[12] = "11"
+CoD.PrivateGameLobby.Dvars[2].labels[13] = "12"
+CoD.PrivateGameLobby.Dvars[2].values = {}
+CoD.PrivateGameLobby.Dvars[2].values[1] = 0
+CoD.PrivateGameLobby.Dvars[2].values[2] = 1
+CoD.PrivateGameLobby.Dvars[2].values[3] = 2
+CoD.PrivateGameLobby.Dvars[2].values[4] = 3
+CoD.PrivateGameLobby.Dvars[2].values[5] = 4
+CoD.PrivateGameLobby.Dvars[2].values[6] = 5
+CoD.PrivateGameLobby.Dvars[2].values[7] = 6
+CoD.PrivateGameLobby.Dvars[2].values[8] = 7
+CoD.PrivateGameLobby.Dvars[2].values[9] = 8
+CoD.PrivateGameLobby.Dvars[2].values[10] = 9
+CoD.PrivateGameLobby.Dvars[2].values[11] = 10
+CoD.PrivateGameLobby.Dvars[2].values[12] = 11
+CoD.PrivateGameLobby.Dvars[2].values[13] = 12
 CoD.PrivateGameLobby.ButtonPrompt_TeamPrev = function (f1_arg0, ClientInstance)
 	if Engine.PartyHostIsReadyToStart() == true then
 		return 

@@ -166,6 +166,34 @@ init()
     level thread qol_opt_lod_fix();
     level thread qol_opt_roundcounter_master();
     level thread qol_opt_connect_loop();
+
+    //  ------------------------------------------------------------------
+    //  TARGET ASSIST - v1.99.34, user request 2026-08-17. The lobby's TARGET
+    //  ASSIST row is gone (see the long note in ui_mp\t6\menus\
+    //  privategamelobby_project.lua), so CONTROLS > GAMEPAD > TARGET ASSIST is
+    //  the only switch a player touches. That row writes the PROFILE var
+    //  input_targetAssist; THIS dvar is the separate server-side PERMISSION,
+    //  and Plutonium's optionscontrols.lua LOCKS the row in game whenever it is
+    //  0. Granting it here keeps the one remaining switch always usable.
+    //
+    //  🛑 setdvar, not qol_opt_dvar. qol_opt_dvar only writes an EMPTY dvar and
+    //  this one always has a value - the engine registers it - so the
+    //  conditional form would never do anything at all.
+    //
+    //  📝 The default is already 1 (Plutonium's own DvarDefaults table, and the
+    //  lobby row drew no ⭐ beside ENABLED in the user's screenshot), so on a
+    //  normal solo or private match this changes nothing. It is written anyway
+    //  so the feature does not rest on a default this project does not own. On
+    //  a dedicated server that deliberately forbids aim assist this does
+    //  re-permit it - zm_qol is a Mods-menu solo/private mod, and that trade is
+    //  recorded here rather than left to be discovered.
+    //
+    //  🛑 LAST in init() on purpose, after every thread above is already
+    //  running. A protected dvar prints "Cannot set cheat dvar X" rather than
+    //  crashing (console_zm.log does exactly that for r_fog), but if this one
+    //  ever did fail hard, being last means it can only cost itself - not the
+    //  coop pause, the round clock, no_power, lod_fix or the connect loop.
+    setdvar( "sv_allowAimAssist", 1 );
 }
 
 // ============================================================================
