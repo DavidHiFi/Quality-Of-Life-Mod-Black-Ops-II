@@ -11194,20 +11194,33 @@ updatedamagefeedback( mod, inflictor, death, crit )
     if ( !isplayer( self ) || isdefined( self.disable_hitmarkers ) )
         return;
 
-    //  v1.95.0 - `hitmarkers` console dvar / QUALITY OF LIFE menu row. User
-    //  request, 2026-08-14. Gated HERE rather than at registration so it can be
-    //  turned on and off mid-match: this is the single funnel both callbacks
-    //  (do_hitmarker and do_hitmarker_death) go through, and it is the only
-    //  place the marker and its sound are produced.
-    if ( !getdvarintdefault( "hitmarkers", 1 ) )
-        return;
-
     //  DIAGNOSTIC, v1.65.4 - see zmqol_perf_probe(). This function is threaded
     //  once PER DAMAGE EVENT, so an automatic weapon into a horde runs it a few
     //  hundred times a second; each run costs a playlocalsound plus HUD writes.
     //  It is the only per-bullet path the mod owns.
+    //
+    //  v1.99.32 - moved ABOVE the `hitmarkers` read, because the sound packs
+    //  below now run with the marker switched off and the probe has to be able
+    //  to kill this whole path, sound included.
     if ( zmqol_perf_probe() )
         return;
+
+    //  v1.95.0 - `hitmarkers` console dvar / HUD menu row. User request,
+    //  2026-08-14. Read HERE rather than at registration so it can be turned on
+    //  and off mid-match: this is the single funnel both callbacks
+    //  (do_hitmarker and do_hitmarker_death) go through.
+    //
+    //  🛑 v1.99.32 - IT NO LONGER RETURNS. It used to, and that silenced the
+    //  SOUND tab's packs for anyone playing without the visual marker - which
+    //  is this user's own setting: `hitmarkers "0"` in the dvar dump of
+    //  console_zm.log for the 2026-08-17 session. Choosing a pack is an
+    //  explicit request for THAT SOUND, so the packs are not the marker's to
+    //  gate. What stays gated is the DEFAULT (choice 0) `mpl_hit_alert`, which
+    //  IS the hitmarker's own sound - that test lives in
+    //  zmqol_play_feedback_sound(), so "hitmarkers 0" still silences it exactly
+    //  as it did before.
+    b_markers = getdvarintdefault( "hitmarkers", 1 );
+
     if ( isdefined( mod ) && mod != "MOD_CRUSH" && ( mod != "MOD_GRENADE_SPLASH" && mod != "MOD_HIT_BY_OBJECT" ) )
     {
         if ( isdefined( inflictor ) )
@@ -11226,6 +11239,12 @@ updatedamagefeedback( mod, inflictor, death, crit )
             else
                 self zmqol_play_feedback_sound( "hit_sound", level.zmqol_snd_hit );
         }
+
+        //  v1.99.32 - the MARKER is what `hitmarkers 0` hides. Everything above
+        //  this line has already played.
+        if ( !b_markers )
+            return 0;
+
         if ( death && getdvarintdefault( "redhitmarkers", 1 ) )
         {
             self.hud_damagefeedback_red setshader( "damage_feedback", 24, 48 );
@@ -11346,7 +11365,13 @@ zmqol_play_feedback_sound( str_dvar, a_pack )
     //  is keyed on the pack table having no entry 0 rather than on the number.
     if ( n_choice == 0 )
     {
-        if ( str_dvar == "hit_sound" || str_dvar == "kill_sound" )
+        //  🛑 v1.99.32 - the DEFAULT alert is the hitmarker's own sound, so it
+        //  stays tied to the `hitmarkers` switch exactly as it was before the
+        //  packs existed. A CHOSEN pack (1..8) is not: it plays whether or not
+        //  the marker is drawn. Without this test, turning the marker off would
+        //  no longer silence the beep, which would be a regression for anyone
+        //  who used that switch to get rid of both.
+        if ( ( str_dvar == "hit_sound" || str_dvar == "kill_sound" ) && getdvarintdefault( "hitmarkers", 1 ) )
             self playlocalsound( "mpl_hit_alert" );
 
         return;

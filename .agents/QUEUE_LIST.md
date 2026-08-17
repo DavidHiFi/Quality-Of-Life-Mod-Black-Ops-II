@@ -43,7 +43,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 17. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
 18. **Ammo counter for the jet gun** in the bottom right
 19. **Hitmarker hit/kill, downed and crits sound options** in the SOUND tab
-20. **INSTANT PAP toggle** in the GAME tab
+20. ~~**INSTANT PAP toggle** in the GAME tab~~
 21. **Compass** in the HUD tab
 22. ~~**PERK LIMIT selector** in the pre-game lobby~~
 

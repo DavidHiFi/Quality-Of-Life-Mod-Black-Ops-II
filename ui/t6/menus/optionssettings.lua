@@ -681,51 +681,70 @@ CoD.OptionsSettings.CreateSoundTab = function (SoundTab, LocalClientIndex)
 	--  optionssettings.lua. So the mod's rows go at the BOTTOM, behind a spacer,
 	--  and touch nothing above.
 	--
-	--  🛑 IN-GAME ONLY, and that is a row-budget decision, not a preference.
-	--  This file's proven ceiling is 14.5 row-pitches (stock's GRAPHICS tab, 13
-	--  rows + 3 half spacers, renders cleanly hint line and ESC prompt included;
-	--  CoD.ButtonList neither clips nor scrolls, it just draws past both ends).
-	--  SOUND is 9 rows + 2 spacers = 10 pitches in game, and 11 out of it -
-	--  SYSTEM TEST above is itself out-of-game only. 10 + 0.5 + 4 = 14.5 fits
-	--  exactly; 11 + 4.5 = 15.5 would collide with the ESC prompt, which is the
-	--  precise fault the user reported against the v1.94.0 menu.
-	--  The pause menu is where these were asked for and where they are set.
+	--  🛑 v1.99.32 - THE `if InGame then` GATE IS GONE, AND ITS ROW-BUDGET
+	--  JUSTIFICATION WAS WRONG. User, 2026-08-17: *"the sound settings are still
+	--  vanilla and don't have the toggable options"* - the rows only ever
+	--  existed in the PAUSE menu, so the main-menu SOUND tab was unchanged, and
+	--  hiding half a feature is exactly the compromise this project does not
+	--  ship. The four rows are now built in both menus.
+	--
+	--  🌟 THE REAL CEILING IS MEASURED, NOT GUESSED AT. The old note treated
+	--  14.5 row-pitches - stock's GRAPHICS tab, the largest tab known to render
+	--  cleanly - as a hard limit. It is a proven-good LOWER BOUND, nothing more.
+	--  The actual box comes straight out of the decompiled stock LUI
+	--  (codmenu / codbase / options / buttonlist, English, non-SP):
+	--
+	--      CoD.Menu.Height        = CoD.SDSafeHeight       = 648   (codbase)
+	--      CoD.Menu.TitleHeight   = CoD.textSize.Big       =  48   (codmenu)
+	--      MFTabManager.TabHeight = CoD.textSize.Default   =  25   (mftabmanager)
+	--      CoD.ButtonPrompt.Height (the ESC prompt)        =  25   (buttonprompt)
+	--      CoD.CoD9Button.Height   (one row pitch)         =  30   (cod9button)
+	--      CoD.HintText.Height    = CoD.textSize.Default   =  25   (hinttext)
+	--
+	--  SetupTabManager puts the content widget at 48 + 25 + 15 = 88 and stops it
+	--  ButtonPrompt.Height short of the bottom; CreateButtonList insets another
+	--  20. So the list runs 108..623 = 515 units = 17.1 pitches, or ~16.3 once
+	--  the hint line is allowed for. SOUND out of game is 10 rows + 2 half
+	--  spacers = 11 pitches (SYSTEM TEST is out-of-game only, SOUND DEVICE is
+	--  there whenever sd_can_switch_device is 1 - it is on this machine).
+	--  11 + 0.5 + 4 = 15.5 pitches = 465 units, inside 515 with a full row to
+	--  spare. In game it is 14.5, the number that was already proven good.
+	--  (The v1.94.0 fault the old note cited was 23.5 pitches = 705 units, over
+	--  the box by 190 - a different order of problem entirely.)
 	-- ========================================================================
-	if InGame then
-		SoundTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
+	SoundTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
 
-		local C = CoD.OptionsSettings.QolChoice
+	local C = CoD.OptionsSettings.QolChoice
 
-		--  1..8 keep the donor mod's own pack numbering so the two cannot drift.
-		--  0 = DEFAULT is this mod's own addition: the mpl_hit_alert it has
-		--  always played. 9 = NO SOUND silences the marker entirely.
-		local MarkerPacks = {
-			{ "DEFAULT",      0 },
-			{ "COLD WAR",     1 },
-			{ "MW 2019",      2 },
-			{ "BLACK OPS 4",  3 },
-			{ "OVERWATCH",    4 },
-			{ "APEX LEGENDS", 5 },
-			{ "8 BIT",        6 },
-			{ "MW CLASSIC",   7 },
-			{ "BLACK OPS 7",  8 },
-			{ "NO SOUND",     9 }
-		}
+	--  1..8 keep the donor mod's own pack numbering so the two cannot drift.
+	--  0 = DEFAULT is this mod's own addition: the mpl_hit_alert it has
+	--  always played. 9 = NO SOUND silences the marker entirely.
+	local MarkerPacks = {
+		{ "DEFAULT",      0 },
+		{ "COLD WAR",     1 },
+		{ "MW 2019",      2 },
+		{ "BLACK OPS 4",  3 },
+		{ "OVERWATCH",    4 },
+		{ "APEX LEGENDS", 5 },
+		{ "8 BIT",        6 },
+		{ "MW CLASSIC",   7 },
+		{ "BLACK OPS 7",  8 },
+		{ "NO SOUND",     9 }
+	}
 
-		C(SoundTabButtonList, LocalClientIndex, "HITMARKER HIT SOUND",  "hit_sound",    "Plays when you hit a zombie.",        MarkerPacks)
-		C(SoundTabButtonList, LocalClientIndex, "HITMARKER KILL SOUND", "kill_sound",   "Plays when you kill a zombie.",       MarkerPacks)
-		C(SoundTabButtonList, LocalClientIndex, "CRITS SOUND",          "crit_sound",   "Extra sound on a headshot or melee kill.", {
-			{ "NO SOUND",    0 },
-			{ "BLACK OPS 7", 1 },
-			{ "MW 2019",     2 }
-		})
-		C(SoundTabButtonList, LocalClientIndex, "DOWNED SOUND",         "downed_sound", "Plays for everyone when a player goes down.", {
-			{ "NO SOUND",     0 },
-			{ "BLACK OPS 4",  1 },
-			{ "COLD WAR",     2 },
-			{ "MW 2019",      3 }
-		})
-	end
+	C(SoundTabButtonList, LocalClientIndex, "HITMARKER HIT SOUND",  "hit_sound",    "Plays when you hit a zombie.",        MarkerPacks)
+	C(SoundTabButtonList, LocalClientIndex, "HITMARKER KILL SOUND", "kill_sound",   "Plays when you kill a zombie.",       MarkerPacks)
+	C(SoundTabButtonList, LocalClientIndex, "CRITS SOUND",          "crit_sound",   "Extra sound on a headshot or melee kill.", {
+		{ "NO SOUND",    0 },
+		{ "BLACK OPS 7", 1 },
+		{ "MW 2019",     2 }
+	})
+	C(SoundTabButtonList, LocalClientIndex, "DOWNED SOUND",         "downed_sound", "Plays for everyone when a player goes down.", {
+		{ "NO SOUND",     0 },
+		{ "BLACK OPS 4",  1 },
+		{ "COLD WAR",     2 },
+		{ "MW 2019",      3 }
+	})
 
 	return SoundTabContainer
 end

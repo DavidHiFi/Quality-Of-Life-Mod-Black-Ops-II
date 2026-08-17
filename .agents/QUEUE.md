@@ -6901,3 +6901,27 @@ in the built `mod.ff` (2,358 alias rows, all 22 present) and in `mod.all.sabl` (
 Checkpoint 71 §3.
 
 **Deployed: v1.99.31, both features. NEITHER IS VERIFIED IN GAME.**
+
+---
+
+# 2026-08-17 (later) — the SOUND rows were invisible (v1.99.32)
+
+User: *"the instant pap toggle option works fine so another task completed, but the sound settings
+are still vanilla and don't have the toggable options for the hitmarker and other sound effects."*
+
+**Queue 20 (INSTANT PAP) — CONFIRMED IN GAME, struck from `QUEUE_LIST.md`.**
+
+**Queue 19 (SOUND options) — still open.** v1.99.31 built the four rows behind `if InGame then`, so
+they existed only in the pause menu and the main-menu SOUND tab was untouched stock. The gate is
+gone in v1.99.32; the out-of-game tab is 15.5 row-pitches against a **measured** 17.1-pitch box, so
+the "14.5 ceiling" that justified the gate was a lower bound, not a limit.
+
+🛑 **A second fault would have silenced the packs anyway:** they sat below
+`if ( !getdvarintdefault( "hitmarkers", 1 ) ) return;`, and this user's own dvar dump reads
+`hitmarkers "0"`. The packs are now independent of the marker; only choice 0 (the DEFAULT
+`mpl_hit_alert`, which IS the hitmarker's sound) is still gated on it.
+
+Full reasoning, the measured LUI geometry and the self-diagnosing check for the next boot:
+**checkpoint 72**.
+
+**Deployed: v1.99.32. NOT VERIFIED IN GAME.**
