@@ -597,9 +597,25 @@ init()
     // --- instant_pap ---
     create_dvar( "pap_price", 5000 );
     create_dvar( "repap_price", 2000 );
-    level.zombiemode_reusing_pack_a_punch = 1;
-    level thread setup_pap_attachments();
-    level thread new_pap_trigger();
+    //  v1.99.26 - user request 2026-08-17: an INSTANT PAP switch on the GAME tab.
+    //  ON by default, because it is what the mod has always done and a new toggle
+    //  must not silently change existing behaviour.
+    //
+    //  🛑 READ ONCE, HERE, AND NOT WATCHED - the same arrangement as
+    //  qol_options.gsc's no_power, and for the same reason. All three lines below
+    //  are map-init work: the reusable-PaP flag is read by stock during setup,
+    //  the attachment pass runs once after the blackscreen, and new_pap_trigger()
+    //  replaces the machine's trigger wiring. Flipping it mid-game could not undo
+    //  any of that, and a live-looking switch that does nothing is worse than one
+    //  that plainly takes effect next match.
+    create_dvar( "instant_pap", 1 );
+
+    if ( getdvarintdefault( "instant_pap", 1 ) )
+    {
+        level.zombiemode_reusing_pack_a_punch = 1;
+        level thread setup_pap_attachments();
+        level thread new_pap_trigger();
+    }
 
     // --- No_Fog ---
     // (Disable_Fog_Transition moved OUT of this file on 2026-07-30 - it now
@@ -608,6 +624,9 @@ init()
     level thread nofog_onplayerconnect();
 
     // --- noperklimit ---
+    //  v1.99.26 - 0 = as many as this map offers (the behaviour since v1.55.4).
+    //  Set from the pre-game lobby's PERK LIMIT row; read in remove_perk_limit().
+    create_dvar( "perk_limit", 0 );
     level thread remove_perk_limit();
     level thread perklimit_onplayerconnect();
 
@@ -2738,6 +2757,29 @@ remove_perk_limit()
 
     if ( isdefined( a_perks ) && a_perks.size > n_limit )
         n_limit = a_perks.size;
+
+    //  v1.99.26 - PERK LIMIT is now choosable from the pre-game lobby, user
+    //  request 2026-08-17.
+    //
+    //  🛑 0 MEANS "AS MANY AS THIS MAP OFFERS" AND IS THE DEFAULT, so the
+    //  behaviour above - and every bug fixed in the long comment above it - is
+    //  exactly unchanged unless somebody deliberately picks a number. Two
+    //  separate in-game bugs came from this value being wrong; a new option must
+    //  not become a third.
+    //
+    //  📝 A chosen limit is NOT clamped up to 12. Picking 4 is the whole point of
+    //  the option - it is how you play stock rules - so it is honoured as given.
+    //  It IS clamped down to the derived maximum, because offering more slots
+    //  than the map has perks would just be a number that can never be reached.
+    n_choice = getdvarintdefault( "perk_limit", 0 );
+
+    if ( n_choice > 0 )
+    {
+        if ( n_choice > n_limit )
+            n_choice = n_limit;
+
+        n_limit = n_choice;
+    }
 
     level.perk_purchase_limit = n_limit;
 }

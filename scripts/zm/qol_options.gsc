@@ -89,6 +89,10 @@ init()
     qol_opt_dvar( "hud_bleedout_bar", "1" );
     qol_opt_dvar( "hud_remaining",    "1" );
     qol_opt_dvar( "hud_zone",         "0" );
+    //  v1.99.26 - compass, user request 2026-08-17 from the TechnoOps mod. OFF by
+    //  default: it is a NEW element, and a new toggle must not change what the
+    //  mod already draws for someone who never asked for it.
+    qol_opt_dvar( "hud_compass",      "0" );
     //  v1.98.0 - the icon + name + description pop-up shown when you buy a perk
     //  (the Vanguard Perk Animation module in quality_of_life.gsc). User asked
     //  for a switch, 2026-08-16. ON by default - it is existing behaviour, and a
@@ -1040,6 +1044,7 @@ qol_opt_hud_watcher()
         //  and hud_color_health itself.
 
         self qol_opt_zone_hud( b_master && ( b_all || getdvarintdefault( "hud_zone", 0 ) ) );
+        self qol_opt_compass_hud( b_master && ( b_all || getdvarintdefault( "hud_compass", 0 ) ) );
         self qol_opt_round_timer_hud( b_master && ( b_all || getdvarintdefault( "hud_round_timer", 1 ) ) );
 
         //  Colour is only re-applied when the string actually changes. Writing
@@ -1179,6 +1184,91 @@ qol_opt_zone_hud( b_on )
         self.qol_hud_zone settext( str_zone );
         self.qol_hud_zone.qol_last_zone = str_zone;
     }
+}
+
+// ----------------------------------------------------------------------------
+//  COMPASS  -  the heading you are facing, top centre.          (v1.99.26)
+// ----------------------------------------------------------------------------
+//  User request 2026-08-17, from the TechnoOps collection. Their version is in
+//  their pre-game lobby; the user asked for it on the HUD tab instead.
+//
+//  🌟 NOTHING IS IMPORTED. Theirs is three text hudelems and an angle lookup -
+//  a technique, not an asset - so this is written against this file's own zone
+//  HUD rather than copied. No shader, no material, no rule-7 question.
+//
+//  🛑 AND IT IS DELIBERATELY NOT A COPY OF THEIRS, because theirs would crash
+//  this mod. `compassHud()` (their main.gsc:1926) calls settext() every pass of
+//  a permanent loop. settext() is ONE RELIABLE SERVER COMMAND PER CALL against
+//  a 128-entry ring - the exact unbounded emitter ERROR_CATALOGUE section 7b is
+//  about, and the one that was fixed out of the zone HUD directly above in
+//  v1.95.1. Here the heading is one of EIGHT strings and is written only when
+//  it actually changes, so standing still or turning slowly costs nothing.
+//
+//  📝 Only the heading is drawn. Their version stacks a numeric angle and the
+//  zone name under it; this mod already has a zone-name row (hud_zone), and a
+//  raw yaw number is not something a player reads mid-round.
+qol_opt_compass_hud( b_on )
+{
+    if ( !b_on )
+    {
+        if ( isdefined( self.qol_hud_compass ) )
+        {
+            self.qol_hud_compass destroy();
+            self.qol_hud_compass = undefined;
+        }
+
+        return;
+    }
+
+    if ( !isdefined( self.qol_hud_compass ) )
+    {
+        self.qol_hud_compass = self createfontstring( "hudsmall", 1.4 );
+        //  Top centre. Clear of the round counter (top right) and of the
+        //  power-up row, which is centred lower down.
+        self.qol_hud_compass setpoint( "TOP", "TOP", 0, 10 );
+        self.qol_hud_compass.hidewheninmenu = 1;
+    }
+
+    str_heading = qol_opt_heading_text( self getplayerangles() );
+
+    //  🌟 The cache lives ON THE HUDELEM, not in a local - same reason as the
+    //  zone HUD above. Toggling hud_compass destroys and re-creates the element,
+    //  and a local would survive that and leave the new element permanently
+    //  blank. A fresh element carries no .qol_last_heading, so the first pass
+    //  after any re-create writes the text again.
+    if ( !isdefined( self.qol_hud_compass.qol_last_heading ) || self.qol_hud_compass.qol_last_heading != str_heading )
+    {
+        self.qol_hud_compass settext( str_heading );
+        self.qol_hud_compass.qol_last_heading = str_heading;
+    }
+}
+
+//  Yaw -> compass point. getplayerangles()[1] is the yaw, 0 = +X = East in this
+//  engine, increasing anticlockwise; the +22.5 rounds to the nearest of eight
+//  rather than truncating, so each label owns a 45-degree arc centred on it.
+qol_opt_heading_text( v_angles )
+{
+    n_yaw = v_angles[1];
+
+    while ( n_yaw < 0 )
+        n_yaw = n_yaw + 360;
+    while ( n_yaw >= 360 )
+        n_yaw = n_yaw - 360;
+
+    n_index = int( ( n_yaw + 22.5 ) / 45 );
+
+    if ( n_index >= 8 )
+        n_index = 0;
+
+    if ( n_index == 0 ) return "E";
+    if ( n_index == 1 ) return "NE";
+    if ( n_index == 2 ) return "N";
+    if ( n_index == 3 ) return "NW";
+    if ( n_index == 4 ) return "W";
+    if ( n_index == 5 ) return "SW";
+    if ( n_index == 6 ) return "S";
+
+    return "SE";
 }
 
 //  Time since the current round started, next to the game timer.

@@ -138,6 +138,58 @@ CoD.PrivateGameLobby.Dvars[2].labels[2] = "MENU_ENABLED_CAPS"
 CoD.PrivateGameLobby.Dvars[2].values = {}
 CoD.PrivateGameLobby.Dvars[2].values[1] = 0
 CoD.PrivateGameLobby.Dvars[2].values[2] = 1
+
+-- ===========================================================================
+--  PERK LIMIT  -  v1.99.26, user request 2026-08-17
+-- ===========================================================================
+--  Asked for after seeing the same row in the TechnoOps lobby. This is the one
+--  of those four requests that genuinely belongs in the lobby: it has to be
+--  settled before the match starts, because the server reads it once during map
+--  init (quality_of_life.gsc::remove_perk_limit).
+--
+--  🛑 THE DEFAULT IS 0 AND 0 MEANS "AS MANY AS THIS MAP OFFERS". That is the
+--  behaviour the mod has had since v1.55.4, so leaving this row alone changes
+--  nothing. The comment above remove_perk_limit() records TWO separate in-game
+--  bugs caused by this number being wrong (nine on Origins, eleven at the Diner
+--  machine) - this option must not become a third, which is why it is opt-in
+--  rather than a number that has to be correct out of the box.
+--
+--  📝 12 is Black Ops II's real perk count and the highest fixed choice here.
+--  A map that somehow offers more is still reachable through MAP MAX; the
+--  server clamps a chosen number DOWN to what the map has, never up.
+CoD.PrivateGameLobby.DvarDefaults["perk_limit"] = 0
+CoD.PrivateGameLobby.Dvars[3] = {}
+CoD.PrivateGameLobby.Dvars[3].id = "perk_limit"
+CoD.PrivateGameLobby.Dvars[3].name = "PERK LIMIT"
+CoD.PrivateGameLobby.Dvars[3].hintText = "How many perks a player may hold at once. MAP MAX allows every perk the map offers."
+CoD.PrivateGameLobby.Dvars[3].labels = {}
+CoD.PrivateGameLobby.Dvars[3].labels[1] = "MAP MAX"
+CoD.PrivateGameLobby.Dvars[3].labels[2] = "1"
+CoD.PrivateGameLobby.Dvars[3].labels[3] = "2"
+CoD.PrivateGameLobby.Dvars[3].labels[4] = "3"
+CoD.PrivateGameLobby.Dvars[3].labels[5] = "4"
+CoD.PrivateGameLobby.Dvars[3].labels[6] = "5"
+CoD.PrivateGameLobby.Dvars[3].labels[7] = "6"
+CoD.PrivateGameLobby.Dvars[3].labels[8] = "7"
+CoD.PrivateGameLobby.Dvars[3].labels[9] = "8"
+CoD.PrivateGameLobby.Dvars[3].labels[10] = "9"
+CoD.PrivateGameLobby.Dvars[3].labels[11] = "10"
+CoD.PrivateGameLobby.Dvars[3].labels[12] = "11"
+CoD.PrivateGameLobby.Dvars[3].labels[13] = "12"
+CoD.PrivateGameLobby.Dvars[3].values = {}
+CoD.PrivateGameLobby.Dvars[3].values[1] = 0
+CoD.PrivateGameLobby.Dvars[3].values[2] = 1
+CoD.PrivateGameLobby.Dvars[3].values[3] = 2
+CoD.PrivateGameLobby.Dvars[3].values[4] = 3
+CoD.PrivateGameLobby.Dvars[3].values[5] = 4
+CoD.PrivateGameLobby.Dvars[3].values[6] = 5
+CoD.PrivateGameLobby.Dvars[3].values[7] = 6
+CoD.PrivateGameLobby.Dvars[3].values[8] = 7
+CoD.PrivateGameLobby.Dvars[3].values[9] = 8
+CoD.PrivateGameLobby.Dvars[3].values[10] = 9
+CoD.PrivateGameLobby.Dvars[3].values[11] = 10
+CoD.PrivateGameLobby.Dvars[3].values[12] = 11
+CoD.PrivateGameLobby.Dvars[3].values[13] = 12
 CoD.PrivateGameLobby.ButtonPrompt_TeamPrev = function (f1_arg0, ClientInstance)
 	if Engine.PartyHostIsReadyToStart() == true then
 		return 

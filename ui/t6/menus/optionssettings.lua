@@ -826,10 +826,21 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
+	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
+
+	-- Gameplay rules.                                                 1 row
+	-- v1.99.26, user request 2026-08-17. Reads at map load, not live - see the
+	-- note in quality_of_life.gsc's init(): every part of instant Pack-a-Punch
+	-- is map-init work, so this takes effect next match rather than pretending
+	-- to switch mid-game.
+	T(QolButtons, LocalClientIndex, "INSTANT PAP",        "instant_pap",          "Pack-a-Punch with no wait. Applies next match.")
+
+	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
+
 	-- Startup.                                                        1 row
 	T(QolButtons, LocalClientIndex, "INTRO CREDITS",      "intro_credits",        "Mod name and credits at match start.")
 
-	return QolContainer                                             -- 9.5 total
+	return QolContainer                                            -- 11.5 total
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
@@ -857,9 +868,11 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	T(QolHudButtons, LocalClientIndex, "BLEEDOUT BAR",      "hud_bleedout_bar", "Countdown bar shown while you are downed.")
 	T(QolHudButtons, LocalClientIndex, "ZOMBIES REMAINING", "hud_remaining",  "How many zombies are left.")
 	T(QolHudButtons, LocalClientIndex, "ZONE NAME",         "hud_zone",       "Name of the area you are in.")
+	-- v1.99.26, user request 2026-08-17. 13 pitches, inside the proven 14.5.
+	T(QolHudButtons, LocalClientIndex, "COMPASS",           "hud_compass",    "Heading you are facing, top of the screen.")
 	T(QolHudButtons, LocalClientIndex, "VELOCITY METER",    "velocity",       "Your speed. Green, yellow, red.")
 
-	return QolHudContainer                                          -- 12 total
+	return QolHudContainer                                          -- 13 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)
