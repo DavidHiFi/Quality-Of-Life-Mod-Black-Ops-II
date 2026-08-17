@@ -14,10 +14,9 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- BUILT, AWAITING THE USER'S BOOT: **2** (v1.99.51, GAME > FULL MOVE SPEED). Built ≠ done, so it is
-  **not** struck through.
-- 🛑 **ITEM 2 IS IN FLIGHT** — built and deployed at v1.99.51, waiting on one boot to confirm. Under
-  the one-at-a-time rule nothing else starts until the user confirms it.
+- BUILT, AWAITING THE USER'S BOOT: nothing.
+- 🛑 **NOTHING IS IN FLIGHT.** Old 2 (the backspeed toggle) was confirmed in game and removed on
+  2026-08-18; the list is 8 → 7. A new request can start immediately.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
@@ -26,19 +25,34 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 <!-- LIST -->
 
 1. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
-2. **GAME-tab toggle for the backspeed fix**
-3. **Prone at Mob's Electric Cherry machine gives no +100**
-4. **Death Machine pickup voice line** — the BO1 announcer callout
-5. **Drop `deathmachine_zm.all.sabl`**
-6. **Jet gun in a real weapon slot**, and it never breaks
-7. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
-8. **Ammo counter for the jet gun** in the bottom right
+2. **Prone at Mob's Electric Cherry machine gives no +100**
+3. **Death Machine pickup voice line** — the BO1 announcer callout
+4. **Drop `deathmachine_zm.all.sabl`**
+5. **Jet gun in a real weapon slot**, and it never breaks
+6. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
+7. **Ammo counter for the jet gun** in the bottom right
 
 <!-- /LIST -->
 
 ---
 
 ## Closed — off the list, kept for the record
+
+### Closed 2026-08-18 (third pass) — one, confirmed in game
+
+Old **2** of the 8-line list → the list is now 7, old 3-8 become 1-7 (old 1 keeps its number).
+
+| old # | item | state when it was closed |
+|---|---|---|
+| 2 | **GAME-tab toggle for the backspeed fix** | shipped v1.99.51 and **confirmed by the user in game** — *"the option for backspeed works toggling it on or off"*. Renamed to **BACKSPEED PATCH** in v1.99.52 at their request, dvar still `move_speed`. |
+
+🛑 **Can it resurface?** One thing to know, so it is not debugged from scratch later: the three
+movement dvars (`player_backSpeedScale` / `player_strafeSpeedScale` /
+`player_sprintStrafeSpeedScale`) now have exactly ONE writer, `qol_options::qol_opt_move_speed()`.
+The old unconditional `setdvar` lines in `quality_of_life::init()`'s high_round_fix block are gone.
+If backward movement ever feels wrong again, that watcher is the only place to look — and note that
+`zmqol_minimal 1` (the Origins bisect switch) now skips it, so under minimal the speeds stay at
+stock PC values instead of being forced to 1.
 
 ### Closed 2026-08-18 (second pass) — eleven more, by the user's instruction
 

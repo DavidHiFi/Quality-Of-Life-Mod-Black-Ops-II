@@ -616,7 +616,7 @@ init()
     //      player_backSpeedScale / player_strafeSpeedScale /
     //      player_sprintStrafeSpeedScale, all forced to 1.
     //  They are now owned by qol_options::qol_opt_move_speed(), so the new
-    //  GAME > FULL MOVE SPEED row can turn them back to stock live. Writing
+    //  GAME > BACKSPEED PATCH row can turn them back to stock live. Writing
     //  them here as well would give the value two owners and the watcher's
     //  "off" would be overwritten on the next map load - the same
     //  single-owner rule the HUD elements follow.

@@ -1004,7 +1004,7 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 
 	-- 🛑 v1.99.51 - THIS WAS TWO SPACERS IN A ROW, left behind when HOLD TO
 	-- SPRINT was removed. Collapsing it to one buys back the 0.5 pitch that
-	-- the FULL MOVE SPEED row below spends, so the tab lands on exactly 14.5
+	-- the BACKSPEED PATCH row below spends, so the tab lands on exactly 14.5
 	-- and stays inside the proven budget above. Do not re-add the second one.
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
@@ -1039,7 +1039,11 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- nothing until it is thrown. OFF is exact stock: 0.7 back, 0.8 strafe,
 	-- 0.667 sprint-strafe, read out of this install's own dvar dump. Live both
 	-- ways; see qol_options::qol_opt_move_speed().
-	T(QolButtons, LocalClientIndex, "FULL MOVE SPEED",    "move_speed",           "Full speed backwards and sideways. Off is stock BO2.")
+	-- 🛑 v1.99.52 - the LABEL is "BACKSPEED PATCH" now (user, 2026-08-18) but the
+	-- DVAR is still move_speed, deliberately: it is already archived in the
+	-- player's config from v1.99.51 and it is the name the console takes.
+	-- Renaming it would reset the saved setting. Same call as whoswho_knife.
+	T(QolButtons, LocalClientIndex, "BACKSPEED PATCH",    "move_speed",           "Matches the console back/strafe speeds. PC moves slower.")
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 

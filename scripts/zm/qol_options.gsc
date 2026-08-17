@@ -168,7 +168,7 @@ init()
     //  gameplay effect. See qol_opt_lod_fix() for what it actually writes.
     qol_opt_dvar( "lod_fix", "1" );
 
-    //  v1.99.51 - FULL MOVE SPEED, user request (queue item 2). ON by default,
+    //  v1.99.51 - BACKSPEED PATCH, user request (queue item 2). ON by default,
     //  because forcing these three to 1 is what this mod has always done - the
     //  switch must not change anyone's game until it is thrown. See
     //  qol_opt_move_speed() for the values and where they came from.
@@ -356,7 +356,7 @@ qol_opt_lod_fix()
 //      setdvar( "player_sprintStrafeSpeedScale", 1 );
 //
 //  Those three lines are GONE from there now; this is the only writer, so the
-//  GAME > FULL MOVE SPEED row can put the game back to stock live and have it
+//  GAME > BACKSPEED PATCH row can put the game back to stock live and have it
 //  stay that way across a map change.
 //
 //  📝 THE OFF VALUES ARE MEASURED, NOT GUESSED. They are this install's own

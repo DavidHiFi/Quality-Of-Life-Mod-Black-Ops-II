@@ -598,7 +598,10 @@ LUI.createMenu.PowerUpsArea = function (f1_arg0)
 		zmqolTimerText:setLeftRight(true, true, 0, 0)
 		zmqolTimerText:setTopBottom(false, true, -(CoD.PowerUps.IconSize + CoD.PowerUps.ZmqolTimerHeight), -CoD.PowerUps.IconSize)
 		zmqolTimerText:setAlignment(LUI.Alignment.Center)
-		zmqolTimerText:setRGB(0.8, 0.9, 0)
+		-- v1.99.52: WHITE (user, 2026-08-18). Was the forum mod's yellow-green
+		-- 0.8/0.9/0. Nothing else reads or writes this colour - it is set once
+		-- at construction and the tick handler only touches text and alpha.
+		zmqolTimerText:setRGB(1, 1, 1)
 		zmqolTimerText:setAlpha(0)
 		Widget:addElement(zmqolTimerText)
 		Widget.zmqolTimerText = zmqolTimerText
