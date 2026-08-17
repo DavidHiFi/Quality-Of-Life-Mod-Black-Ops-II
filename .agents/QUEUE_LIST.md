@@ -10,13 +10,17 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **75** · mod version **1.99.50**
+- SYNCED TO: checkpoint **77** · mod version **1.99.53**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
 - BUILT, AWAITING THE USER'S BOOT: nothing.
-- 🛑 **NOTHING IS IN FLIGHT.** Old 2 (the backspeed toggle) was confirmed in game and removed on
-  2026-08-18; the list is 8 → 7. A new request can start immediately.
+- 🛑 **NOTHING IS IN FLIGHT, AND ITEM 1 IS WAITING TO BE STARTED.** The user queued it deliberately
+  and stopped work to wait for their usage limit to reset: *"DO NOT start the prompt yet, queue it up
+  ready for the moment i re-open you… and do the typical `.`"*. **On the next `.`, start item 1** —
+  the full request and the research already done on it are in **checkpoint_77 §2 and §3**.
+- Old 2 (the backspeed toggle) was confirmed in game and removed 2026-08-18: 8 → 7, then the new
+  item 1 above was appended, so the list is 8 again.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
@@ -24,13 +28,17 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 
 <!-- LIST -->
 
-1. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
-2. **Prone at Mob's Electric Cherry machine gives no +100**
-3. **Death Machine pickup voice line** — the BO1 announcer callout
-4. **Drop `deathmachine_zm.all.sabl`**
-5. **Jet gun in a real weapon slot**, and it never breaks
-6. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
-7. **Ammo counter for the jet gun** in the bottom right
+1. **Move the graphics options into the stock ADVANCED tab** — Night Mode, Fog and Model Detail Fix
+   (renamed HIGHER DRAW DISTANCE) leave the GAME tab; the mod's Depth Of Field row is deleted and
+   stock's own DOF row gains a DISABLED step below LOW. Then Intro Credits moves to the HUD tab as
+   FLASH INTRO CREDITS, beside a new FLASH HELP DISCLAIMER pop-up pointing at `.help`
+2. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
+3. **Prone at Mob's Electric Cherry machine gives no +100**
+4. **Death Machine pickup voice line** — the BO1 announcer callout
+5. **Drop `deathmachine_zm.all.sabl`**
+6. **Jet gun in a real weapon slot**, and it never breaks
+7. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
+8. **Ammo counter for the jet gun** in the bottom right
 
 <!-- /LIST -->
 

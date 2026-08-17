@@ -1043,7 +1043,7 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- DVAR is still move_speed, deliberately: it is already archived in the
 	-- player's config from v1.99.51 and it is the name the console takes.
 	-- Renaming it would reset the saved setting. Same call as whoswho_knife.
-	T(QolButtons, LocalClientIndex, "BACKSPEED PATCH",    "move_speed",           "Matches the console back/strafe speeds. PC moves slower.")
+	T(QolButtons, LocalClientIndex, "BACKSPEED PATCH",    "move_speed",           "Matches the console sideways and backwards movement speeds.")
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
