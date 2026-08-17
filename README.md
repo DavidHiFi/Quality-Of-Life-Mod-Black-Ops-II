@@ -72,8 +72,10 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   can revive your own downed body from range — stock already wires the upgraded ballistic knife to
   revive a player clone, the perk just never gave you one. GAME-tab switch. **Not on Origins:** that
   map ships no ballistic knife asset at all, so the perk stays stock there.
+  **New in v1.99.39 — deployed, not yet confirmed in game.**
 - **The Awful Lawton** (Pack-a-Punched crossbow) — its explosive bolts draw zombies to where they
   stick, like a monkey bomb, as in BO1. Upgraded only; the box crossbow is unchanged.
+  **New in v1.99.39 — deployed, not yet confirmed in game.**
 
 **Commands** — chat command and bindable console command for each:
 - `.round 30` jump to a round · `.give <weapon>` (add `pap` for upgraded, `.give list` for names)
