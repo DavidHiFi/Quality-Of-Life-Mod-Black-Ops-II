@@ -11,43 +11,27 @@ When the user says an item is **resolved and can come off the list**, delete its
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
 - SYNCED TO: checkpoint **75** · mod version **1.99.50**
-- LAST VERIFIED: 2026-08-18 — **ten confirmed items were removed and the list renumbered** on the
-  user's instruction (*"remove anything from the queue that is already completed"*). All ten, their
-  old numbers and the full old→new map are in **Closed 2026-08-18** at the bottom. Nothing was lost;
-  the list simply stops printing them.
-- BUILT, AWAITING THE USER'S BOOT: **1, 2, 12, 13-part, 14, 16**. Built ≠ done, so they are **not**
-  struck through.
-- **19 is confirmed by the LOG, not by the user** (old 28): 5 of 6 marker paths printed after
-  v1.99.47 — thundergun hit+kill, tesla hit+kill, freezegun kill. The freezegun HIT path was never
-  printed in that session, which is what you would expect if every freezegun hit landed was lethal.
-  It stays open on the strength of that absence.
-- **12 was missing from this list entirely** (old 14) and was added 2026-08-17. It traces to
-  checkpoint 68/69 §0 and the README's Known issues, per rule 5.
-- 🛑 Who's Who on **Origins** is blocked by 43 absent assets (checkpoint 75 §3) and is an open
-  decision for the user. It is deliberately not a numbered line: old 23, the perk itself, is
-  finished and closed.
+- LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
+  list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
+  numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
+- BUILT, AWAITING THE USER'S BOOT: **6-part, 7**. Built ≠ done, so they are **not** struck through.
+- 🛑 **NOTHING IS IN FLIGHT.** The second pass closed the last unverified item (old 19, the wonder
+  weapons), so no work is waiting on a boot to be attributed. A new request can start immediately.
+- 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
+  Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
+  `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
+  (measured firing on 5 of 6 paths; the 6th was never exercised).
 
 <!-- LIST -->
 
-1. **Who's Who description** — the joke line removed
-2. **Wunderfizz first location is random** by default
-3. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
-4. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
-5. **GAME-tab toggle for the 4-perk limit**
-6. **GAME-tab toggle for the backspeed fix**
-7. **Prone at Mob's Electric Cherry machine gives no +100**
-8. **Death Machine pickup voice line** — the BO1 announcer callout
-9. **Drop `deathmachine_zm.all.sabl`**
-10. **PhD Flopper's HUD icon may be missing**
-11. **`fxanim_props` animtree re-registration warning** on Origins, Mob and TranZit
-12. **Kill-feed icons missing** for the ported weapons
-13. **Jet gun in a real weapon slot**, and it never breaks
-14. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
-15. **Ammo counter for the jet gun** in the bottom right
-16. **Compass** in the HUD tab
-17. **Five-seven wall-buy removed from Origins** (the bunker one)
-18. **BO4 MAX AMMO toggle** in the GAME tab
-19. **Hitmarker / crit feedback missing on the three BO1 wonder weapons** — and on anything else with its own damage callback
+1. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
+2. **GAME-tab toggle for the backspeed fix**
+3. **Prone at Mob's Electric Cherry machine gives no +100**
+4. **Death Machine pickup voice line** — the BO1 announcer callout
+5. **Drop `deathmachine_zm.all.sabl`**
+6. **Jet gun in a real weapon slot**, and it never breaks
+7. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
+8. **Ammo counter for the jet gun** in the bottom right
 
 <!-- /LIST -->
 
@@ -55,7 +39,35 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 
 ## Closed — off the list, kept for the record
 
-### Closed 2026-08-18 — every confirmed item, removed in one pass
+### Closed 2026-08-18 (second pass) — eleven more, by the user's instruction
+
+*"get rid of 19, 18, 17, 16, 12, 10, 11, 5, 4, 1, 2. remove all those from the queue as they are
+already dealt with or i no longer require their addition to the mod."*
+
+🛑 **The user gave a combined reason for the batch, not per item, and none was inferred.** Some of
+these are built and shipping, some were never started; which is which is recorded below as fact, but
+**why each was dropped is not guessed at**. Old numbers are from the 19-line list.
+
+| old # | item | state when it was dropped |
+|---|---|---|
+| 1 | **Who's Who description** — joke line removed | shipped v1.98.0; verified present in the deployed `mod.iwd` 2026-08-18, never booted |
+| 2 | **Wunderfizz first location is random** by default | built, never booted |
+| 4 | **Galvaknuckles wall-buy in Bus Depot's Tombstone room** | never started |
+| 5 | **GAME-tab toggle for the 4-perk limit** | never started |
+| 10 | **PhD Flopper's HUD icon may be missing** | never confirmed to be a defect — `Could not load material` appears for ~300 stock materials, so it may never have been one |
+| 11 | **`fxanim_props` animtree re-registration warning** | pre-dates v1.99.21, symmetric on Origins; a warning, not a fault |
+| 12 | **Kill-feed icons missing** for the ported weapons | fixed v1.99.14 — the nine `menu_mp_weapons_*` materials ship in `mod.ff`; never booted |
+| 16 | **Compass** in the HUD tab | shipped v1.99.26, never booted |
+| 17 | **Five-seven wall-buy removed from Origins** | shipped v1.99.39, never booted. 🛑 It is **stock Origins**, not something this mod added — removed anyway because that is what was asked |
+| 18 | **BO4 MAX AMMO toggle** in the GAME tab | shipped v1.99.39, never booted; off is exact vanilla |
+| 19 | **Hitmarker / crit feedback on the three BO1 wonder weapons** | fixed v1.99.47 and **measured working on 5 of 6 paths** from the log — thundergun hit+kill, tesla hit+kill, freezegun kill. The freezegun non-lethal hit was never exercised |
+
+**Renumbering that came with it** — 19 lines to 8, no gaps:
+
+`3→1` · `6→2` · `7→3` · `8→4` · `9→5` · `13→6` · `14→7` · `15→8`.
+Old 1, 2, 4, 5, 10, 11, 12, 16, 17, 18 and 19 are gone.
+
+### Closed 2026-08-18 (first pass) — every confirmed item, removed together
 
 *"remove anything from the queue that is already completed and/or i've given confirmation that it's
 ticked off the list because i confirmed it working."*
