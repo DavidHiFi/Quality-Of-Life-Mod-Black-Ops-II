@@ -6993,3 +6993,24 @@ one change at a time.
   hitmarker sounds so you can't even really make them out, and that's for most weapons."* The
   options themselves work and switch correctly; this is purely level. Nothing measured yet — the
   volume lives in the sound alias, so this is a `mod.all.sabl` question, not a GSC one.
+
+---
+
+# 2026-08-18 — the Who's Who ballistic-knife revive is CONFIRMED IN GAME (v1.99.44)
+
+User: *"it worked, i shot my body and got revived"* — on TranZit, off Die Rise, which is where the
+whole thing was broken.
+
+**Two versions, and the first one was wrong for a reason worth keeping.** v1.99.43 fed stock's own
+`clone_damage_func` path by making the corpse damageable. It shipped with a probe, the probe printed
+nothing, and that absence was the finding: **a character xmodel has no collision of its own**, so
+the bolt goes straight through the body and no damage event is ever raised. `setcandamage()` cannot
+add what the model does not have. v1.99.44 stopped trying to catch the hit on the body and caught it
+on the **bolt** instead — stock's `_zm_weap_ballistic_knife::on_spawn` notifies the player
+`"ballistic_knife_stationary"` with the model marking exactly where the bolt stopped, and that path
+is proven by the pick-it-back-up prompt working in game. Hit test is the thundergun's
+`pointonsegmentnearesttopoint` cylinder along eye → resting point at the revive staff's own 32-unit
+radius; the revive itself is still stock's `corpse notify( "player_revived", self )`.
+
+🛑 **Queue 23 stays open** — the GAME-tab toggle taking effect **while you are still down**
+(v1.99.43) has still never been exercised. The gun and the revive are done; that switch is not.

@@ -73,12 +73,11 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   revive a player clone, the perk just never gave you one. GAME-tab switch, live while you are down.
   **Not on Origins:** every one of the 43 assets that weapon needs is absent from every fastfile
   Origins loads, so the perk stays stock there.
-  **The gun itself is confirmed in game (v1.99.39).** The revive-on-hit half is harder: off Die Rise
-  the corpse is a `script_model`, not an actor, so stock's own damage callback never runs — and
-  v1.99.43's attempt to feed that callback found the body takes no damage at all, because a
-  character model carries no collision. v1.99.44 instead watches the bolt itself, through the same
-  `ballistic_knife_stationary` notify that puts the pick-it-back-up prompt in the world.
-  **Deployed, not yet confirmed in game.**
+  **Confirmed in game — the gun in v1.99.39, the revive in v1.99.44.** The revive took two goes: off
+  Die Rise the corpse is a `script_model`, not an actor, so stock's own damage callback never runs —
+  and a character model carries no collision, so the bolt passes through the body without damaging
+  it either. v1.99.44 watches the bolt instead, through the same `ballistic_knife_stationary` notify
+  that puts the pick-it-back-up prompt in the world.
 - **The Awful Lawton** (Pack-a-Punched crossbow) — its explosive bolts draw zombies to where they
   stick, like a monkey bomb, as in BO1. Upgraded only; the box crossbow is unchanged.
   **New in v1.99.39 — deployed, not yet confirmed in game.**
