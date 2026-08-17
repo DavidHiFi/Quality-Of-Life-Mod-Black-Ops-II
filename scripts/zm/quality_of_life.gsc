@@ -611,9 +611,15 @@ init()
     maps\mp\zombies\_zm_spawner::register_zombie_damage_callback( ::deathmachine_damage_response );
 
     // --- high_round_fix ---
-    setdvar( "player_backSpeedScale", 1 );
-    setdvar( "player_strafeSpeedScale", 1 );
-    setdvar( "player_sprintStrafeSpeedScale", 1 );
+    //  🛑 v1.99.51 - THE THREE MOVEMENT-SPEED DVARS MOVED OUT OF HERE.
+    //  They used to be written unconditionally on this line:
+    //      player_backSpeedScale / player_strafeSpeedScale /
+    //      player_sprintStrafeSpeedScale, all forced to 1.
+    //  They are now owned by qol_options::qol_opt_move_speed(), so the new
+    //  GAME > FULL MOVE SPEED row can turn them back to stock live. Writing
+    //  them here as well would give the value two owners and the watcher's
+    //  "off" would be overwritten on the next map load - the same
+    //  single-owner rule the HUD elements follow.
     level thread zombie_health();
     level thread hrf_onplayerconnect();
 

@@ -14,9 +14,10 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- BUILT, AWAITING THE USER'S BOOT: **6-part, 7**. Built ≠ done, so they are **not** struck through.
-- 🛑 **NOTHING IS IN FLIGHT.** The second pass closed the last unverified item (old 19, the wonder
-  weapons), so no work is waiting on a boot to be attributed. A new request can start immediately.
+- BUILT, AWAITING THE USER'S BOOT: **2** (v1.99.51, GAME > FULL MOVE SPEED). Built ≠ done, so it is
+  **not** struck through.
+- 🛑 **ITEM 2 IS IN FLIGHT** — built and deployed at v1.99.51, waiting on one boot to confirm. Under
+  the one-at-a-time rule nothing else starts until the user confirms it.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker

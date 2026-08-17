@@ -1002,11 +1002,13 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	T(QolButtons, LocalClientIndex, "DEPTH OF FIELD",     "r_dof_enable",         "Blur at distance. Off is fully off.")
 	T(QolButtons, LocalClientIndex, "MODEL DETAIL FIX",   "lod_fix",              "Stops distant models popping in.")
 
+	-- 🛑 v1.99.51 - THIS WAS TWO SPACERS IN A ROW, left behind when HOLD TO
+	-- SPRINT was removed. Collapsing it to one buys back the 0.5 pitch that
+	-- the FULL MOVE SPEED row below spends, so the tab lands on exactly 14.5
+	-- and stays inside the proven budget above. Do not re-add the second one.
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
-	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
-
-	-- Gameplay rules.                                                 4 rows
+	-- Gameplay rules.                                                 5 rows
 	-- v1.99.26, user request 2026-08-17.
 	-- v1.99.30: LIVE now, both ways. The claim that used to sit here - that it
 	-- could only take effect next match - was wrong, and the row did nothing at
@@ -1032,13 +1034,19 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- swing at you mid-nuke. Same zombies, same 400 points - only the stagger
 	-- goes. See zmqol_nuke_powerup() in quality_of_life.gsc.
 	T(QolButtons, LocalClientIndex, "INSTANT NUKE",       "instant_nuke",         "Nuke kills every zombie at once, not one by one.")
+	-- v1.99.51, queue item 2. ON by default - forcing the three movement
+	-- scales to 1 is what this mod has always done, so the switch changes
+	-- nothing until it is thrown. OFF is exact stock: 0.7 back, 0.8 strafe,
+	-- 0.667 sprint-strafe, read out of this install's own dvar dump. Live both
+	-- ways; see qol_options::qol_opt_move_speed().
+	T(QolButtons, LocalClientIndex, "FULL MOVE SPEED",    "move_speed",           "Full speed backwards and sideways. Off is stock BO2.")
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
 	-- Startup.                                                        1 row
 	T(QolButtons, LocalClientIndex, "INTRO CREDITS",      "intro_credits",        "Mod name and credits at match start.")
 
-	return QolContainer                                            -- 14 total
+	return QolContainer                            -- 13 rows + 3 spacers = 14.5
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)

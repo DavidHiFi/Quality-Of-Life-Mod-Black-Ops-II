@@ -168,10 +168,17 @@ init()
     //  gameplay effect. See qol_opt_lod_fix() for what it actually writes.
     qol_opt_dvar( "lod_fix", "1" );
 
+    //  v1.99.51 - FULL MOVE SPEED, user request (queue item 2). ON by default,
+    //  because forcing these three to 1 is what this mod has always done - the
+    //  switch must not change anyone's game until it is thrown. See
+    //  qol_opt_move_speed() for the values and where they came from.
+    qol_opt_dvar( "move_speed", "1" );
+
     level thread qol_opt_coop_pause();
     level thread qol_opt_round_clock();
     level thread qol_opt_no_power();
     level thread qol_opt_lod_fix();
+    level thread qol_opt_move_speed();
     level thread qol_opt_roundcounter_master();
     level thread qol_opt_connect_loop();
 
@@ -331,6 +338,74 @@ qol_opt_lod_fix()
             //  at all rather than assumed.
             setdvar( "r_lodScaleRigid",   "1" );
             setdvar( "r_lodScaleSkinned", "1" );
+        }
+
+        wait 1;
+    }
+}
+
+// ============================================================================
+//  qol_opt_move_speed  -  full speed backwards and sideways        (v1.99.51)
+//
+//  BO2 slows you down whenever you are not running forwards. The mod has
+//  always cancelled that by forcing three scales to 1, on this line inside
+//  quality_of_life::init()'s high_round_fix block:
+//
+//      setdvar( "player_backSpeedScale", 1 );
+//      setdvar( "player_strafeSpeedScale", 1 );
+//      setdvar( "player_sprintStrafeSpeedScale", 1 );
+//
+//  Those three lines are GONE from there now; this is the only writer, so the
+//  GAME > FULL MOVE SPEED row can put the game back to stock live and have it
+//  stay that way across a map change.
+//
+//  📝 THE OFF VALUES ARE MEASURED, NOT GUESSED. They are this install's own
+//  boot-time dvar dump (console_zm.log), read before the mod's init runs:
+//        player_backSpeedScale        "0.7"
+//        player_strafeSpeedScale      "0.8"
+//        player_sprintStrafeSpeedScale "0.667"
+//  The same file's later dumps show all three at "1" once the mod has loaded,
+//  which is also the proof that a plain setdvar reaches them at all - they are
+//  not write-protected here. (T6-B2OP-PATCH independently registers
+//  player_backSpeedScale with a "0.7" default, which agrees.)
+//
+//  🛑 These are movement dvars read by the client's own prediction, and this
+//  mod runs through Plutonium's Mods menu where the host IS the client, one
+//  process - the same standing limitation qol_opt_lod_fix() carries. On a
+//  dedicated server this would not reach a remote player.
+//
+//  Written only when the setting CHANGES, same discipline as the lod watcher
+//  above, so flipping the row costs three setdvars and nothing per tick.
+// ============================================================================
+qol_opt_move_speed()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    level endon( "end_game" );
+
+    n_prev = -1;
+
+    for ( ;; )
+    {
+        n_on = getdvarintdefault( "move_speed", 1 );
+
+        if ( n_on != n_prev )
+        {
+            n_prev = n_on;
+
+            if ( n_on )
+            {
+                setdvar( "player_backSpeedScale",         "1" );
+                setdvar( "player_strafeSpeedScale",       "1" );
+                setdvar( "player_sprintStrafeSpeedScale", "1" );
+            }
+            else
+            {
+                setdvar( "player_backSpeedScale",         "0.7" );
+                setdvar( "player_strafeSpeedScale",       "0.8" );
+                setdvar( "player_sprintStrafeSpeedScale", "0.667" );
+            }
         }
 
         wait 1;

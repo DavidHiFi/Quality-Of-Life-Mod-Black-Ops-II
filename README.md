@@ -82,7 +82,11 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 - **Instant Nuke** (GAME-tab switch, on by default) — the Nuke kills every zombie it would have
   killed at the same instant, instead of staggering them 0.1–0.7 s apart while a survivor swings at
   you. Same zombies, same 400 points; off is exact vanilla.
-  **New in v1.99.48 — deployed, not yet confirmed in game.**
+  **New in v1.99.48 — confirmed in game.**
+- **Full move speed** (GAME-tab switch, on by default) — you move backwards and sideways at full
+  speed instead of BO2's 0.7× back / 0.8× strafe / 0.667× sprint-strafe. The mod has always forced
+  this; v1.99.51 makes it a switch you can throw mid-match, and off restores the exact stock values.
+  **New in v1.99.51 — deployed, not yet confirmed in game.**
 - **The Awful Lawton** (Pack-a-Punched crossbow) — its explosive bolts draw zombies to where they
   stick, like a monkey bomb, as in BO1. Upgraded only; the box crossbow is unchanged.
   **New in v1.99.39 — confirmed in game.**
