@@ -57,7 +57,15 @@ vending_divetonuke_power_on()
 	}
 	else
 	{
-		level thread scripts\zm\zm_expanded::clientnotifyloop("toggle_vending_divetonuke_power_on", "divetonuke_off");
+		//  v1.99.22 - was scripts\zm\zm_expanded::clientnotifyloop. That script was
+		//  the pre-merge module that became quality_of_life.gsc; it was deleted from
+		//  the project months ago but survived baked inside mod.ff, so this
+		//  reference kept resolving. v1.99.21 stripped every .gsc out of mod.ff and
+		//  the namespace vanished, making this an "Unresolved external" at SCRIPT
+		//  LOAD - fatal on every map, since quality_of_life.gsc (a root script)
+		//  #includes this file. The function moved into the merge unchanged; dumped
+		//  the donor mod.ff's zm_expanded.gsc and diffed the two bodies to confirm.
+		level thread scripts\zm\quality_of_life::clientnotifyloop("toggle_vending_divetonuke_power_on", "divetonuke_off");
 	}
 }
 vending_divetonuke_power_off()
@@ -68,7 +76,8 @@ vending_divetonuke_power_off()
 	}
 	else
 	{
-		level thread scripts\zm\zm_expanded::clientnotifyloop("toggle_vending_divetonuke_power_off", "divetonuke_on");
+		//  v1.99.22 - see the note in vending_divetonuke_power_on() above.
+		level thread scripts\zm\quality_of_life::clientnotifyloop("toggle_vending_divetonuke_power_off", "divetonuke_on");
 	}
 }
 
