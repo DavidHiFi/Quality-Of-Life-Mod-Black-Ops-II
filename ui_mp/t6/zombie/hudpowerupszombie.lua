@@ -212,7 +212,17 @@ CoD.PowerUps.PatchOtherAmmoCounters = function ()
 			return
 		end
 
-		CoD.OtherAmmoCounters.deathmachineOriginalUpdateHeat(Element, Event)
+		--  🛑 pcall, not a direct call. This is the exact line that closed the
+		--  game in v1.99.23 (COM_ERROR (0), event hud_update_overheat): stock's
+		--  UpdateHeat calls the misspelled `beingAnimation`. The alias installed
+		--  by zmqolFixOverheatAnimationTypo() is the real fix and this call
+		--  should now succeed - but a HUD repaint must never be able to take the
+		--  whole game down, so a failure here is contained and recorded once.
+		local ok = pcall(CoD.OtherAmmoCounters.deathmachineOriginalUpdateHeat, Element, Event)
+		if not ok and CoD.PowerUps.zmqolHeatErrorLogged ~= true then
+			CoD.PowerUps.zmqolHeatErrorLogged = true
+			CoD.PowerUps.zmqolHeatErrorSeen = true
+		end
 	end
 
 	CoD.OtherAmmoCounters.UpdateFuel = function (Element, Event)
@@ -349,6 +359,71 @@ CoD.PowerUps.PatchAmmoCounters = function ()
 	CoD.PowerUps.PatchZombieAmmoArea()
 end
 
+-- ===========================================================================
+--  🌟 v1.99.24 - A TREYARCH TYPO THAT HARD-CRASHES THE GAME
+-- ===========================================================================
+--  Stock `ui_mp/t6/zombie/otherammocounters.lua` calls **`beingAnimation`** -
+--  misspelled - where every other file in the game calls `beginAnimation`.
+--  It is in the branch that restores the ammo counter to its normal colour
+--  when an overheating weapon finishes cooling down. The method does not
+--  exist, so Lua raises "function expected instead of nil", and a LUI error
+--  in T6 is fatal: `COM_ERROR (0) LUI_ERROR: Error processing event:
+--  hud_update_overheat`. The whole game closes.
+--
+--  🛑 MEASURED, NOT INFERRED. A string sweep of the shipped bytecode of every
+--  LUI file in the game finds `beingAnimation` in **exactly one file** -
+--  otherammocounters.lua, once - against `beginAnimation` in dozens,
+--  including 7 times in `ui/lui/luielement.lua` where the real method lives.
+--
+--  WHY NOBODY EVER HIT IT: the only weapons raising this event are the jet gun
+--  and the Paralyzer, the jet gun's ammo counter is normally hidden (there is
+--  a well-known glitch people use to make it appear at all), and in stock the
+--  jet gun EXPLODES the instant it overheats - so it is taken away before it
+--  can ever cool back down and reach the bad branch.
+--
+--  This mod made the jet gun never break (v1.99.23), so for the first time it
+--  overheated, held, and cooled back to normal - and hit the typo. The user's
+--  account matches the code exactly: it stopped firing, and **then, a few
+--  seconds later**, as it finished cooling, the game closed.
+--
+--  THE FIX: give the misspelling somewhere to land. Aliasing it onto the LUI
+--  classes means stock's own code runs, unmodified and complete - nothing of
+--  Treyarch's logic is reconstructed or guessed at, which is the whole reason
+--  this is an alias rather than a rewrite of UpdateHeat.
+--
+--  📝 Belt and braces: the alias is the real fix; PatchOtherAmmoCounters also
+--  wraps the original call in pcall so that if the alias somehow lands on the
+--  wrong class the game still survives. A crash is never an acceptable failure
+--  mode for a cosmetic HUD update.
+-- ===========================================================================
+CoD.PowerUps.zmqolFixOverheatAnimationTypo = function ()
+	if LUI == nil then
+		return
+	end
+
+	local classNames = {
+		"UIElement",
+		"UIText",
+		"UIImage",
+		"UIBar",
+		"UITimer",
+		"UIVerticalList",
+		"UIHorizontalList"
+	}
+	local patched = 0
+
+	for i = 1, #classNames, 1 do
+		local class = LUI[classNames[i]]
+		if class ~= nil and class.beginAnimation ~= nil and class.beingAnimation == nil then
+			class.beingAnimation = class.beginAnimation
+			patched = patched + 1
+		end
+	end
+
+	CoD.PowerUps.zmqolTypoAliasCount = patched
+end
+
+CoD.PowerUps.zmqolFixOverheatAnimationTypo()
 CoD.PowerUps.PatchAmmoCounters()
 
 -- ===========================================================================

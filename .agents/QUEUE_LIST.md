@@ -41,6 +41,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 15. ~~**Jet gun: confirm it behaves as stock when built at the bench**~~
 16. **Jet gun in a real weapon slot**, and it never breaks
 17. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
+18. **Ammo counter for the jet gun** in the bottom right
 
 <!-- /LIST -->
 
