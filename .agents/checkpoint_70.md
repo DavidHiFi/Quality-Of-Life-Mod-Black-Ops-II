@@ -116,3 +116,29 @@ spacer; that tab goes 10 → 14 pitches against a ~14.5 ceiling.
 1. 🛑 **The published release `v1.99.21` cannot start a map.** Still downloadable. Not touched.
 2. The title-screen `.iwi` is not in git (above).
 3. Queue **7** (GAME-tab 4-perk toggle) is superseded by **22**; flagged, not merged.
+
+---
+
+## 7. CHECKPOINT + RELEASE — done 2026-08-17
+
+On the user's *"checkpoint and release"*:
+
+- **Tag `v1.99.29`** (annotated) created and pushed with the session's commits. `origin/main` level
+  with local, 0 unpushed. Previous tag `v1.99.22`.
+- **Release published:** https://github.com/DavidHiFi/zm_qol/releases/tag/v1.99.29 — **Latest**, not
+  a draft, not a prerelease, asset `state=uploaded`.
+- **Asset:** `zm_qol-v1.99.29.zip`, 137,530,469 bytes (131.2 MB). Top-level folder `zm_qol/`,
+  entry count verified as **6**, sourced from the deployed folder after a 6/6 SHA256 check, and
+  🛑 `cmn_root.all.sabl` confirmed **absent**.
+- **README truth pass in the same round:** "27 toggles" → **29** (counted 9 + 13 + 7, not
+  estimated), and the perk line no longer claims "no perk limit" now that PERK LIMIT is selectable.
+  Compass, the switchable instant PaP and the six new commands added. The ⚠️ WORK IN PROGRESS notice
+  is still at README.md:7 and opens the release notes; the GitHub description still opens with
+  `WORK IN PROGRESS` and remains accurate.
+- **The notes say plainly what is and is not tested:** PERK LIMIT and the lobby layout are confirmed
+  in game; the crash fix, chat commands, INSTANT PAP and COMPASS are built and byte-verified but
+  unplayed.
+
+🛑 **v1.99.21 is still published and still cannot start a map.** No longer Latest, and both v1.99.22
+and v1.99.29 open by telling people to replace it — but it remains downloadable. Untouched, because
+changing a published release is outward-facing and is the user's call. §6 item 1.
