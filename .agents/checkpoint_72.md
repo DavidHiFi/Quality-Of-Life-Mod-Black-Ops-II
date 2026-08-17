@@ -108,3 +108,32 @@ the suspect (it is verified in `mod.ff`) — the payload format is.
    an audio problem in one step.
 3. The 15.5-pitch layout in the main-menu SOUND tab is computed, not observed. A glance at that tab
    confirms or refutes it.
+
+---
+
+## 7. v1.99.33 — the rows appeared, and the hint line touched the ESC prompt
+
+The user booted v1.99.32 and the four rows are **in the main-menu SOUND tab** (SYSTEM TEST is
+visible in their screenshot, so that shot is out of game). So the `if InGame then` gate was the whole
+of the "still vanilla" report, and `UIExpression.IsInGame()` was never at fault.
+
+They reported a slight collision at the bottom. **Measured off their screenshot** rather than
+eyeballed — 2000×1125, so 1.5625 px per LUI unit, scanning the label column for text bands:
+
+| element | px band |
+|---|---|
+| DOWNED SOUND (last row) | 964 – 993 |
+| hint line, descenders included | 1023 – **1045** |
+| ESC Back | **1046** – 1059 |
+
+A one-pixel touch. Row pitch measures **50 px** and every spacer in the tab **26 px** (so the live
+pitch is ~32 units, not the 30 the constants imply — the screenshot is the authority here, not the
+arithmetic).
+
+**Fix: the mod's own separator spacer is dropped.** Everything from HITMARKER HIT SOUND down lifts
+26 px, leaving ~27 px of clear air under the hint line — more than the 22 px between two ordinary
+rows. In game there is a further 50 px because SYSTEM TEST is absent. Cost: the four rows no longer
+sit in their own visual block.
+
+Deployed and hash-verified (source == Plutonium `raw\`, and the new copy is inside `mod.iwd`).
+**Not yet re-checked in game.**

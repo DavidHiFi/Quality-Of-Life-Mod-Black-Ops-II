@@ -711,9 +711,29 @@ CoD.OptionsSettings.CreateSoundTab = function (SoundTab, LocalClientIndex)
 	--  spare. In game it is 14.5, the number that was already proven good.
 	--  (The v1.94.0 fault the old note cited was 23.5 pitches = 705 units, over
 	--  the box by 190 - a different order of problem entirely.)
+	--
+	--  🛑 v1.99.33 - THE SEPARATOR SPACER IS GONE, AND THAT IS MEASURED OFF THE
+	--  USER'S OWN SCREENSHOT, not guessed at. At 15.5 pitches the tab fits the
+	--  BOX, but the hint line rides directly under the last row and the ESC
+	--  prompt is anchored to the menu, so the two met. Scanning the shot
+	--  (2000x1125, so 1.5625 px per LUI unit) for text bands in the label
+	--  column gave:
+	--
+	--      DOWNED SOUND, the last row      964 - 993 px
+	--      hint line, with its descenders 1023 - 1045 px
+	--      ESC Back                       1046 - 1059 px
+	--
+	--  - a one-pixel touch, which is exactly the "slightly colliding" the user
+	--  reported. The measured row pitch is 50 px and every spacer in this tab is
+	--  26 px, so dropping this one spacer lifts everything from HITMARKER HIT
+	--  SOUND down by 26 px and leaves ~27 px of clear air under the hint line -
+	--  more than the 22 px that separates two ordinary rows. In game, where
+	--  SYSTEM TEST is absent, the clearance is a further 50 px on top.
+	--
+	--  📝 The cost is the visual grouping: the four rows now follow SYSTEM TEST
+	--  at normal pitch instead of sitting in their own block. A collision with
+	--  the ESC prompt is a reported fault; tighter grouping is not.
 	-- ========================================================================
-	SoundTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
-
 	local C = CoD.OptionsSettings.QolChoice
 
 	--  1..8 keep the donor mod's own pack numbering so the two cannot drift.
