@@ -6878,3 +6878,26 @@ removes an item.
 
 🛑 **Two changes were already in flight unverified when this was asked** — v1.99.24 (the jet gun
 crash fix) and v1.99.25 (the six chat commands). Said so rather than quietly stacking a third.
+
+---
+
+# 2026-08-17 — INSTANT PAP made live (v1.99.30) + the SOUND packs shipped (v1.99.31)
+
+User: *"i set instant pap to disabled here in the game tab, pack a punched a weapon and it still had
+instant pap, so make sure the toggle work properly … they can choose between that or instant pap"*
+and *"i gave you the source for the technops collection mod … implement into the sound tab … those
+toggable hitmarker and other sound effects"*.
+
+**Queue 20 (INSTANT PAP) — the row was inert, now it is live both ways.** The mod killed stock's
+`vending_weapon_upgrade()` thread at takeover (`level notify( "Pack_A_Punch_off" )` + `pap_off()`),
+so there was nothing to hand the machine back to. Stock's thread now stays alive on its own sunk
+trigger and `qol_pap_mode_watch()` swaps ownership at 2 Hz. Full reasoning, the three guards and the
+custom-survival-location exception: **checkpoint 71 §1–2**.
+
+**Queue 19 (SOUND options) — unblocked and shipped.** It was blocked on `AI_CONTEXT.md` rule 7; the
+user cloned `TechnoOps-Collection` into the workspace and authorised the import. 22 aliases renamed
+`zmqol_*`, audio in `sound\zmqol\`, all four dvars defaulting to the mod's existing sound. Verified
+in the built `mod.ff` (2,358 alias rows, all 22 present) and in `mod.all.sabl` (+1.9 MB).
+Checkpoint 71 §3.
+
+**Deployed: v1.99.31, both features. NEITHER IS VERIFIED IN GAME.**
