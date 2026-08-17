@@ -65,8 +65,15 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 
 **Quality of life**
 - Instant Pack-a-Punch (switch it off on the GAME tab, mid-match, and the stock machine comes
-  back — gun in, wait, gun out), BO4 Max Ammo, wall buys refill your
+  back — gun in, wait, gun out), BO4 Max Ammo (also a GAME-tab switch — off is exact vanilla,
+  reload before you grab the drop), wall buys refill your
   magazine, high-round fix, animated camos, prone at a perk machine for +100 points.
+- **Who's Who hands you a Pack-a-Punched ballistic knife** instead of the starting pistol, so you
+  can revive your own downed body from range — stock already wires the upgraded ballistic knife to
+  revive a player clone, the perk just never gave you one. GAME-tab switch. **Not on Origins:** that
+  map ships no ballistic knife asset at all, so the perk stays stock there.
+- **The Awful Lawton** (Pack-a-Punched crossbow) — its explosive bolts draw zombies to where they
+  stick, like a monkey bomb, as in BO1. Upgraded only; the box crossbow is unchanged.
 
 **Commands** — chat command and bindable console command for each:
 - `.round 30` jump to a round · `.give <weapon>` (add `pap` for upgraded, `.give list` for names)

@@ -6944,3 +6944,32 @@ of their rows again (checkpoint 48 §4). Full reasoning: **checkpoint 72 §8**.
 heard yet**. Said so rather than counting it done.
 
 **Deployed: v1.99.34. NOT VERIFIED IN GAME.**
+
+---
+
+# 2026-08-17 (evening) — four changes in one pass (v1.99.39)
+
+**Queue 19 (SOUND options) and the custom title screen — CONFIRMED IN GAME.** *"both the sounds & my
+custom menu texture i gave for you both work no problems... Cross them off the list."* 19 is removed
+from `QUEUE_LIST.md` and recorded in its Closed section; the title screen was never a numbered line.
+
+**Four new requests, all built and deployed together** at the user's explicit instruction (*"do this
+all right now and don't miss anything"*), which sets aside the one-change-at-a-time rule. Recorded
+plainly: a bad boot will not name its own cause. Full reasoning for all four is **checkpoint 73**.
+
+- **Queue 22 — the Origins bunker Five-seven wall-buy is gone.** 🛑 It is **stock Origins**, not
+  something this mod adds: it is in the retail `zm_tomb.ff` mapents with no gametype tag, stock
+  `zm_tomb.gsc:1025` registers it at the 1100 shown in the user's screenshot, and a **runtime
+  clientfield dump of an unmodded Origins registers both Five-seven wall-buys by name**. Removed
+  anyway because that is what was asked for. Its clientfield registration is deliberately untouched
+  on both sides, so the worst case is a feature that does nothing rather than a dead boot.
+- **Queue 23 — Who's Who gives a Pack-a-Punched ballistic knife.** 🌟 The revive half already exists
+  in stock: `_zm_clone::clone_damage_func()` notifies `player_revived` for the four upgraded
+  ballistic-knife names, and the Who's Who corpse is built with that very callback. The perk just
+  never gave you the gun. 🛑 **Not on Origins** — that map ships no ballistic-knife asset at all.
+- **Queue 24 — BO4 MAX AMMO toggle.** The mod's `full_ammo_powerup` replacement differs from stock by
+  exactly one line; the dvar gates that line, so off **is** vanilla.
+- **Queue 25 — Awful Lawton bolts distract zombies.** POI only, no monkey entity, upgraded crossbow
+  only. The name already resolves to "Awful Lawton" and needed nothing.
+
+**Deployed: v1.99.39, all four. NONE IS VERIFIED IN GAME.**

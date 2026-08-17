@@ -937,20 +937,29 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
-	-- Gameplay rules.                                                 1 row
+	-- Gameplay rules.                                                 3 rows
 	-- v1.99.26, user request 2026-08-17.
 	-- v1.99.30: LIVE now, both ways. The claim that used to sit here - that it
 	-- could only take effect next match - was wrong, and the row did nothing at
 	-- all when flipped mid-game. Off hands the machine back to stock's own
 	-- Pack-a-Punch: put the gun in, wait, take it out.
 	T(QolButtons, LocalClientIndex, "INSTANT PAP",        "instant_pap",          "Pack-a-Punch with no wait. Off uses the stock machine.")
+	-- v1.99.39, user request 2026-08-17. Both default ON: each one is behaviour
+	-- the mod already had, so the switch must not change anything until it is
+	-- thrown. BO4 MAX AMMO off is EXACT vanilla - the mod's replacement for
+	-- full_ammo_powerup differs from stock by the single setweaponammoclip line
+	-- the dvar gates, nothing else.
+	T(QolButtons, LocalClientIndex, "BO4 MAX AMMO",       "bo4_max_ammo",         "Max Ammo fills the magazine too. Off needs a reload first.")
+	-- Origins has no ballistic knife in its fastfile at all, so the perk stays
+	-- stock there whatever this is set to. Said in the GSC, not hidden here.
+	T(QolButtons, LocalClientIndex, "WHO'S WHO KNIFE",    "whoswho_knife",        "Who's Who gives a PaP'd ballistic knife, not the pistol.")
 
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
 	-- Startup.                                                        1 row
 	T(QolButtons, LocalClientIndex, "INTRO CREDITS",      "intro_credits",        "Mod name and credits at match start.")
 
-	return QolContainer                                            -- 11.5 total
+	return QolContainer                                            -- 13.5 total
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)

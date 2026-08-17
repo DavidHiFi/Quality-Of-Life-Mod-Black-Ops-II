@@ -8,6 +8,98 @@
 main()
 {
     replaceFunc(clientscripts\mp\zm_tomb::include_weapons, ::include_weapons);
+
+    //  v1.99.39 - the client half of removing the bunker Five-seven wall-buy.
+    //  The server kills the buy trigger; the chalk fx and the gun model are
+    //  spawned CLIENT-side by clientscripts\mp\zombies\_zm_weapons::
+    //  wallbuy_player_connect(), so only this VM can take them away. Without
+    //  this half the result is chalk with no prompt - the exact bug this map
+    //  has already shipped once.
+    level thread zmqol_tomb_remove_fiveseven_wallbuy();
+}
+
+// ============================================================================
+//  zmqol_tomb_remove_fiveseven_wallbuy  (CLIENT)
+//
+//  See the long block above the server twin in zm_tomb.gsc for the evidence
+//  that this wall-buy is stock Origins content and for why its CLIENTFIELD
+//  REGISTRATION IS LEFT COMPLETELY ALONE. Nothing here registers, unregisters
+//  or re-orders a clientfield: both VMs still register exactly what stock
+//  registers, so the load-time symmetry check is untouched.
+//
+//  🌟 THE TWO CALLS ARE STOCK'S OWN, not invented. _zm_weapons.csc:384-387 does
+//  precisely this pair when a buildable wall-buy changes weapon:
+//        stopfx( localclientnum, struct.fx[localclientnum] );
+//        struct.fx[localclientnum] = undefined;
+//  and it hides the weapon model with target_model hide() two lines above.
+//
+//  📝 POLLED FROM main() RATHER THAN onplayerconnect_callback ON PURPOSE. The
+//  fx and the model are created inside stock's own connect callback, so ours
+//  would have to be ordered after it; zm_expanded.csc's header records that
+//  those callbacks are armed at a specific point in _zm.csc and that getting
+//  the order wrong is silent. A poll cannot be mis-ordered. It walks the four
+//  possible local clients so splitscreen is covered.
+// ============================================================================
+zmqol_tomb_remove_fiveseven_wallbuy()
+{
+    level endon( "end_game" );
+
+    //  The struct origin, straight out of the retail mapents dump. The fx and
+    //  the model are placed on this exact struct, so this is the one to match.
+    v_target = ( -927.75, 3036, -52 );
+
+    n_passes     = 0;
+    n_found      = 0;
+    n_found_pass = 0;
+
+    //  Up to 120 passes (60s) to find it, then 20 more to keep it gone through
+    //  a late clientfield snap. Re-hiding an already hidden model is a no-op.
+    while ( n_passes < 120 || ( n_found > 0 && n_passes < n_found_pass + 20 ) )
+    {
+        n_passes++;
+
+        if ( isdefined( level._active_wallbuys ) )
+        {
+            keys = getarraykeys( level._active_wallbuys );
+
+            for ( i = 0; i < keys.size; i++ )
+            {
+                wallbuy = level._active_wallbuys[ keys[i] ];
+
+                if ( !isdefined( wallbuy ) || !isdefined( wallbuy.zombie_weapon_upgrade ) )
+                    continue;
+
+                if ( wallbuy.zombie_weapon_upgrade != "fiveseven_zm" )
+                    continue;
+
+                if ( !isdefined( wallbuy.origin ) || distancesquared( wallbuy.origin, v_target ) > 4096 )
+                    continue;
+
+                for ( c = 0; c < 4; c++ )
+                {
+                    if ( isdefined( wallbuy.fx ) && isdefined( wallbuy.fx[c] ) )
+                    {
+                        stopfx( c, wallbuy.fx[c] );
+                        wallbuy.fx[c] = undefined;
+                        n_found++;
+
+                        if ( n_found_pass == 0 )
+                            n_found_pass = n_passes;
+                    }
+
+                    if ( isdefined( wallbuy.models ) && isdefined( wallbuy.models[c] ) )
+                        wallbuy.models[c] hide();
+                }
+            }
+        }
+
+        wait 0.5;
+    }
+
+    if ( n_found == 0 )
+        println( "[zm_qol] CLIENT origins fiveseven: never found the bunker wall-buy fx - the chalk is still drawn" );
+    else
+        println( "[zm_qol] CLIENT origins fiveseven: chalk fx stopped and wall model hidden" );
 }
 
 // ============================================================================

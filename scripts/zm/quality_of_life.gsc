@@ -562,6 +562,11 @@ init()
     level thread bo2dd_onplayerconnect();
 
     // --- bo4maxammo ---
+    //  v1.99.39 - user request 2026-08-17: a BO4 MAX AMMO switch on the GAME tab.
+    //  ON by default, because filling the magazine as well as the reserves is
+    //  what this mod has always done and a new toggle must not silently change
+    //  existing behaviour. Off is EXACT stock - see new_full_ammo_powerup().
+    create_dvar( "bo4_max_ammo", 1 );
     level thread bo4maxammo_onplayerconnect();
 
     // --- bocw_round ---
@@ -773,7 +778,23 @@ new_full_ammo_powerup( drop_item, player )
             }
             if ( players[i] hasweapon( curWeapon ) ){
                 players[i] givemaxammo( curWeapon );
-                players[i] setweaponammoclip( curWeapon, 300);
+
+                //  🌟 v1.99.39 - THIS ONE LINE IS THE WHOLE OF "BO4 MAX AMMO".
+                //  Everything above it is character-for-character stock's
+                //  maps\mp\zombies\_zm_powerups::full_ammo_powerup(), diffed
+                //  against the dump line by line before the switch was added -
+                //  same player loop, same three skip tests, same four notifies,
+                //  same full_ammo_on_hud() call at the end. givemaxammo() alone
+                //  refills the RESERVES only, which is why vanilla makes you
+                //  reload before grabbing the drop; setting the clip as well is
+                //  BO4's behaviour and the only thing this function adds.
+                //
+                //  So `bo4_max_ammo 0` is not an approximation of vanilla, it
+                //  IS vanilla. No copy of stock is kept here to drift, and the
+                //  replaceFunc stays in place either way (calling stock's own
+                //  function back would re-enter this one - it has been replaced).
+                if ( getdvarintdefault( "bo4_max_ammo", 1 ) )
+                    players[i] setweaponammoclip( curWeapon, 300);
             }
         }
     }
@@ -8443,6 +8464,16 @@ perks()
     zmqol_enable_whoswho();
     zmqol_enable_blood_money();
 
+    //  v1.99.39 - user request 2026-08-17. Who's Who hands you a Pack-a-Punched
+    //  ballistic knife instead of the map's starting pistol, so you can revive
+    //  your own downed body from range. See zmqol_whoswho_knife_watch().
+    create_dvar( "whoswho_knife", 1 );
+    level thread zmqol_whoswho_knife_onplayerconnect();
+
+    //  v1.99.39 - user request 2026-08-17. The Pack-a-Punched crossbow's bolts
+    //  draw zombies to them like a monkey bomb. See zmqol_awful_lawton_watch().
+    level thread zmqol_awful_lawton_onplayerconnect();
+
     //  🛑 EXACT TWIN of the call at the end of zm_expanded.csc::perks(). Both
     //  sides register player_zombie_blood_fx (allplayers, 1 bit) and, through
     //  add_zombie_powerup, powerup_zombie_blood (toplayer, 2 bits). Enable it on
@@ -12561,4 +12592,343 @@ zmqol_spawn_baseline_probe()
 zmqol_minimal()
 {
     return getdvarintdefault( "zmqol_minimal", 0 );
+}
+
+// ============================================================================
+// ============================================================================
+//  zmqol_whoswho_knife  -  Who's Who hands you a PACK-A-PUNCHED BALLISTIC KNIFE
+//
+//  User, 2026-08-17: "make it so when you get downed with Who's Who you have a
+//  pack a punched ballistic knife instead of the stock m1911 like the perk
+//  normally does, this way the perk isn't complete trash because the pap'd
+//  ballistic knife in bo2 zombies acts as an instant revive if you shoot a
+//  downed player with its projectile, again only pap'd... Make this a toggable
+//  on/off option in the in-game/pause menu settings under the GAME tab."
+//
+//  🌟 THE REVIVE HALF NEEDS NO CODE - TREYARCH ALREADY WROTE IT, FOR THIS EXACT
+//  ENTITY. maps\mp\zombies\_zm_clone::clone_damage_func(), which is the damage
+//  callback spawn_player_clone() puts on every player clone (:60), reads:
+//
+//      if ( sweapon == "knife_ballistic_upgraded_zm" ||
+//           sweapon == "knife_ballistic_bowie_upgraded_zm" ||
+//           sweapon == "knife_ballistic_no_melee_upgraded_zm" ||
+//           sweapon == "knife_ballistic_sickle_upgraded_zm" )
+//          self notify( "player_revived", eattacker );
+//
+//  and _zm_chugabud::chugabud_spawn_corpse() (:196) builds the Who's Who corpse
+//  with that very function. So shooting your own body with an upgraded ballistic
+//  knife has ALWAYS been wired to revive you - the perk simply never gives you a
+//  gun that can do it. This change hands over the missing weapon and nothing
+//  else; the four weapon names above are the whole contract and they are read
+//  out of stock, not typed from memory.
+//
+//  🛑 WHAT IT REPLACES, exactly. _zm_chugabud::chugabud_fake_revive() opens with
+//  `self notify( "fake_revive" )` (:392) and later calls
+//  `self give_start_weapon( 1 )` (:427), which is
+//      giveweapon( level.start_weapon ); givestartammo( ... ); switchtoweapon( ... )
+//  (_zm_utility.gsc). level.start_weapon is m1911_zm on the classic maps and
+//  c96_zm on Origins - which is why this takes level.start_weapon rather than
+//  naming a gun.
+//
+//  🛑 IT POLLS FOR THE PISTOL INSTEAD OF WAITING A FIXED FRAME. The notify is at
+//  the top of that function and the giveweapon is 35 lines below it, with a
+//  spawn-point search in between; betting on "one frame later" is betting on
+//  that search never yielding. Waiting for the weapon to actually be in the
+//  player's hands cannot lose that race, and if the pistol never arrives nothing
+//  is taken away and the perk behaves exactly as stock.
+//
+//  🛑 ORIGINS CANNOT HAVE THIS AND IT IS NOT A SCRIPTING PROBLEM. `Unlinker
+//  --list` over the retail zone\all\zm_tomb.ff and zm_prison.ff finds NO
+//  knife_ballistic asset of any kind - no weapon, no fx, no reticle - while
+//  zm_transit.ff carries all six variants. Stock zm_tomb.gsc and zm_prison.gsc
+//  likewise contain zero include_weapon( "knife_ballistic..." ) lines. The gun
+//  does not exist on those two maps, so it cannot be given there; the guard
+//  below is the real precondition (include_weapon() is what calls precacheitem,
+//  _zm_weapons.gsc:700-701) rather than a hard-coded map list that could go
+//  stale. Mob of the Dead does not have Who's Who at all, so the gap is Origins
+//  only - stated plainly rather than shipped quietly.
+//
+//  Where the perk and the gun both exist: zm_transit, zm_nuked, zm_highrise.
+// ============================================================================
+zmqol_whoswho_knife_onplayerconnect()
+{
+    for (;;)
+    {
+        level waittill( "connected", player );
+        player thread zmqol_whoswho_knife_watch();
+    }
+}
+
+zmqol_whoswho_knife_watch()
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+
+    for (;;)
+    {
+        self waittill( "fake_revive" );
+
+        if ( !getdvarintdefault( "whoswho_knife", 1 ) )
+            continue;
+
+        str_knife = self zmqol_whoswho_knife_name();
+
+        if ( !isdefined( str_knife ) )
+            continue;
+
+        if ( !isdefined( level.start_weapon ) )
+            continue;
+
+        //  Wait for stock to actually hand over the starting pistol. 40 passes
+        //  = 2s, far longer than the frame it really takes; giving up leaves
+        //  the perk stock rather than half-changed.
+        n_wait = 0;
+
+        while ( n_wait < 40 && !self hasweapon( level.start_weapon ) )
+        {
+            n_wait++;
+            wait 0.05;
+        }
+
+        if ( !self hasweapon( level.start_weapon ) )
+        {
+            println( "[zm_qol] whoswho knife: the start weapon never arrived, left stock" );
+            continue;
+        }
+
+        self takeweapon( level.start_weapon );
+        self giveweapon( str_knife );
+        self givemaxammo( str_knife );
+        self switchtoweapon( str_knife );
+
+        println( "[zm_qol] whoswho knife: gave " + str_knife + " in place of " + level.start_weapon );
+    }
+}
+
+// ============================================================================
+//  zmqol_whoswho_knife_name  -  which of the four upgraded variants to give
+//
+//  🌟 THE VARIANT IS NOT A CHOICE, IT DEPENDS ON THE PLAYER'S MELEE WEAPON, and
+//  stock already owns that decision: maps\mp\zombies\_zm_melee_weapon::
+//  give_ballistic_knife( name, upgraded ) maps the player's current melee weapon
+//  through level.ballistic_upgraded_weapon_name[] and returns the right name.
+//  Stock calls it in exactly this shape from _zm_powerups.gsc:2054-2056 and
+//  _zm_weapons.gsc:2441. Handing over the plain knife_ballistic_upgraded_zm
+//  while the player is holding a Bowie is what would look wrong in the hands.
+//
+//  🛑 AND THE RESULT IS RE-CHECKED BEFORE IT IS USED. Die Rise ships the Sickle
+//  but does NOT include knife_ballistic_sickle_upgraded_zm - counted from stock
+//  zm_highrise.gsc, which includes the base, bowie and no_melee variants and
+//  nothing else. So a sickle-carrying player would be handed a weapon that was
+//  never precached. If the chosen variant is not included, this falls back to
+//  the plain upgraded knife, which every map carrying the weapon does include.
+//  If even that is missing, it returns undefined and the perk stays stock.
+// ============================================================================
+zmqol_whoswho_knife_name()
+{
+    if ( !isdefined( level.zombie_include_weapons ) )
+        return undefined;
+
+    if ( !isdefined( level.zombie_include_weapons[ "knife_ballistic_upgraded_zm" ] ) )
+        return undefined;
+
+    str_knife = self maps\mp\zombies\_zm_melee_weapon::give_ballistic_knife( "knife_ballistic_upgraded_zm", 1 );
+
+    if ( !isdefined( str_knife ) || !isdefined( level.zombie_include_weapons[ str_knife ] ) )
+        str_knife = "knife_ballistic_upgraded_zm";
+
+    return str_knife;
+}
+
+// ============================================================================
+// ============================================================================
+//  zmqol_awful_lawton  -  the Pack-a-Punched crossbow's bolts distract zombies
+//
+//  User, 2026-08-17: "make it so same as bo1 zombies pap'd crossbow > awful
+//  lawton, the explosive bolts have a monkey bomb distraction effect... and to
+//  be absolutely clear it's only for when it's pack a punched not just the base
+//  crossbow... and make sure you don't make the pap'd crossbow literally create
+//  real monkey bomb grenade, just the distraction mechanism for the zombies ai
+//  same as bo1, so that way same as bo1 they go to the explosive bolts."
+//
+//  📝 THE NAME IS ALREADY RIGHT. crossbow_upgraded_zm's displayName is
+//  ZOMBIE_CROSSBOW_EXPLOSIVE_UPGRADED and that reference already resolves to
+//  "Awful Lawton" on a zombies map - see the v1.89.0 note in
+//  zone_assets\english\localizedstrings\mod.str, which lists it among the
+//  eleven refs that must NOT be re-declared. Nothing to do there.
+//
+//  🌟 NO MONKEY IS CREATED, AND NONE IS NEEDED. Stock's cymbal monkey does the
+//  attraction with two calls out of maps\mp\zombies\_zm_utility, and they are
+//  the whole of it - _zm_weap_cymbal_monkey.gsc:331-334:
+//        create_zombie_point_of_interest( max_attract_dist, num_attractors, 10000 )
+//        create_zombie_point_of_interest_attractor_positions( 4, attract_dist_diff )
+//  Everything else in that function - the monkey model, the animtree, the glow
+//  fx, the music, the player clone, resetmissiledetonationtime() - is the toy,
+//  not the mechanism. Zombies find these by nothing more than the
+//  script_noteworthy = "zombie_poi" that create_zombie_point_of_interest sets:
+//  _zm_ai_basic.gsc:42 -> get_zombie_point_of_interest() ->
+//  getentarray( "zombie_poi", "script_noteworthy" ) (_zm_utility.gsc). So the
+//  bolt itself becomes the point of interest, and when it explodes and the
+//  entity goes away it drops out of that array on its own. No cleanup to get
+//  wrong, no monkey entity, no monkey sound.
+//
+//  The numbers are the monkey's own defaults, read from
+//  _zm_weap_cymbal_monkey::player_handle_cymbal_monkey() (:44-59):
+//  1536 attract distance, 96 attractors, 4 rings 45 units apart.
+//
+//  🛑 THE PROJECTILE IS NOT THE BOLT, AND GETTING THAT WRONG WOULD HAVE COST A
+//  BOOT. Firing crossbow_upgraded_zm produces TWO entities: the missile handed
+//  to the "missile_fire" notify, and a separate grenade-classname entity - its
+//  grenadeWeapon, crossbow_explosive_bolt_upgraded_zm (weaponType grenade,
+//  fuseTime 3, stickiness "Stick to all"), which is what sticks and explodes.
+//  The POI has to go on the GRENADE, or zombies walk to the wrong place. Both
+//  the split and the "missile_fire" notify name are BO2-Reimagined's, out of
+//  scripts\zm\reimagined\_zm_weap_crossbow.gsc, which solves this same problem
+//  on the same engine - the designated reference for this project.
+//
+//  Told apart by model, which the two weapon files settle outright:
+//        crossbow_upgraded_zm            projectileModel t5_weapon_crossbow_bolt_exp
+//        crossbow_explosive_bolt_*_zm    projectileModel t5_weapon_crossbow_bolt
+//  so the search below cannot pick up the missile it was launched from.
+//
+//  📝 THREE DELIBERATE DIFFERENCES FROM REIMAGINED'S VERSION, all of them
+//  narrowing it back to what was actually asked for:
+//    1. Their version also plays a zm_electric_stun animation on the zombie the
+//       bolt lands in. That is a Reimagined balance change, not BO1 behaviour,
+//       and the request was the distraction "same as bo1". Dropped.
+//    2. Theirs deletes the missile entity. This mod's crossbow already works
+//       without that and the user has played it; deleting an entity the mod has
+//       never deleted is a behaviour change outside the request. Left alone.
+//    3. Theirs takes the first unmarked bolt in the array; this takes the
+//       CLOSEST unmarked bolt to where the shot actually landed, so a bolt still
+//       in flight from an earlier shot - or from the un-upgraded crossbow, which
+//       this function does not mark at all - cannot be picked up by mistake.
+// ============================================================================
+zmqol_awful_lawton_onplayerconnect()
+{
+    for (;;)
+    {
+        level waittill( "connected", player );
+        player thread zmqol_awful_lawton_watch();
+    }
+}
+
+zmqol_awful_lawton_watch()
+{
+    self endon( "disconnect" );
+    level endon( "end_game" );
+
+    for (;;)
+    {
+        self waittill( "missile_fire", e_missile, str_weapon );
+
+        //  Pack-a-Punched ONLY. The box crossbow is untouched, as asked.
+        if ( !isdefined( str_weapon ) || str_weapon != "crossbow_upgraded_zm" )
+            continue;
+
+        if ( isdefined( e_missile ) )
+            e_missile thread zmqol_awful_lawton_bolt();
+    }
+}
+
+zmqol_awful_lawton_bolt()
+{
+    self endon( "death" );
+
+    self waittill( "stationary", v_endpos );
+
+    if ( !isdefined( v_endpos ) )
+        v_endpos = self.origin;
+
+    e_bolt  = undefined;
+    n_best  = 262144;   // 512 units, squared - further than that is a different shot
+    a_nades = getentarray( "grenade", "classname" );
+
+    for ( i = 0; i < a_nades.size; i++ )
+    {
+        if ( !isdefined( a_nades[i] ) || !isdefined( a_nades[i].model ) )
+            continue;
+
+        if ( a_nades[i].model != "t5_weapon_crossbow_bolt" )
+            continue;
+
+        if ( isdefined( a_nades[i].zmqol_lawton_done ) )
+            continue;
+
+        n_dist = distancesquared( a_nades[i].origin, v_endpos );
+
+        if ( n_dist > n_best )
+            continue;
+
+        n_best = n_dist;
+        e_bolt = a_nades[i];
+    }
+
+    if ( !isdefined( e_bolt ) )
+        return;
+
+    e_bolt.zmqol_lawton_done = 1;
+
+    //  Stock's own guard, from the monkey (:325). A bolt fired into a zone that
+    //  is not open must not pull zombies through a wall to reach it.
+    if ( !check_point_in_enabled_zone( e_bolt.origin, undefined, undefined ) )
+        return;
+
+    e_bolt create_zombie_point_of_interest( 1536, 96, 10000 );
+    e_bolt thread create_zombie_point_of_interest_attractor_positions( 4, 45 );
+    e_bolt thread zmqol_awful_lawton_follow_if_moving();
+
+    //  🔎 ONE line, the first time only, so a single boot settles the one thing
+    //  that cannot be checked offline: whether "missile_fire" is really the
+    //  notify this weapon emits. Reimagined's crossbow code says it is, on this
+    //  same engine and this same weapon, but that is their evidence and not a
+    //  test of this build. If the log has this line, the whole chain fired -
+    //  notify, stationary, bolt found, zone valid, POI created. If the feature
+    //  looks dead AND this line is absent, the notify name is where to start.
+    if ( !isdefined( level.zmqol_lawton_logged ) )
+    {
+        level.zmqol_lawton_logged = 1;
+        println( "[zm_qol] awful lawton: bolt POI created at ("
+               + int( e_bolt.origin[0] ) + "," + int( e_bolt.origin[1] ) + "," + int( e_bolt.origin[2] ) + ")" );
+    }
+}
+
+// ============================================================================
+//  zmqol_awful_lawton_follow_if_moving
+//
+//  The ring of attractor positions is a snapshot of where the bolt landed. If
+//  the bolt is stuck in a zombie that is still walking, that ring is stale the
+//  moment it is generated, so fall back to attract_to_origin - the same flag
+//  stock's monkey uses while its own ring is still being built
+//  (_zm_weap_cymbal_monkey.gsc:332, cleared at :399 once the ring exists).
+//
+//  Measured rather than assumed: the bolt is watched and the flag is set only if
+//  it actually moves. A bolt in a wall never trips it; a bolt in a zombie trips
+//  it on the first tick. This covers the case Reimagined handles by freezing the
+//  zombie with a stun animation, without adding the animation.
+//
+//  It must run AFTER the ring exists, because
+//  create_zombie_point_of_interest_attractor_positions() clears
+//  attract_to_origin as its first act - hence the waittill rather than a wait.
+// ============================================================================
+zmqol_awful_lawton_follow_if_moving()
+{
+    self endon( "death" );
+
+    self waittill( "attractor_positions_generated" );
+
+    v_last = self.origin;
+
+    for ( i = 0; i < 60; i++ )
+    {
+        wait 0.05;
+
+        if ( distancesquared( self.origin, v_last ) > 4 )
+        {
+            self.attract_to_origin = 1;
+            return;
+        }
+
+        v_last = self.origin;
+    }
 }

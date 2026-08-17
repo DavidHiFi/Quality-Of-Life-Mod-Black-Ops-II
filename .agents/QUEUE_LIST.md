@@ -10,7 +10,7 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **71** · mod version **1.99.31**
+- SYNCED TO: checkpoint **73** · mod version **1.99.39**
 - LAST VERIFIED: 2026-08-17 — every line below was re-checked against `checkpoint_69.md` §0, the
   bottom of `QUEUE.md`, and the source tree on this date.
 - BUILT, AWAITING THE USER'S BOOT: **1, 2, 14, 16-part, 17, 20, 21**.  Built ≠ done, so they are **not** struck through.
@@ -42,16 +42,34 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 16. **Jet gun in a real weapon slot**, and it never breaks
 17. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
 18. **Ammo counter for the jet gun** in the bottom right
-19. **Hitmarker hit/kill, downed and crits sound options** in the SOUND tab
-20. ~~**INSTANT PAP toggle** in the GAME tab~~
-21. **Compass** in the HUD tab
-22. ~~**PERK LIMIT selector** in the pre-game lobby~~
+19. ~~**INSTANT PAP toggle** in the GAME tab~~
+20. **Compass** in the HUD tab
+21. ~~**PERK LIMIT selector** in the pre-game lobby~~
+22. **Five-seven wall-buy removed from Origins** (the bunker one)
+23. **Who's Who gives a Pack-a-Punched ballistic knife**, GAME-tab toggle
+24. **BO4 MAX AMMO toggle** in the GAME tab
+25. **Awful Lawton bolts distract zombies** like a monkey bomb
 
 <!-- /LIST -->
 
 ---
 
 ## Closed — off the list, kept for the record
+
+### Closed 2026-08-17 — confirmed in game, then taken off the list
+
+*"both the sounds & my custom menu texture i gave for you both work no problems at least not from
+what i could tell. Cross them off the list."*
+
+| old # | item |
+|---|---|
+| 19 | **Hitmarker hit/kill, downed and crits sound options** in the SOUND tab — shipped v1.99.31, made visible v1.99.32, spacing corrected v1.99.33. Confirmed in game at v1.99.38 |
+
+📝 The **custom title-screen texture** (v1.99.35–38) was confirmed in the same message. It was never
+a numbered line — it came in as a direct request — so there is nothing to remove for it.
+
+**Renumbering that came with it:** `20→19` · `21→20` · `22→21`. Lines 1–18 did not move.
+
 
 🛑 **This section is history, not a to-do.** These are not printed by `/queue` and are not to be
 worked on, re-probed or "improved" unless the user asks for that item by name. Touching a closed
