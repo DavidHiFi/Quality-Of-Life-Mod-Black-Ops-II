@@ -10,14 +10,15 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **58** · mod version **1.99.9**
-- LAST VERIFIED: 2026-08-16 — every line below was checked against the checkpoints, the bottom of
-  `QUEUE.md`, or the source tree on this date.
-- BUILT, AWAITING THE USER'S BOOT: **1, 2, 4**.  Built ≠ done, so they are **not** struck through.
-- **4 Winter's Howl** — the v1.99.7 `drawWithViewModel` fix is **CONFIRMED IN GAME**
-  (*"the winters howl now has the correct shot fx"*). Still open only for the **wind**: v1.99.9
-  disabled the distortion element, which a block diff proved was the Thundergun's own, scaled down.
-  Unbooted.
+- SYNCED TO: checkpoint **69** · mod version **1.99.22**
+- LAST VERIFIED: 2026-08-17 — every line below was re-checked against `checkpoint_69.md` §0, the
+  bottom of `QUEUE.md`, and the source tree on this date.
+- BUILT, AWAITING THE USER'S BOOT: **1, 2, 14**.  Built ≠ done, so they are **not** struck through.
+- **4 is now struck** — confirmed in game on the 2026-08-17 Origins boot (checkpoint 69 §6). It is
+  left on the list because only the user removes an item.
+- **14 was missing from this list entirely** and was added 2026-08-17. It is tracked in
+  checkpoint 68/69 §0 and in the README's Known issues, and was never a numbered line; it is not a
+  new request. It traces to a checkpoint, per rule 5.
 - **3 Titus-6 reload** — the earlier "not possible" verdict is **RETRACTED**; it is a bank job and is
   scoped in `QUEUE.md`. The **box pickup/raise sound** belongs to the same pass.
 
@@ -26,7 +27,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 1. **Who's Who description** — the joke line removed
 2. **Wunderfizz first location is random** by default
 3. **Titus-6 has no reload sound**
-4. ~~**`mod.ff` runs a pre-merge copy of the mod's own script**, on every map~~ — fixed v1.99.21, **CONFIRMED IN GAME 2026-08-17** (Origins boot: the 4 collision WARNINGs are gone and `zm_expanded.gsc` no longer loads at all). Removing it broke every map until v1.99.22 repointed the one call that still reached into it.
+4. ~~**`mod.ff` runs a pre-merge copy of the mod's own script**, on every map~~
 5. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
 6. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
 7. **GAME-tab toggle for the 4-perk limit**
@@ -34,8 +35,9 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 9. **Prone at Mob's Electric Cherry machine gives no +100**
 10. **Death Machine pickup voice line** — the BO1 announcer callout
 11. **Drop `deathmachine_zm.all.sabl`**
-12. **PhD Flopper's HUD icon may be missing** — `Could not load material "specialty_divetonuke_zombies"`, every session. Not a regression (identical before v1.99.21), and ~300 stock materials log the same line, so it is **not yet proven to be a defect** — needs one look at the perk icon in game.
-13. **`Warning - re-registration of animtree fxanim_props / fxanim_props_dlc4`** — server and client, seen on Origins, Mob and TranZit. Pre-dates v1.99.21. Symmetric on Origins (safe shape), but Mob logged the server half without the client half — worth settling.
+12. **PhD Flopper's HUD icon may be missing**
+13. **`fxanim_props` animtree re-registration warning** on Origins, Mob and TranZit
+14. **Kill-feed icons missing** for the ported weapons
 
 <!-- /LIST -->
 
@@ -142,9 +144,14 @@ uneeded right now"*.
 
 Kept here instead of on the lines so the printed list stays clean.
 
-`2` B-WF · `3` B-RISERSOUND · `4` B-WHOWL · `5` B-TITUSRELOAD · `6` B-WHOSWHO2 · `7` B-STALEGSC ·
-`8` B-CHARACTER · `9` T5 · `10` B-PERKLIMIT · `11` B-BACKSPEED · `12` B-CHERRY · `13` §2.9 ·
-`14` B-DMBANK
+🛑 **Rewritten 2026-08-17.** This block had never been put through the fourth-pass renumbering
+(`1→1 · 2→2 · 5→3 · 7→4 · 8→5 · 9→6 · 10→7 · 11→8 · 12→9 · 13→10 · 14→11`), so every ID below it
+pointed at the wrong line. Mapped through, with the three closed IDs (`B-RISERSOUND`, `B-WHOWL`,
+`B-WHOSWHO2`) dropped:
+
+`2` B-WF · `3` B-TITUSRELOAD · `4` B-STALEGSC · `5` B-CHARACTER · `6` T5 · `7` B-PERKLIMIT ·
+`8` B-BACKSPEED · `9` B-CHERRY · `10` §2.9 · `11` B-DMBANK · `12` B-PHDICON · `13` B-ANIMTREE ·
+`14` B-KILLFEED
 
 Bugs filed twice under different IDs are ONE line. Current aliases:
 `B-DIG` / `B-RISERSND` / `B-TOWN` = `B-RISERSOUND` · `B-WFHOWL` = `B-WHOWL` ·
@@ -154,10 +161,22 @@ Bugs filed twice under different IDs are ONE line. Current aliases:
 
 Short enough to stay out of the list, useful enough to keep somewhere:
 
-- **Built and deployed, waiting on a boot:** 1 (v1.98.0) · 2 (v1.97.0) · 4's wind fix (v1.99.9).
-- **4** — the muzzle **flash** half is confirmed in game at v1.99.7; only the wind is outstanding.
-- **9** — left wall as you come in the outside door.
-- **14** — measured redundant 2026-08-16.
+- **Built and deployed, waiting on a boot:** 1 (v1.98.0) · 2 (v1.97.0) · 14 (v1.99.14).
+- **2** — needs a map with more than one Wunderfizz location to show anything.
+- **4** — confirmed in game 2026-08-17, checkpoint 69 §6: the 4 `replaceFunc` collision `WARNING`s
+  are gone and `zm_expanded.gsc` is mentioned 0 times in the log, against 2 in every prior session.
+  🛑 Removing that script broke **every** map until v1.99.22 repointed the one call still reaching
+  into it — checkpoint 69 §1–§3.
+- **6** — left wall as you come in the outside door.
+- **11** — measured redundant 2026-08-16.
+- **12** — `Could not load material "specialty_divetonuke_zombies"`, twice a session, in **every**
+  session including before v1.99.21, so not a regression. ~300 stock materials log the same line, so
+  it is **not yet proven to be a defect** — one look at the PhD Flopper icon in game settles it.
+- **13** — `Warning - re-registration of animtree fxanim_props / fxanim_props_dlc4`, server and
+  client. Pre-dates v1.99.21 (yesterday's Mob and TranZit logs carry it under v1.99.20). Origins'
+  pair is symmetric, which is the safe shape; Mob logged the server half without the client half.
+- **14** — fixed v1.99.14: the nine `menu_mp_weapons_*` materials ship only in `code_post_gfx_mp.ff`
+  and `frontend.ff`, which no zombies map loads, so nine of them now ship in `mod.ff`. Never booted.
 
 ### How to keep this file honest
 
