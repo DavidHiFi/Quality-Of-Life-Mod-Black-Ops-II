@@ -6813,3 +6813,68 @@ it at `_zm_equipment.gsc:305`). Printing it at map start says outright whether t
 `primary` means it did, `item` means the fastfile copy is still in charge. One boot, no guessing.
 
 **Deployed: nothing yet for 16/17.**
+
+---
+
+# 2026-08-17 — FOUR OPTIONS FROM TechnoOps-Collection (queue 19–22)
+
+User supplied `H:\Claude\TechnoOps-Collection` (3,469 files) and two lobby screenshots, asking for
+four things — and was specific about **where** each goes, which is not where TechnoOps puts them:
+
+| # | want | their placement | user's placement |
+|---|---|---|---|
+| 19 | HITMARKER HIT / KILL / DOWNED / CRITS SOUND | pre-game lobby | **pause menu → SOUND tab** |
+| 20 | INSTANT PAP toggle | pre-game lobby | **pause menu → GAME tab** |
+| 21 | COMPASS | pre-game lobby | **pause menu → HUD tab** |
+| 22 | PERK LIMIT | pre-game lobby | **pre-game lobby** (same) |
+
+## 19 — 🛑 BLOCKED ON AUDIO, and it is a rule-7 question, not a technical one
+
+Their four options are not on/off — each picks between **custom sound packs**:
+hit and kill each offer 9 (Cold War, MW 2019, BO4, Overwatch, Apex, 8 Bit, MW Classic, BO7),
+downed 4, crits 3. `getsound()` (`main.gsc:5480`) returns aliases `hit_cw`, `hit_mw`, `hit_bo4`,
+`hit_ow`, `hit_al`, `hit_8bit`, `hit_mwog`, `hit_bo7`, the `kill_*` set, `downed_bo4/cw/mw` and
+`crit_bo7/mw`.
+
+**Measured:** those aliases exist in **0 of the 2,093 stock scripts**, and TechnoOps ships the audio
+itself — `sound/custom/` holds **104 files**, including all twenty of these as `.wav`, plus its own
+`soundbank/mod.all.aliases.csv`.
+
+🛑 So this needs **20 audio files and a soundbank rebuild**, and importing them from TechnoOps is
+exactly what `AI_CONTEXT.md` rule 7 forbids (BO2-Reimagined is the only exemption). 🛑 And shipping
+the menu without the audio is not a fallback: **a missing alias is silent, never an error**, so the
+options would appear, be selectable, and do nothing — the "partial feature is a defect" rule.
+
+**Asked the user rather than guessing.** Three routes: they authorise/supply the audio; or it ships
+as on/off using sounds already in BO2 (the mod's hitmarker already plays stock `mpl_hit_alert`,
+`quality_of_life.gsc:10975`); or it is dropped.
+
+## 20 — INSTANT PAP toggle: small, and the feature is already here
+`quality_of_life.gsc:597` (`// --- instant_pap ---`) and the section at `:2419`. Needs a dvar gate
+plus one `T(...)` row in `CreateQolTab` (`optionssettings.lua:812`). The GAME tab is at **9.5 of the
+proven 14.5 row budget**, so there is room.
+
+## 21 — COMPASS: no assets, so no blocker
+🌟 Theirs is **pure text hudelems** (`main.gsc:1926 compassHud()`) — a heading word, an angle number
+and the zone name, via `newClientHudElem`. No shader, no material, nothing to import. That makes it a
+technique rather than a file, so rule 7 does not bite.
+
+🛑 **But their loop `settext`s every iteration.** That is the documented route to
+`EXE_SERVERCOMMANDOVERFLOW` / the 128-entry reliable ring — see `ERROR_CATALOGUE` §7b and
+[[t6-reliable-command-ring]], which this project has already been killed by. Any port here must
+**only write on change**, and use `setvalue` for the numeric angle rather than re-`settext`.
+📝 The mod already draws a zone name (`hud_zone`), so the compass should reuse it, not add a second.
+
+## 22 — PERK LIMIT: the plumbing already exists
+`remove_perk_limit()` (`:2706`) already computes `level.perk_purchase_limit`, currently a floor of 12
+raised to `wunderfizz::getPerks().size`. A lobby option means reading a dvar and clamping instead of
+always maximising. The long comment there records two separate in-game bugs caused by getting this
+number wrong — **read it before touching it.**
+📝 Overlaps queue **7** ("GAME-tab toggle for the 4-perk limit"); a numeric selector supersedes that
+toggle, so 7 should probably fold into 22 when this is built. Flagged, not merged — only the user
+removes an item.
+
+**Deployed: nothing for 19–22.**
+
+🛑 **Two changes were already in flight unverified when this was asked** — v1.99.24 (the jet gun
+crash fix) and v1.99.25 (the six chat commands). Said so rather than quietly stacking a third.
