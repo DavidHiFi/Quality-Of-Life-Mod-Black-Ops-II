@@ -9,8 +9,8 @@ Written 2026-08-17. **Supersedes 68 for status.** 48 §1–§4 and 50 §1–§4 
 | # | item | state |
 |---|---|---|
 | 1 | ~~Who's Who~~ · ~~Tac-45~~ · ~~Winter's Howl~~ · ~~Riser sound~~ · ~~Origins crash~~ · ~~invisible corpse~~ · ~~clone glow~~ | ✅ **CLOSED.** 🛑 Do not re-open. |
-| 2 | **`clientnotifyloop` unresolved external** | 🟡 **fixed, unbooted.** §1–§3 |
-| 3 | `mod.ff` stale scripts (checkpoint 68) | 🟡 fixed v1.99.21, **still unbooted** — the boot it needed never happened, this error blocked it |
+| 2 | **`clientnotifyloop` unresolved external** | ✅ **CONFIRMED IN GAME 2026-08-17.** §1–§3, §6 |
+| 3 | `mod.ff` stale scripts (checkpoint 68) | ✅ **CONFIRMED IN GAME 2026-08-17.** §6 |
 | 4 | Who's Who **description** | 🟡 built v1.98.0, never booted |
 | 5 | Wunderfizz random first location | 🟡 built v1.97.0, never booted — needs a multi-machine map |
 | 6 | Kill-feed icons | 🟡 fixed v1.99.14, unbooted |
@@ -83,6 +83,34 @@ Both calls now read `scripts\zm\quality_of_life::clientnotifyloop`.
 - No `build_ff.bat` run: nothing under `zone_source\` or `zone_assets\` changed.
 
 🛑 **Deployed, NOT yet verified in game.**
+
+## 6. ✅ VERIFIED IN GAME — Origins boot, 2026-08-17 12:44
+
+The user booted `zm_tomb` on v1.99.22 with no error box. `console_zm.log` (copied live before
+reading; all 11 rotations compared) settles **both** open items at once:
+
+| check | result |
+|---|---|
+| `replaceFunc` collision `WARNING`s (checkpoint 68's four) | **0** — gone |
+| `scripts/zm/zm_expanded.gsc` mentioned anywhere in the log | **0**, against **2 in every prior session** |
+| script source of every mod `.gsc` | **all `from raw`**, none `from fastfile` |
+| `_zm_perk_divetonuke.gsc` | loaded `from raw`, no unresolved external |
+| `quality_of_life::main()` / `::init()` | both `GSC Executed` |
+| any script error / clientfield mismatch | none |
+
+🌟 **`zm_expanded.gsc` going from 2 mentions to 0 is the cleanest possible proof** — better than the
+absence of a warning, because it is a positive count that changed.
+
+### Two log lines that are NOT regressions — checked against all 11 rotations before saying so
+- `Could not load material "specialty_divetonuke_zombies"` — **2 per session, in every session,
+  unchanged**. Alongside ~300 stock materials logging the same line, so it is not by itself evidence
+  the PhD Flopper icon is broken. → queue **12**.
+- `Warning - re-registration of animtree fxanim_props(_dlc4)` — present yesterday on Mob (5) and
+  TranZit (4) under v1.99.20, so it **pre-dates** both changes. Origins' pair is symmetric
+  (server + client), which is the safe shape per [[t6-animtree-registration-order]]; Mob's was not.
+  → queue **13**.
+- `scripts/zm/ranked.gsc` loads on every map — **Plutonium's own**, present in all sessions, not the
+  mod's. Not a finding.
 
 ## 5. OUTSTANDING DECISION FOR THE USER
 

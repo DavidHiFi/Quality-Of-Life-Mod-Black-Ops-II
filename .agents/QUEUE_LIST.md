@@ -26,7 +26,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 1. **Who's Who description** — the joke line removed
 2. **Wunderfizz first location is random** by default
 3. **Titus-6 has no reload sound**
-4. ~~**`mod.ff` runs a pre-merge copy of the mod's own script**, on every map~~ — fixed v1.99.21, awaiting your boot
+4. ~~**`mod.ff` runs a pre-merge copy of the mod's own script**, on every map~~ — fixed v1.99.21, **CONFIRMED IN GAME 2026-08-17** (Origins boot: the 4 collision WARNINGs are gone and `zm_expanded.gsc` no longer loads at all). Removing it broke every map until v1.99.22 repointed the one call that still reached into it.
 5. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
 6. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
 7. **GAME-tab toggle for the 4-perk limit**
@@ -34,6 +34,8 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 9. **Prone at Mob's Electric Cherry machine gives no +100**
 10. **Death Machine pickup voice line** — the BO1 announcer callout
 11. **Drop `deathmachine_zm.all.sabl`**
+12. **PhD Flopper's HUD icon may be missing** — `Could not load material "specialty_divetonuke_zombies"`, every session. Not a regression (identical before v1.99.21), and ~300 stock materials log the same line, so it is **not yet proven to be a defect** — needs one look at the perk icon in game.
+13. **`Warning - re-registration of animtree fxanim_props / fxanim_props_dlc4`** — server and client, seen on Origins, Mob and TranZit. Pre-dates v1.99.21. Symmetric on Origins (safe shape), but Mob logged the server half without the client half — worth settling.
 
 <!-- /LIST -->
 
