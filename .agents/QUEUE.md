@@ -6700,3 +6700,43 @@ the box excludes it — so it was not any zm_qol route. Chat and console command
 `console_zm.log`, so this cannot be settled offline. Asked the user rather than guessed.
 
 **Deployed: nothing. No edit has been made for any of 15–17.**
+
+## ✅ THE OPEN QUESTION IS ANSWERED — 15 is NOT a bug
+
+User, 2026-08-17: the jet gun was given by **a console or chat command**, not built at the bench.
+
+That closes it, and the mechanism is fully traced:
+
+| step | what it does | file |
+|---|---|---|
+| bench trigger | `player equipment_buy( "jetgun_zm" )` | `_zm_buildables.gsc:2143` |
+| `equipment_buy` | drops any held equipment, resets damage, then calls **`equipment_give`** | `_zm_equipment.gsc:834` |
+| `equipment_give` | `set_player_equipment` · `giveweapon` · `setweaponammoclip( …, 1 )` · **`setactionslot( 1, "weapon", "jetgun_zm" )`** · starts the watcher | `_zm_equipment.gsc:247` |
+
+🌟 **`setactionslot( 1, … )` is the whole answer.** The jet gun is *equipment*: the only thing that
+can bring it back out is action slot 1, and only `equipment_give` binds it. A plain `giveweapon`
+(which is what a raw console give does, and no zm_qol command gives the jet gun at all — checked the
+full command list, 44 chat and 40 console names, none of them jet gun) puts the model in your hands
+and binds **nothing**. Switch away and there is no key that returns to it.
+
+**So the jet gun is already behaving exactly as base game, and zm_qol is not altering it** — that was
+already established four ways above. Nothing to fix for 15; it needs a *confirmation*, not a change.
+
+📝 The bench's own `giveweapon` / `setweaponammoclip` / `setactionslot` calls at
+`_zm_buildables.gsc:2144-2152` are **redundant** — `equipment_buy` → `equipment_give` already did all
+three. Worth knowing: `equipment_buy( "jetgun_zm" )` alone is the complete give.
+
+🛑 **A `.give jetgun` was deliberately NOT built.** It would route through `equipment_buy`, and
+**queue 16 turns the jet gun into a real weapon**, at which point the correct give is `weapon_give`
+like every other entry in `zmqol_weapon_give_table()`. Building the equipment version now would be
+throwaway work, and the user did not ask for it. Revisit as part of 16.
+
+### What 16 now looks like, on the evidence
+- **"never breaks" is one flag.** `zm_transit.gsc:1638 level.explode_overheated_jetgun = 1` is the
+  only assignment in the game. Unset, `handle_overheated_jetgun()` does nothing and the gun just
+  cools — which is already the behaviour 17 asks for.
+- **"real weapon slot" is the hard half.** It means not registering it as equipment, which changes
+  who binds it, how it is dropped/picked up, and what the bench does. `weaponinventorytype` comes
+  from the weapon def, and the mod ships **no** `jetgun_zm` def among its 86 — so this likely needs a
+  def in `mod.ff` (`build_ff.bat`), not just script. **Not yet investigated. Do not assume it is a
+  script-only change.**
