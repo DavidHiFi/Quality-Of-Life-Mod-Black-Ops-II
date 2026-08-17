@@ -7014,3 +7014,15 @@ radius; the revive itself is still stock's `corpse notify( "player_revived", sel
 
 🛑 **Queue 23 stays open** — the GAME-tab toggle taking effect **while you are still down**
 (v1.99.43) has still never been exercised. The gun and the revive are done; that switch is not.
+
+**The mid-down toggle is confirmed too** (2026-08-18): *"yeah that worked too... the toggle works
+the revive works everything in that department is good for now, checked off the list."* Queue 23 is
+struck through in `QUEUE_LIST.md` — gun v1.99.39, mid-down toggle v1.99.43, revive v1.99.44.
+🛑 Origins remains excluded (43 absent assets, checkpoint 75 §3); that is its own open decision and
+was **not** what the user checked off.
+
+---
+
+# 2026-08-18 — starting queue 26 (settings do not survive a restart)
+
+Nothing else is in flight. 27 (hitmarker loudness) stays queued.

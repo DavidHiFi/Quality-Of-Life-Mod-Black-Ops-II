@@ -10,7 +10,12 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **73** · mod version **1.99.39**
+- SYNCED TO: checkpoint **75** · mod version **1.99.44**
+- **23 is now struck** — confirmed in game 2026-08-18: the gun (v1.99.39), the revive off Die Rise
+  (v1.99.44) and the mid-down toggle (v1.99.43) all work. *"that works exactly how i want it."*
+  Left on the list because only the user removes an item. 🛑 Origins is still excluded by 43 missing
+  assets — that is a separate open decision, not part of this line.
+- **26 and 27 are new**, asked 2026-08-18. Neither is started.
 - LAST VERIFIED: 2026-08-17 — every line below was re-checked against `checkpoint_69.md` §0, the
   bottom of `QUEUE.md`, and the source tree on this date.
 - BUILT, AWAITING THE USER'S BOOT: **1, 2, 14, 16-part, 17, 20, 21**.  Built ≠ done, so they are **not** struck through.
@@ -46,7 +51,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 20. **Compass** in the HUD tab
 21. ~~**PERK LIMIT selector** in the pre-game lobby~~
 22. **Five-seven wall-buy removed from Origins** (the bunker one)
-23. **Who's Who gives a Pack-a-Punched ballistic knife**, GAME-tab toggle
+23. ~~**Who's Who gives a Pack-a-Punched ballistic knife**, GAME-tab toggle~~
 24. **BO4 MAX AMMO toggle** in the GAME tab
 25. **Awful Lawton bolts distract zombies** like a monkey bomb
 26. **The mod's own menu settings do not survive a game restart** — they have to be set again, and inconsistently

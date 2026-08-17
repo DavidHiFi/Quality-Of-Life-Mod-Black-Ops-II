@@ -838,11 +838,79 @@ end
 --  QolToggle leaves it nil - see the note below; passing one replaces the
 --  widget's own DvarSelectorSetDvarFunc and the row then will not set back.
 -- ============================================================================
+-- ============================================================================
+--  v1.99.45 - THE MOD'S OWN SETTINGS NOW SURVIVE A RESTART.
+--
+--  User, 2026-08-18: "I keep having to re-do all my settings from the menu...
+--  if i restart my game i find myself having to constantly re do my settings
+--  configuration enabled/disabled for the ones you added, sometimes they work
+--  sometimes they don't it's really inconsistent."
+--
+--  🌟 THE INCONSISTENCY IS THE WHOLE DIAGNOSIS, AND IT IS MEASURED. Plutonium
+--  writes a config on exit and re-runs it at startup, but it only writes dvars
+--  carrying the ARCHIVE flag - the `seta` lines. A dvar created by GSC's
+--  setdvar() has no flags, so it is never written and is gone the moment the
+--  game closes. Read out of the mod's own live config
+--  (storage\t6\players\mods\zm_qol\plutonium_zm.cfg) on 2026-08-18, out of
+--  ~35 option rows exactly THREE names appear: hud_enable, night_mode and
+--  velocity - names that other software had already archived. Every row the
+--  user reported as sticking is one of those; every row they reported as
+--  resetting is one of the rest.
+--
+--  THE FIX: mark each option's dvar archived as its row is built. `seta` is a
+--  real command in this build - the string is in t6zm.exe's table, alongside
+--  `toggle`, while `sets` and `setu` are not - and the flag lives on the DVAR,
+--  not on the write, so once it is set Plutonium's exit-time writer emits
+--  whatever value the row ends up holding. Nothing hooks the row's change
+--  callback: v1.93.0 tried that and a toggle then would not switch back off
+--  (see the note further down), so the widget's own handler is left untouched.
+--
+--  🛑 AN EMPTY VALUE IS WRITTEN TOO, AND THAT IS THE BELT-AND-BRACES. One thing
+--  cannot be settled from the files: whether `seta` ADDS the archive flag to a
+--  dvar GSC already created this session, or only sets the flag on a dvar it
+--  creates itself. Writing the empty case covers the second branch - at the main
+--  menu, before any map has loaded, the mod's dvars do not exist yet, so this
+--  `seta` is what creates them and the flag is unambiguous. GSC then fills the
+--  real default in on map load (qol_opt_dvar only writes when getdvar() == ""),
+--  and Plutonium's exit-time writer emits whatever value it ends up holding.
+--  The engine-owned rows on this tab (r_fog, r_dof_enable, cl_allowDownload…)
+--  always have a value, so none of them can be blanked by this.
+--
+--  📝 pcall, because an error thrown while a menu is building takes the whole
+--  menu with it. A failure here must cost persistence, never the options screen.
+-- ============================================================================
+CoD.OptionsSettings.QolNoArchive = {
+	-- The CHEATS tab. These are per-match states, not preferences: an archived
+	-- fly = 1 would put the player in noclip on the next launch before they had
+	-- touched anything. Deliberate, and easy to reverse if the user wants them.
+	godmode = true,
+	ghostmode = true,
+	infinite_ammo = true,
+	infinite_sprint = true,
+	fly = true,
+	rapid_fire = true,
+	no_power = true
+}
+
+CoD.OptionsSettings.QolArchive = function (DvarName)
+	if CoD.OptionsSettings.QolNoArchive[DvarName] then
+		return
+	end
+	pcall(function ()
+		local Value = UIExpression.DvarString(nil, DvarName)
+		if Value == nil then
+			Value = ""
+		end
+		Engine.Exec(nil, "seta " .. DvarName .. " \"" .. Value .. "\"")
+	end)
+end
+
 CoD.OptionsSettings.QolChoice = function (ButtonList, LocalClientIndex, Label, DvarName, Description, Choices)
 	local Selector = ButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize(Label), DvarName, Engine.Localize(Description))
 	for i = 1, #Choices do
 		Selector:addChoice(LocalClientIndex, Engine.Localize(Choices[i][1]), Choices[i][2])
 	end
+	CoD.OptionsSettings.QolArchive(DvarName)
 	return Selector
 end
 
@@ -850,6 +918,7 @@ CoD.OptionsSettings.QolToggle = function (ButtonList, LocalClientIndex, Label, D
 	local Selector = ButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize(Label), DvarName, Engine.Localize(Description))
 	Selector:addChoice(LocalClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0)
 	Selector:addChoice(LocalClientIndex, Engine.Localize("MENU_ENABLED_CAPS"), 1)
+	CoD.OptionsSettings.QolArchive(DvarName)
 	return Selector
 end
 
