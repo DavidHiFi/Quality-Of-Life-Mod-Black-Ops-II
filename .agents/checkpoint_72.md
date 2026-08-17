@@ -235,3 +235,41 @@ ship. If the image is loaded once at startup, before the mod's `mod.iwd` joins t
 may only appear after the mod is loaded rather than on the very first frame of the front end. If it
 never appears, the next step is making `mod.ff` own `material,menu_zm_title_screen` (the stock
 material JSON can be dumped from `ui_zm.ff`, which owns both the image and the material).
+
+---
+
+## 10. v1.99.36 — the corrected title screen (and how the artwork was checked)
+
+v1.99.35 proved the pipeline: the user confirmed the texture streams in the ZM main menu with the
+mod loaded, so **a loose `.iwi` in `images\` really does replace a stock texture, no fastfile entry**
+— and it appears without a restart once the mod is loaded. Their first edit simply replaced the
+whole logo with "QUALITY OF LIFE"; the intent was a subtitle under the stock BLACK OPS II ZOMBIES,
+the way Reimagined does it.
+
+**The stock artwork was handed back as an editable PNG.** `scratchpad\dds2png.js` decodes the DXT5
+dump to RGBA. 🛑 It reads alpha out of the **DXT5 alpha block**, not from the DDS pixel-format flags
+— the workspace dump declares no alpha while carrying a full 0..255 range ([[t6-dds-dump-undeclared-alpha]]),
+so a normal converter would have flattened the logo onto an opaque brown rectangle. Measured layout
+handed over with it: solid lettering x 15..1008, y 117..431, leaving 80 px clear below ZOMBIES.
+
+**The returned art was verified before it was shipped, not after.**
+
+| check | result |
+|---|---|
+| geometry / format | 1024×512, PNG colour type 6 (RGBA), alpha 0..255 ✅ |
+| opaque blue rectangle behind the subtitle? | **0.0%** of pixels are opaque *and* blue |
+| visible blue tint | 22,026 px at alpha ≥ 80, all inside rows 384..511 — the subtitle's own navy (30,30,46) anti-aliasing, not a backdrop |
+| what the game will actually draw | composited over a simulated menu background to a preview PNG and looked at: logo intact, orange II intact, subtitle reads like Reimagined's |
+
+🌟 **The DXT5 encode was baselined, not just measured.** On the user's art: mean RGB error
+**1.690/255**, alpha 0.325. On the *stock* artwork through the same encoder: **0.757/255**. Same
+order — the loss is ordinary DXT5 on grungy 1024×512 art, not an encoder fault. (The worst-block
+error of 74 sits on a hard colour edge, which is what DXT5 does everywhere.)
+
+Deployed `.iwi`: `ver=27 fmt=13 flags=2 1024×512 524,352` — header-identical to Reimagined's working
+file — and byte-identical between source and the deployed `mod.iwd`.
+
+📝 **Reusable route, now proven end to end:** PNG → `scratchpad\dxt5.js` (DXT5 payload under the
+stock file's own 128-byte DDS header) → `ImageConverter.exe --t6` → `.iwi` → `images\` →
+`build.bat`. `verify.js` decodes the result back and diffs it against the source PNG; `dds2png.js`
+goes the other way for editing.
