@@ -456,14 +456,34 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 		PrivateGameLobbyButtonPane.body.changeGameModeButton.hintText = Engine.Localize("MPUI_CHANGE_GAME_MODE_DESC")
 		PrivateGameLobbyButtonPane.body.changeGameModeButton:setActionEventName("open_change_game_mode")
 		PrivateGameLobbyButtonPane.body.changeGameModeButton:registerEventHandler("button_update", CoD.PrivateGameLobby.Button_UpdateHostButton)
-		-- zm_qol: was CoD.CoD9Button.Height * 1. The hint text sits directly under the
-		-- last settings row and follows the list's height, and this mod's Dvars table
-		-- has one row more than the layout allows for (see the hintText note below),
-		-- so the hint was landing on the top edge of the map preview panel.
-		-- Halving the spacer lifts everything below it by half a row, which clears the
-		-- panel while keeping a visible gap between the nav buttons and the settings.
-		-- Do NOT take this to 0: a full row up puts the hint into the CHEATS row.
-		PrivateGameLobbyButtonPane.body.buttonList:addSpacer(CoD.CoD9Button.Height * 0.5)
+		-- zm_qol: 1 -> 0.5 (v1.9x) -> 0 (v1.99.27). The hint text sits directly under
+		-- the last settings row and follows the list's height, so every row added to
+		-- the Dvars table pushes it further down into the map preview panel.
+		--
+		-- 🛑 THE OLD NOTE HERE SAID "Do NOT take this to 0: a full row up puts the hint
+		-- into the CHEATS row." That was written when the list had SEVEN rows. PERK
+		-- LIMIT (v1.99.26) made it eight, so the premise is gone: zeroing the spacer now
+		-- only gives back the row that was just added. Correcting the note is part of
+		-- the change, not a footnote to it.
+		--
+		-- 🌟 MEASURED FROM THE USER'S SCREENSHOT, not estimated. It is 2000x1125, and
+		-- LUI is 1280x720, so 1.5625 px per LUI unit exactly. Scanning the label column
+		-- for text bands gives:
+		--     row pitch          32.0 units  (8 rows, 202.9 -> 426.9, dead even)
+		--     PERK LIMIT row     426.9 - 446.1
+		--     hint text          460.2 - 470.4
+		--     preview panel top  451.2 - 454.4
+		-- so the hint was 8-18 units inside the panel. The spacer is Height * 0.5 and
+		-- Height is the 32-unit pitch, so removing it lifts everything below by exactly
+		-- 16 units and puts the hint at 444.2 - 454.4.
+		--
+		-- 📝 That still leaves the hint's bottom ~2 units on the panel's top border
+		-- line. Reported rather than glossed: this file cannot move the panel (it is
+		-- stock LUI compiled into patch_ui_zm.ff and created in neither this file nor
+		-- any file the mod ships), so the remaining options are to reposition the hint
+		-- explicitly or to drop a row. Neither is worth doing blind - one more
+		-- screenshot measures the result and settles it.
+		PrivateGameLobbyButtonPane.body.buttonList:addSpacer(0)
 		-- local SetupGameText = Engine.Localize("MPUI_SETUP_GAME_CAPS")
 		-- local f9_local1_1, f9_local1_2, f9_local1_3, f9_local1_4 = GetTextDimensions(SetupGameText, CoD.CoD9Button.Font, CoD.CoD9Button.TextHeight)
 		-- PrivateGameLobbyButtonPane.body.setupGameButton = PrivateGameLobbyButtonPane.body.buttonList:addButton(SetupGameText)
