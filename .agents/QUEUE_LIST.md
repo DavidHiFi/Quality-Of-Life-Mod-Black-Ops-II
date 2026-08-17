@@ -10,7 +10,11 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **75** · mod version **1.99.48**
+- SYNCED TO: checkpoint **75** · mod version **1.99.49**
+- **29 is now struck** — confirmed in game 2026-08-18 (*"works perfectly toggled it on or off"*).
+- **28 is CONFIRMED BY THE LOG, not by the user**: 5 of 6 marker paths printed after v1.99.47 —
+  thundergun hit+kill, tesla hit+kill, freezegun kill. The freezegun HIT path was never printed in
+  that session, which is expected if every freezegun hit they landed was lethal. Left unstruck.
 - **29 is new**, asked 2026-08-18 and built the same hour at v1.99.48, **not verified**. The GAME-tab
   rename ("WHO'S WHO KNIFE" -> "BETTER WHO'S WHO") came in the same message and is not a numbered
   line - it is a label, and the dvar `whoswho_knife` is deliberately unchanged.
@@ -68,7 +72,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 26. ~~**The mod's own menu settings do not survive a game restart** — they have to be set again, and inconsistently~~
 27. ~~**Hitmarker sounds are far quieter than gunfire** — inaudible under most weapons~~
 28. **Hitmarker / crit feedback missing on the three BO1 wonder weapons** — and on anything else with its own damage callback
-29. **INSTANT NUKE toggle** in the GAME tab
+29. ~~**INSTANT NUKE toggle** in the GAME tab~~
 
 <!-- /LIST -->
 

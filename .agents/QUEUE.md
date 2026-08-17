@@ -7147,3 +7147,49 @@ precedent rather than assumed: the thundergun's own kill loop
 mass simultaneous death is something the retail game already does.
 
 **Deployed v1.99.48. NOT VERIFIED IN GAME.**
+
+---
+
+# 2026-08-18 — queue 29 confirmed; 28 answered by the log; crossbow fuse +3s (v1.99.49)
+
+**Queue 29 (INSTANT NUKE) confirmed in game** — *"works perfectly toggled it on or off."* Struck.
+
+**Queue 28 — the probe answered it without the user having to describe anything:**
+
+```
+[zm_qol] hitmarker: damage callback moved to index 0 of 4
+[zm_qol] ww marker: hit path fired for thundergun_upgraded_zm
+[zm_qol] ww marker: kill path fired for thundergun_upgraded_zm
+[zm_qol] ww marker: hit path fired for tesla_gun_upgraded_zm
+[zm_qol] ww marker: kill path fired for tesla_gun_upgraded_zm
+[zm_qol] ww marker: kill path fired for freezegun_upgraded_zm
+```
+
+5 of 6 paths fired. 📝 The thundergun DOES reach the hit path after all — its knockdown branch
+(`thundergun_knockdown_damage`, 15) is non-lethal, so the earlier "kill only, by construction" note
+applies solely to the fling branch. The freezegun's HIT line never appeared, which is what you would
+expect if every freezegun hit landed that session was lethal; **not** struck on the strength of an
+absence.
+
+**Crossbow fuse, user request:** *"make the duration before the bolt explodes 3 seconds longer...
+both pap'd and un-pap'd."*
+
+| weapon def | fuseTime before | after |
+|---|---|---|
+| `crossbow_explosive_bolt_zm` | 1 | **4** |
+| `crossbow_explosive_bolt_upgraded_zm` | 3 | **6** |
+
+🌟 **That the raw weapon def is what the game actually reads is proven, not assumed.** `mod.ff`
+carries 99 `weapon` assets and **no crossbow**, and `Unlinker --list` finds no `weapon, crossbow*` in
+`zm_transit`, `zm_buried`, `zm_tomb`, `zm_prison`, `patch_zm` or `common_zm` — yet a TranZit session
+log carries `Loaded weapon: crossbow_explosive_bolt_zm`. The only possible source is
+`weapons\zm\` inside `mod.iwd`. (The script route, `resetmissiledetonationtime()`, was the fallback
+and was not needed: it restarts the fuse from the moment it is called, which is not what was asked.)
+
+📝 The POI distraction lives on the bolt entity and dies with it, so a longer fuse is exactly a
+longer distraction — which is the user's stated reason for asking.
+
+📝 `aifuseTime` (5) is untouched: it is the fuse for an AI-thrown grenade and nothing in zombies
+throws these.
+
+**Deployed v1.99.49, values confirmed inside the deployed `mod.iwd`. NOT VERIFIED IN GAME.**
