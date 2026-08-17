@@ -34,7 +34,9 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   them, helmet off on the first.
 
 **Perks**
-- All twelve perks on every map that can physically take them, with no perk limit.
+- All twelve perks on every map that can physically take them. **PERK LIMIT** in the pre-game
+  lobby picks how many you may hold at once — `MAP MAX` (the default, every perk the map offers)
+  or any number from 1 to 12, so you can play stock four-perk rules if you want to.
 - Wunderfizz on every map.
 - ⚠️ **Vulture Aid is absent on Origins and TranZit** — both maps are out of per-player network
   field space, and shipping it there crashes the map at load. Those two keep the other eleven.
@@ -48,23 +50,28 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   buildable riot shield, teddy bears and secret song.
 
 **HUD and menus**
-- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 27 toggles, so you never
+- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 29 toggles, so you never
   have to type a chat command.
 - Hitmarkers, on-screen counters, round summary, game and round timers, health bar, bleedout bar,
-  zombies remaining, zone names, velocity meter, Cold-War round HUD, perk pop-ups.
+  zombies remaining, zone names, **compass**, velocity meter, Cold-War round HUD, perk pop-ups.
 - **Power-up timers** — seconds remaining above each power-up icon, the mod's own **Death Machine**
   power-up included. Confirmed working in game.
 - **Instant match start** — no lobby countdown.
 - Solo Play is titled Solo Play, and the Classic intro cutscenes play again.
 
 **Quality of life**
-- Instant Pack-a-Punch, BO4 Max Ammo, wall buys refill your magazine, high-round fix,
-  animated camos, prone at a perk machine for +100 points.
+- Instant Pack-a-Punch (switchable off on the GAME tab), BO4 Max Ammo, wall buys refill your
+  magazine, high-round fix, animated camos, prone at a perk machine for +100 points.
 
 **Commands** — chat command and bindable console command for each:
 - `.round 30` jump to a round · `.give <weapon>` (add `pap` for upgraded, `.give list` for names)
 - `.velocity`, `.fly`, `.god`, `.ghost`, `.hud`
 - `.brutus <n>` / `.panzer <n>` / `.jumpingjacks <n>` spawn that map's real boss
+- `.pay <player> <n>` send points (it costs you) · `.bring` pull everyone to you · `.killall`
+- `.shield` the map's own buildable shield · `.staff <fire/ice/lightning/wind>` on Origins
+- `.movespeed` 1.5× movement
+
+Every command works with `.`, `!` or `/`. `.help` prints the full, self-updating list in game.
 
 ## Known issues
 

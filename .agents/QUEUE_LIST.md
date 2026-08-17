@@ -10,10 +10,10 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **69** · mod version **1.99.22**
+- SYNCED TO: checkpoint **70** · mod version **1.99.29**
 - LAST VERIFIED: 2026-08-17 — every line below was re-checked against `checkpoint_69.md` §0, the
   bottom of `QUEUE.md`, and the source tree on this date.
-- BUILT, AWAITING THE USER'S BOOT: **1, 2, 14**.  Built ≠ done, so they are **not** struck through.
+- BUILT, AWAITING THE USER'S BOOT: **1, 2, 14, 16-part, 17, 20, 21**.  Built ≠ done, so they are **not** struck through.
 - **4 is now struck** — confirmed in game on the 2026-08-17 Origins boot (checkpoint 69 §6). It is
   left on the list because only the user removes an item.
 - **14 was missing from this list entirely** and was added 2026-08-17. It is tracked in
@@ -45,7 +45,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 19. **Hitmarker hit/kill, downed and crits sound options** in the SOUND tab
 20. **INSTANT PAP toggle** in the GAME tab
 21. **Compass** in the HUD tab
-22. **PERK LIMIT selector** in the pre-game lobby
+22. ~~**PERK LIMIT selector** in the pre-game lobby~~
 
 <!-- /LIST -->
 
