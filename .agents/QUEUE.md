@@ -7026,3 +7026,43 @@ was **not** what the user checked off.
 # 2026-08-18 — starting queue 26 (settings do not survive a restart)
 
 Nothing else is in flight. 27 (hitmarker loudness) stays queued.
+
+**Both confirmed in game the same day (2026-08-18):**
+
+- **Queue 25 — Awful Lawton.** *"just tested out the pap'd crossbow > awful lawton and the monkey
+  bomb effect works perfectly as expected."* Shipped v1.99.39, confirmed at v1.99.45.
+- **Queue 26 — settings survive a restart.** *"that's all good."* 🌟 And it is confirmed by the
+  file, not only by the report: `players\mods\zm_qol\plutonium_zm.cfg` now carries every option row
+  as a `seta` line holding the user's own values — `round_summary "0"`, `hud_compass "0"`,
+  `crit_sound "2"`, `downed_sound "2"` — with `godmode`/`fly` correctly absent, exactly as the
+  CHEATS exclusion intends. That is the mechanism demonstrating itself, not a single clean run.
+
+Both struck in `QUEUE_LIST.md`. **Only 27 (hitmarker loudness) remains of the three raised today.**
+
+---
+
+# 2026-08-18 — starting queue 27 (hitmarker sounds are drowned out by gunfire)
+
+**Two defects found, both measured, both fixed in v1.99.46.**
+
+1. **The packs were on the same mix bus as gunfire.** All 22 feedback aliases shipped as
+   `bus_hdrfx` / `grp_foley` — `bus_hdrfx` is the bus the loud world sounds sit on
+   (`wpn_rgunmk2_fire_plr` is `bus_hdrfx`, vol 91, dumped from `patch_zm.ff`), and it is dynamically
+   compressed, so a firing HAMR flattens everything else on it. 🌟 **Volume was already proven not
+   to be the lever:** `zmqol_crit_bo7` and `zmqol_crit_mw` were at VolMax **100**, the top of the
+   column, and were inaudible all the same. Rerouted to Treyarch's own hitmarker routing —
+   `bus_fx`, `grp_weapon`, `CenterSend 100`, `dist 0/5000/5000` — taken from `spl_hit_alert` as it
+   ships in `zmb_nuked_real.all`, with VolMin/VolMax at **99**, the highest value found anywhere in
+   stock's 3,832-row `mpl_common` table. `snp_never_duck` is kept rather than stock's `snp_impacts`,
+   deliberately: it is the more protective of the two and the rows already carried it.
+2. 🛑 **The DEFAULT hitmarker sound has been silent since the day it shipped.** It played
+   `mpl_hit_alert`, which lives only in `mpl_common.all` — multiplayer. Dumped every soundbank a
+   zombies map loads (`zmb_common`, `zmb_patch`, `zmb_code_post_gfx`, `cmn_root`, and Nuketown's own
+   10,550-row `zmb_nuked_real`): it is in none of them, and a missing alias is silent with no error.
+   The zombies banks carry `spl_hit_alert`, whose `FileSource` is the **same payload file**
+   (`raw\sound\mpl\hit\alert\alert_00.LN65.pc.snd`), so the one-word fix is a corrected reference to
+   the identical sound, not a substitute. 📝 Stock mixes it at vol 60, so DEFAULT is quieter than
+   the packs by Treyarch's own design.
+
+**Deployed v1.99.46: `mod.ff` relinked and the new routing confirmed inside the DEPLOYED `mod.ff`
+by re-dumping it with the Unlinker. NOT VERIFIED IN GAME.**

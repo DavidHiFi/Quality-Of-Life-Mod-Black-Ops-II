@@ -80,7 +80,11 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   that puts the pick-it-back-up prompt in the world.
 - **The Awful Lawton** (Pack-a-Punched crossbow) — its explosive bolts draw zombies to where they
   stick, like a monkey bomb, as in BO1. Upgraded only; the box crossbow is unchanged.
-  **New in v1.99.39 — deployed, not yet confirmed in game.**
+  **New in v1.99.39 — confirmed in game.**
+- **Your settings are remembered.** Everything in the mod's own options tabs is now saved with the
+  rest of your game settings and survives a restart; before v1.99.45 only the handful of rows that
+  happened to share a name with an existing dvar came back. The CHEATS tab is deliberately not
+  saved — god mode and fly are per-match states, not preferences.
 
 **Commands** — chat command and bindable console command for each:
 - `.round 30` jump to a round · `.give <weapon>` (add `pap` for upgraded, `.give list` for names)

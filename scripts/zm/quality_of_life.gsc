@@ -11483,7 +11483,7 @@ updatedamagefeedback( mod, inflictor, death, crit )
     //  is this user's own setting: `hitmarkers "0"` in the dvar dump of
     //  console_zm.log for the 2026-08-17 session. Choosing a pack is an
     //  explicit request for THAT SOUND, so the packs are not the marker's to
-    //  gate. What stays gated is the DEFAULT (choice 0) `mpl_hit_alert`, which
+    //  gate. What stays gated is the DEFAULT (choice 0) `spl_hit_alert`, which
     //  IS the hitmarker's own sound - that test lives in
     //  zmqol_play_feedback_sound(), so "hitmarkers 0" still silences it exactly
     //  as it did before.
@@ -11573,8 +11573,8 @@ do_hitmarker( mod, hitloc, hitorig, player, damage )
 //  Four dvars, all set from the pause menu's SOUND tab, all read at the moment
 //  the sound plays, so every one of them is live mid-match:
 //
-//      hit_sound     0 = DEFAULT (mpl_hit_alert)  1..8 = pack   9 = NO SOUND
-//      kill_sound    0 = DEFAULT (mpl_hit_alert)  1..8 = pack   9 = NO SOUND
+//      hit_sound     0 = DEFAULT (spl_hit_alert)  1..8 = pack   9 = NO SOUND
+//      kill_sound    0 = DEFAULT (spl_hit_alert)  1..8 = pack   9 = NO SOUND
 //      downed_sound  0 = NO SOUND                 1..3 = pack
 //      crit_sound    0 = NO SOUND                 1..2 = pack
 //
@@ -11639,8 +11639,20 @@ zmqol_play_feedback_sound( str_dvar, a_pack )
         //  the marker is drawn. Without this test, turning the marker off would
         //  no longer silence the beep, which would be a regression for anyone
         //  who used that switch to get rid of both.
+        //  🛑 v1.99.46 - spl_, NOT mpl_. THE DEFAULT ALERT HAS BEEN SILENT ALL
+        //  ALONG, and it is silent the way a missing alias always is: no error,
+        //  no log line, nothing. Dumped every soundbank a zombies map loads with
+        //  the Unlinker - zmb_common, zmb_patch, zmb_code_post_gfx, cmn_root and
+        //  Nuketown's own 10,550-row zmb_nuked_real - and `mpl_hit_alert` is in
+        //  NONE of them. It lives in mpl_common.all, which is multiplayer only.
+        //  The zombies banks carry `spl_hit_alert`, and both rows name the very
+        //  same payload:
+        //        raw\sound\mpl\hit\alert\alert_00.LN65.pc.snd
+        //  so this is a corrected reference to the identical sound, not a
+        //  substitute for it. (spl_hit_alert: bus_fx, grp_weapon, vol 60 - a good
+        //  deal quieter than the packs below, which is Treyarch's own mix.)
         if ( ( str_dvar == "hit_sound" || str_dvar == "kill_sound" ) && getdvarintdefault( "hitmarkers", 1 ) )
-            self playlocalsound( "mpl_hit_alert" );
+            self playlocalsound( "spl_hit_alert" );
 
         return;
     }

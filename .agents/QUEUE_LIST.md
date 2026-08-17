@@ -10,7 +10,12 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **75** · mod version **1.99.44**
+- SYNCED TO: checkpoint **75** · mod version **1.99.45**
+- **25 and 26 are now struck** — both confirmed in game 2026-08-18. 25: *"the monkey bomb effect
+  works perfectly as expected."* 26: confirmed twice over — the user's word, and the mod's own
+  config now carries every option as a `seta` line with their chosen values
+  (`round_summary "0"`, `hud_compass "0"`, `crit_sound "2"`…) while the CHEATS rows are correctly
+  absent, which is the mechanism proving itself rather than one good run.
 - **23 is now struck** — confirmed in game 2026-08-18: the gun (v1.99.39), the revive off Die Rise
   (v1.99.44) and the mid-down toggle (v1.99.43) all work. *"that works exactly how i want it."*
   Left on the list because only the user removes an item. 🛑 Origins is still excluded by 43 missing
@@ -53,8 +58,8 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 22. **Five-seven wall-buy removed from Origins** (the bunker one)
 23. ~~**Who's Who gives a Pack-a-Punched ballistic knife**, GAME-tab toggle~~
 24. **BO4 MAX AMMO toggle** in the GAME tab
-25. **Awful Lawton bolts distract zombies** like a monkey bomb
-26. **The mod's own menu settings do not survive a game restart** — they have to be set again, and inconsistently
+25. ~~**Awful Lawton bolts distract zombies** like a monkey bomb~~
+26. ~~**The mod's own menu settings do not survive a game restart** — they have to be set again, and inconsistently~~
 27. **Hitmarker sounds are far quieter than gunfire** — inaudible under most weapons
 
 <!-- /LIST -->
