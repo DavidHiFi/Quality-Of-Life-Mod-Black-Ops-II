@@ -7193,3 +7193,75 @@ longer distraction — which is the user's stated reason for asking.
 throws these.
 
 **Deployed v1.99.49, values confirmed inside the deployed `mod.iwd`. NOT VERIFIED IN GAME.**
+
+---
+
+# 2026-08-18 — queue 3: the Titus-6's missing sounds (v1.99.50)
+
+User: *"the gun does indeed have reload sound effects of which are missing in the port... make sure
+ALL sound effects are working not just the reload, like when you initially pick the weapon up."*
+
+## The full audit, by measurement
+
+**1. Every sound the gun asks for, enumerated by value, not by name pattern.**
+`weapons\zm\titus6_zm` has **19** non-empty `*Sound*` fields, and all 45 `*titus*` xanims in `mod.ff`
+were dumped and scanned for notetracks — **13** distinct aliases across 7 animations:
+
+| animation | calls |
+|---|---|
+| `viewmodel_titus_gl_first_raise` | `fly_reload_cloth_med`, **`fly_titus_bolt_back`**, **`fly_titus_bolt_release`** |
+| `viewmodel_titus_gl_reload_empty` | **bolt_back, bolt_release, futz, mag_in, mag_out, tap** |
+| `viewmodel_titus_mk_reload_empty` | **bolt_back, bolt_release, futz, mag_in, mag_out** |
+| `viewmodel_titus_mk_reload` | `fly_tar21_futz`, `fly_tar21_mag_in`, `fly_tar21_mag_out` |
+| `_from_masterkey` / `_to_masterkey` | `fly_titus_slide_back` / `_forward` (already shipped) |
+| `_pullout_quick` | `wpn_melee_regrip_plr` |
+
+**2. Cross-checked against what a zombies map actually loads** — Nuketown's own 10,550-row
+`zmb_nuked_real.all` table plus the mod's own 2,359-row bank. **Nine aliases were missing from both.**
+
+**3. 🌟 THE PICKUP COMPLAINT AND THE RELOAD COMPLAINT ARE THE SAME BUG.**
+`viewmodel_titus_gl_first_raise` — what plays when the gun comes out of the box — calls
+`fly_titus_bolt_back` and `fly_titus_bolt_release`, two of the missing nine. Its third sound
+(`fly_reload_cloth_med`) exists, which is why the pickup was faint rather than truly silent. The
+weapon def's own `pickupSoundPlayer` (`fly_shoulder_pickup_plr`) resolves to
+`fly_weapon_pickup_00` — **the identical payload the generic pickup uses** — so the def was never
+the problem.
+
+## What shipped
+
+Five aliases, **copied field-for-field from the campaign's own rows** in `spl_monsoon.all`
+(the campaign map that carries the Titus), with only `FileSource` re-pointed at the mod's local copy
+of the same payload:
+
+| alias | payload | already in `mod.all.sabl`? |
+|---|---|---|
+| `fly_titus_bolt_back` | `fly_assault_bb` | yes |
+| `fly_titus_bolt_release` | `fly_assault_bf` | yes |
+| `fly_titus_mag_in` | `fly_assault_mag_in` | yes |
+| `fly_titus_mag_out` | `fly_assault_mag_out` | yes |
+| `fly_titus_tap` | `fly_m14_tap` | staged from the mod's own `zone_assets` cache |
+
+🌟 Corroborated twice over: the zombies banks already define `fly_tar21_bolt_back / _bolt_release /
+_mag_in / _mag_out / _tap` against **exactly these same five payloads**. Bank grew by 35,812 bytes —
+precisely the one new payload. Alias table 2,359 → 2,364. Link: 0 warnings, 0 errors, and all five
+confirmed inside the **deployed** `mod.ff` by re-dumping it.
+
+## 🛑 What was NOT done, and why — `fly_titus_futz` and `fly_tar21_futz`
+
+**These two exist in no bank in the game.** Checked `spl_monsoon` (the campaign's own Titus set —
+16 titus aliases, no futz), `mpl_common` (3,832 rows), `zmb_nuked_real` (10,550), `zmb_patch`,
+`zmb_code_post_gfx`, `cmn_root`. The notetracks are in the animations; Treyarch never authored the
+aliases, so **they are silent in the campaign too**. Inventing them would be adding audio the real
+gun never had. Every other weapon's futz maps onto a shared payload
+(`fly_insas_futz` → spectre, `fly_hamr_futz` → mk48), so mapping these onto the generic assault futz
+is a one-line change **if the user wants it** — their call, not assumed.
+
+## 📝 On Synarxis' mod, which the user named as the reference
+
+Dumped it (`mods\SynarxisReimagined\mod.ff`). Two facts, stated because they were checked:
+its `weapons/zm/titus6_zm` is **identical to this mod's on every sound and animation field**, and its
+sound bank defines **only `fly_titus_slide_back` / `_slide_forward`** — the same two this mod already
+had. It does carry an extra weapon of its own, `mk_titus6_zm`, which uses the `fly_generic_pickup_plr`
+/ `fly_generic_raise_plr` family instead of the Titus's `fly_shoulder_*` / `wpn_gl_rifle_*` ones.
+
+**Deployed v1.99.50. NOT VERIFIED IN GAME.**
