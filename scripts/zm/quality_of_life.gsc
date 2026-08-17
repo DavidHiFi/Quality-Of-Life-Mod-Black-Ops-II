@@ -9841,6 +9841,10 @@ zmqol_whoswho_corpse_revive_arm()
         return;
 
     corpse thread zmqol_whoswho_corpse_damage_watch();
+
+    //  v1.99.44 - and the damage notify NEVER ARRIVED, so the bolt is watched
+    //  where stock itself watches it. See zmqol_whoswho_knife_impact_watch().
+    self thread zmqol_whoswho_knife_impact_watch( corpse );
 }
 
 // ============================================================================
@@ -9908,6 +9912,102 @@ zmqol_whoswho_corpse_damage_watch()
             self notify( "player_revived", e_attacker );
             return;
         }
+    }
+}
+
+// ============================================================================
+//  zmqol_whoswho_knife_impact_watch  -  v1.99.44. THE BOLT IS WATCHED WHERE
+//  STOCK WATCHES IT, BECAUSE THE CORPSE NEVER RECEIVES DAMAGE AT ALL.
+//
+//  🛑 v1.99.43's watcher was armed and it recorded NOTHING. Measured, not
+//  assumed: the 2026-08-18 03:17 TranZit session logged
+//  "whoswho: clone glow set on a script_model corpse" - and that print sits
+//  behind the same two guards, in the same loop, as the arming call, so the
+//  damage watcher was running - yet the log carries not one
+//  "whoswho corpse: damage weapon=" line while the user shot the body
+//  repeatedly with the Pack-a-Punched knife. setcandamage() is not the missing
+//  piece: a character xmodel carries no collision of its own, so the bolt goes
+//  straight through the body and no damage event is ever raised on it.
+//
+//  🌟 SO USE THE HOOK TREYARCH USES FOR THIS EXACT WEAPON. Every ballistic
+//  knife in zombies is a weapon OBJECT with a watcher -
+//  _zm_weapons.gsc:462-463 registers "knife_ballistic" and
+//  "knife_ballistic_upgraded" (Bowie and tazer-knuckle variants are added by
+//  _zm_weap_bowie.gsc:17-18 and _zm_weap_tazer_knuckles.gsc:24-25 on the maps
+//  that have them), and _zm_weap_ballistic_knife::on_spawn ends with
+//
+//        player notify( "ballistic_knife_stationary", retrievable_model, normal, prey );
+//
+//  That notify is not a guess: it is what puts the pick-your-knife-back-up
+//  prompt in the world, and that prompt demonstrably works in game today, so
+//  the path provably runs. It hands over the model that marks EXACTLY where the
+//  bolt came to rest (retrievable_model.origin = the "stationary" endpos), the
+//  entity it stuck into if any (prey), and the weapon it came from
+//  (retrievable_model.name = watcher.weapon).
+//
+//  🌟 THE HIT TEST IS STOCK'S TOO, TWICE OVER.
+//    - _zm_weap_staff_revive.gsc:45-64 - Origins' revive staff, the one other
+//      "shoot a projectile at a downed body to revive it" in the game - does not
+//      test a hitbox either. It takes the impact point and reviving anyone
+//      within 32 units of it (n_closest_dist_sq = 1024).
+//    - _zm_weap_thundergun.gsc:187-190 - the cylinder test used here verbatim:
+//      pointonsegmentnearesttopoint( view_pos, end_pos, test_origin ), then
+//      compare the distance to the radius.
+//  Eye -> resting point is the bolt's flight line, so a bolt that passes
+//  through the body and sticks in the wall behind counts, which is what Die
+//  Rise's actor hitbox does natively. 32 units is the revive staff's own radius.
+//
+//  📝 The four upgraded names are stock's list from _zm_clone::clone_damage_func;
+//  an un-upgraded knife does not revive there and does not revive here.
+//
+//  📝 Lifetime is the corpse. chugabud_corpse_cleanup() deletes it
+//  (_zm_chugabud.gsc:183) on every exit from the Who's Who state, and the delete
+//  raises "death" - the same handle stock's own wait_to_show_glowing_model()
+//  hangs its endon on.
+// ============================================================================
+zmqol_whoswho_knife_impact_watch( corpse )
+{
+    self endon( "disconnect" );
+    corpse endon( "death" );
+    level endon( "end_game" );
+
+    n_radius = 32;
+
+    for (;;)
+    {
+        self waittill( "ballistic_knife_stationary", e_model, v_normal, e_prey );
+
+        if ( !isdefined( e_model ) || !isdefined( e_model.name ) )
+            continue;
+
+        if ( !( e_model.name == "knife_ballistic_upgraded_zm" ||
+                e_model.name == "knife_ballistic_bowie_upgraded_zm" ||
+                e_model.name == "knife_ballistic_no_melee_upgraded_zm" ||
+                e_model.name == "knife_ballistic_sickle_upgraded_zm" ) )
+            continue;
+
+        //  The body's centre, not its feet - corpse.origin sits on the ground.
+        v_body = corpse.origin + ( 0, 0, 20 );
+        v_rest = e_model.origin;
+        v_near = pointonsegmentnearesttopoint( self geteye(), v_rest, v_body );
+
+        n_path_dist = distance( v_body, v_near );
+        n_rest_dist = distance( v_body, v_rest );
+
+        b_hit = n_path_dist < n_radius || n_rest_dist < n_radius;
+
+        //  If the corpse ever does stop a bolt, that is a hit with no argument.
+        if ( isdefined( e_prey ) && e_prey == corpse )
+            b_hit = 1;
+
+        println( "[zm_qol] whoswho knife: bolt at rest, path " + int( n_path_dist ) + " rest " + int( n_rest_dist ) + " from corpse, hit=" + b_hit );
+
+        if ( !b_hit )
+            continue;
+
+        println( "[zm_qol] whoswho knife: own corpse hit - notifying player_revived" );
+        corpse notify( "player_revived", self );
+        return;
     }
 }
 

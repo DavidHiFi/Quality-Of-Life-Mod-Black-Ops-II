@@ -49,6 +49,8 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 23. **Who's Who gives a Pack-a-Punched ballistic knife**, GAME-tab toggle
 24. **BO4 MAX AMMO toggle** in the GAME tab
 25. **Awful Lawton bolts distract zombies** like a monkey bomb
+26. **The mod's own menu settings do not survive a game restart** — they have to be set again, and inconsistently
+27. **Hitmarker sounds are far quieter than gunfire** — inaudible under most weapons
 
 <!-- /LIST -->
 

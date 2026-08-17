@@ -6973,3 +6973,23 @@ plainly: a bad boot will not name its own cause. Full reasoning for all four is 
   only. The name already resolves to "Awful Lawton" and needed nothing.
 
 **Deployed: v1.99.39, all four. NONE IS VERIFIED IN GAME.**
+
+---
+
+# 2026-08-18 — two new requests, QUEUED, not started (26, 27)
+
+Both raised while the Who's Who knife revive was still in flight, so both are **queued only** —
+one change at a time.
+
+- **Queue 26 — the mod's own settings do not survive a restart.** User: *"I keep having to re-do all
+  my settings from the menu, like the options you added into my mod, if i restart my game i find
+  myself having to constantly re do my settings configuration enabled/disabled for the ones you
+  added, sometimes they work sometimes they don't it's really inconsistent."* The inconsistency is
+  the important half — some settings stick, some do not. Nothing diagnosed yet; the first check is
+  whether each option's dvar is created with the archive flag / written to the right config, since
+  Plutonium keeps per-mod dvars separately (see the dvar-descriptions memory note).
+- **Queue 27 — hitmarker sounds are drowned out.** User: *"the hitmarker sound effect... I set it to
+  classic mw, it works but like i had a hammr in nuketown survival and it's much louder than the
+  hitmarker sounds so you can't even really make them out, and that's for most weapons."* The
+  options themselves work and switch correctly; this is purely level. Nothing measured yet — the
+  volume lives in the sound alias, so this is a `mod.all.sabl` question, not a GSC one.
