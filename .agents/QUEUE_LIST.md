@@ -10,7 +10,7 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
 
-- SYNCED TO: checkpoint **75** · mod version **1.99.49**
+- SYNCED TO: checkpoint **75** · mod version **1.99.50**
 - **29 is now struck** — confirmed in game 2026-08-18 (*"works perfectly toggled it on or off"*).
 - **28 is CONFIRMED BY THE LOG, not by the user**: 5 of 6 marker paths printed after v1.99.47 —
   thundergun hit+kill, tesla hit+kill, freezegun kill. The freezegun HIT path was never printed in
@@ -39,14 +39,18 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - **14 was missing from this list entirely** and was added 2026-08-17. It is tracked in
   checkpoint 68/69 §0 and in the README's Known issues, and was never a numbered line; it is not a
   new request. It traces to a checkpoint, per rule 5.
-- **3 Titus-6 reload** — the earlier "not possible" verdict is **RETRACTED**; it is a bank job and is
+- **3 is now struck** — confirmed in game 2026-08-18 at v1.99.50 (*"all sound fx are working all 3 of
+  them"*): reload, empty reload and masterkey reload. The earlier "not possible" verdict was wrong
+  and was retracted before the work started. 📝 `fly_titus_futz` / `fly_tar21_futz` were offered and
+  NOT taken — they exist in no bank in the game, so they are silent in stock too.
+- **(old note) 3 Titus-6 reload** — the RETRACTED verdict; it was a bank job and is
   scoped in `QUEUE.md`. The **box pickup/raise sound** belongs to the same pass.
 
 <!-- LIST -->
 
 1. **Who's Who description** — the joke line removed
 2. **Wunderfizz first location is random** by default
-3. **Titus-6 has no reload sound**
+3. ~~**Titus-6 has no reload sound**~~
 4. ~~**`mod.ff` runs a pre-merge copy of the mod's own script**, on every map~~
 5. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
 6. **Galvaknuckles wall-buy in Bus Depot's Tombstone room**
