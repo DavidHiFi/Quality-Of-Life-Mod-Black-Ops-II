@@ -536,14 +536,26 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 		--  element is there. The event name is mod-specific so it cannot collide
 		--  with a stock handler the way reusing gamelobby_update would.
 		--
-		--  🌟 MEASURED, from the user's screenshot at 2000x1125 (1.5625 px per
-		--  LUI unit), after the v1.99.27 spacer fix:
-		--      hint text     442.2 - 455.7
-		--      panel         451.2 - 627.8   (176.6 tall)
-		--  so the hint's bottom sat 4.5 units inside the panel's top border.
-		--  Dropping the panel 12 units puts it at 463.2 - 639.8: a clear 7.5-unit
-		--  gap under the hint, and still 32 units above the ESC Back row at 672.
-		--  Nothing else lives in that band.
+		--  🌟 MEASURED, from the user's screenshots at 2000x1125 (1.5625 px per
+		--  LUI unit). Three rounds of it, each one measured rather than nudged
+		--  by eye:
+		--      v1.99.26  panel 451.2 - 627.8, hint 460.2 - 470.4  (hint 18 in)
+		--      v1.99.27  spacer zeroed -> hint 442.2 - 455.7      (hint 4.5 in)
+		--      v1.99.28  panel 484.5 - 659.8                      (bottom on ESC)
+		--
+		--  🛑 THE NUMBERS PASSED HERE ARE NOT SCREEN COORDINATES. v1.99.28 asked
+		--  for top 463 and the panel landed at 484.5 - a constant **+21.5**, so
+		--  this element is positioned relative to its parent, not the screen. The
+		--  requested HEIGHT was honoured exactly (177 asked, 175.3 measured, the
+		--  difference being the border). So: pass (target - 21.5).
+		--  That offset is the whole reason v1.99.28 overshot, and it could only
+		--  be learned by shipping once and measuring the result.
+		--
+		--  v1.99.29 targets a panel top of ~469.5, chosen from the gap the
+		--  measurement exposes: hint bottom 460.8, ESC Back row ~672.
+		--      469.5 - 646.5  ->  8.7 units clear of the hint above
+		--                         25.5 units clear of ESC Back below
+		--  which is the middle of the only band that clears both.
 		-- ====================================================================
 		local ZmQolPanelNudge = LUI.UITimer.new(50, "zmqol_lobby_panel_nudge", false, PrivateGameLobbyButtonPane)
 		PrivateGameLobbyButtonPane:addElement(ZmQolPanelNudge)
@@ -560,7 +572,8 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 			end
 
 			Element.body.mapInfoImage.zmqolNudged = true
-			Element.body.mapInfoImage:setTopBottom(true, false, 463, 640)
+			--  448 + 21.5 parent offset = 469.5 on screen; height 177 preserved.
+			Element.body.mapInfoImage:setTopBottom(true, false, 448, 625)
 		end)
 		if CoD.useController == true and not PrivateGameLobbyButtonPane:restoreState() then
 			PrivateGameLobbyButtonPane.body.buttonList:selectElementIndex(1)
