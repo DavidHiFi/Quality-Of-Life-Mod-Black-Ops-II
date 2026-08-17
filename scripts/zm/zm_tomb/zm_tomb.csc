@@ -15,100 +15,196 @@ main()
     //  wallbuy_player_connect(), so only this VM can take them away. Without
     //  this half the result is chalk with no prompt - the exact bug this map
     //  has already shipped once.
+    //  v1.99.41 - registered HERE, in main(), on purpose: callbacks are
+    //  dispatched in the order they were added, and main() runs before
+    //  _zm_weapons.csc::init() adds stock's own. So ours unlists the wall-buy
+    //  before stock's wallbuy_player_connect() can draw its chalk. See the long
+    //  block below. The same registration slot is already used by
+    //  zm_expanded.csc (zmqol_zb_init_filter, zmqol_vulture_after_connect).
+    onplayerconnect_callback( ::zmqol_tomb_fiveseven_connect );
+
     level thread zmqol_tomb_remove_fiveseven_wallbuy();
 }
 
 // ============================================================================
 //  zmqol_tomb_remove_fiveseven_wallbuy  (CLIENT)
 //
-//  See the long block above the server twin in zm_tomb.gsc for the evidence
-//  that this wall-buy is stock Origins content and for why its CLIENTFIELD
-//  REGISTRATION IS LEFT COMPLETELY ALONE. Nothing here registers, unregisters
-//  or re-orders a clientfield: both VMs still register exactly what stock
+//  See the long block above the server twin in zm_tomb.gsc for the CLIENTFIELD
+//  REGISTRATION rule this obeys. Nothing here registers, unregisters or
+//  re-orders a clientfield: both VMs still register exactly what stock
 //  registers, so the load-time symmetry check is untouched.
 //
-//  🌟 THE TWO CALLS ARE STOCK'S OWN, not invented. _zm_weapons.csc:384-387 does
-//  precisely this pair when a buildable wall-buy changes weapon:
-//        stopfx( localclientnum, struct.fx[localclientnum] );
-//        struct.fx[localclientnum] = undefined;
-//  and it hides the weapon model with target_model hide() two lines above.
+//  🛑 v1.99.41 - THIRD ATTEMPT, AND THE FIRST ONE THAT DOES NOT TRY TO ERASE AN
+//  FX THAT IS ALREADY ON THE WALL. What the two failures taught, both measured
+//  in game rather than reasoned about:
 //
-//  📝 POLLED FROM main() RATHER THAN onplayerconnect_callback ON PURPOSE. The
-//  fx and the model are created inside stock's own connect callback, so ours
-//  would have to be ordered after it; zm_expanded.csc's header records that
-//  those callbacks are armed at a specific point in _zm.csc and that getting
-//  the order wrong is silent. A poll cannot be mis-ordered. It walks the four
-//  possible local clients so splitscreen is covered.
+//    v1.99.39  stopfx( c, handle ) - the client printed SUCCESS and the chalk
+//              was still there. stopfx ends the emitter; particles already
+//              spawned live out their lifespan, and a chalk sprite's lifespan
+//              is effectively forever.
+//    v1.99.40  deletefx( c, handle, 1 ) - the client printed NOTHING AT ALL
+//              this time, on either branch, while the server half printed
+//              normally. A thread that reaches a println and does not print it
+//              died on the statement before it, silently, the way Plutonium
+//              always kills GSC runtime errors. The three-argument form comes
+//              from a DECOMPILE (_zm.csc:659) and decompiled arg lists are not
+//              evidence - [[t6-decompiles-are-lossy]]. Only the two-argument
+//              form is corroborated by more than one stock file (_fx.csc:137,
+//              _zm_equipment.csc:30, zmeat.csc:49).
+//
+//  🌟 SO THE FX IS NEVER CREATED IN THE FIRST PLACE. Stock draws the chalk in
+//  clientscripts\mp\zombies\_zm_weapons::wallbuy_player_connect(), which walks
+//  getarraykeys( level._active_wallbuys ) and calls playfx once per entry. An
+//  entry that is not in that array when the callback runs gets no fx and no
+//  weapon model - there is nothing to remove afterwards and no fx-removal
+//  builtin in the path at all.
+//
+//  Winning that race is safe to rely on, not a bet:
+//    - this file's main() runs at script load, before ANY level init;
+//    - level._active_wallbuys is built in _zm_weapons.csc::init(), and
+//      onplayerconnect_callback( ::wallbuy_player_connect ) is the LAST line of
+//      that same init(), so the callback cannot fire before the array exists;
+//    - so the array appearing is the starting gun, and this polls for it every
+//      0.05s (one frame) instead of every 0.5s. zm_expanded.csc's own
+//      zmqol_enable_wallbuys() depends on exactly this ordering and has worked
+//      since v1.71.0.
+//
+//  Removing the key is stock-compatible. wallbuy_callback() looks its struct up
+//  by field name and, on an initial snapshot, waits for the key with
+//    while ( !isdefined( level._active_wallbuys[fieldname] ) ) wait 0.05;
+//  so a missing key parks that one callback thread harmlessly instead of
+//  faulting. Nothing else on the client reads the array.
+//
+//  The late branch is kept as a fallback for the case where the array somehow
+//  appears with the fx already drawn, and it now uses the two-argument
+//  deletefx. It prints before it calls, so a repeat of the v1.99.40 silence
+//  identifies the builtin rather than hiding behind it.
 // ============================================================================
+//  Takes the wall-buy out of level._active_wallbuys and keeps a reference to the
+//  struct. Returns 1 only on the call that actually did it, so the connect
+//  callback and the poll below can both call it and only one can win.
+//
+//  🌟 `array[key] = undefined` really does REMOVE the key in T6, and that is
+//  verified from stock rather than assumed - it has to be, because if it left a
+//  hole instead then stock's connect loop would read an undefined entry and
+//  fault, and every wall-buy after it in the list would lose its chalk AND its
+//  weapon model. _globallogic_player.gsc:509-519 shifts every later element of
+//  level.players down by one and then assigns undefined to the last index, and
+//  the very next loop iterates level.players.size expecting it to have shrunk.
+//  That code only works if the assignment deletes the key and decrements size.
+zmqol_tomb_unlist_fiveseven_wallbuy()
+{
+    if ( is_true( level._zmqol_fiveseven_unlisted ) )
+        return 0;
+
+    if ( !isdefined( level._active_wallbuys ) )
+        return 0;
+
+    //  The struct origin, straight out of the retail mapents dump. Re-confirmed
+    //  at v1.99.40: within 200 units of it the map has exactly two entities,
+    //  this struct and its t6_wpn_pistol_fiveseven_world model struct, and no
+    //  editor-placed fx - so the chalk can only be the wallbuy playfx.
+    v_target = ( -927.75, 3036, -52 );
+
+    keys = getarraykeys( level._active_wallbuys );
+
+    for ( i = 0; i < keys.size; i++ )
+    {
+        wallbuy = level._active_wallbuys[ keys[i] ];
+
+        if ( !isdefined( wallbuy ) || !isdefined( wallbuy.zombie_weapon_upgrade ) )
+            continue;
+
+        if ( wallbuy.zombie_weapon_upgrade != "fiveseven_zm" )
+            continue;
+
+        if ( !isdefined( wallbuy.origin ) || distancesquared( wallbuy.origin, v_target ) > 4096 )
+            continue;
+
+        //  Hold the struct itself - it is a reference, so the watchdog can still
+        //  see its .fx after it is out of the array.
+        level._zmqol_fiveseven_struct   = wallbuy;
+        level._zmqol_fiveseven_key      = keys[i];
+        level._zmqol_fiveseven_unlisted = 1;
+
+        level._active_wallbuys[ keys[i] ] = undefined;
+        return 1;
+    }
+
+    return 0;
+}
+
+//  Dispatched before stock's wallbuy_player_connect - see main().
+zmqol_tomb_fiveseven_connect( localclientnum )
+{
+    if ( zmqol_tomb_unlist_fiveseven_wallbuy() )
+    {
+        println( "[zm_qol] CLIENT origins fiveseven: unlisted " + level._zmqol_fiveseven_key
+               + " AT CONNECT (client " + localclientnum + ") - no chalk can be drawn" );
+    }
+}
+
 zmqol_tomb_remove_fiveseven_wallbuy()
 {
     level endon( "end_game" );
 
-    //  The struct origin, straight out of the retail mapents dump. The fx and
-    //  the model are placed on this exact struct, so this is the one to match.
-    v_target = ( -927.75, 3036, -52 );
+    //  BACKSTOP 1 - if the connect callback somehow ran before the array was
+    //  built, catch it here. One frame per pass, 2400 passes = 120s.
+    n_frames = 0;
 
-    n_passes     = 0;
-    n_found      = 0;
-    n_found_pass = 0;
+    while ( n_frames < 2400 && !is_true( level._zmqol_fiveseven_unlisted ) )
+    {
+        n_frames++;
 
-    //  Up to 120 passes (60s) to find it, then 20 more to keep it gone through
-    //  a late clientfield snap. Re-hiding an already hidden model is a no-op.
-    while ( n_passes < 120 || ( n_found > 0 && n_passes < n_found_pass + 20 ) )
+        if ( zmqol_tomb_unlist_fiveseven_wallbuy() )
+        {
+            println( "[zm_qol] CLIENT origins fiveseven: unlisted " + level._zmqol_fiveseven_key
+                   + " BY POLL on frame " + n_frames + " (the connect callback did not get there first)" );
+        }
+
+        wait 0.05;
+    }
+
+    if ( !isdefined( level._zmqol_fiveseven_struct ) )
+    {
+        println( "[zm_qol] CLIENT origins fiveseven: NEVER FOUND the wall-buy in level._active_wallbuys in 120s - chalk untouched" );
+        return;
+    }
+
+    s_wallbuy = level._zmqol_fiveseven_struct;
+
+    //  BACKSTOP 2 - only reachable if the chalk got drawn before we unlisted.
+    //  40 passes = 20s. It prints BEFORE it calls deletefx so that a repeat of
+    //  the v1.99.40 silence names the builtin instead of hiding behind it.
+    n_passes = 0;
+    n_killed = 0;
+
+    while ( n_passes < 40 )
     {
         n_passes++;
 
-        if ( isdefined( level._active_wallbuys ) )
+        for ( c = 0; c < 4; c++ )
         {
-            keys = getarraykeys( level._active_wallbuys );
-
-            for ( i = 0; i < keys.size; i++ )
+            if ( isdefined( s_wallbuy.fx ) && isdefined( s_wallbuy.fx[c] ) )
             {
-                wallbuy = level._active_wallbuys[ keys[i] ];
+                println( "[zm_qol] CLIENT origins fiveseven: LATE fx on client " + c
+                       + " (pass " + n_passes + ") - calling deletefx( c, handle )" );
 
-                if ( !isdefined( wallbuy ) || !isdefined( wallbuy.zombie_weapon_upgrade ) )
-                    continue;
+                deletefx( c, s_wallbuy.fx[c] );
+                s_wallbuy.fx[c] = undefined;
+                n_killed++;
 
-                if ( wallbuy.zombie_weapon_upgrade != "fiveseven_zm" )
-                    continue;
-
-                if ( !isdefined( wallbuy.origin ) || distancesquared( wallbuy.origin, v_target ) > 4096 )
-                    continue;
-
-                for ( c = 0; c < 4; c++ )
-                {
-                    if ( isdefined( wallbuy.fx ) && isdefined( wallbuy.fx[c] ) )
-                    {
-                        //  v1.99.40 - deletefx, NOT stopfx. v1.99.39 used stopfx
-                        //  and the client printed success while the chalk was
-                        //  still on the wall in game. stopfx ends the emitter and
-                        //  lets already-spawned particles live out their lifespan;
-                        //  the chalk sprite's lifespan is effectively forever, so
-                        //  nothing visible changed. deletefx with the third arg
-                        //  set is stock's own call for removing a persistent
-                        //  looping fx immediately - _zm.csc:659 kills zombie eyes
-                        //  with exactly deletefx( localclientnum, handle, 1 ).
-                        deletefx( c, wallbuy.fx[c], 1 );
-                        wallbuy.fx[c] = undefined;
-                        n_found++;
-
-                        if ( n_found_pass == 0 )
-                            n_found_pass = n_passes;
-                    }
-
-                    if ( isdefined( wallbuy.models ) && isdefined( wallbuy.models[c] ) )
-                        wallbuy.models[c] hide();
-                }
+                println( "[zm_qol] CLIENT origins fiveseven: deletefx returned on client " + c );
             }
+
+            if ( isdefined( s_wallbuy.models ) && isdefined( s_wallbuy.models[c] ) )
+                s_wallbuy.models[c] hide();
         }
 
         wait 0.5;
     }
 
-    if ( n_found == 0 )
-        println( "[zm_qol] CLIENT origins fiveseven: never found the bunker wall-buy fx - the chalk is still drawn" );
-    else
-        println( "[zm_qol] CLIENT origins fiveseven: chalk fx stopped and wall model hidden" );
+    println( "[zm_qol] CLIENT origins fiveseven: done - late fx killed: " + n_killed );
 }
 
 // ============================================================================
