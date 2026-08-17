@@ -316,3 +316,48 @@ Route: PNG → `tools_dxt5_encode.js` (payload under the stock file's own 128-by
 `ImageConverter.exe --t6` → `.iwi` → `images\` → `build.bat`. Needs `pngjs` (`npm install pngjs`).
 
 Deployed `.iwi`: `ver=27 fmt=13 flags=2 1024×512 524,352`, byte-identical to source inside `mod.iwd`.
+
+---
+
+## 12. v1.99.38 — the square edge was the CANVAS, not the encoder
+
+User, on v1.99.37: *"still looks squared where the glow ends … you messed something up, revise."*
+
+🛑 **v1.99.37's encoder rewrite was a real fix for a real defect, but it was not this defect.** Two
+different faults sat on top of each other: blocky *texture* inside the glow (the encoder, fixed in
+.37) and a straight *edge* where the glow stops (the artwork, fixed here). Chasing the first one
+again would have wasted another boot.
+
+**How it was isolated, since the menu's own flare defeats a plain luminance scan:** the user's
+earlier BO2-Reimagined screenshot is the *same menu at the same moment*, so differencing the two
+screenshots cancels the background and leaves only what the two textures do differently. That diff
+showed a hard-edged **rectangle** around the whole logo — a quad boundary, not a glow.
+
+**Confirmed at the source** by rendering both alpha channels with a 0.30 gamma so faint coverage
+shows. Stock fades to genuinely 0 well inside every border; the user's export does not:
+
+| border strip | stock mean alpha | theirs |
+|---|---|---|
+| bottom, y 503..511 | **0.0** | **21.9** (17.1 at the very last row) |
+| top, y 0..8 | 0.0 | 2.5 |
+| left col x=0 / right x=1023 | 0.7 / 0.0 | 5.7 / 3.2 |
+
+The Photoshop outer glow runs off the bottom and both sides of the canvas, so the renderer cuts it
+flat at the quad edge. **No conversion can fix that** — a texture has to reach zero alpha inside its
+own borders.
+
+**Fix: a smoothstep alpha ramp to zero at the four borders** — 26 px at the bottom (where the glow
+actually runs off), 10 px top, 14 px sides. Every border now measures exactly 0.00, and the subtitle
+band **retains 97.3% of its total alpha**, because everything trimmed was already below ~30/255. The
+glow around the letters is untouched; only its clipped tail is faded out. Confirmed by eye too: the
+before/after crop shows the flat cut replaced by a natural fade.
+
+📝 A considered alternative was rejected: shifting the artwork up to give the glow room does **not**
+work — it just moves the hard edge to wherever the shifted content ends, since the vacated rows are
+empty. Feathering is the only fix that does not require a re-export.
+
+📝 The feathered RGBA source is kept at `zone_assets\images\menu_zm_title_screen_SOURCE.png` so the
+texture can be re-encoded without going back to the user.
+
+Encode (v3 encoder): visible-weighted RGB error **0.922**, subtitle band 0.684. Deployed `.iwi`
+1024×512 DXT5 524,352, byte-identical to source inside `mod.iwd`.
