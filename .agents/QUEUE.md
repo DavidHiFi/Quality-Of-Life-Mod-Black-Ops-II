@@ -7595,3 +7595,43 @@ Next moves, cheapest first:
   `ammoareazombie.lua`. 🛑 That is a LAST resort: LUI here is compiled bytecode that cannot be
   decompiled ([[t6-lui-bytecode-format]]), the file would shadow all three DLC maps at once, and
   Origins' HUD is already a known-fragile area (checkpoint 64/65, the ring-menu work).
+
+---
+
+# QUEUED 2026-08-18 — THREE MORE WEAPONS (the M16 is DONE, v1.99.56)
+
+User: *"one of the main goals was to get all the weapons possible into zombies, campaign,
+multiplayer weapons & even those 3 bo1 zombies wonder weapon ports."* Four were named. **The M16
+shipped in v1.99.56**; the other three are below, **not started**, one at a time.
+
+🛑 **The user named the failure mode themselves**: *"make sure you have all the visual/sound fx don't
+be missing any of those because you've had a habit of doing that prior with weapons like the titus
+(now fixed), and like the swat (now fixed) like reload sound fx etc."* Run the six-point completeness
+audit on each, and **enumerate the def BY VALUE** ([[t6-weapon-asset-enumeration]]) — the M16 write-up
+above is the worked example of what that looks like.
+
+## Q-C. Dragunov (campaign)
+🛑 **Settle the asset name FIRST.** The mod already ships `svu_zm` / `svu_upgraded_zm` — the SVU-AS,
+which is the BO2 *multiplayer* Dragunov-family sniper and is **already in the box**. The user asked
+for the **campaign** Dragunov, which may be a separate SP asset under a different name. This is
+exactly [[t6-asset-vs-def-name-mismatch]]: count the expected set and confirm by value before
+declaring anything absent or duplicated. **Ask the user whether the SVU already covers it** if the
+campaign gun turns out to be the same weapon under another name.
+
+## Q-D. MM1 grenade launcher (campaign)
+Savimbi's grenade launcher from the first mission. Look for an existing zombies port in the workspace
+before building one — `BO2-GSC-Releases\`, `BO2-Remix\`, `BO2-Cold-War-Mod\`,
+`BO2-City-Of-Mars-2021-Source-Codes\`, `t6-scripts\`. The user explicitly asked for that search
+first. Needs Pack-a-Punch name, camo and attachment handling like the other ports.
+
+## Q-E. Bouncing Betties in the box, as a LETHAL-slot weapon (multiplayer)
+🛑 Different shape from the other three — it is **equipment, not a gun**, so it occupies the lethal
+grenade slot rather than a weapon slot. Check how the mod's existing lethal handling
+(`get_player_lethal_grenade`, the claymore/betty family) behaves before registering it as a box
+result; a box weapon that lands in the grenade slot is not a normal `add_zombie_weapon` case.
+
+## 🌟 The pattern to copy for all three
+`quality_of_life.gsc::zmqol_m16_box_init()` (+ its client twin in `zm_expanded.csc`) is the current
+worked example: precache, `include_weapon` base at in_box 1 and every variant at 0, register with
+**stock's own** hint/cost/vox where stock has them, keep a per-feature dvar, and keep the client list
+identical. `zmqol_add_mp_weapon()` is the helper for guns that need a full registration.

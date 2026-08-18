@@ -45,6 +45,10 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
     mod's own — strong lead: `mod.ff` owns 154 camo images
 14. **Death Machine ammo counter shows on Buried / Mob / Origins** — those three ship their own ammo
     widget with a weapon-based hide path that ignores the hide bit; `hideAmmo`'s source still unknown
+15. **Dragunov (campaign)** into the box — 🛑 confirm first whether the already-shipped `svu_zm` is
+    the same weapon under another name
+16. **MM1 grenade launcher (campaign)** into the box — search the workspace mods for an existing port
+17. **Bouncing Betties (multiplayer)** into the box as a lethal-slot item — equipment, not a gun
 <!-- /LIST -->
 
 ---

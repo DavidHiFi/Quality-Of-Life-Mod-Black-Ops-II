@@ -30,6 +30,10 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   The Tac-45 becomes **dual-wield when Pack-a-Punched** ("Toughguy & Crybaby"), the same way
   stock's Mustang & Sally does, and ships its full multiplayer sound set — fire, dry-fire,
   distance, decay, LFE and the five reload foley cues.
+- **The M16 spins in the box now, on every map.** Treyarch registers it on TranZit as a wall buy
+  only — one in_box flag on include_weapon is the entire difference — so it could never appear
+  in the box on any map. It keeps stock's own cost, name and voice line, and its Pack-a-Punch is
+  the Skullcrusher with its grenade launcher, exactly as the wall buy always gave you.
 - **Three Black Ops 1 wonder weapons**: Thundergun, Wunderwaffe DG-2, Winter's Howl, each with
   its upgrade. They handle the special enemies properly — Brutus dies in two hits from any of
   them, helmet off on the first.

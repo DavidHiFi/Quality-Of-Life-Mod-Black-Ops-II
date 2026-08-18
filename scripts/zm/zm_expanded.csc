@@ -62,6 +62,9 @@ main()
 	// CLIENT HALF OF THE 9 PORTED MULTIPLAYER WEAPONS - see the block below.
 	zmqol_mp_weapons_init();
 
+	// CLIENT HALF OF THE M16 GOING IN THE BOX - see the block below.
+	zmqol_m16_box_init();
+
 	perks();
 
 	//  B-RISERSOUND instrument (v1.99.8). Idle until the zmqol_testsound dvar
@@ -2115,4 +2118,28 @@ zmqol_testsound_watch()
 		println( "[zm_qol] TESTSOUND 3/3  CONTROL  'zmb_powerup_grabbed'" );
 		playsound( 0, "zmb_powerup_grabbed", player.origin );
 	}
+}
+
+// ============================================================================
+//  zmqol_m16_box_init  (CLIENT)  -  EXACT TWIN of the same function in
+//  quality_of_life.gsc. v1.99.56.
+//
+//  The client half of include_weapon (clientscripts\mp\zombies\_zm_weapons.csc)
+//  builds level._included_weapons / _display_box_weapons, which is what draws
+//  the gun floating above the mystery box. A server-side registration with no
+//  client twin gives a box that hands out an M16 while showing nothing, so the
+//  two lists must stay identical - same three names, same in_box flags, and the
+//  SAME dvar gating both halves.
+// ============================================================================
+zmqol_m16_box_init()
+{
+	if ( !getdvarintdefault( "zmqol_m16_box", 1 ) )
+		return;
+
+	// the one that goes in the box
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m16_zm" );
+
+	// the Pack-a-Punch half and its grenade-launcher alt - never a box result
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m16_gl_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "gl_m16_upgraded_zm", 0 );
 }

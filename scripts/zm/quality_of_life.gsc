@@ -479,6 +479,8 @@ init()
     zmqol_dev_commands();
     zmqol_box_wonder_weapon_weights_init();
     zmqol_mp_weapons_init();
+    zmqol_m16_box_init();
+    level thread zmqol_m16_box_reassert();
     level thread zmqol_stranded_zombie_probe();
     level thread zmqol_round_dvar_watch();
     level thread zmqol_credits_banner();
@@ -7548,6 +7550,150 @@ zmqol_mp_weapons_init()
     zmqol_include_variant( "fnp45lh_upgraded_zm" );
 
     println( "[zm_qol] mp_weapons: 12 registered for the box on " + getdvar( "mapname" ) );
+}
+
+
+// ============================================================================
+//  zmqol_m16_box_init  -  THE M16 IN THE MYSTERY BOX, ON EVERY MAP   (v1.99.56)
+//
+//  User, 2026-08-18: *"the Colt M16A1 which is that 3 round burst assault rifle,
+//  it can be purchased off the wall in the tunnel of tranzit natively… but i
+//  didn't realize until now that you couldn't spin it in the mystery box."*
+//
+//  🌟 THE REASON IT IS NOT IN THE BOX IS ONE ARGUMENT, AND IT IS TREYARCH'S.
+//  zm_transit.gsc registers the gun like this:
+//      include_weapon( "m16_zm", 0 );                       :1901
+//      include_weapon( "m16_gl_upgraded_zm", 0 );           :1902
+//      add_zombie_weapon( "m16_zm", "m16_gl_upgraded_zm",
+//                         &"ZOMBIE_WEAPON_M16", 1200, "burstrifle", "", undefined );   :2001
+//  That trailing `0` on include_weapon is the in_box flag. _zm_weapons.gsc then
+//  does `struct.is_in_box = level.zombie_include_weapons[weapon_name];` when
+//  add_zombie_weapon builds the struct - so the flag is READ ONCE, at
+//  registration, and copied onto the weapon. Nothing else about the gun differs
+//  from a box weapon.
+//
+//  So on TranZit the whole fix is to set that one field on the struct the map
+//  already built. Everywhere else the gun is not registered at all, so it has to
+//  be registered the way stock does - with stock's own values, not invented ones:
+//  hint &"ZOMBIE_WEAPON_M16", cost 1200, vox "burstrifle", and create_vox left
+//  undefined exactly as :2001 leaves it.
+//
+//  🌟 THE COMPLETENESS AUDIT, RUN BEFORE A LINE WAS WRITTEN - the Titus and SWAT
+//  both shipped missing sounds and the user asked specifically not to repeat it:
+//
+//    functionality  stock's own registration, copied argument for argument.
+//    models/anims   ALREADY IN mod.ff. 6 xmodels, 4 materials, 6 images and
+//                   **63 xanims** under mod_base.zone - base, gl_grenade and the
+//                   Pack-a-Punch "grenadier" set, including reload,
+//                   reload_empty, first_raise, sprint, crawl and d2p. Nothing to
+//                   add; this is why the gun already works as a wall buy on
+//                   every map the mod loads.
+//    sound          the def names **17** distinct aliases (enumerated BY VALUE
+//                   out of weapons\m16_zm, not guessed). 16 are already in
+//                   mod.all - including both M16-specific ones,
+//                   wpn_m16_fire_npc and wpn_m16_fire_plr. The 17th is
+//                   wpn_melee_hit, the universal melee alias that 18 of the
+//                   mod's 86 shipped defs already use and which is not
+//                   M16-specific. Nothing is missing and nothing had to be added
+//                   to the bank.
+//    Pack-a-Punch   m16_gl_upgraded_zm, displayName ZOMBIE_M16_UPGRADED, with
+//                   altWeapon gl_m16_upgraded_zm - the Skullcrusher's grenade
+//                   launcher. All three are precached in init() already.
+//                   🛑 Its `attachments` field is EMPTY, so it needs NO row in
+//                   zm/pap_attach_qol.csv. That is the same reason mk48, insas
+//                   and crossbow have none, and it is why this cannot hit the
+//                   v1.89.3 Pack-a-Punch freeze.
+//    strings        &"ZOMBIE_WEAPON_M16" and ZOMBIE_M16_UPGRADED both live in
+//                   **en_patch_zm.ff**, which every zombies map loads - checked
+//                   with Unlinker --list rather than assumed, because a display
+//                   ref that resolves on TranZit and nowhere else would print
+//                   raw on the other five maps.
+//    no regression  on TranZit the wall buy is untouched: the struct keeps its
+//                   cost, hint and vox and only is_in_box changes.
+//
+//  🛑 gl_m16_upgraded_zm IS INCLUDED HERE AND STOCK DOES NOT INCLUDE IT. That is
+//  deliberate and it is this mod's own precedent, not an invention: the MP
+//  weapons register their GL alt-weapons the same way (gl_sig556_upgraded_zm,
+//  sf_sa58_upgraded_zm, the crossbow bolts) because nothing else on a
+//  non-TranZit map registers them. in_box 0 only adds the name to
+//  level._included_weapons, so it can never make it a box result.
+//
+//  🛑 ORDERING. This runs from init(), AFTER the map's own registration - the
+//  same assumption zmqol_box_wonder_weapon_weights_init() already relies on when
+//  it chains Buried's level.customrandomweaponweights. The isdefined() branch
+//  below means it is correct under either order anyway: if the struct exists the
+//  flag is flipped, if it does not the gun is registered outright.
+//
+//  Bounded and reversible, per the mod's standing rule:
+//      zmqol_m16_box 0   leave the M16 exactly as the map shipped it
+//      zmqol_m16_box 1   DEFAULT - in the box on every map
+//  🛑 The CLIENT TWIN is zm_expanded.csc::zmqol_m16_box_init() and it reads the
+//  SAME dvar. The two must never disagree - the client's include_weapon builds
+//  level._display_box_weapons, which is what draws the gun over the box.
+// ============================================================================
+zmqol_m16_box_enabled()
+{
+    return getdvarintdefault( "zmqol_m16_box", 1 );
+}
+
+zmqol_m16_box_init()
+{
+    if ( !zmqol_m16_box_enabled() )
+        return;
+
+    precacheitem( "m16_zm" );
+    precacheitem( "m16_gl_upgraded_zm" );
+    precacheitem( "gl_m16_upgraded_zm" );
+
+    include_weapon( "m16_zm" );                  // in_box defaults to 1
+    include_weapon( "m16_gl_upgraded_zm", 0 );
+    include_weapon( "gl_m16_upgraded_zm", 0 );
+
+    //  TranZit: the map already built the struct, so only the box flag changes.
+    if ( isdefined( level.zombie_weapons ) && isdefined( level.zombie_weapons[ "m16_zm" ] ) )
+    {
+        level.zombie_weapons[ "m16_zm" ].is_in_box = 1;
+        println( "[zm_qol] m16: already registered on " + getdvar( "mapname" ) + ", box flag set" );
+        return;
+    }
+
+    //  Every other map: stock's own line from zm_transit.gsc:2001, verbatim.
+    add_zombie_weapon( "m16_zm", "m16_gl_upgraded_zm", &"ZOMBIE_WEAPON_M16", 1200, "burstrifle", "", undefined );
+    println( "[zm_qol] m16: registered for the box on " + getdvar( "mapname" ) );
+}
+
+// ----------------------------------------------------------------------------
+//  🛑 THE ONE SILENT-FAILURE MODE THIS FEATURE HAS, CLOSED.
+//
+//  zmqol_m16_box_init() assumes it runs AFTER the map's own weapon registration.
+//  That assumption is well founded - zmqol_box_wonder_weapon_weights_init()
+//  already depends on it to chain Buried's level.customrandomweaponweights - but
+//  if it were ever wrong on TranZit the consequence is INVISIBLE: our
+//  add_zombie_weapon would run first, the map's would rebuild the struct from
+//  its own include_weapon( "m16_zm", 0 ), and the gun would quietly go back to
+//  wall-buy-only with nothing logged.
+//
+//  So the flag is re-asserted once, a frame later, by which point every map's
+//  init has certainly run. This is safe to do late: the box picks its weapon per
+//  spin - treasure_chest_chooseweightedrandomweapon (_zm_magicbox.gsc:911) is a
+//  flat array_randomize over the in-box weapons, rebuilt on every use - so
+//  nothing has snapshotted the list at init time.
+// ----------------------------------------------------------------------------
+zmqol_m16_box_reassert()
+{
+    level endon( "end_game" );
+
+    wait 0.05;
+
+    if ( !zmqol_m16_box_enabled() )
+        return;
+
+    if ( isdefined( level.zombie_weapons ) && isdefined( level.zombie_weapons[ "m16_zm" ] ) && !level.zombie_weapons[ "m16_zm" ].is_in_box )
+    {
+        level.zombie_include_weapons[ "m16_zm" ] = 1;
+        level.zombie_weapons[ "m16_zm" ].is_in_box = 1;
+        println( "[zm_qol] m16: box flag re-asserted on " + getdvar( "mapname" ) );
+    }
 }
 
 zmqol_add_mp_weapon( str_base, str_upgraded, str_hint, n_cost, str_vox )
