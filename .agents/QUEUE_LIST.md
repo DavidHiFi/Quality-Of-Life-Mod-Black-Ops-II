@@ -14,7 +14,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - 🛑 **NOTHING IS IN FLIGHT.** Next up is item 2, the lobby character picker - it is fully specced in QUEUE.md and the user has now twice asked for it.
 - ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
 - ✅ **v1.99.55 CONFIRMED 2026-08-18** — *"the sound effects seem to be no longer chopping/cutting out for brief moments any more"*. 🛑 One good session is not proof of a mechanism: say "not reproduced since the merge", not "fixed".
-- The list is **14 items**: old item 2 was replaced by the lobby character picker; three animated-camo items and the Death Machine ammo counter were added 2026-08-18.
+- The list is **18 items**. 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** — they assumed it shipped alongside the Olympia and M1911 on 2026-08-18. It did not, and the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
