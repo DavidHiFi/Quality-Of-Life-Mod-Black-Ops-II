@@ -7475,3 +7475,72 @@ they asked for, but they should not think Origins works today.
   table, and `GameTypeSettings` renders before `Dvars` — a dvar-backed row would land BELOW difficulty
   unless the render order is changed or the row is added as a gametype setting instead. **Settle this
   before writing the row.**
+
+---
+
+# QUEUED 2026-08-18 — ANIMATED CAMO: A TOGGLE, ALL-MAPS SUPPORT, AND CUSTOM CAMO CYCLING
+
+User, verbatim: *"if possible make the animated camos work for all maps survivals included, but it
+might seem like those 3 maps can only have the patch applied which if that is the case then it's ok…
+add an option to toggle on/off "ANIMATED CAMO PATCH" under the GAME tab… also right now i have a
+bunch of custom textures streamed to the game via plutonium/t6/images and there's animated camo's in
+there but my mod is always using a set mob of the dead looking animated camo… make it so you can
+cycle through the animated camos so you can choose to use the ones shipped with the mod itself, or
+you could use your own animated camos textures from your images folder."*
+
+**NOT STARTED.** Three separable parts, and they are NOT equally hard. Do not bundle them.
+
+## Part 1 — the GAME-tab toggle. EASY, and half of it already exists.
+
+`quality_of_life.gsc::get_pack_a_punch_weapon_options()` (the merged `animated_camo` +
+`buried_animated_camo` override) already reads **three dvars, all defaulting to 1**:
+`anim_pap_camo_buried`, `anim_pap_camo_mob`, `anim_pap_camo_origins`. Camo **40** is the animated
+index, **39** the static default.
+
+So one `ANIMATED CAMO PATCH` row driving all three is a small change. 🛑 Note the row must be a
+single toggle writing three dvars, or the three must be collapsed into one new dvar with the old
+three kept as overrides — **decide which before writing, and do not rename the existing three**
+(same reasoning as `whoswho_knife` / `move_speed` / `lod_fix`).
+🛑 GAME is at 10.0 pitches after v1.99.54, so there is room; Part C of queue item 1 also lands there.
+
+## Part 2 — "all maps, survival included". 🛑 DO NOT PROMISE THIS YET.
+
+The mechanism is NOT understood well enough to commit, and the first measurement contradicts the
+obvious model. Dumping `camo` assets straight out of the stock fastfiles:
+
+| map | camo assets | slots per weapon (e.g. `camo_ak74u`, `camo_b23r`) |
+|---|---|---|
+| `zm_transit` | 37 | **4** |
+| `zm_buried`  | 39 | **12** |
+
+**Neither has 41 slots, so camo index 40 cannot simply be `camoMaterials[40]` on that weapon.** Buried
+does have 3x more slots than TranZit, which is consistent with the DLC maps carrying more camos, but
+the index-40 lookup must resolve somewhere else — a global camo table in `patch_zm.ff` /
+`common_zm.ff`, or the engine clamping. **Settle where camo index 40 actually resolves before
+touching this part.** If it turns out the DLC maps genuinely ship an animated camo the others do not,
+the honest answer is the user's own fallback: *"it might seem like those 3 maps can only have the
+patch applied which if that is the case then it's ok."*
+
+📝 The mod's own camo assets (`camo_titus6`, `camo_thundergun`, `camo_freezegun`, `camo_tesla`) have
+**13 slots**, so they are not the source of index 40 either.
+
+## Part 3 — the user's own camos are ignored. 🌟 STRONG LEAD, needs one confirmation.
+
+**`mod.ff` OWNS 154 camo images** — `grep -icE '^image,.*camo' zone_source/mod_base.zone` — including
+every `t6_camo_*_solid` / `t6_camo_*_pattern` pair. The user has **1,570 loose `.iwi` files** in
+`%LOCALAPPDATA%\Plutonium\storage\t6\images\`, named by hash (`1111625965.iwi`).
+
+This is the ownership trap from [[t6-modff-asset-ownership-trap]] and
+[[t6-fastfile-images-and-scripts]]: a fastfile that declares an image OWNS that asset, so the mod's
+copy wins and the loose override never gets a look in. That would explain *"the ones i have in my
+pluto images folder aren't being streamed"* exactly.
+
+**The confirmation to run first:** a `.ff` stores image **headers**, not pixels — so establish
+whether `mod.ff` is shipping actual pixel data for these camo images or only headers. If only
+headers, the loose `.iwi` may still supply pixels and the real fault is elsewhere (dimension/format
+mismatch). Dump `mod.ff` with `--include-assets image` and look.
+
+**Then the cycling option** ("mod's own camos" vs "my own from the images folder") is a matter of
+whether `mod.ff` can stop owning those 154 images without breaking anything that depends on them —
+audit inbound references first, per [[t6-script-removal-inbound-audit]]'s discipline applied to
+assets.

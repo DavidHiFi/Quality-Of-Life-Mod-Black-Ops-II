@@ -9,18 +9,14 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **77** · mod version **1.99.54**
+- SYNCED TO: checkpoint **77** · mod version **1.99.55**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- BUILT, AWAITING THE USER'S BOOT: **item 1, parts A and B** (v1.99.54) - the three graphics
-  rows moved to the stock ADVANCED tab, and stock's DEPTH OF FIELD row gained a DISABLED step.
-  Part C is NOT started.
-- 🛑 **ITEM 1 PARTS A+B ARE DEPLOYED, NOT YET BOOTED.** Part C — INTRO CREDITS → HUD as FLASH
-  INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up — is still to do, and the user keyed it
-  on having a playtestable A+B build. Full request in **checkpoint_77 §2**.
-- Old 2 (the backspeed toggle) was confirmed in game and removed 2026-08-18: 8 → 7, then the new
-  item 1 above was appended, so the list is 8 again.
+- BUILT, AWAITING THE USER'S BOOT: **v1.99.55**, the sound-bank merge. v1.99.54 is confirmed.
+- ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
+- 🟡 **v1.99.55 (the sound-bank merge) IS DEPLOYED AND STILL UNVERIFIED** — the user has not yet said whether the Death Machine still sounds right.
+- The list is **13 items**: old item 2 was replaced by the lobby character picker, and three animated-camo items were added 2026-08-18.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
@@ -28,10 +24,10 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 
 <!-- LIST -->
 
-1. **Move the graphics options into the stock ADVANCED tab** — Night Mode, Fog and Model Detail Fix
-   (renamed HIGHER DRAW DISTANCE) leave the GAME tab; the mod's Depth Of Field row is deleted and
-   stock's own DOF row gains a DISABLED step below LOW. Then Intro Credits moves to the HUD tab as
-   FLASH INTRO CREDITS, beside a new FLASH HELP DISCLAIMER pop-up pointing at `.help`
+1. **Intro Credits → HUD tab as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER** pop-up
+   pointing at `.help` — this is Part C of the graphics-options request; **Parts A and B are DONE and
+   CONFIRMED in game 2026-08-18** (v1.99.54, screenshot: ADVANCED shows Night Mode / Fog / Higher
+   Draw Distance and Depth Of Field reaches DISABLED)
 2. **Map-aware character picker in the pre-game lobby**, above difficulty, classic + survival —
    Victus / Ultimis / Mob crews per map, CIA+CDC on survival. Spec and crew tables are in QUEUE.md
 3. **Prone at Mob's Electric Cherry machine gives no +100**
@@ -42,7 +38,10 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 8. **Ammo counter for the jet gun** in the bottom right
 9. **Death Machine fire sound skips** while the trigger is held — no cut-offs. 🛑 overlaps item 5
 10. **Winter's Howl freeze/ice fx fire only sometimes** — make them behave exactly like BO1's
-
+11. **ANIMATED CAMO PATCH toggle** on the GAME tab — the three `anim_pap_camo_*` dvars already exist
+12. **Animated camos on all maps** incl. survival — 🛑 mechanism not yet understood, may not be possible
+13. **Custom animated camos from `plutonium/t6/images` are ignored**, and a cycle between them and the
+    mod's own — strong lead: `mod.ff` owns 154 camo images
 <!-- /LIST -->
 
 ---
