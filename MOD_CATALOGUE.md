@@ -610,6 +610,22 @@ mod has no perma-perk system to toggle.
 📝 There was never a GAME tab for the mod to hide: the `optionssettings.lua` this project is built
 on registers exactly four tabs unconditionally. This **adds** tabs.
 
+📝 **v1.99.54 — three rows left the GAME tab for the stock ADVANCED tab**, at the user's request:
+NIGHT MODE (`night_mode`), FOG (`r_fog`) and MODEL DETAIL FIX, renamed **HIGHER DRAW DISTANCE**
+(`lod_fix`, dvar deliberately unchanged). The mod's own DEPTH OF FIELD row was **deleted** rather
+than moved — stock's ADVANCED row now carries a fourth step, **DISABLED**, so there is one DOF
+control instead of two. That row is bound to the mod's `dof_quality` dvar (0 DISABLED / 1 LOW /
+2 MEDIUM / 3 HIGH) rather than to `r_dofHDR`, because a fourth `r_dofHDR` value might be clamped by
+the hardware-profile writer and nothing in the workspace settles whether it is; the row's callback
+drives `r_dof_enable` and `r_dofHDR` itself. GAME is now 10.0 pitches and ADVANCED 15.0 — the
+number the SOUND tab was measured good at in v1.99.33.
+
+🛑 **FOG only applies from the in-game pause menu, and that is pre-existing.** `r_fog` is cheat
+protected: this install's logs carry "Cannot set cheat dvar r_fog" 22 times, every one in a rotation
+where no map was ever loaded. The mod's GSC sets `sv_cheats 1` once a map runs, which is what lets
+the same row through in the pause menu, and `.fog` works a different way entirely — the server
+pushes it with `setclientdvar`, which no cheat check applies to.
+
 ## 11f. Diner's Survival build-out
 
 Diner is the only added location — `scripts\zm\locs\` holds exactly one location script. Treyarch

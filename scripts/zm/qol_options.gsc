@@ -901,6 +901,26 @@ qol_opt_night_off()
         self setclientdvar( "r_lightTweakSunLight", level.qol_default_sunlight );
         self setclientdvar( "r_sky_intensity_factor0", level.qol_default_skyfactor );
     }
+
+    //  ========================================================================
+    //  🛑 v1.99.54 - PUT DEPTH OF FIELD BACK THE WAY THE ADVANCED TAB HAS IT.
+    //
+    //  qol_opt_night_on() sets r_dof_enable 0 as part of the ported night look
+    //  (it is one of the donor mod's own lines and it stays), but the donor's
+    //  disable_night_mode() never puts it back - it had no depth-of-field
+    //  option to put back. From v1.99.54 this mod does: stock's ADVANCED tab
+    //  DEPTH OF FIELD row is HIGH / MEDIUM / LOW / DISABLED and it owns
+    //  r_dof_enable. Without this line, one trip through night mode leaves the
+    //  row reading HIGH while nothing is drawn, for the rest of the session.
+    //
+    //  dof_quality is that row's own dvar: 0 = DISABLED, 1 / 2 / 3 = LOW /
+    //  MEDIUM / HIGH. Read rather than remembered on purpose - a value saved on
+    //  the way in would be stale if the row were changed while night mode was
+    //  on, and would then overwrite the player's newer choice.
+    //  ========================================================================
+    if ( getdvarintdefault( "dof_quality", 0 ) > 0 )
+        self setclientdvar( "r_dof_enable", "1" );
+
 }
 
 // ----------------------------------------------------------------------------

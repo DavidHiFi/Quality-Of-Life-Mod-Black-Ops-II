@@ -719,7 +719,10 @@ bo2dd_onplayerconnect()
         player thread bo2dd_onplayerspawned();
         player setclientdvar( "r_lodBiasRigid", "-1000" );
         player setclientdvar( "r_lodBiasSkinned", "-1000" );
-        player setclientdvar( "r_dof_enable", "0" );
+        //  🛑 v1.99.54 - r_dof_enable 0 removed, same reason as the identical
+        //  line that used to sit in nofog_onplayerconnect(): the ADVANCED tab's
+        //  DEPTH OF FIELD row owns that dvar now. The r_lodBias / r_lodScale
+        //  lines around it are untouched - they are what this module is for.
         player setclientdvar( "r_lodScaleSkinned", "1" );
         player setclientdvar( "r_lodScaleRigid", "1" );
     }
@@ -3028,8 +3031,17 @@ nofog_onplayerconnect()
         //  default deterministic instead of inherited.
         player setclientdvar( "r_fog", "1" );
 
-        //  r_dof_enable stays 0 - depth of field was never part of the report.
-        player setclientdvar( "r_dof_enable", "0" );
+        //  🛑 v1.99.54 - r_dof_enable IS NO LONGER FORCED TO 0 HERE, and this
+        //  line has to go for the new ADVANCED-tab DEPTH OF FIELD row to mean
+        //  anything. That row is the single owner of r_dof_enable now (see
+        //  CoD.OptionsSettings.QolDofCallback in ui\t6\menus\optionssettings.lua);
+        //  forcing 0 on every connect would silently undo LOW / MEDIUM / HIGH at
+        //  the start of every match and the row would look broken.
+        //
+        //  Nothing changes for anyone who has not touched the row: the mod has
+        //  archived r_dof_enable at 0 in the player's config since v1.99.45, and
+        //  the new row's own dvar dof_quality defaults to its FIRST choice,
+        //  which is DISABLED. Off stays off, it is just no longer compulsory.
 
         //  Bindable fly toggle - see zmqol_fly_key_bind(). Installed here
         //  because this is a per-player connect hook that always runs, and the

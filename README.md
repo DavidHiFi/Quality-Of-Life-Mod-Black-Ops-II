@@ -53,6 +53,10 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 **HUD and menus**
 - **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 29 toggles, so you never
   have to type a chat command.
+- **Three more on the stock ADVANCED tab** (main menu *and* pause menu): **Night Mode**, **Fog** and
+  **Higher Draw Distance**, sitting with the game's own image-quality settings where they belong.
+  The stock **Depth Of Field** row there also gains a fourth step, **DISABLED** — base BO2 only
+  lets you turn it down to LOW.
 - **Sound packs on the SOUND tab** (main menu *and* pause menu): pick the hitmarker **hit** and **kill** sound from
   eight — Cold War, MW 2019, Black Ops 4, Overwatch, Apex, 8-bit, MW Classic, Black Ops 7 — plus a
   **crit** sound on headshot and melee kills and a **downed** alert the whole squad hears. All four

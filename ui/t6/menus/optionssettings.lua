@@ -486,10 +486,79 @@ CoD.OptionsSettings.Button_AddChoices_VoiceChat = function (DrawFPSToggle)
 	DrawFPSToggle:addChoice(Engine.Localize("MENU_YES_CAPS"), "1", nil, CoD.OptionsSettings.VoiceChatCallback)
 end
 
-CoD.OptionsSettings.Button_AddChoices_DepthOfField = function (DOFChoices)
-	DOFChoices:addChoice(Engine.Localize("PLATFORM_LOW_CAPS"), 0)
-	DOFChoices:addChoice(Engine.Localize("PLATFORM_MEDIUM_CAPS"), 1)
-	DOFChoices:addChoice(Engine.Localize("PLATFORM_HIGH_CAPS"), 2)
+-- ============================================================================
+--  zm_qol v1.99.54 - DEPTH OF FIELD GAINS A FOURTH STEP: "DISABLED".
+--
+--  User, 2026-08-18: *"the base game already lets you see the option for the
+--  amount of DOF in the Advanced tab in settings, but the lowest setting you can
+--  go is to LOW, so you'd just add one more option after that and it'd be OFF or
+--  DISABLED, that way people wouldn't even realise that you couldn't turn it
+--  fully off to begin with."*
+--
+--  🛑 THE ROW IS NO LONGER BOUND TO r_dofHDR, AND THAT IS THE WHOLE DESIGN.
+--  Stock's row is a HARDWARE-PROFILE selector on r_dofHDR with three values
+--  (LOW 0, MEDIUM 1, HIGH 2), and full-off is a DIFFERENT dvar, r_dof_enable.
+--  Two ways to bolt a fourth step on, and only one of them is provable offline:
+--
+--    (a) give DISABLED an r_dofHDR value of 3. Nothing in the workspace says
+--        whether the hardware-profile writer CLAMPS an out-of-range value, and
+--        if it does the row reads back as HIGH the next time the menu opens and
+--        looks broken. That is a guess, so it is not shipped.
+--    (b) bind the row to the mod's own dvar, `dof_quality`, which has four
+--        values of our own choosing and can never be clamped by anything, and
+--        drive r_dof_enable / r_dofHDR from a per-choice CALLBACK.
+--
+--  (b) it is. The callback shape is stock's own: CoD.LeftRightSelector's
+--  UpdateChoice calls callbackFunc(params) where params carries .value and
+--  .parentSelectorButton, which is exactly what Plutonium's shipped
+--  Button_ApplyDvarChanged (the FOV SENSITIVITY row on the GRAPHICS tab, line
+--  ~575) and Treyarch's own DrawFPSCallback / VoiceChatCallback rely on.
+--
+--  🌟 IT WRITES BOTH THE DVAR AND THE HARDWARE PROFILE, like DrawFPSCallback
+--  does for cg_drawFPS. Writing only one of the two loses the setting: the menu
+--  calls Engine.SyncHardwareProfileWithDvars() when it opens and
+--  Engine.ApplyHardwareProfileSettings() when it closes, so whichever copy was
+--  not written gets overwritten by the one that was.
+--
+--  📝 DISABLED deliberately leaves r_dofHDR ALONE. Turning depth of field off
+--  should not forget which quality it was on; r_dof_enable 0 is the master
+--  switch and r_dofHDR only matters while it is 1.
+--
+--  📝 DISABLED IS ADDED FIRST, so it is the leftmost step - "one more option
+--  after LOW" as the user described it, reading HIGH > MEDIUM > LOW > DISABLED
+--  from the right. It being first also means that a `dof_quality` that does not
+--  exist yet (the very first time this menu is opened, before any map has run)
+--  displays DISABLED, which is exactly what this mod has always done.
+-- ============================================================================
+CoD.OptionsSettings.QolDofSettings = {
+	[0] = { enable = 0 },              -- DISABLED - master switch off
+	[1] = { enable = 1, hdr = 0 },     -- LOW
+	[2] = { enable = 1, hdr = 1 },     -- MEDIUM
+	[3] = { enable = 1, hdr = 2 }      -- HIGH
+}
+
+CoD.OptionsSettings.QolDofCallback = function (DofChoice)
+	local Setting = CoD.OptionsSettings.QolDofSettings[tonumber(DofChoice.value)]
+	if Setting == nil then
+		return
+	end
+	Engine.SetDvar("dof_quality", DofChoice.value)
+	Engine.SetDvar("r_dof_enable", Setting.enable)
+	if Setting.hdr ~= nil then
+		Engine.SetDvar("r_dofHDR", Setting.hdr)
+		Engine.SetHardwareProfileValue("r_dofHDR", Setting.hdr)
+	end
+end
+
+CoD.OptionsSettings.QolAddDepthOfFieldRow = function (ButtonList, LocalClientIndex)
+	local DOFChoices = ButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize("PLATFORM_DEPTH_OF_FIELD_CAPS"), "dof_quality", Engine.Localize("PLATFORM_DEPTH_OF_FIELD_DESC"))
+	local Apply = CoD.OptionsSettings.QolDofCallback
+	DOFChoices:addChoice(LocalClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0, nil, Apply)
+	DOFChoices:addChoice(LocalClientIndex, Engine.Localize("PLATFORM_LOW_CAPS"), 1, nil, Apply)
+	DOFChoices:addChoice(LocalClientIndex, Engine.Localize("PLATFORM_MEDIUM_CAPS"), 2, nil, Apply)
+	DOFChoices:addChoice(LocalClientIndex, Engine.Localize("PLATFORM_HIGH_CAPS"), 3, nil, Apply)
+	CoD.OptionsSettings.QolArchive("dof_quality")
+	return DOFChoices
 end
 
 CoD.OptionsSettings.Button_AddChoices_MaxFPS = function (MaxFPSChoices)
@@ -622,8 +691,51 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 	CoD.OptionsSettings.AdjustAntiAliasingSettings(AntiAliasingChoices)
 	CoD.Options.Button_AddChoices_YesOrNo(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_FXAA_CAPS"), "r_fxaa", Engine.Localize("PLATFORM_FXAA_DESC")))
 	CoD.Options.Button_AddChoices_OnOrOff(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_AMBIENT_OCCLUSION_CAPS"), "r_ssao", Engine.Localize("PLATFORM_AMBIENT_OCCLUSION_DESC")))
-	CoD.OptionsSettings.Button_AddChoices_DepthOfField(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_DEPTH_OF_FIELD_CAPS"), "r_dofHDR", Engine.Localize("PLATFORM_DEPTH_OF_FIELD_DESC")))
-	AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
+	CoD.OptionsSettings.QolAddDepthOfFieldRow(AdvancedTabButtonList, LocalClientIndex)
+
+	-- ========================================================================
+	--  zm_qol v1.99.54 - THE THREE WORLD-RENDERING ROWS MOVED HERE FROM THE
+	--  MOD'S OWN "GAME" TAB, at the user's request, 2026-08-18:
+	--
+	--    *"you're removing those 4 graphical related options added in the custom
+	--    GAME tab menu in settings and moving them to the existing Advanced tab
+	--    which is a stock/base game tab in settings... Also rename the MODEL
+	--    DETAIL FIX to HIGHER DRAW DISTANCE."*
+	--
+	--  They sit directly under DEPTH OF FIELD because that is what they are -
+	--  image-quality settings - and this is the image-quality group.
+	--
+	--  🛑 THE DVARS ARE NOT RENAMED WITH THE LABEL. `lod_fix` keeps its name
+	--  even though the row now reads HIGHER DRAW DISTANCE: it has been archived
+	--  in the player's config since v1.99.45 and it is the name the console
+	--  takes, so renaming it would silently reset everyone's saved setting.
+	--  Same call as whoswho_knife (v1.99.48) and move_speed (v1.99.52).
+	--
+	--  🛑 FOG ONLY APPLIES FROM THE IN-GAME PAUSE MENU, AND THAT IS PRE-EXISTING
+	--  - the move neither causes it nor cures it. r_fog is a CHEAT-PROTECTED
+	--  dvar: this install's own console_zm.log carries "Cannot set cheat dvar
+	--  r_fog" 22 times and "r_fog is cheat protected" 9 times, every one of them
+	--  in a rotation where no map fastfile was ever loaded, i.e. at the main
+	--  menu. The mod's GSC does setdvar( "sv_cheats", 1 ) once a map is running
+	--  (quality_of_life::zmqol_dev_commands), which is what lets the same row
+	--  through in the pause menu, and the .fog chat command goes the other way
+	--  round entirely - the SERVER pushes it with setclientdvar, which no cheat
+	--  check applies to. Do not "fix" this by moving the row again.
+	-- ========================================================================
+	local T = CoD.OptionsSettings.QolToggle
+	T(AdvancedTabButtonList, LocalClientIndex, "NIGHT MODE",          "night_mode", "Darker, moodier lighting.")
+	T(AdvancedTabButtonList, LocalClientIndex, "FOG",                 "r_fog",      "World fog. Off shows the map edge.")
+	T(AdvancedTabButtonList, LocalClientIndex, "HIGHER DRAW DISTANCE","lod_fix",    "Stops foreground textures popping in and out at high FOV.")
+
+	-- 🛑 v1.99.54 - THIS WAS TWO CONSECUTIVE SPACERS AND ONE OF THEM IS GONE,
+	-- and the spacer that used to sit before STREAMER MODE is gone as well.
+	-- Both were spent buying room for the three rows above. The measured box for
+	-- a settings tab is 515 units = 17.1 row-pitches, ~16.3 once the hint line is
+	-- allowed for (see the arithmetic in CreateSoundTab), but the PROVEN ceiling
+	-- is lower: at 15.5 pitches the SOUND tab's hint line touched the ESC prompt
+	-- and the user reported it (v1.99.33), and dropping one spacer to 15.0 left
+	-- ~27 px of clear air. This tab is now 14 rows + 2 half-spacers = exactly
+	-- 15.0. Do not add a row here without taking one away.
 	AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
 	CoD.Options.Button_AddChoices_YesOrNo(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_SYNC_EVERY_FRAME_CAPS"), "r_vsync", Engine.Localize("PLATFORM_VSYNC_DESC")))
 	local MaxFpsChoices = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_MAX_FPS_CAPS"), "com_maxfps", Engine.Localize("PLATFORM_MAX_FPS_DESC"))
@@ -633,7 +745,6 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 		MaxFpsChoices:disableSelector()
 	end
 	CoD.OptionsSettings.Button_AddChoices_DrawFPS(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_DRAW_FPS_CAPS"), "cg_drawFPS", Engine.Localize("PLATFORM_DRAW_FPS_DESC")))
-	AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
 	
 	CoD.OptionsSettings.Button_AddChoices_StreamerMode(AdvancedTabButtonList:addHardwareProfileLeftRightSelector("STREAMER MODE", "cl_enableStreamerMode", "Hides important networking and player information"))
 	AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
@@ -994,18 +1105,15 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	T(QolButtons, LocalClientIndex, "DRAW IDENTIFIER",    "cg_drawIdentifier",    "Session watermark at the top of the screen.")
 	T(QolButtons, LocalClientIndex, "FLASH SCRIPT HASHES","cg_flashScriptHashes", "Flash script hashes on screen.")
 
-	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
-
-	-- World rendering. Not HUD - these change how the map is drawn.   4 rows
-	T(QolButtons, LocalClientIndex, "NIGHT MODE",         "night_mode",           "Darker, moodier lighting.")
-	T(QolButtons, LocalClientIndex, "FOG",                "r_fog",                "World fog. Off shows the map edge.")
-	T(QolButtons, LocalClientIndex, "DEPTH OF FIELD",     "r_dof_enable",         "Blur at distance. Off is fully off.")
-	T(QolButtons, LocalClientIndex, "MODEL DETAIL FIX",   "lod_fix",              "Stops distant models popping in.")
-
-	-- 🛑 v1.99.51 - THIS WAS TWO SPACERS IN A ROW, left behind when HOLD TO
-	-- SPRINT was removed. Collapsing it to one buys back the 0.5 pitch that
-	-- the BACKSPEED PATCH row below spends, so the tab lands on exactly 14.5
-	-- and stays inside the proven budget above. Do not re-add the second one.
+	-- 🛑 v1.99.54 - THE FOUR WORLD-RENDERING ROWS ARE GONE FROM THIS TAB.
+	-- NIGHT MODE, FOG and MODEL DETAIL FIX (now HIGHER DRAW DISTANCE) moved to
+	-- the stock ADVANCED tab, and the mod's own DEPTH OF FIELD row was deleted
+	-- outright - stock's ADVANCED row now carries a DISABLED step instead of
+	-- there being two DOF rows in one menu. User request, 2026-08-18; see the
+	-- notes in CreateAdvancedTab and QolAddDepthOfFieldRow.
+	--
+	-- Removing them left two spacers touching again, exactly as removing HOLD TO
+	-- SPRINT did in v1.99.51. Collapsed back to one. Do not re-add the second.
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
 	-- Gameplay rules.                                                 5 rows
@@ -1050,7 +1158,7 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- Startup.                                                        1 row
 	T(QolButtons, LocalClientIndex, "INTRO CREDITS",      "intro_credits",        "Mod name and credits at match start.")
 
-	return QolContainer                            -- 13 rows + 3 spacers = 14.5
+	return QolContainer                             -- 9 rows + 2 spacers = 10.0
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
