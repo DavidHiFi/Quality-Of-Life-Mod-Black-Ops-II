@@ -93,7 +93,88 @@ CoD.PrivateGameLobby.GameTypeSettings[6].gameTypes[1] = "zcleansed"
 CoD.PrivateGameLobby.DvarDefaults = {}
 CoD.PrivateGameLobby.DvarDefaults["sv_cheats"] = 0
 -- CoD.PrivateGameLobby.DvarDefaults["zombies_minplayers"] = 1
--- CoD.PrivateGameLobby.Dvars = {}
+-- -- ===========================================================================
+--  zm_qol v1.99.58 - MAP-AWARE CHARACTER PICKER, above DIFFICULTY.
+--
+--  User, 2026-08-18: *"add that into the pre-game lobby above the difficulty
+--  option in classic mode and have it be map-aware... if you changed to
+--  tranzit/buried/die rise it would change the character selection options to
+--  match the victus crew... And also add this option when survival mode is
+--  selected... because all the survival maps only have CIA & CDC."*
+--
+--  🌟 STOCK ALREADY DOES THE HARD PART. AddGameOptionsButtons reads ui_mapname
+--  and honours an optional per-entry `maps` list - the shipped TranZit-only
+--  HELLHOUNDS row proves both the mechanism and the value format. So this is
+--  four ordinary rows bound to ONE dvar, each shown only where it belongs;
+--  there is no new machinery and no per-map code.
+--
+--  🛑 TWO THINGS HAD TO BE FIXED FIRST, BOTH IN AddGameOptionsButtons:
+--    1. MapIsValid was never reset inside the loop (Treyarch's bug). Harmless
+--       with one map-filtered row, fatal with four.
+--    2. gametype cannot separate classic from survival - ui_gameType is
+--       "zclassic" on Origins AND on a Green Run survival game. The new
+--       `modeGroups` filter reads ui_zm_gamemodegroup instead, whose values
+--       ("zclassic" / "zsurvival" / "zencounter") are written by
+--       selectmaplistzombie.lua next to ui_mapname.
+--
+--  🌟 THE CREW ORDERS ARE READ OUT OF THE STOCK SCRIPTS, NOT FROM MEMORY, and
+--  the order is NOT the order the cases appear in - zm_transit.gsc's switch
+--  lists its cases 2, 0, 3, 1. Each map's give_personality_characters():
+--
+--    characterindex   TranZit / Die Rise / Buried   Origins      Mob
+--      0              Russman   (oldman)            Dempsey      Finn
+--      1              Stuhlinger(reporter)          Nikolai      Sal
+--      2              Misty     (farmgirl)          Richtofen    Billy
+--      3              Marlton   (engineer)          Takeo        Arlington
+--
+--  Survival is the SAME mechanism, not a different one: give_team_characters()
+--  (zm_buried.gsc) also switches on characterindex - 0 and 2 give
+--  c_zom_player_cia_dlc1_fb, 1 and 3 give c_zom_player_cdc_dlc1_fb.
+--
+--  🛑 THE VALUES ARE 1-BASED because the mod's `character` dvar is: 0 means
+--  "leave whoever you spawned as alone", and 1-4 map to characterindex 0-3.
+--  qol_options.gsc::qol_opt_character() owns that translation; do not change
+--  one side without the other.
+--
+--  📝 Coop: the lobby writes a client dvar and the server reads its own, so
+--  this is the host's choice - the same limitation night_mode and lod_fix
+--  already carry. Per-client picks would need a different route entirely.
+-- ===========================================================================
+CoD.PrivateGameLobby.QolCharacter = {}
+
+local QolCrewRow = function (Index, Maps, ModeGroups, Names)
+	local Row = {}
+	Row.id = "character"
+	Row.name = "CHARACTER"
+	Row.hintText = "Which member of the crew you play as."
+	Row.maps = Maps
+	Row.modeGroups = ModeGroups
+	Row.labels = {}
+	Row.values = {}
+	Row.labels[1] = "DEFAULT"
+	Row.values[1] = 0
+	for i = 1, #Names, 1 do
+		Row.labels[i + 1] = Names[i]
+		Row.values[i + 1] = i
+	end
+	CoD.PrivateGameLobby.QolCharacter[Index] = Row
+end
+
+-- Victus, on the three maps that use the crew. Classic only.
+QolCrewRow(1, { "zm_transit", "zm_highrise", "zm_buried" }, { "zclassic" },
+	{ "RUSSMAN", "STUHLINGER", "MISTY", "MARLTON" })
+
+-- Ultimis, Origins.
+QolCrewRow(2, { "zm_tomb" }, { "zclassic" },
+	{ "DEMPSEY", "NIKOLAI", "RICHTOFEN", "TAKEO" })
+
+-- Mob of the Dead.
+QolCrewRow(3, { "zm_prison" }, { "zclassic" },
+	{ "FINN", "SAL", "BILLY", "ARLINGTON" })
+
+-- Survival, every map: the CDC and CIA teams, and nothing else exists.
+QolCrewRow(4, nil, { "zsurvival" }, { "CIA", "CDC" })
+CoD.PrivateGameLobby.Dvars = {}
 -- CoD.PrivateGameLobby.Dvars[1] = {}
 -- CoD.PrivateGameLobby.Dvars[1].id = "zombies_minplayers"
 -- CoD.PrivateGameLobby.Dvars[1].name = "MIN PLAYERS"
@@ -435,10 +516,26 @@ local AddGameOptionsButtons = function (PrivateGameLobbyButtonPane, GameOptions,
 		f13_local1 = 170
 	end
 	local Mapname = UIExpression.DvarString(nil, "ui_mapname")
+	-- zm_qol v1.99.58 - the mode GROUP, which is what the lobby's "CHANGE GAME
+	-- MODE" row actually sets. selectmaplistzombie.lua writes it alongside
+	-- ui_mapname, and its values are "zclassic" / "zsurvival" / "zencounter".
+	--
+	-- 🛑 IT IS NOT ui_gameType, AND THE DIFFERENCE MATTERS. ui_gameType is
+	-- zclassic on BOTH Origins (its only mode) and on a Green Run SURVIVAL
+	-- game, so gametype alone cannot tell "Origins with the Ultimis crew" from
+	-- "Diner survival with the CIA/CDC teams". ui_zm_gamemodegroup can.
+	local ModeGroup = UIExpression.DvarString(nil, "ui_zm_gamemodegroup")
 	local GametypeIsValid = false
 	local MapIsValid = false
 	for GameOptionsIndex = 1, #GameOptions, 1 do
 		GametypeIsValid = false
+		-- 🛑 v1.99.58 - MapIsValid IS RESET HERE, AND STOCK NEVER DID.
+		-- Treyarch declares it outside the loop and only ever sets it TRUE, so
+		-- once any entry matched the map every later map-filtered entry passed
+		-- too. It was invisible while exactly one row used a `maps` list (the
+		-- TranZit-only HELLHOUNDS row); the character rows below add four, and
+		-- without this line picking Origins would also draw the Victus crew.
+		MapIsValid = false
 		if GameOptions[GameOptionsIndex].gameTypes ~= nil then
 			for GametypeIndex = 1, #GameOptions[GameOptionsIndex].gameTypes, 1 do
 				if GameOptions[GameOptionsIndex].gameTypes[GametypeIndex] == Gametype then
@@ -456,6 +553,19 @@ local AddGameOptionsButtons = function (PrivateGameLobbyButtonPane, GameOptions,
 				end
 			end
 			if not MapIsValid then
+				GametypeIsValid = false
+			end
+		end
+		-- zm_qol v1.99.58 - optional `modeGroups` filter, same shape as `maps`.
+		if GameOptions[GameOptionsIndex].modeGroups ~= nil then
+			local ModeGroupIsValid = false
+			for ModeGroupIndex = 1, #GameOptions[GameOptionsIndex].modeGroups, 1 do
+				if GameOptions[GameOptionsIndex].modeGroups[ModeGroupIndex] == ModeGroup then
+					ModeGroupIsValid = true
+					break
+				end
+			end
+			if not ModeGroupIsValid then
 				GametypeIsValid = false
 			end
 		end
@@ -530,6 +640,12 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 		-- if PrivateGameLobbyButtonPane.body.widestButtonTextWidth < f9_local1_3 then
 		-- 	PrivateGameLobbyButtonPane.body.widestButtonTextWidth = f9_local1_3
 		-- end
+		-- zm_qol v1.99.58 - FIRST, so CHARACTER sits ABOVE DIFFICULTY as the user
+		-- asked. Row order on this pane is simply the order they are added, and
+		-- DIFFICULTY is GameTypeSettings[1], so nothing short of rendering our
+		-- table before that one puts a row above it. Only one of these four rows
+		-- can pass the map/mode filters at a time, so this adds exactly one row.
+		AddGameOptionsButtons(PrivateGameLobbyButtonPane, CoD.PrivateGameLobby.QolCharacter, "dvar")
 		AddGameOptionsButtons(PrivateGameLobbyButtonPane, CoD.PrivateGameLobby.GameTypeSettings, "gts")
 		AddGameOptionsButtons(PrivateGameLobbyButtonPane, CoD.PrivateGameLobby.Dvars, "dvar")
 		PrivateGameLobbyButtonPane:registerEventHandler("enable_sliding_zm", CoD.PrivateGameLobby.EnableSlidingZombie)

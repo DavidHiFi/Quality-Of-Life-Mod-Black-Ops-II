@@ -62,8 +62,8 @@ main()
 	// CLIENT HALF OF THE 9 PORTED MULTIPLAYER WEAPONS - see the block below.
 	zmqol_mp_weapons_init();
 
-	// CLIENT HALF OF THE M16 GOING IN THE BOX - see the block below.
-	zmqol_m16_box_init();
+	// CLIENT HALF OF THE WALL-BUY GUNS GOING IN THE BOX - see the block below.
+	zmqol_wallbuy_box_init();
 
 	perks();
 
@@ -2121,25 +2121,35 @@ zmqol_testsound_watch()
 }
 
 // ============================================================================
-//  zmqol_m16_box_init  (CLIENT)  -  EXACT TWIN of the same function in
-//  quality_of_life.gsc. v1.99.56.
+//  zmqol_wallbuy_box_init  (CLIENT)  -  EXACT TWIN of the same function in
+//  quality_of_life.gsc. v1.99.56 (M16) / v1.99.58 (Olympia + M1911).
 //
 //  The client half of include_weapon (clientscripts\mp\zombies\_zm_weapons.csc)
 //  builds level._included_weapons / _display_box_weapons, which is what draws
 //  the gun floating above the mystery box. A server-side registration with no
-//  client twin gives a box that hands out an M16 while showing nothing, so the
-//  two lists must stay identical - same three names, same in_box flags, and the
-//  SAME dvar gating both halves.
+//  client twin gives a box that hands out a weapon while showing nothing, so the
+//  two lists must stay identical - same names, same in_box flags, same dvar.
+//
+//  rottweil72_zm is the OLYMPIA. The weapon is named for the Rottweil 72 and its
+//  art for the Olympia; see the long note on the server half.
 // ============================================================================
-zmqol_m16_box_init()
+zmqol_wallbuy_box_init()
 {
-	if ( !getdvarintdefault( "zmqol_m16_box", 1 ) )
+	if ( !getdvarintdefault( "zmqol_wallbuy_box", 1 ) )
 		return;
 
-	// the one that goes in the box
+	// the three that go in the box
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m16_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "rottweil72_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m1911_zm" );
 
-	// the Pack-a-Punch half and its grenade-launcher alt - never a box result
+	// their Pack-a-Punch halves - included, but never a box result
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m16_gl_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "rottweil72_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m1911_upgraded_zm", 0 );
+
+	// alt-weapon halves - the M16's grenade launcher and Mustang & Sally's
+	// left-hand gun
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "gl_m16_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m1911lh_upgraded_zm", 0 );
 }

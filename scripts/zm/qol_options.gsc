@@ -957,11 +957,34 @@ qol_opt_character()
     if ( !isdefined( level.givecustomcharacters ) )
         return;
 
-    if ( isdefined( level.force_team_characters ) && level.force_team_characters == 1 )
-        return;
-
-    if ( level.script == "zm_tomb" || level.script == "zm_prison" )
-        return;
+    //  ========================================================================
+    //  🛑 v1.99.58 - TWO EARLY RETURNS REMOVED, AND BOTH WERE WRONG.
+    //
+    //  This function used to refuse to run in two cases. The comment above
+    //  claimed *"on Origins and Mob of the Dead nothing happens, which is
+    //  correct: their characters are story-fixed and stock guards them the same
+    //  way."* That is FALSE, and the stock dump says so plainly:
+    //
+    //      zm_prison.gsc:51   level.givecustomcharacters = ::give_personality_characters;
+    //      zm_tomb.gsc:156    level.givecustomcharacters = ::give_personality_characters;
+    //
+    //  Both switch on self.characterindex exactly the way TranZit does - Origins
+    //  cycles Dempsey / Nikolai / Richtofen / Takeo and Mob cycles Finn / Sal /
+    //  Billy / Arlington. Neither is story-fixed in classic, so the map gate was
+    //  blocking two maps that work perfectly.
+    //
+    //      if ( level.script == "zm_tomb" || level.script == "zm_prison" ) return;
+    //
+    //  The second refusal was force_team_characters, which zm_tomb.gsc:71 sets
+    //  in survival_init() - i.e. exactly the SURVIVAL case the new lobby row is
+    //  for. And give_team_characters() (zm_buried.gsc) honours characterindex
+    //  too: 0 and 2 give the CIA model, 1 and 3 the CDC one. So that guard was
+    //  refusing the one path it was supposed to protect.
+    //
+    //  What still stops it is the real precondition, checked above: a map with
+    //  no level.givecustomcharacters at all cannot switch anybody, and that is
+    //  the only condition that actually matters.
+    //  ========================================================================
 
     n_last = -1;
 

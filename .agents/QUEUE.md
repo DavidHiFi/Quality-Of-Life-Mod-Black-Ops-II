@@ -7635,3 +7635,53 @@ result; a box weapon that lands in the grenade slot is not a normal `add_zombie_
 worked example: precache, `include_weapon` base at in_box 1 and every variant at 0, register with
 **stock's own** hint/cost/vox where stock has them, keep a per-feature dvar, and keep the client list
 identical. `zmqol_add_mp_weapon()` is the helper for guns that need a full registration.
+
+---
+
+# v1.99.58 — OLYMPIA + M1911 IN THE BOX, AND THE MAP-AWARE CHARACTER PICKER
+
+User: *"add the m14 and olympia and the m1911 to the box… and after you do all that do the character
+selection option above difficulty in the pre-game menu lobby. Do it all now."*
+
+## Guns — Olympia and M1911 shipped, M14 did NOT
+
+The M16 work generalised into one table-driven `zmqol_wallbuy_box_init()`. All three are the same
+one-argument bug: `include_weapon( name, 0 )` in the map script, whose flag `_zm_weapons.gsc` copies
+onto the weapon struct once as `struct.is_in_box`.
+
+🛑 **THE OLYMPIA IS `rottweil72_zm`.** Its art is called olympia
+(`t6_wpn_shotty_olympia_view`, `viewmodel_olympia_*`) and its wall-buy fx is literally
+`fx_zmb_wall_buy_olympia` (`_zm.gsc:1221`). Searching the weapon list for "olympia" finds nothing and
+searching the art for "rottweil" finds nothing — [[t6-asset-vs-def-name-mismatch]] exactly.
+
+🛑 **THE M14 IS NOT SHIPPED AND THAT IS WHY IT IS QUEUED, NOT DONE.** `m14_zm` is a real BO2 weapon
+(`_zm.gsc:1218` registers its wall-buy fx; Buried and Die Rise register the gun), but this mod has
+**no `weapon,m14_zm` row in `mod_base.zone` and no m14 xmodel or xanim anywhere in it.** So it is an
+ASSET job — dump the def and its animation set out of a stock fastfile and ship them in `mod.ff` —
+carrying the ownership risk in [[t6-modff-asset-ownership-trap]] and [[t6-oat-load-order-decides-asset-copy]].
+The other three needed no assets at all, which is the whole reason they were quick.
+
+## The character picker
+
+Four rows, one dvar (`character`), each shown only where it belongs. **Two bugs had to be fixed
+before it could work at all:**
+
+1. 🌟 **A stock LUI bug.** `AddGameOptionsButtons` declares `MapIsValid` outside its loop and only
+   ever sets it true — so once one entry matched the map, every later map-filtered entry passed too.
+   Invisible with the single shipped map-filtered row (TranZit-only HELLHOUNDS); fatal with four.
+2. 🛑 **Gametype cannot separate classic from survival.** `ui_gameType` is `zclassic` on Origins AND
+   on a Green Run survival game. The new `modeGroups` filter reads **`ui_zm_gamemodegroup`**
+   (`zclassic` / `zsurvival` / `zencounter`), which `selectmaplistzombie.lua` writes next to
+   `ui_mapname`. Without this, Diner survival would offer the Victus crew.
+
+**And two GSC early returns were removed, both disproved by the stock dump:** the map gate on
+`zm_tomb` / `zm_prison` (both set `givecustomcharacters = ::give_personality_characters` and switch on
+`characterindex`, so neither is story-fixed) and the `force_team_characters` guard (set by Origins'
+`survival_init()` — the very survival case the row is for, and `give_team_characters` honours
+`characterindex` anyway: 0/2 → CIA, 1/3 → CDC).
+
+📝 Coop: the lobby writes a client dvar, the server reads its own, so this is the **host's** choice —
+the same limitation `night_mode` and `lod_fix` already carry.
+
+**Deployed v1.99.58. NOT VERIFIED IN GAME.** Two features in one version, at the user's explicit
+instruction; they share no code, so a bad boot is still attributable.
