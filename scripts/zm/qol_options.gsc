@@ -1000,6 +1000,47 @@ qol_opt_character()
             //  1-4 in the console maps to characterindex 0-3, so the dvar reads
             //  the way a player expects rather than exposing the engine index.
             self.characterindex = ( n_want - 1 ) % 4;
+
+            //  ================================================================
+            //  🛑 v1.99.59 - ON THE TEAM MAPS, characterindex IS IGNORED, AND
+            //  THAT IS WHY THE LOBBY PICKER DID NOTHING ON DINER SURVIVAL.
+            //
+            //  The two give_team_characters() implementations are NOT the same
+            //  function, and v1.99.58 was written against the wrong one:
+            //
+            //    zm_buried.gsc   switches on self.characterindex - 0 and 2 give
+            //                    the CIA model, 1 and 3 the CDC one.
+            //    zm_transit.gsc:1076  checks level.should_use_cia FIRST, and if
+            //                    it is defined it uses that ALONE, sets the
+            //                    model from it and then OVERWRITES
+            //                    self.characterindex with 0 or 1 on the way out.
+            //                    The characterindex switch is only the `else`.
+            //
+            //  zm_transit's survival init defines should_use_cia every time
+            //  (:88-92, `should_use_cia = 0; if ( randomint( 100 ) > 50 )
+            //  should_use_cia = 1;`), so on Diner/Farm/Town the else branch is
+            //  unreachable and setting characterindex could never have worked.
+            //  Origins' survival_init() does the same thing (zm_tomb.gsc:72-75).
+            //
+            //  So on those maps the team is chosen through should_use_cia, and
+            //  it has to be set BEFORE givecustomcharacters is called. CIA is
+            //  characterindex 0 in both implementations, which is what keeps the
+            //  lobby's ordering (1 = CIA, 2 = CDC) true on every map.
+            //
+            //  📝 It is a LEVEL variable, so in coop it is the whole team's
+            //  model, not one player's - the same host-scoped limitation the
+            //  lobby row already carries. Nothing else in either map reads it:
+            //  zm_transit uses it only at :88-92 and inside
+            //  give_team_characters().
+            //  ================================================================
+            if ( isdefined( level.should_use_cia ) )
+            {
+                if ( self.characterindex == 0 || self.characterindex == 2 )
+                    level.should_use_cia = 1;
+                else
+                    level.should_use_cia = 0;
+            }
+
             self.favorite_wall_weapons_list = [];
             self [[ level.givecustomcharacters ]]();
         }
