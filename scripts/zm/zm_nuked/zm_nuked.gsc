@@ -19,11 +19,82 @@ main()
     replaceFunc (maps\mp\zm_nuked_perks::perks_from_the_sky, ::perks_from_the_sky );
 }
 
+
+// ============================================================================
+//  zmqol_nuked_fix_sunken_spot  -  one Nuketown drop pad is ~10 units too low
+//                                                                  (v1.99.61)
+//
+//  User, 2026-08-18, with a screenshot of a half-buried Mule Kick machine:
+//  *"this drop location in nuketown is in the ground for some reason, fix it's
+//  position back to normal"*. They were standing at x 1511 y 889 z -60.
+//
+//  🌟 MEASURED OUT OF THE MAP ITSELF, NOT ESTIMATED. zm_nuked.ff's mapents were
+//  dumped with OpenAssetTools and every drop pad read off. Each `zm_random_machine`
+//  struct (up at z 2204, the air-drop start) targets a LANDING struct on the
+//  ground, and that landing struct in turn targets a `p6_zm_cratepile` blocker
+//  model - the crate stack that stands on the pad until the machine lands. The
+//  crate is placed on the floor by the level designer, so it reads the floor
+//  height for free. Landing z minus crate z, all ten pads:
+//
+//      pf15_auto2887  -72     crate -68.16   -3.84
+//      pf15_auto2899  -64     crate -62.00   -2.00
+//      pf15_auto2900  -76     crate -64.16  -11.84   <-- THIS ONE
+//      pf15_auto2901  -71     crate -69.00   -2.00
+//      pf15_auto2902  +75     crate +74.50   +0.50
+//      pf15_auto2903  -61     crate -59.00   -2.00
+//      pf15_auto2904  -66     crate -65.61   -0.39
+//      pf15_auto2905  -68     crate -64.04   -3.96
+//      pf15_auto2906  -68     crate -68.94   +0.94
+//      pf15_auto2907  -68     crate -68.48   +0.48
+//
+//  Nine pads sit between +0.94 and -3.96 of their crate; pad 2900 sits 11.84
+//  below its own. It is the only outlier and it is three times the worst of the
+//  others. Three pads use EXACTLY -2.00, so that is the designer's intended
+//  offset, which puts 2900 at -64.16 - 2.00 = -66.16 instead of -76.
+//
+//  📝 The crate origins also prove they are base-anchored rather than centred:
+//  if they were centred every pad would sit ~30 below its crate, and none does.
+//
+//  🛑 THIS IS A STOCK MAP FAULT, NOT ONE THIS MOD INTRODUCED - and it is worth
+//  saying because it explains why it shows up now. Stock fills 5 pads out of
+//  ten at random; this mod fills 9, so a pad stock usually skips is now used
+//  almost every match.
+//
+//  Matched by position with a 4-unit tolerance rather than by targetname, so if
+//  a future map file ever differs this quietly does nothing instead of moving
+//  the wrong pad. Runs before the struct lists are built, so the correction is
+//  in place whichever perk the shuffle sends there.
+// ============================================================================
+zmqol_nuked_fix_sunken_spot()
+{
+    a_air = getstructarray( "zm_random_machine", "script_noteworthy" );
+
+    for ( i = 0; i < a_air.size; i++ )
+    {
+        if ( !isdefined( a_air[i].target ) )
+            continue;
+
+        s_land = getstruct( a_air[i].target, "targetname" );
+
+        if ( !isdefined( s_land ) || !isdefined( s_land.origin ) )
+            continue;
+
+        if ( distance( s_land.origin, ( 1624, 960, -76 ) ) > 4 )
+            continue;
+
+        s_land.origin = ( s_land.origin[0], s_land.origin[1], -66.16 );
+        println( "[zm_qol] NUKED raised sunken drop pad pf15_auto2900 to z -66.16" );
+    }
+}
 init_nuked_perks()
 {
     level.perk_arrival_vehicle = getent( "perk_arrival_vehicle", "targetname" );
     level.perk_arrival_vehicle setmodel( "tag_origin" );
     flag_init( "perk_vehicle_bringing_in_perk" );
+
+    //  v1.99.61 - correct the one drop pad that sits ~10 units under the floor,
+    //  BEFORE the struct lists below read it. See the measurement above.
+    zmqol_nuked_fix_sunken_spot();
     structs = getstructarray( "zm_perk_machine", "targetname" );
 
     for ( i = 0; i < structs.size; i++ )

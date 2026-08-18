@@ -484,6 +484,7 @@ init()
     level thread zmqol_stranded_zombie_probe();
     level thread zmqol_round_dvar_watch();
     level thread zmqol_credits_banner();
+    level thread zmqol_team_emblem_watch();     // scoreboard CDC/CIA emblem (v1.99.61)
     level thread zmqol_perk_slot_connect();
     level thread zmqol_blood_money_natural_drop();
     level thread zmqol_register_announcer_vox();
@@ -3162,10 +3163,12 @@ perklimit_welcome()
 //  THE single source of prone-perk points for this mod.
 //
 //  What it does:
-//    Go prone in front of ANY perk machine -> +100 points, ONCE per machine.
-//    Machines are found dynamically by their vending targetnames, so it covers
-//    every perk zm_expanded loads on every map, and it re-scans each check so
-//    it follows MOVING machines (Die Rise elevator perks).
+//    Go prone in front of ANY perk machine -> +100 points, ONCE per machine
+//    per MATCH. Machines are found through the one universal handle stock puts
+//    on every perk use trigger ("zombie_vending"), re-read on each check, so it
+//    covers every perk on every map with nothing to keep in sync and it follows
+//    MOVING machines (Die Rise elevator perks). See the long note above
+//    prone_bonus_try_award() for why the old hand-written name list is gone.
 //
 //  Origins (zm_tomb):
 //    Origins has this feature NATIVELY (the "loose change" easter egg). We do
@@ -3175,8 +3178,12 @@ perklimit_welcome()
 //    the Origins map script (root scripts load on EVERY map and would throw
 //    "unresolved external" elsewhere).
 //
-//  Tuning: AWARD_RANGE (96) = how close you must be; SAME_MACHINE_DIST (128)
-//  = machines whose origins are within this are treated as one machine.
+//  Switch: `perk_bonus_points` (GAME tab row PERK BONUS POINTS, default ON).
+//  OFF means NO prone points anywhere, Origins' native 25 included - the user
+//  asked for exactly two states, 100-per-machine or nothing.
+//
+//  Tuning: AWARD_RANGE (96) = how close you must be. There is no longer a
+//  same-machine dedupe radius; one trigger IS one machine.
 // ============================================================================
 pbp_onplayerconnect()
 {
@@ -3205,10 +3212,6 @@ prone_bonus_monitor()
     self endon( "prone_bonus_monitor" );
     self endon( "disconnect" );
     level endon( "end_game" );
-    if ( !isdefined( self.perk_prone_claimed ) )
-        self.perk_prone_claimed = [];
-    if ( !isdefined( self.perk_prone_claimed_origins ) )
-        self.perk_prone_claimed_origins = [];
     // give the map + custom perk scripts time to spawn/link their machines
     wait 2;
     for ( ;; )
@@ -3218,7 +3221,11 @@ prone_bonus_monitor()
             wait 0.25;
             continue;
         }
-        if ( self getstance() == "prone" )
+        //  v1.99.61 - PERK BONUS POINTS row / `perk_bonus_points` dvar. Read
+        //  live, so the switch takes effect mid-match in both directions. OFF
+        //  also suppresses Origins' native 25 - see origins_change_patch() in
+        //  zm_tomb\zm_tomb.gsc, which reads the same dvar.
+        if ( self getstance() == "prone" && getdvarintdefault( "perk_bonus_points", 1 ) )
         {
             self prone_bonus_try_award();
             wait 0.25;
@@ -3228,123 +3235,106 @@ prone_bonus_monitor()
     }
 }
 
-// 🛑 THE 128-UNIT DEDUPE USED TO BE GLOBAL, AND THAT IS WHY MULE KICK PAID
-// NOTHING. The radius exists so one machine represented by TWO entities (the
-// trigger and the model) only pays once. But it was checked against every
-// origin claimed so far, regardless of which perk it belonged to - so any
-// machine standing within 128 units of one already claimed was silently
-// skipped. On maps where the mod packs several perks together (Farm is the
-// reported case) that is a normal spacing, so Mule Kick lost its 100 points to
-// whichever neighbour the player happened to prone at first.
+// ============================================================================
+//  🛑 v1.99.61 - REWRITTEN. THE NAME LIST IS GONE, AND IT WAS THE BUG.
 //
-// The dedupe is now PER MACHINE NAME. Mule Kick's trigger and model still
-// cancel each other out; an adjacent Tombstone no longer cancels Mule Kick.
+//  Two faults were reported on 2026-08-18 and both trace to the same thing:
+//  this used to enumerate SIXTEEN hand-written `vending_*` names and, for each,
+//  take getentarray(name,"target") AND getentarray(name,"targetname"), then
+//  dedupe by name. A hand-written list of engine tags is a guess with extra
+//  steps, and it drifted from the game in both directions at once.
+//
+//    * DEADSHOT PAID TWICE (Bus Depot, user screenshot). Stock tags Deadshot
+//      ASYMMETRICALLY - `_zm_perks.gsc:3050-3051` sets use_trigger.target =
+//      "vending_deadshot" and perk_machine.targetname = "vending_deadshot_model".
+//      Those are two DIFFERENT strings, so the trigger and the model landed in
+//      two different dedupe buckets and one machine paid 100 twice. Every other
+//      perk uses one string for both, which is why only Deadshot did this.
+//
+//    * MOB'S ELECTRIC CHERRY PAID NOTHING. Its model tag is
+//      "vendingelectric_cherry" - no underscore after "vending"
+//      (`_zm_perk_electric_cherry.gsc:65`) - and it was never in the list.
+//
+//  🌟 THE FIX IS TO STOP GUESSING TAGS AND ASK THE GAME. Every perk machine on
+//  every map is built by `_zm_perks::perk_machine_spawn_init()`, which at
+//  :2878 sets ONE universal handle on the use trigger:
+//
+//        use_trigger.targetname   = "zombie_vending"
+//        use_trigger.script_noteworthy = <the specialty_ name>
+//        use_trigger.machine      = <the perk model>            (:2905)
+//
+//  ...BEFORE the per-perk switch and before any custom perk's
+//  perk_machine_set_kvps callback runs, and no callback in the game overwrites
+//  it (checked: Electric Cherry's does not). It is the same handle stock's own
+//  `_zm_perks::init`, `_zm_power`, `_zm_hackables_perks`, zm_prison, zm_highrise
+//  and zm_buried_sq all use to find perk machines. Die Rise and Nuketown reroute
+//  through `level.override_perk_targetname` but still land in the same function,
+//  so they are covered too.
+//
+//  Consequences worth stating:
+//    - EXACTLY ONE ENTITY PER MACHINE, so double-paying is now structurally
+//      impossible and the 128-unit dedupe radius that used to cost Mule Kick its
+//      points on Farm is gone entirely rather than merely narrowed.
+//    - EVERY perk is covered automatically, including ones this mod has not
+//      added yet. Nothing to keep in sync.
+//    - Die Rise's elevator perks: the trigger is `linkto`'d to the machine and
+//      the machine to the elevator (`zm_highrise_elevators.gsc:853-873`), so the
+//      origin read here follows a moving machine on its own.
+//    - Pack-a-Punch is excluded by script_noteworthy, which is how stock tells
+//      it apart at `_zm_perks.gsc:38`.
+//
+//  🌟 ONE AWARD PER MACHINE PER MATCH, LEVEL-SCOPED - and that is not a choice,
+//  it is what stock does. Origins' own "loose change" easter egg
+//  (`zm_tomb_ee_side::check_for_change`) threads one loop per machine and
+//  `break`s after the first successful prone, so the machine pays once to
+//  whichever player got there first and never again. The claim is therefore
+//  stored ON THE MACHINE (trig.zmqol_prone_paid), not on the player: it cannot
+//  be farmed by a second player, cannot be re-earned after a down, and survives
+//  the machine moving.
+// ============================================================================
 prone_bonus_try_award()
 {
-    names = get_perk_machine_names();
+    trigs = getentarray( "zombie_vending", "targetname" );
 
-    for ( n = 0; n < names.size; n++ )
+    for ( i = 0; i < trigs.size; i++ )
     {
-        machines = [];
-        machines = add_ent_array( machines, getentarray( names[n], "target" ) );
-        machines = add_ent_array( machines, getentarray( names[n], "targetname" ) );
+        trig = trigs[i];
 
-        for ( i = 0; i < machines.size; i++ )
-        {
-            machine = machines[i];
-            if ( !isdefined( machine ) || !isdefined( machine.origin ) )
-                continue;
-            // once-per-machine by entity number (stable even when it moves)...
-            claim_key = "machine_" + machine getentitynumber();
-            if ( isdefined( self.perk_prone_claimed[claim_key] ) )
-                continue;
-            // ...and by origin WITHIN THIS PERK, so the trigger and the model of
-            // the same machine only pay once.
-            if ( self origin_already_claimed( names[n], machine.origin ) )
-                continue;
-            // 96 = AWARD_RANGE
-            if ( distance( self.origin, machine.origin ) > 96 )
-                continue;
-            self.perk_prone_claimed[claim_key] = 1;
-            self mark_origin_claimed( names[n], machine.origin );
-            self maps\mp\zombies\_zm_score::add_to_player_score( 100 );
-            self playsound( "zmb_cha_ching" );
-            return;
-        }
+        if ( !isdefined( trig ) || !isdefined( trig.origin ) )
+            continue;
+        // Pack-a-Punch is not a perk.
+        if ( isdefined( trig.script_noteworthy ) && trig.script_noteworthy == "specialty_weapupgrade" )
+            continue;
+        if ( isdefined( trig.zmqol_prone_paid ) )
+            continue;
+        if ( !self prone_bonus_in_range( trig ) )
+            continue;
+
+        trig.zmqol_prone_paid = 1;
+        self maps\mp\zombies\_zm_score::add_to_player_score( 100 );
+        self playsound( "zmb_cha_ching" );
+        return;
     }
 }
 
-origin_already_claimed( str_name, check_origin )
+// 96 = AWARD_RANGE, unchanged from every version before this one.
+// The use trigger is spawned 30 units ABOVE the machine's own origin
+// (_zm_perks.gsc:2875), and a prone player is at floor height, so that offset
+// eats into the budget for no good reason. Measure to the machine model as well
+// when it is linked, and take whichever is closer - this keeps the range the
+// user is already used to instead of quietly tightening it.
+prone_bonus_in_range( trig )
 {
-    if ( !isdefined( self.perk_prone_claimed_origins ) )
-        self.perk_prone_claimed_origins = [];
-    if ( !isdefined( self.perk_prone_claimed_origins[str_name] ) )
-        return 0;
+    if ( distance( self.origin, trig.origin ) <= 96 )
+        return 1;
 
-    a_origins = self.perk_prone_claimed_origins[str_name];
-
-    for ( i = 0; i < a_origins.size; i++ )
+    if ( isdefined( trig.machine ) && isdefined( trig.machine.origin ) )
     {
-        // 128 = SAME_MACHINE_DIST, now only ever compared within one perk
-        if ( distance( a_origins[i], check_origin ) < 128 )
+        if ( distance( self.origin, trig.machine.origin ) <= 96 )
             return 1;
     }
+
     return 0;
-}
-
-mark_origin_claimed( str_name, check_origin )
-{
-    if ( !isdefined( self.perk_prone_claimed_origins ) )
-        self.perk_prone_claimed_origins = [];
-    if ( !isdefined( self.perk_prone_claimed_origins[str_name] ) )
-        self.perk_prone_claimed_origins[str_name] = [];
-
-    a_origins = self.perk_prone_claimed_origins[str_name];
-    a_origins[a_origins.size] = check_origin;
-    self.perk_prone_claimed_origins[str_name] = a_origins;
-}
-
-get_perk_machine_names()
-{
-    // Every perk vending targetname zm_expanded / the maps use.
-    // (vending_packapunch is intentionally excluded - it isn't a perk.)
-    //
-    // 🛑 vending_vulture was MISSING here until v1.13.2, and the reason it never
-    // showed up before is worth keeping. _zm_perks::perk_machine_spawn_init tags a
-    // machine by switching on the perk name; specialty_nomotionsensor has no case,
-    // so before v1.13.0 Vulture Aid fell into `default:` and was tagged
-    // "vending_sleight". This list found it under that wrong name, so the prone
-    // bonus appeared to work. v1.13.0 fixed the tag to the correct
-    // "vending_vulture" (see zm_buried\zm_buried.gsc), which took it straight back
-    // out of this list - so Borough's Vulture Aid stopped paying the 100 points.
-    // Both halves are needed: the correct tag AND this entry.
-    // vending_deadshot_model is stock's OWN tag for Deadshot - _zm_perks.gsc:3051
-    // assigns it, not "vending_ads" or "vending_deadshot". Same class of bug as
-    // the vending_vulture note above; harmless to list all three.
-    return array( "vending_jugg", "vending_sleight", "vending_doubletap", "vending_doubletap2", "vending_revive", "vending_marathon", "vending_three_gun", "vending_additionalprimaryweapon", "vending_ads", "vending_deadshot", "vending_deadshot_model", "vending_nuke", "vending_divetonuke", "vending_tombstone", "vending_chugabud", "vending_vulture" );
-}
-
-get_perk_machine_ents()
-{
-    names = get_perk_machine_names();
-    machines = [];
-    for ( i = 0; i < names.size; i++ )
-    {
-        // the "in front of the machine" trigger targets the machine model
-        machines = add_ent_array( machines, getentarray( names[i], "target" ) );
-        // ...and the machine model itself (fallback / covers odd setups)
-        machines = add_ent_array( machines, getentarray( names[i], "targetname" ) );
-    }
-    return machines;
-}
-
-add_ent_array( machines, add_machines )
-{
-    if ( !isdefined( add_machines ) )
-        return machines;
-    for ( i = 0; i < add_machines.size; i++ )
-        machines[machines.size] = add_machines[i];
-    return machines;
 }
 
 // ============================================================================
@@ -3875,6 +3865,82 @@ player_too_many_weapons_monitor()
 //  first. iprintln (bottom-left feed) rather than iprintlnbold, so it does not
 //  sit across the middle of the screen while you are playing.
 // ============================================================================
+
+// ============================================================================
+//  zmqol_team_emblem_watch  -  the scoreboard emblem follows your TEAM
+//                                                                  (v1.99.61)
+//
+//  🛑 THE USER'S PREMISE WAS HALF RIGHT AND THE HALF THAT IS WRONG MATTERS.
+//  User, 2026-08-18: *"i set my character as cia in the pre game menu for
+//  nuketown, it worked and im the cia player model, but when i open the
+//  scoreboard it says CDC which obviously makes no sense"*. It IS wrong on
+//  screen - but the mod did not cause it, and stock does exactly the same thing
+//  whenever its own random roll picks CIA. Proof, not opinion:
+//
+//      maps\mp\gametypes_zm\_scoreboard.gsc:17-21
+//          if ( sessionmodeiszombiesgame() )
+//          {
+//              setdvar( "g_TeamIcon_Axis",   "faction_cia" );
+//              setdvar( "g_TeamIcon_Allies", "faction_cdc" );
+//          }
+//
+//  In zombies that pair is HARDCODED - the `game["icons"][...]` values the
+//  teamset script sets up (_teamset_cdc.gsc:24,36) are read only on the MP
+//  branch. Every zombies player is on `allies`, so the scoreboard emblem is
+//  faction_cdc on every map, in every mode, no matter which model you wear.
+//  zm_nuked.gsc:41-44 rolls `should_use_cia` at random, so a STOCK Nuketown
+//  game shows a CIA player under a CDC emblem about half the time.
+//
+//  🌟 THE FIX IS ONE DVAR, AND IT IS THE ONE STOCK ALREADY TRUSTS. The material
+//  is not in doubt either: stock itself writes "faction_cia" into
+//  g_TeamIcon_Axis two lines above, in the same zombies branch, so the asset is
+//  loaded and valid. All this does is point the ALLIES icon at whichever
+//  faction the level actually dressed the players in.
+//
+//  level.should_use_cia is the single source of that answer on every CDC/CIA
+//  map in the game - zm_buried:60, zm_nuked:41, zm_tomb:72, zm_transit:89,
+//  zm_transit_dr:59 - and it is the same variable the lobby CHARACTER picker
+//  writes (qol_options.gsc), so the emblem tracks the picker for free.
+//
+//  🛑 GRIEF AND CLEANSED ARE EXCLUDED, DELIBERATELY. Those modes have two real
+//  player teams: allies IS CDC and axis IS CIA, and the stock pair is correct.
+//  Repointing the allies icon there would put a CIA emblem on both teams.
+//
+//  It re-checks rather than firing once, because the picker can change teams
+//  from the lobby row mid-session and because _scoreboard::init() must have run
+//  first - it would otherwise overwrite this.
+// ============================================================================
+zmqol_team_emblem_watch()
+{
+    level endon( "end_game" );
+
+    if ( isdefined( level.scr_zm_ui_gametype ) )
+    {
+        if ( level.scr_zm_ui_gametype == "zgrief" || level.scr_zm_ui_gametype == "zcleansed" )
+            return;
+    }
+
+    str_last = "";
+
+    for ( ;; )
+    {
+        if ( isdefined( level.should_use_cia ) )
+        {
+            str_want = "faction_cdc";
+
+            if ( level.should_use_cia )
+                str_want = "faction_cia";
+
+            if ( str_want != str_last )
+            {
+                str_last = str_want;
+                setdvar( "g_TeamIcon_Allies", str_want );
+            }
+        }
+
+        wait 0.5;
+    }
+}
 zmqol_credits_banner()
 {
     level endon( "end_game" );
@@ -3897,13 +3963,44 @@ zmqol_credits_banner_print()
     flag_wait( "initial_blackscreen_passed" );
     wait 1;
 
-    //  v1.95.0 - `intro_credits` console dvar / QUALITY OF LIFE menu row. User
-    //  request, 2026-08-14: "add an option to disable auto flashing credits".
-    //  On by default; this one line is the whole banner.
-    if ( !getdvarintdefault( "intro_credits", 1 ) )
+    //  v1.95.0 - `intro_credits` console dvar. Menu row FLASH CREDITS, on the
+    //  HUD tab since v1.99.61 (it was INTRO CREDITS on the GAME tab before
+    //  that; the dvar name is deliberately unchanged - see the note in
+    //  optionssettings.lua). User request, 2026-08-14: "add an option to
+    //  disable auto flashing credits". On by default.
+    if ( getdvarintdefault( "intro_credits", 1 ) )
+        self iprintln( "^5Quality Of Life Mod | Credits: DavidHiFi & Synarxis" );
+
+    // ========================================================================
+    //  v1.99.61 - FLASH HELP, user request 2026-08-18: *"another bit of text
+    //  that'll flash at the games start same as the flash credits one, but this
+    //  option shows a small guide for players to access the list of commands,
+    //  so basically briefly guide them on how to open the chat and do
+    //  .help/!help"*.
+    //
+    //  🛑 THE CHAT KEY IS SEMICOLON, NOT T. That was read out of this install's
+    //  own bindings file, not assumed - %LOCALAPPDATA%\Plutonium\storage\t6\
+    //  players\bindings_zm.bdg has `bind SEMICOLON "chatmodepublic"` and
+    //  `bind Y "chatmodeteam"`, which is BO2's stock PC layout (T is not bound
+    //  to chat at all; Z is +talk, the voice key). Naming the wrong key in a
+    //  help line is worse than naming none.
+    //
+    //  It still says "default", because GSC has no way to read a client's
+    //  binds - a player who has rebound chat would be told the wrong key
+    //  otherwise. The console route is given as well precisely because it
+    //  cannot be rebound out from under the line.
+    //
+    //  Separate dvar from intro_credits so either can be turned off alone. The
+    //  short wait keeps the two banners from landing in the same frame and
+    //  reads as two lines rather than one wrapped one.
+    // ========================================================================
+    if ( !getdvarintdefault( "flash_help", 1 ) )
         return;
 
-    self iprintln( "^5Quality Of Life Mod | Credits: DavidHiFi & Synarxis" );
+    wait 0.25;
+    self iprintln( "^5Press ^3; ^5(default chat key) and type ^3.help ^5or ^3!help" );
+    wait 0.25;
+    self iprintln( "^5...for every command in this mod. From the console: ^3help 1" );
 }
 
 zmqol_dev_commands()

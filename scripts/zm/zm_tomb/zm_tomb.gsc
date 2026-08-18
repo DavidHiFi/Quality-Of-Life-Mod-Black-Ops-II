@@ -1862,17 +1862,32 @@ custom_swap_weapon( str_weapon, e_player )
     }
 }
 
-// Origins native "loose change" reward (prone at a perk machine): exact copy of
-// maps\mp\zm_tomb_ee_side::check_for_change but pays 100 instead of the stock 25.
+// Origins native "loose change" reward (prone at a perk machine): stock's own
+// maps\mp\zm_tomb_ee_side::check_for_change with two changes and no others -
+// it pays 100 instead of 25, and it honours the PERK BONUS POINTS switch.
 // (Moved here from perkbonuspoints.gsc - it must live in this Origins-only map
 // script or the zm_tomb_ee_side reference is unresolved on other maps.)
+//
+// 🛑 v1.99.61 - THE SWITCH HAD TO REACH THIS FUNCTION TOO. User, 2026-08-18:
+// *"the base black ops 2 zombies origins is the only map to give you points, it
+// gives you 25 points when you prone in front of machines but my mod makes it
+// 100 so just make sure if you do set it to disabled in settings it also
+// disables the 25 points from the base game"*. Origins is the one map where the
+// mod's own detector never runs, so gating only quality_of_life.gsc would have
+// left Origins paying regardless.
+//
+// The dvar is read at award time, not at thread start, so flipping the row
+// mid-match works in both directions. When it is off the loop keeps waiting
+// instead of returning - a machine skipped while the switch was off is still
+// claimable once it goes back on, and stock's own "pay once, then break"
+// remains exactly intact.
 origins_change_patch()
 {
     while ( true )
     {
         self waittill( "trigger", e_player );
 
-        if ( e_player getstance() == "prone" )
+        if ( e_player getstance() == "prone" && getdvarintdefault( "perk_bonus_points", 1 ) )
         {
             e_player maps\mp\zombies\_zm_score::add_to_player_score( 100 );
             play_sound_at_pos( "purchase", e_player.origin );

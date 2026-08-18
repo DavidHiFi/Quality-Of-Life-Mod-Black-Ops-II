@@ -1049,10 +1049,17 @@ end
 --  past both ends of its container, over the tab strip above and the ESC
 --  prompt below. That is the whole of the reported "scuffed-ness".
 --
---  The three tabs below are 9.5, 12 and 7 pitches, all inside the proven 14.5.
---  (HUD went 11 -> 12 in v1.99.1 with the BLEEDOUT BAR row.)
---  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTEST TAB IT HONESTLY BELONGS IN, and
---  never take any tab past 14.5 pitches (a spacer counts as 0.5).
+--  The three tabs below are 9.5, 15 and 7 pitches.
+--  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTEST TAB IT HONESTLY BELONGS IN.
+--
+--  🌟 v1.99.61 - THE CEILING IS 15.0 PITCHES, NOT 14.5, AND IT IS MEASURED.
+--  14.5 was stock's GRAPHICS tab - a proven-good lower bound that this note
+--  used to quote as a hard limit. The real number comes from CreateSoundTab's
+--  measurement pass in v1.99.33: SOUND ships at 14 rows + 2 half spacers =
+--  15.0 pitches and leaves ~27 px of clear air under the hint line, against the
+--  22 px that separates two ordinary rows. 15.5 is where the user actually
+--  reported a collision with the ESC prompt. HUD is now 15 rows = 15.0, the
+--  same total as SOUND. Do not go past it without re-measuring.
 --
 -- ============================================================================
 --  🌟 v1.96.0 - THREE TABS: GAME / HUD / CHEATS, SORTED BY WHAT EACH ROW DOES.
@@ -1116,7 +1123,7 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- SPRINT did in v1.99.51. Collapsed back to one. Do not re-add the second.
 	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
-	-- Gameplay rules.                                                 5 rows
+	-- Gameplay rules.                                                 6 rows
 	-- v1.99.26, user request 2026-08-17.
 	-- v1.99.30: LIVE now, both ways. The claim that used to sit here - that it
 	-- could only take effect next match - was wrong, and the row did nothing at
@@ -1153,12 +1160,25 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- Renaming it would reset the saved setting. Same call as whoswho_knife.
 	T(QolButtons, LocalClientIndex, "BACKSPEED PATCH",    "move_speed",           "Matches the console sideways and backwards movement speeds.")
 
-	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
+	-- v1.99.61, user request 2026-08-18. ON by default - the +100 for proning
+	-- at a perk machine is behaviour the mod has always had, so the switch
+	-- changes nothing until it is thrown. OFF is NO prone points anywhere,
+	-- Origins' native 25 included: the user asked for exactly two states, not
+	-- for a 100/25/off ladder. Live both ways; see prone_bonus_monitor() in
+	-- quality_of_life.gsc and origins_change_patch() in zm_tomb\zm_tomb.gsc.
+	T(QolButtons, LocalClientIndex, "PERK BONUS POINTS",  "perk_bonus_points",    "Prone at a perk machine for +100, once per machine.")
 
-	-- Startup.                                                        1 row
-	T(QolButtons, LocalClientIndex, "INTRO CREDITS",      "intro_credits",        "Mod name and credits at match start.")
+	-- 🛑 v1.99.61 - INTRO CREDITS IS GONE FROM THIS TAB. It moved to HUD and was
+	-- renamed FLASH CREDITS (user, 2026-08-18: *"it should be under the HUD tab
+	-- as it's a heads-up display element"*). Its DVAR is still intro_credits -
+	-- same call as whoswho_knife and move_speed: the name is already archived in
+	-- players' configs and it is what the console takes, so renaming it would
+	-- silently reset everyone's saved setting.
+	--
+	-- Removing the last row left a TRAILING spacer, which is the same layout
+	-- fault as two spacers touching. It went with the row.
 
-	return QolContainer                             -- 9 rows + 2 spacers = 10.0
+	return QolContainer                              -- 9 rows + 1 spacer = 9.5
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
@@ -1169,7 +1189,7 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 
 	local T = CoD.OptionsSettings.QolToggle
 
-	-- HUD elements, and nothing else.                                12 rows
+	-- HUD elements, and nothing else.                                15 rows
 	T(QolHudButtons, LocalClientIndex, "HUD",               "hud_master",     "Master switch for the whole HUD.")
 	T(QolHudButtons, LocalClientIndex, "HITMARKERS",        "hitmarkers",     "Hit and kill markers on your crosshair.")
 	T(QolHudButtons, LocalClientIndex, "ROUND SUMMARY",     "round_summary",  "Stats pop-up after each round.")
@@ -1190,7 +1210,31 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	T(QolHudButtons, LocalClientIndex, "COMPASS",           "hud_compass",    "Heading you are facing, top of the screen.")
 	T(QolHudButtons, LocalClientIndex, "VELOCITY METER",    "velocity",       "Your speed. Green, yellow, red.")
 
-	return QolHudContainer                                          -- 13 total
+	-- ========================================================================
+	--  v1.99.61 - THE TWO MATCH-START FLASH LINES, user request 2026-08-18.
+	--
+	--  FLASH CREDITS is the old GAME-tab row INTRO CREDITS, moved here and
+	--  renamed: *"it should be under the HUD tab as it's a heads-up display
+	--  element/hud element, not a general gameplay/game overhaul"*.
+	--  🛑 THE DVAR IS STILL intro_credits. Renaming a row's label never renames
+	--  its dvar in this file - the name is archived in every player's config and
+	--  it is what the console takes. Same call as whoswho_knife and move_speed.
+	--
+	--  FLASH HELP is new and points players at the chat command list, so they
+	--  can find .help without being told about it out of band.
+	--
+	--  🛑 ROW BUDGET: this takes HUD from 13 to 15 rows = 15.0 pitches. That is
+	--  NOT a guess - it is exactly the SOUND tab's shipped total (14 rows + 2
+	--  half spacers), the configuration measured off the user's own screenshot
+	--  in v1.99.33 and found to leave ~27 px of clear air under the hint line,
+	--  more than the 22 px between two ordinary rows. In game there is a further
+	--  50 px because SYSTEM TEST is absent there. See the long measurement note
+	--  in CreateSoundTab.
+	-- ========================================================================
+	T(QolHudButtons, LocalClientIndex, "FLASH CREDITS",     "intro_credits",  "Mod name and credits flashed at match start.")
+	T(QolHudButtons, LocalClientIndex, "FLASH HELP",        "flash_help",     "Flashes how to open the chat command list at match start.")
+
+	return QolHudContainer                                          -- 15 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)

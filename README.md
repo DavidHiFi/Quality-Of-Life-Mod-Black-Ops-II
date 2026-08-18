@@ -45,6 +45,10 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 - Wunderfizz on every map.
 - ⚠️ **Vulture Aid is absent on Origins and TranZit** — both maps are out of per-player network
   field space, and shipping it there crashes the map at load. Those two keep the other eleven.
+- **Deadshot Daiquiri's head lock-on works on a controller again.** The perk's headline effect is a
+  single client-side call, and the mod had switched off the network field that triggers it on every
+  map (stock only does that on Buried). It now rides a field the game already sends, so it costs no
+  network space and works on Buried too, where stock's own wiring is disabled by design.
 
 **Power-ups**
 - **Death Machine** drop, **Blood Money** on every map, **Zombie Blood** on four more maps,
@@ -53,14 +57,24 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 **Maps**
 - **Diner as a Survival location** on TranZit, with its own Pack-a-Punch, wall buys, Semtex,
   buildable riot shield, teddy bears and secret song.
+- **Nuketown: the sunken perk drop pad is fixed.** One of the ten air-drop pads sits 11.8 units
+  below the crate stack that marks it, against 0.5–4 for the other nine, so a machine landing there
+  is half in the rock. Measured out of the map's own entity list, not eyeballed. It is a stock map
+  fault — stock only fills five pads at random, this mod fills nine, so it turns up far more often.
+- **Nuketown, Buried, Origins, TranZit survival: the scoreboard emblem now matches your team.**
+  Zombies hardcodes the scoreboard to the CDC emblem for every player on every map, so playing as
+  CIA showed a CDC badge — in stock too, whenever its random roll picked CIA.
 
 **HUD and menus**
-- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 29 toggles, so you never
+- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 31 toggles, so you never
   have to type a chat command.
 - **Three more on the stock ADVANCED tab** (main menu *and* pause menu): **Night Mode**, **Fog** and
   **Higher Draw Distance**, sitting with the game's own image-quality settings where they belong.
   The stock **Depth Of Field** row there also gains a fourth step, **DISABLED** — base BO2 only
   lets you turn it down to LOW.
+- **FLASH CREDITS and FLASH HELP** on the HUD tab — two lines flashed at match start. Credits is the
+  old GAME-tab INTRO CREDITS row, moved where a HUD element belongs; FLASH HELP tells new players
+  how to open chat and reach `.help`, so they find the command list without being told.
 - **Sound packs on the SOUND tab** (main menu *and* pause menu): pick the hitmarker **hit** and **kill** sound from
   eight — Cold War, MW 2019, Black Ops 4, Overwatch, Apex, 8-bit, MW Classic, Black Ops 7 — plus a
   **crit** sound on headshot and melee kills and a **downed** alert the whole squad hears. All four
@@ -76,7 +90,9 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 - Instant Pack-a-Punch (switch it off on the GAME tab, mid-match, and the stock machine comes
   back — gun in, wait, gun out), BO4 Max Ammo (also a GAME-tab switch — off is exact vanilla,
   reload before you grab the drop), wall buys refill your
-  magazine, high-round fix, animated camos, prone at a perk machine for +100 points.
+  magazine, high-round fix, animated camos, **prone at a perk machine for +100 points** — once per machine
+  per match, on every perk machine on every map, with a **PERK BONUS POINTS** GAME-tab switch that
+  turns it off entirely (Origins' own 25-point version included).
 - **Who's Who hands you a Pack-a-Punched ballistic knife** instead of the starting pistol, so you
   can revive your own downed body from range — stock already wires the upgraded ballistic knife to
   revive a player clone, the perk just never gave you one. GAME-tab switch, live while you are down.

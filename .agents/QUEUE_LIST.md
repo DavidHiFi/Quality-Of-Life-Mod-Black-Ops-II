@@ -11,14 +11,30 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
 - BUILT, AWAITING THE USER'S BOOT: **v1.99.60**, the non-default cross on the CHARACTER row. Everything else through v1.99.59 is confirmed in game.
-- 🛑 **NOTHING IS IN FLIGHT.** Next up is item 2, the lobby character picker - it is fully specced in QUEUE.md and the user has now twice asked for it.
+- 🛑 **IN FLIGHT: item 3 + 19** — the prone perk-bonus rewrite and its PERK BONUS POINTS toggle. Then items 1 (Part C), 20, 21, 22, 23 in that order: the user gave one ordered batch on 2026-08-18 and explicitly asked for it to be worked straight through.
 - ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
 - ✅ **v1.99.55 CONFIRMED 2026-08-18** — *"the sound effects seem to be no longer chopping/cutting out for brief moments any more"*. 🛑 One good session is not proof of a mechanism: say "not reproduced since the merge", not "fixed".
-- The list is **18 items**. 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** — they assumed it shipped alongside the Olympia and M1911 on 2026-08-18. It did not, and the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
+- The list is **23 items** (5 struck through). 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** — they assumed it shipped alongside the Olympia and M1911 on 2026-08-18. It did not, and the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
   (measured firing on 5 of 6 paths; the 6th was never exercised).
+
+### v1.99.61 — 2026-08-18, deployed unbooted
+Five of the day's seven requests. **Item 3 is folded into the perk-bonus rewrite** (Mob's Electric
+Cherry now pays, so item 3 can close with it once booted).
+- **3 + 19** prone perk bonus rewritten off `zombie_vending`; PERK BONUS POINTS row added
+- **1 (Part C)** FLASH CREDITS moved to HUD, FLASH HELP added
+- **20** Deadshot controller aim — driven off `perk_dead_shot`, zero new clientfield bits
+- **22** scoreboard CDC/CIA emblem
+- **23** Nuketown sunken drop pad, raised to z -66.16 (measured from mapents)
+
+🛑 **21 (Carpenter) IS NOT FIXED AND WAS NOT ATTEMPTED.** No mechanism found: the mod does not
+`replaceFunc` `_zm_powerups::init`, `start_carpenter`, `start_carpenter_new` or
+`_zm_blockers::replace_chunk`, does not touch `level.use_new_carpenter_func`, and does not touch
+`level.board_repair_distance_squared` (562500 = 750 units). Stock's own `repair_far_boards()` snaps
+every barrier further than 750 units from a player with NO animation, by design. Needs from the
+user: which map, and roughly how far the barriers were.
 <!-- LIST -->
 1. **Intro Credits → HUD tab as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER** pop-up
    pointing at `.help` — this is Part C of the graphics-options request; **Parts A and B are DONE and
@@ -51,6 +67,22 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
     job: `grep -E '^weapon,' zone_source\mod_base.zone` has no `m14_zm` row and there is no m14
     xmodel or xanim anywhere in it, so the def and its animation set must be dumped from a stock
     fastfile and shipped in `mod.ff` first. Registration alone cannot work.
+19. **PERK BONUS POINTS toggle** on the GAME tab (user, 2026-08-18) — enabled/disabled. ON = +100 per
+    machine from proning; OFF = **no prone points at all**, including Origins' stock 25 (the native
+    "loose change" easter egg must be suppressed too, not just left at 25)
+20. **Deadshot head aim-assist is dead on controller** (user's friend, gamepad, 2026-08-18) — it locks
+    to the upper torso instead of the head. 🛑 CAUSE ALREADY MEASURED: `init_client_flags()` in
+    `quality_of_life.gsc` sets `level.disable_deadshot_clientfield = 1` on **every** map (stock sets it
+    only on Buried), so the `deadshot_perk` clientfield never registers and
+    `_zm.csc::player_deadshot_perk_handler`'s `usealternateaimparams()` never runs. Restoring it costs
+    1 toplayer bit per map — **Mob of the Dead's budget must be measured before it goes back**
+21. **Carpenter power-up snaps the barriers up** instead of playing the stock rebuild animation
+    (user's friend, 2026-08-18) — must be bit-for-bit stock behaviour
+22. **Scoreboard shows the CDC emblem while playing as CIA** on Nuketown (user screenshot
+    `Q00Mg0zQSi.jpg`, 2026-08-18) — the v1.99.58 character picker sets the model but not whatever the
+    scoreboard reads. Must be correct for both CDC and CIA
+23. **A Nuketown perk drop location is sunk into the ground** (user screenshot `TNl6kvDWyc.jpg`,
+    2026-08-18) — Mule Kick, on the rock slope near the crater, player at x 1511 y 889 z -60
 <!-- /LIST -->
 ---
 ## Closed — off the list, kept for the record

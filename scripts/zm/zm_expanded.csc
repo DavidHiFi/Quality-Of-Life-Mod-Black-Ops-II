@@ -1719,6 +1719,68 @@ toggle_vending_divetonuke_power_off_think()
 	}
 }
 
+
+// ============================================================================
+//  zmqol_deadshot_perk_callback  (CLIENT)                          (v1.99.61)
+//
+//  🛑 THE BUG: DEADSHOT'S HEAD LOCK-ON WAS DEAD ON CONTROLLER, ON EVERY MAP.
+//  Reported 2026-08-18 by the user's friend, who plays on a gamepad: the aim
+//  assist pulled to the upper torso instead of the head. The user plays mouse
+//  and keyboard, where Deadshot's aim assist does nothing at all, which is why
+//  it survived this long unnoticed.
+//
+//  🌟 THE MECHANISM, READ OUT OF STOCK, NOT GUESSED. Deadshot's head snap is
+//  ONE engine call made client-side: `self usealternateaimparams()`. Stock
+//  makes it in exactly one place - `_zm.csc:611 player_deadshot_perk_handler`,
+//  the handler on the `deadshot_perk` clientfield - and undoes it with
+//  `clearalternateaimparams()`.
+//
+//  🛑 AND THIS MOD HAD DELETED THAT CLIENTFIELD EVERYWHERE. init_client_flags()
+//  in quality_of_life.gsc and init_client_flag_callback_funcs() here both set
+//  `level.disable_deadshot_clientfield = 1` unconditionally. STOCK SETS IT ON
+//  BURIED ALONE (zm_buried.gsc:222 / zm_buried.csc:40), where there is no
+//  Deadshot machine, to free a bit. Set globally it is symmetric, so nothing
+//  ever errored - the field simply never registered, the handler never ran, and
+//  the perk shipped with its headline effect missing on every map.
+//
+//  🌟 WHY THE FIX DOES NOT PUT THE FIELD BACK. Restoring `deadshot_perk` costs
+//  one `toplayer` bit on every map, and Mob of the Dead's toplayer set is the
+//  tightest this mod touches (checkpoint 17 and v1.65.2 both had to free bits
+//  there, and its true headroom has never been measured). Spending a bit on a
+//  second field is unnecessary, because a field carrying exactly the same
+//  information is ALREADY registered and already paid for:
+//
+//      perk_dead_shot   <- _zm_perks.gsc:2224, set_perk_clientfield()
+//
+//  set_perk_clientfield( "specialty_deadshot", 1 ) runs from give_perk() and
+//  ( ..., 0 ) from perk_think()'s take path - the SAME two functions that used
+//  to drive deadshot_perk, in the same frames. So the trigger points are
+//  identical and this costs nothing.
+//
+//  📝 It also fixes BURIED, which stock never could: the mod adds Deadshot
+//  there and stock's own wiring is switched off on that map by design.
+//
+//  The body below is `player_deadshot_perk_handler` verbatim, guard included -
+//  the guard matters, because a toplayer field also fires on spectated players.
+//  The chain to level.zombies_global_perk_client_callback keeps Vulture Aid's
+//  machine-hiding fx working: that is what this row's callback used to be, and
+//  it is read at CALL time rather than captured at registration, so it does not
+//  matter that Vulture assigns it later.
+// ============================================================================
+zmqol_deadshot_perk_callback( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	if ( isdefined( level.zombies_global_perk_client_callback ) )
+		self [[ level.zombies_global_perk_client_callback ]]( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump );
+
+	if ( !self islocalplayer() || isspectating( localclientnum, 0 ) || isdefined( level.localplayers[localclientnum] ) && self getentitynumber() != level.localplayers[localclientnum] getentitynumber() )
+		return;
+
+	if ( newval )
+		self usealternateaimparams();
+	else
+		self clearalternateaimparams();
+}
+
 perks_register_clientfield()
 {
 	bits = 1;
@@ -1732,7 +1794,9 @@ perks_register_clientfield()
 	}
 	if (is_true(level.zombiemode_using_deadshot_perk))
 	{
-		registerclientfield("toplayer", "perk_dead_shot", 1, bits, "int", level.zombies_global_perk_client_callback, 0, 1);
+		//  🛑 v1.99.61 - THIS ONE ROW TAKES A MOD CALLBACK, AND IT IS THE
+		//  DEADSHOT AIM-ASSIST FIX. See zmqol_deadshot_perk_callback() below.
+		registerclientfield("toplayer", "perk_dead_shot", 1, bits, "int", ::zmqol_deadshot_perk_callback, 0, 1);
 	}
 	if (is_true(level.zombiemode_using_doubletap_perk))
 	{

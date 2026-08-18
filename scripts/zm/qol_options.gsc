@@ -154,6 +154,24 @@ init()
     qol_opt_dvar( "round_summary", "1" );
     qol_opt_dvar( "intro_credits", "1" );
 
+    //  v1.99.61 - PERK BONUS POINTS, user request 2026-08-18. ON by default:
+    //  the +100 for proning at a perk machine is behaviour this mod has always
+    //  had, so the switch must change nothing until it is thrown. OFF means NO
+    //  prone points at all - the mod's own detector stops paying AND Origins'
+    //  native 25-point "loose change" easter egg is suppressed, which is the
+    //  two-state behaviour the user asked for ("either the effect is on with 100
+    //  points prone per machine, or not points at all from proning"). Read live
+    //  in quality_of_life.gsc's prone_bonus_monitor() and in zm_tomb.gsc's
+    //  origins_change_patch(), so it takes effect mid-match both ways.
+    qol_opt_dvar( "perk_bonus_points", "1" );
+
+    //  v1.99.61 - FLASH HELP, user request 2026-08-18. The HUD tab's second
+    //  match-start flash line: it tells players how to open chat and reach
+    //  .help. ON by default - the user asked for the feature, not merely for a
+    //  switch. Printed by zmqol_credits_banner_print() in quality_of_life.gsc,
+    //  gated separately from intro_credits so either can be silenced alone.
+    qol_opt_dvar( "flash_help", "1" );
+
     qol_opt_dvar( "no_power", "0" );
 
     //  v1.99.48 - INSTANT NUKE, user request 2026-08-18. Read once per nuke in
