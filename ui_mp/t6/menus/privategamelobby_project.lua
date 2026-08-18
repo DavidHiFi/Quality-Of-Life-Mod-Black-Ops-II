@@ -174,6 +174,31 @@ QolCrewRow(3, { "zm_prison" }, { "zclassic" },
 
 -- Survival, every map: the CDC and CIA teams, and nothing else exists.
 QolCrewRow(4, nil, { "zsurvival" }, { "CIA", "CDC" })
+
+--  v1.99.60 - the little red cross next to a row that is no longer on its
+--  default, which every other lobby row shows. User, 2026-08-18: *"there should
+--  be a cross like the other pre-game menu options to display that it has been
+--  modified and isn't stock/default."*
+--
+--  🌟 IT IS ONE TABLE ENTRY, NOT NEW CODE. Plutonium's own dvar selector
+--  (raw\ui\t6\dvarleftrightselector.lua) already does the work in its default
+--  handler DvarSelectorSetDvarFunc:
+--
+--      for Key, DvarValue in pairs( CoD.PrivateGameLobby.DvarDefaults ) do
+--          if DvarSelector.parentSelectorButton.m_dvarName == Key then
+--              ... showStarIcon( DvarSelector.value ~= DvarValue )
+--
+--  It only ever fires for a dvar that HAS an entry here, which is why the
+--  CHARACTER row showed nothing. 0 is the row's own DEFAULT choice, so the
+--  cross appears for any crew member and clears when you cycle back.
+--
+--  📝 This works on menu OPEN as well as on change, without any extra call:
+--  CoD.LeftRightSelector.AddChoice runs updateChoice on whichever choice
+--  matches the current value while the row is being built, and that is what
+--  invokes the handler above. The rows deliberately pass NO custom callback for
+--  exactly this reason - overriding it would replace the star-icon logic along
+--  with the dvar write, which is the v1.93.0 bug in a new costume.
+CoD.PrivateGameLobby.DvarDefaults["character"] = 0
 CoD.PrivateGameLobby.Dvars = {}
 -- CoD.PrivateGameLobby.Dvars[1] = {}
 -- CoD.PrivateGameLobby.Dvars[1].id = "zombies_minplayers"

@@ -7685,3 +7685,34 @@ the same limitation `night_mode` and `lod_fix` already carry.
 
 **Deployed v1.99.58. NOT VERIFIED IN GAME.** Two features in one version, at the user's explicit
 instruction; they share no code, so a bad boot is still attributable.
+
+---
+
+# v1.99.60 — the non-default cross on the CHARACTER row
+
+User, 2026-08-18: *"the other options there in the pre-game menu display that little red-ish x to the
+left of the option once the options setting has been set to something other than the default... yeah
+the functionality completely works just a knit picky thing."*
+
+🌟 **One table entry, no new code.** Plutonium's own `dvarleftrightselector.lua` already does it in
+its default handler `DvarSelectorSetDvarFunc`: it walks `CoD.PrivateGameLobby.DvarDefaults`, and for
+a dvar with an entry there calls `showStarIcon( value ~= default )`. It only ever fires for dvars
+that HAVE an entry, which is why the CHARACTER row showed nothing. Added
+`DvarDefaults["character"] = 0`, matching the row's own DEFAULT choice.
+
+📝 It works on menu OPEN as well as on change, with no extra call: `CoD.LeftRightSelector.AddChoice`
+runs `updateChoice` on whichever choice matches the current value while the row is being built, and
+that is what invokes the handler. **The rows deliberately pass NO custom callback** — overriding it
+would replace the star-icon logic along with the dvar write, which is the v1.93.0 hold-to-sprint bug
+in a new costume.
+
+## 🛑 THE M14 DID NOT SHIP AND THE USER THINKS IT DID
+
+They wrote: *"i got the olympia so there's no reason that you didn't implement the m14 as well or the
+m1911. so cross those off the list they're done."* The **M1911 is** done and is crossed off. The
+**M14 is not**, and it was called out as not-done when v1.99.58 shipped.
+
+The reason is not effort, it is assets: the Olympia, M1911 and M16 were all **already in `mod.ff`**,
+so all three needed was the in_box flag. The M14 has **no `weapon,m14_zm` row in `mod_base.zone` and
+no m14 xmodel or xanim anywhere in it** — registration alone cannot make a weapon the game has no
+art for. It stays as item 18.

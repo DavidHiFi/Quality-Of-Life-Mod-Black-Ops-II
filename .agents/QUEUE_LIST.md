@@ -6,11 +6,11 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 (2026-08-16) for a plain list with no other differentiation.
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **77** · mod version **1.99.55**
+- SYNCED TO: checkpoint **77** · mod version **1.99.60**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- BUILT, AWAITING THE USER'S BOOT: **nothing**. v1.99.54 and v1.99.55 are both confirmed in game.
+- BUILT, AWAITING THE USER'S BOOT: **v1.99.60**, the non-default cross on the CHARACTER row. Everything else through v1.99.59 is confirmed in game.
 - 🛑 **NOTHING IS IN FLIGHT.** Next up is item 2, the lobby character picker - it is fully specced in QUEUE.md and the user has now twice asked for it.
 - ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
 - ✅ **v1.99.55 CONFIRMED 2026-08-18** — *"the sound effects seem to be no longer chopping/cutting out for brief moments any more"*. 🛑 One good session is not proof of a mechanism: say "not reproduced since the merge", not "fixed".
@@ -24,7 +24,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
    pointing at `.help` — this is Part C of the graphics-options request; **Parts A and B are DONE and
    CONFIRMED in game 2026-08-18** (v1.99.54, screenshot: ADVANCED shows Night Mode / Fog / Higher
    Draw Distance and Depth Of Field reaches DISABLED)
-2. ~~**Map-aware character picker in the pre-game lobby**~~ — shipped v1.99.58, deployed unbooted
+2. ~~**Map-aware character picker in the pre-game lobby**~~ — CONFIRMED in game 2026-08-18 on every crew and survival (v1.99.58 + the v1.99.59 should_use_cia fix); the non-default cross added v1.99.60
 3. **Prone at Mob's Electric Cherry machine gives no +100**
 4. **Death Machine pickup voice line** — the BO1 announcer callout
 5. ~~**Drop `deathmachine_zm.all.sabl`**~~ — done v1.99.55, merged into `mod.all`, deployed unbooted
@@ -43,8 +43,11 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
     the same weapon under another name
 16. **MM1 grenade launcher (campaign)** into the box — search the workspace mods for an existing port
 17. **Bouncing Betties (multiplayer)** into the box as a lethal-slot item — equipment, not a gun
-18. **M14 into the box** — 🛑 unlike the M16/Olympia/M1911 this is an ASSET job: the mod ships no m14
-    weapon def and no m14 art at all, so it must be dumped from a stock fastfile into `mod.ff`
+18. **M14 into the box** — 🛑 STILL OPEN. The user believed this shipped with the Olympia/M1911 on
+    2026-08-18; it did not, and they were told so at the time. Unlike those three this is an ASSET
+    job: `grep -E '^weapon,' zone_source\mod_base.zone` has no `m14_zm` row and there is no m14
+    xmodel or xanim anywhere in it, so the def and its animation set must be dumped from a stock
+    fastfile and shipped in `mod.ff` first. Registration alone cannot work.
 <!-- /LIST -->
 ---
 ## Closed — off the list, kept for the record
