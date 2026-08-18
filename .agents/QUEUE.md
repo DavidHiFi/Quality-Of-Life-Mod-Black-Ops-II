@@ -7327,3 +7327,60 @@ breaks symmetry silently.
 
 **The user's constraint on both, verbatim:** *"make sure you don't tamper with anything you don't need
 to in order to get those 2 fixes to work."*
+
+---
+
+# v1.99.55 — `deathmachine_zm.all.sabl` MERGED INTO `mod.all` AND DELETED (queue item 5)
+
+User, 2026-08-18: *"get rid of the seperate death machine .sabl file… but only do this if it's
+possible to just merge it into one, if you genuinely need it to be seperate for it to work properly
+then don't touch it."*
+
+**It was possible, and it was not even really a merge — the bank was a pure DUPLICATE.** Three
+independent measurements, none assumed:
+
+1. All **18** of its aliases already existed in `mod.all` under the same names.
+2. Dumping `mod.ff` with `deathmachine_zm.all.sabl` **absent from the search path** still recovered
+   every vulcan/minigun payload out of `mod.all.sabl` alone.
+3. The **11 distinct audio files** those aliases name total **2,320,478 bytes**, against a
+   **2,322,480-byte** standalone bank — a 2,002-byte difference, which is the bank header.
+
+🌟 **But `mod.all`'s copies were DEGRADED, and that is the part worth keeping.** Diffing all 60
+columns, three fields had been lost in the inherited `mod.all` rows:
+
+| field | standalone bank (authoritative) | `mod.all` before v1.99.55 |
+|---|---|---|
+| `Pan` | `front_mostly` / `wpn_fnt` / `lfe` / `front` | `default` on all 18 |
+| `Duck` | `@ce86373b` on `wpn_vulcan_fire_loop_plr` | empty |
+| `RandomizeType` | `variant` / `pitch` / empty | `volume` / `volume pitch` |
+
+Confirmed the OAT round-trip is NOT the cause — build input and build output match exactly, so the
+loss was inherited from the donor `mod.ff`. The authoritative rows are now in
+`soundbank\mod.all.aliases.additions.csv`; every `Pan`, `RandomizeType` and the duck were already in
+use elsewhere in `mod.all`, so all of them were proven to link before building.
+
+**Whether this also fixes item 9 (the fire sound skipping) is UNKNOWN and must not be claimed.** The
+`LimitCount` / `LimitType` fields were identical between the two banks, so nothing obviously
+throttling changed. What did change is that one alias name no longer resolves out of two loaded
+banks. Ask the user what they hear before theorising further.
+
+## 🛑 THE EXPENSIVE MISTAKE IN THIS ITEM — read before touching sound again
+
+`build_ff.bat`'s own comment says to wipe `zone_assets\sound` before testing a sound change. **Doing
+that destroyed 36 payloads that existed nowhere else** — freezegun, thundergun, Wunderfizz random
+perk machine, zombie blood, `zmb/qol`. `zone_assets\` is not git-tracked; the donor dump restores
+only 249 files and the tracked `sound/` folder staged 185.
+
+They were recovered because `mod.ff` had **not** been overwritten (both failed links stop before
+writing), so a dump of it still held them. They are now in the tracked `sound/` folder and the tree
+is reproducible for the first time.
+
+**Rule going forward: never wipe `zone_assets\sound` without first dumping the current `mod.ff` to a
+scratch folder.** Recorded in `zm_qol\CLAUDE.md` too.
+
+📝 The dumper appends one extra extension to payload filenames (`x.snd.wav` → `x.snd.wav.wav`), so a
+FileSource copied from a DUMP will not link. Take FileSource from
+`zone_assets\soundbank\mod.all.aliases.csv` (the build INPUT), never from a dump. This cost one
+failed link.
+
+**Deployed v1.99.55. NOT VERIFIED IN GAME.**

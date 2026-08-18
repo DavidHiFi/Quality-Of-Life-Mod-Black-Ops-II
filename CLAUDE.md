@@ -126,9 +126,17 @@ map, silently, regardless of runtime guards.
 This project **is** a git repo now (local only, branch `main`, no remote). It was initialised at the
 user's request as a rollback point.
 
-- **The binaries are tracked on purpose.** `mod.ff`, `mod.all.sabl`, `mod.all.sabs`,
-  `deathmachine_zm.all.sabl` and `zone_source/base/mod.ff` have no source in this project and cannot
-  be regenerated from anything in it. A checkpoint you can't restore from isn't a checkpoint. `.git`
+- **The binaries are tracked on purpose.** `mod.ff`, `mod.all.sabl`, `mod.all.sabs` and
+  `zone_source/base/mod.ff` have no source in this project and cannot
+  be regenerated from anything in it. (`deathmachine_zm.all.sabl` was a fourth until v1.99.55, when
+  it was merged into `mod.all` and deleted — see the root `CLAUDE.md`.)
+- 🛑 **`zone_assets/sound/` is NOT tracked and NOT fully reproducible, and that cost a build in
+  v1.99.55.** `build_ff.bat` says to wipe `zone_assets\sound` before testing a sound change; doing so
+  destroyed **36 payloads** — freezegun, thundergun, Wunderfizz, zombie blood, `zmb/qol` — that
+  existed *only* there. The donor dump restores 249 and the tracked `sound/` folder staged 185, but
+  those 36 had no source at all. They were recovered from a dump of the not-yet-overwritten `mod.ff`
+  and are now in the tracked `sound/` folder, so a wipe is finally safe. **Never wipe
+  `zone_assets\sound` without first dumping the current `mod.ff` to a scratch folder.** A checkpoint you can't restore from isn't a checkpoint. `.git`
   is ~86 MB as a result; that is the intended trade.
 - **`.gitattributes` sets `* -text`** — no line-ending translation, so any checkout is byte-exact.
   Do not "fix" this: several tracked files are binary with no extension (`attachmentunique/au_*`).

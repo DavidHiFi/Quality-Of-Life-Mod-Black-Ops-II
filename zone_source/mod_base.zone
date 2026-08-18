@@ -3435,4 +3435,19 @@ material,ui_powerup_deathmachine
 material,,mc/mtl_x2icon_gold
 xmodel,zombie_pickup_minigun
 weapon,deathmachine_zm
-soundbank,deathmachine_zm.all
+// 🛑 v1.99.55 - soundbank,deathmachine_zm.all REMOVED, and mod_base.zone is
+// hand-edited here even though the header says not to. User request,
+// 2026-08-18: one sound bank instead of two.
+//
+// It was a PURE DUPLICATE and that is measured, not assumed:
+//   - all 18 of its aliases already exist in mod.all, same names;
+//   - dumping mod.ff with deathmachine_zm.all.sabl ABSENT from the search
+//     path still recovered every vulcan/minigun payload out of
+//     mod.all.sabl alone;
+//   - the 11 distinct audio files those aliases name total 2,320,478
+//     bytes, against a 2,322,480-byte standalone bank - a 2,002-byte
+//     difference that is the bank header. Same audio, twice.
+//
+// 🛑 IF YOU EVER RUN build_ff.bat --regen-base, THIS LINE COMES BACK.
+// Delete it again, or the mod ships a bank that no longer exists.
+// soundbank,deathmachine_zm.all

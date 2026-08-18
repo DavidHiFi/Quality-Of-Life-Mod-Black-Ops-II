@@ -12,7 +12,7 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 
 1. Download the latest **[release](https://github.com/DavidHiFi/zm_qol/releases/latest)** zip.
 2. Extract it into `%LOCALAPPDATA%\Plutonium\storage\t6\mods\zm_qol\`
-   (Linux/Wine: the same path inside your Plutonium prefix). All six files go in that folder.
+   (Linux/Wine: the same path inside your Plutonium prefix). All five files go in that folder.
 3. Launch Plutonium T6 → **Zombies → Mods → `Quality Of Life`**.
 
 > Cloning the repo does **not** give you a playable mod — `mod.iwd` is not tracked in git.

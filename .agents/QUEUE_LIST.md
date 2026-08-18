@@ -35,7 +35,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 2. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
 3. **Prone at Mob's Electric Cherry machine gives no +100**
 4. **Death Machine pickup voice line** — the BO1 announcer callout
-5. **Drop `deathmachine_zm.all.sabl`**
+5. ~~**Drop `deathmachine_zm.all.sabl`**~~ — done v1.99.55, merged into `mod.all`, deployed unbooted
 6. **Jet gun in a real weapon slot**, and it never breaks
 7. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
 8. **Ammo counter for the jet gun** in the bottom right

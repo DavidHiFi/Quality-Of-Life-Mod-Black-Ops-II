@@ -13,7 +13,13 @@ REM ============================================================
 setlocal EnableExtensions
 cd /d "%~dp0"
 set "MOD_NAME=zm_qol"
-set "FILES=mod.ff mod.iwd mod.json mod.all.sabl mod.all.sabs deathmachine_zm.all.sabl"
+REM  v1.99.55 - FIVE files, not six. deathmachine_zm.all.sabl is gone: its 18
+REM  aliases and all 11 of its audio payloads were already inside mod.all, so it
+REM  was a duplicate download for every player. The authoritative alias rows
+REM  (Pan, Duck and RandomizeType - the three fields the inherited mod.all copies
+REM  had lost) now live in soundbank\mod.all.aliases.additions.csv.
+REM  See zone_source\mod_base.zone for the evidence that it was a duplicate.
+set "FILES=mod.ff mod.iwd mod.json mod.all.sabl mod.all.sabs"
 
 REM  OPTFILES is now EMPTY, and cmn_root.all.sabl is deliberately not in it.
 REM

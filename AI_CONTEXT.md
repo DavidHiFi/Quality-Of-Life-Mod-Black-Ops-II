@@ -39,7 +39,7 @@ This is a **standalone side project.** Do not import code or files from other mo
 | `mod.iwd` | A plain **ZIP** of raw scripts + maps + weapon files. **This is the editable code.** | Yes (via source) |
 | `mod.json` | Mod name / author / version. | Rarely |
 | `mod.all.sabl` / `mod.all.sabs` | Main sound banks (perks, general FX). | No |
-| `deathmachine_zm.all.sabl` | **Separate** sound bank just for the Death Machine weapon (its fire loop/start/stop/spool sounds). `mod.ff`'s zone declares this as its own `soundbank` asset, distinct from `mod.all` — it is NOT folded into `mod.all.sabl`. Missing this file = the Death Machine weapon fires/plays silently (found 2026-07-26; this file was dropped from the original 5-file build by mistake). | No |
+| ~~`deathmachine_zm.all.sabl`~~ | 🛑 **REMOVED at v1.99.55 — this row is history, not current state.** It was a separate sound bank for the Death Machine (fire loop/start/stop/spool), declared by `mod.ff`'s zone as its own `soundbank` asset. It has been **merged into `mod.all` and deleted** at the user's request. Proven a pure duplicate first: all 18 aliases already existed in `mod.all`, a dump of `mod.ff` with the file absent still recovered every payload from `mod.all.sabl`, and its 11 audio files total 2,320,478 bytes against the 2,322,480-byte bank. The earlier note that it was "dropped from the original 5-file build by mistake" (2026-07-26) was about a DIFFERENT failure — the file going missing while the zone still declared it, which really did silence the weapon. | — |
 
 Plutonium loads **raw GSC straight out of `mod.iwd`** at runtime — there is **no
 GSC compile step**. Editing gameplay = edit a `.gsc`, re-zip the iwd (`build.bat`

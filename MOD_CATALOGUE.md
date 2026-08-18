@@ -24,7 +24,7 @@ depends on stock behaviour, the stock side belongs over there, not duplicated he
 
 # 1. Shipped files and what each one is
 
-The mod is exactly **6 top-level files**. Only `mod.iwd`'s raw source folders are hand-edited.
+The mod is exactly **5 top-level files**. Only `mod.iwd`'s raw source folders are hand-edited.
 
 | file | what it is | hand-edited? |
 |---|---|---|
@@ -32,7 +32,7 @@ The mod is exactly **6 top-level files**. Only `mod.iwd`'s raw source folders ar
 | `mod.ff` | fastfile: assets + the client `.csc` scripts | rebuilt by `build_ff.bat` |
 | `mod.json` | name / author / description / version | yes |
 | `mod.all.sabl`, `mod.all.sabs` | sound banks | no |
-| `deathmachine_zm.all.sabl` | Death Machine fire/spool sounds, referenced independently by the zone. Missing ⇒ the weapon fires silently | no |
+| ~~`deathmachine_zm.all.sabl`~~ | **Gone at v1.99.55** — merged into `mod.all`. It was a pure duplicate: same 18 alias names, and the 11 audio files it held total 2,320,478 bytes against a 2,322,480-byte bank, the difference being the header. Its authoritative `Pan` / `Duck` / `RandomizeType` values (which the `mod.all` copies had lost) are now in `soundbank\mod.all.aliases.additions.csv` | — |
 
 ## 1a. Script inventory 📄
 
