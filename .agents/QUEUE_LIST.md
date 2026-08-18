@@ -32,7 +32,8 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
    (renamed HIGHER DRAW DISTANCE) leave the GAME tab; the mod's Depth Of Field row is deleted and
    stock's own DOF row gains a DISABLED step below LOW. Then Intro Credits moves to the HUD tab as
    FLASH INTRO CREDITS, beside a new FLASH HELP DISCLAIMER pop-up pointing at `.help`
-2. **`.character N` does nothing on survival**, and the CDC/CIA picker — needs your call
+2. **Map-aware character picker in the pre-game lobby**, above difficulty, classic + survival —
+   Victus / Ultimis / Mob crews per map, CIA+CDC on survival. Spec and crew tables are in QUEUE.md
 3. **Prone at Mob's Electric Cherry machine gives no +100**
 4. **Death Machine pickup voice line** — the BO1 announcer callout
 5. ~~**Drop `deathmachine_zm.all.sabl`**~~ — done v1.99.55, merged into `mod.all`, deployed unbooted

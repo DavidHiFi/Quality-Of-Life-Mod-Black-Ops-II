@@ -7384,3 +7384,94 @@ FileSource copied from a DUMP will not link. Take FileSource from
 failed link.
 
 **Deployed v1.99.55. NOT VERIFIED IN GAME.**
+
+---
+
+# QUEUED 2026-08-18 — MAP-AWARE CHARACTER PICKER IN THE PRE-GAME LOBBY
+
+This **replaces queue item 2** ("`.character N` does nothing on survival, and the CDC/CIA picker —
+needs your call"). The user has given their call. Verbatim:
+
+> *"Add that into the pre-game lobby above the difficulty option in classic mode and have it be
+> map-aware… if you changed to tranzit/buried/die rise it would change the character selection
+> options to match the victus crew… And also add this option when survival mode is selected, once
+> again just above the difficulty option same as classic… This is something i've been really wanting
+> to integrate into my mod."*
+
+**NOT STARTED** — v1.99.54 and v1.99.55 are both deployed and unbooted. Research below is done, so
+the build does not start cold. **It is fully specified and de-risked; there are no unknowns left of
+consequence.**
+
+## 🌟 It is buildable, and stock already does every hard part
+
+All in `ui_mp\t6\menus\privategamelobby_project.lua`, which this mod **already overrides**.
+
+| what is needed | it already exists | where |
+|---|---|---|
+| the lobby knowing the selected map | `UIExpression.DvarString(nil, "ui_mapname")` | `AddGameOptionsButtons`, ~:437 |
+| per-entry **map filter** | an optional `.maps` list on any entry | ~:451-459 |
+| proof `ui_mapname` holds plain map names | `GameTypeSettings[5].maps[1] = "zm_transit"` — the shipped TranZit-only "allow dogs" row | :79-80 |
+| a **dvar-backed** row (not a gametype setting) | `CoD.PrivateGameLobby.Dvars`, rendered by the same function with type `"dvar"` | :534, :466 |
+| classic vs survival filtering | the existing `.gameTypes` list | :12-15 |
+
+So the design is **one entry per crew, all bound to the same `character` dvar**, each with its own
+`.maps` and `.labels`. The renderer shows only the entry whose map matches. No new machinery.
+
+## 🛑 A STOCK BUG THAT WILL BREAK THIS, AND MUST BE FIXED FIRST
+
+`AddGameOptionsButtons` declares `local MapIsValid = false` **outside** the loop and resets
+`GametypeIsValid` inside it but **never resets `MapIsValid`**. Once any entry matches the map, every
+later map-filtered entry passes too.
+
+Today only ONE entry uses `.maps`, so the bug is invisible. This feature adds FOUR, and on Origins
+the Victus row would render as well. **Fix: `MapIsValid = false` as the first line of the loop body**,
+next to the existing `GametypeIsValid = false`.
+
+## The crew tables — READ OUT OF THE STOCK DUMP, not from memory
+
+`characterindex` order per map, from each map's own `give_personality_characters()`:
+
+| index | TranZit / Die Rise / Buried (`zm_transit` / `zm_highrise` / `zm_buried`) | Origins (`zm_tomb`) | Mob (`zm_prison`) |
+|---|---|---|---|
+| 0 | Russman (`c_transit_player_oldman`) | Dempsey | Finn |
+| 1 | Stuhlinger (`c_transit_player_reporter`) | Nikolai | Sal |
+| 2 | Misty (`c_transit_player_farmgirl`) | Richtofen | Billy |
+| 3 | Marlton (`c_transit_player_engineer`) | Takeo | Arlington ("Weasel") |
+
+🛑 The TranZit `switch` lists its cases in the order **2, 0, 3, 1** — read the case labels, not the
+order they appear. Origins and Mob are in plain 0-3 order and set `self.character_name` directly.
+
+**Survival is the SAME mechanism, not a different one.** `give_team_characters()`
+(`zm_buried.gsc`) also switches on `characterindex`: **0 and 2 → CIA** (`c_zom_player_cia_dlc1_fb`),
+**1 and 3 → CDC** (`c_zom_player_cdc_dlc1_fb`). So two labels, same `character` dvar.
+
+The mod's dvar is 1-based (`character 1` → `characterindex 0`), so the lobby `values` must be 1-4.
+
+## 🛑 Two blockers in the mod's OWN code, both now proven unnecessary
+
+`qol_options.gsc::qol_opt_character()` refuses to run in two cases, and **both refusals are wrong**:
+
+1. `if ( level.script == "zm_tomb" || level.script == "zm_prison" ) return;` — the comment above it
+   claims *"on Origins and Mob of the Dead nothing happens, which is correct: their characters are
+   story-fixed and stock guards them the same way."* **That is false.** `zm_prison.gsc:51` and
+   `zm_tomb.gsc:156` both set `level.givecustomcharacters = ::give_personality_characters`, and both
+   switch on `characterindex`. Neither is story-fixed in classic.
+2. `if ( level.force_team_characters == 1 ) return;` — that flag is set by Origins' `survival_init()`
+   (`zm_tomb.gsc:71`), i.e. exactly the survival case the user wants a picker for. And
+   `give_team_characters` honours `characterindex` anyway, so the guard blocks a working path.
+
+🛑 **This also contradicts the user's report** that *"the character 0-4 console command works… eg.
+victus… & ultimis (origins)"*. On the shipped build it **cannot** work on Origins — blocker 1 returns
+before anything happens. Worth telling them: the fix makes Origins AND Mob work, which is more than
+they asked for, but they should not think Origins works today.
+
+## Open questions for the build, none of them blocking
+- **Coop.** The lobby writes a client dvar; the server GSC reads its own. Host-only, the same
+  limitation `night_mode` and `lod_fix` already carry. Each client picking their own character needs
+  a different route and is NOT in scope unless the user asks.
+- Whether two players can pick the same character, and whether stock's
+  `assign_lowest_unused_character_index()` should still arbitrate.
+- Row placement: the user said **above** the difficulty option, so the entry must be **first** in its
+  table, and `GameTypeSettings` renders before `Dvars` — a dvar-backed row would land BELOW difficulty
+  unless the render order is changed or the row is added as a gametype setting instead. **Settle this
+  before writing the row.**
