@@ -3979,6 +3979,9 @@ zmqol_console_command_names()
     //  v1.99.15 - .wwfx toggles the Who's Who downed-state overlay on demand, so
     //  it can be checked in two seconds instead of by dying for it.
     a[a.size] = "wwfx";
+    //  v1.99.57 - the console/bind twin of .bloodmoney, per the mod's standing
+    //  rule that every chat command is also a bindable console command.
+    a[a.size] = "bloodmoney";
 
     return a;
 }
@@ -5836,6 +5839,17 @@ zmqol_powerup_alias( str_cmd )
         case "emptyclip":        str_canon = "empty_clip";           break;
         case "loseperk":         str_canon = "lose_perk";            break;
         case "losepoints":       str_canon = "lose_points_team";     break;
+        //  v1.99.57 - BLOOD MONEY. User, 2026-08-18: *"you forgot to add a chat
+        //  command to give the bloodmoney powerup, make it .bloodmoney/!bloodmoney"*.
+        //  They are right that the friendly name was missing; the power-up itself
+        //  was always reachable, because "bonuspoints" already resolved to
+        //  it, and zmqol_enable_blood_money() includes exactly this name:
+        //  maps\mp\zombies\_zm_utility::include_powerup( "bonus_points_player" ).
+        //  So this adds names, not behaviour - the spawn path is unchanged.
+        //  🛑 NOT to be confused with "blood" / "zombieblood" further down, which
+        //  is zombie_blood, a completely different power-up.
+        case "bloodmoney":
+        case "blood_money":
         case "bonuspoints":      str_canon = "bonus_points_player";  break;
         case "teampoints":       str_canon = "bonus_points_team";    break;
         case "teller":
