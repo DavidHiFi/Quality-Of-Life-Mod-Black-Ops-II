@@ -42,7 +42,10 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 15. **Dragunov (campaign)** into the box — 🛑 confirm first whether the already-shipped `svu_zm` is
     the same weapon under another name
 16. **MM1 grenade launcher (campaign)** into the box — search the workspace mods for an existing port
-17. **Bouncing Betties (multiplayer)** into the box as a lethal-slot item — equipment, not a gun
+17. **Bouncing Betties (multiplayer)** into the box — 🛑 NOT the M16 case, it is the M14 case. There
+    is **no `bouncingbetty_zm`** anywhere in the T6 zombies scripts (only `bouncingbetty_mp`), the mod
+    ships no def, and `mod.ff` declares no such weapon. Needs an asset port PLUS lethal-slot work,
+    because it is equipment and not a gun
 18. **M14 into the box** — 🛑 STILL OPEN. The user believed this shipped with the Olympia/M1911 on
     2026-08-18; it did not, and they were told so at the time. Unlike those three this is an ASSET
     job: `grep -E '^weapon,' zone_source\mod_base.zone` has no `m14_zm` row and there is no m14

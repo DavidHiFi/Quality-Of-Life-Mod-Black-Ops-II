@@ -7716,3 +7716,25 @@ The reason is not effort, it is assets: the Olympia, M1911 and M16 were all **al
 so all three needed was the in_box flag. The M14 has **no `weapon,m14_zm` row in `mod_base.zone` and
 no m14 xmodel or xanim anywhere in it** — registration alone cannot make a weapon the game has no
 art for. It stays as item 18.
+
+---
+
+# 2026-08-18 — BOUNCING BETTY: checked, and it is NOT "super easy"
+
+User: *"just add the bouncing betty to the box super easy."* It is not, and the reason is the same
+one that stopped the M14. Measured, in three lines:
+
+- **There is no zombies Bouncing Betty.** `bouncingbetty_zm` appears nowhere in the 2,093-file stock
+  script dump. Only `bouncingbetty_mp` exists, and every hit is generic MP-equipment plumbing that
+  ships inside the shared `gametypes_zm` scripts (`_weaponobjects.gsc`, `_spawning.gsc`) — not a
+  registered zombies weapon.
+- **The mod ships nothing for it** — no def under `weapons\`, and no `weapon,bouncingbetty*` row in
+  any zone file.
+- **No zombies fastfile carries it** — `patch_zm.ff` has zero mentions.
+
+So it needs the same asset port the M14 does, and then MORE: it is **equipment, not a gun**, so it
+lands in the lethal slot rather than a weapon slot and cannot go through `add_zombie_weapon` the way
+the M16 / Olympia / M1911 did. Two separate pieces of work, either of which can half-ship.
+
+**The M16, Olympia and M1911 were quick for one reason only: their assets were already in `mod.ff`.**
+That is the dividing line for every remaining weapon request — check it first, before promising.
