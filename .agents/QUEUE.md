@@ -7265,3 +7265,65 @@ had. It does carry an extra weapon of its own, `mk_titus6_zm`, which uses the `f
 / `fly_generic_raise_plr` family instead of the Titus's `fly_shoulder_*` / `wpn_gl_rifle_*` ones.
 
 **Deployed v1.99.50. NOT VERIFIED IN GAME.**
+
+---
+
+# QUEUED 2026-08-18 — two "it works, but it cuts out" reports
+
+Both raised by the user while waiting for their usage limit to reset, with v1.99.54 deployed and
+unbooted. **Neither has been started.** Recorded now so the fix does not begin cold.
+
+## Q-A. Death Machine fire sound skips while the trigger is held
+
+User, verbatim: *"when i get the death machine power up the sound of it spraying all the ammo works,
+but it'll occasionally skip for a tiny moment sometimes multiple times, it's not the end of the world
+type of bad but if there's any easy way to ensure that the sound fx for the deathmachine don't have
+any cut offs whilst holding the shoot button, then go for it."*
+
+**What is known without touching anything.** The fire sound is not scripted — the only `playsound`
+in the mod for this is `e_player playsound( "death_machine" )` at `quality_of_life.gsc:2316`, which
+is the pickup, not the firing loop. The firing audio comes from the weapon def's own aliases, and
+their payloads live in **`deathmachine_zm.all.sabl`**, the separate bank this mod ships (see
+`CLAUDE.md` — if that file goes missing the gun fires silently).
+
+🛑 **This collides with queue item 5, "Drop `deathmachine_zm.all.sabl`".** Do not work the two
+independently: whichever is done first decides which bank the aliases have to resolve out of.
+
+**Leading hypothesis, NOT verified.** A minigun's rate of fire retriggers its shot alias many times a
+second while dozens of zombies are also emitting; T6 has a finite voice count and steals the oldest
+when it runs out, which sounds exactly like "skips for a tiny moment, sometimes multiple times". If
+that is the cause the fix is in the ALIAS (a looped fire sound, or a higher priority / lower
+`volumeFalloffCurve` slot), not in GSC. **Settle it by dumping the Death Machine's alias rows with
+OpenAssetTools and reading `loopSound` / `priority` / `limitCount` before writing anything** —
+see [[t6-soundbank-facts]] and [[t6-weapon-asset-enumeration]] (enumerate the def BY VALUE).
+
+## Q-B. Winter's Howl freeze fx fire only sometimes
+
+User, verbatim: *"i got it out of the box in diner and the fx work sometimes and other times they
+don't… If you can make the bullet freeze/ice visual fx from the ported bo1 winters howl now in my mod
+work flawlessly just like the actual one in bo1, fully supported for bo2 zombies and retaining all of
+it's visual fx without any sudden loss of fx or functionality, then that'd be great. Just simply make
+the effects act the same way as the bo1 weapon — the real deal."*
+
+🛑 **This REOPENS a closed item, and it is legitimate.** "Winter's Howl fx" was confirmed in game and
+closed at checkpoint 64/65. The user is reporting a NEW symptom — intermittency — not disputing the
+old fix. [[zm-qol-catalogued-is-not-fixed]] applies: it is an open bug again. It is also the exact
+case [[t6-suspect-your-own-workaround]] warns about — check whether the earlier fix is what made it
+intermittent before looking anywhere else.
+
+**Where the code is.** `scripts/zm/freeze.gsc` (server) and `scripts/zm/Freeze.csc` (client); both
+hand off to STOCK T6 — `maps\mp\zombies\_zm_weap_freezegun::init()` and
+`clientscripts\mp\zombies\_zm_weap_freezegun::init()`. So the fx are Treyarch's own, and the
+comparison to make is against stock's implementation call-by-call, per the completeness audit.
+`quality_of_life.gsc:11747` already notes `freezegun_zombie_damage_response` at
+`_zm_weap_freezegun.gsc:23`.
+
+**Leading hypothesis, NOT verified.** Same *class* as Q-A rather than the same cause: a per-frame
+budget. Freeze is applied per zombie and stock gates almost everything on `isdefined`, so a dropped
+clientfield write or a capped simultaneous-fx count would look exactly like "works sometimes". Check
+the clientfield set's spare bits on Diner/TranZit first — [[t6-clientfield-rules]] — and confirm
+whether the freeze fx is one clientfield per zombie or a list-driven field, because a list-driven one
+breaks symmetry silently.
+
+**The user's constraint on both, verbatim:** *"make sure you don't tamper with anything you don't need
+to in order to get those 2 fixes to work."*

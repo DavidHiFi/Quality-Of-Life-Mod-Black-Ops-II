@@ -39,6 +39,8 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 6. **Jet gun in a real weapon slot**, and it never breaks
 7. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
 8. **Ammo counter for the jet gun** in the bottom right
+9. **Death Machine fire sound skips** while the trigger is held — no cut-offs. 🛑 overlaps item 5
+10. **Winter's Howl freeze/ice fx fire only sometimes** — make them behave exactly like BO1's
 
 <!-- /LIST -->
 
