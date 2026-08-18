@@ -13,10 +13,11 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- BUILT, AWAITING THE USER'S BOOT: **v1.99.55**, the sound-bank merge. v1.99.54 is confirmed.
+- BUILT, AWAITING THE USER'S BOOT: **nothing**. v1.99.54 and v1.99.55 are both confirmed in game.
+- 🛑 **NOTHING IS IN FLIGHT.** Next up is item 2, the lobby character picker - it is fully specced in QUEUE.md and the user has now twice asked for it.
 - ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
-- 🟡 **v1.99.55 (the sound-bank merge) IS DEPLOYED AND STILL UNVERIFIED** — the user has not yet said whether the Death Machine still sounds right.
-- The list is **13 items**: old item 2 was replaced by the lobby character picker, and three animated-camo items were added 2026-08-18.
+- ✅ **v1.99.55 CONFIRMED 2026-08-18** — *"the sound effects seem to be no longer chopping/cutting out for brief moments any more"*. 🛑 One good session is not proof of a mechanism: say "not reproduced since the merge", not "fixed".
+- The list is **14 items**: old item 2 was replaced by the lobby character picker; three animated-camo items and the Death Machine ammo counter were added 2026-08-18.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
@@ -36,12 +37,14 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 6. **Jet gun in a real weapon slot**, and it never breaks
 7. **Jet gun gets the Paralyzer's cooldown** so it cannot be fired forever
 8. **Ammo counter for the jet gun** in the bottom right
-9. **Death Machine fire sound skips** while the trigger is held — no cut-offs. 🛑 overlaps item 5
+9. ~~**Death Machine fire sound skips**~~ — not reproduced since the v1.99.55 bank merge (user, 2026-08-18)
 10. **Winter's Howl freeze/ice fx fire only sometimes** — make them behave exactly like BO1's
 11. **ANIMATED CAMO PATCH toggle** on the GAME tab — the three `anim_pap_camo_*` dvars already exist
 12. **Animated camos on all maps** incl. survival — 🛑 mechanism not yet understood, may not be possible
 13. **Custom animated camos from `plutonium/t6/images` are ignored**, and a cycle between them and the
     mod's own — strong lead: `mod.ff` owns 154 camo images
+14. **Death Machine ammo counter shows on Buried / Mob / Origins** — those three ship their own ammo
+    widget with a weapon-based hide path that ignores the hide bit; `hideAmmo`'s source still unknown
 <!-- /LIST -->
 
 ---

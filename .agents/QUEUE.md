@@ -7544,3 +7544,54 @@ mismatch). Dump `mod.ff` with `--include-assets image` and look.
 whether `mod.ff` can stop owning those 154 images without breaking anything that depends on them —
 audit inbound references first, per [[t6-script-removal-inbound-audit]]'s discipline applied to
 assets.
+
+---
+
+# QUEUED 2026-08-18 — DEATH MACHINE AMMO COUNTER SHOWS ON BURIED / MOB / ORIGINS
+
+User: *"the death machine still has an ammo counter for origins… it already doesn't have an ammo
+counter on the green run maps and nuketown, just this map (origins) and maybe mob or buried… the
+ammo counter for it just flickers from 150 to 350 because it's not even supposed to be visible."*
+
+**NOT STARTED — the WHERE is measured exactly, the WHY is 90% down, the FIX is not yet known.**
+Do not start writing until the last step below is settled; guessing at it is how this ships broken.
+
+## What is measured, and it is not a guess
+
+1. **The mod already hides the counter.** `quality_of_life.gsc:2251`,
+   `set_powerup_state()` → `player setclientammocounterhide( 1 )`, cleared again at `:2266`. So the
+   server-side half is present and works on the maps where it works.
+2. **The failing maps are exactly the maps that override the ammo widget.**
+   `ui_mp\t6\zombie\ammoareazombie.lua` is shipped by **three fastfiles and only three** —
+   `zm_buried_patch`, `zm_prison_patch`, `zm_tomb_patch`. Checked every `zm_*` and `zm_*_patch`
+   fastfile individually. Green Run, Diner, Die Rise and Nuketown ship no copy, and those are exactly
+   the maps where the user says it already works.
+3. **That widget has TWO independent visibility paths**, read out of its bytecode constant table:
+   - `UpdateVisibility` → `IsVisibilityBitSet` over the standard bit list, which *does* include
+     **`BIT_AMMO_COUNTER_HIDE`** — the bit `setclientammocounterhide()` drives.
+   - `UpdateAmmoVisibility` / **`ShouldHideAmmoCounter( weapon )`** → sets **`ammoDigits:setAlpha`**
+     from `Engine.IsWeaponType( weapon, "melee" / "riotshield" / "grenade" )` and a weapon property
+     **`hideAmmo`** — with **no reference to the bit**.
+
+   🌟 **The second path is the suspect**: it re-evaluates on weapon/ammo update and re-shows the
+   digits regardless of the hide bit. That is consistent with the user seeing it *flicker* rather
+   than sit on solidly.
+4. **The weapon is the same on every map.** `minigun_alcatraz_zm` — `clipSize 150`, `maxAmmo 300`,
+   which is exactly the `150 300` in the user's Origins screenshot. So the weapon is not the
+   variable; the map's widget is.
+
+## 🛑 The one thing still unknown — settle this FIRST
+
+**What sets `hideAmmo`?** It is *not* a weapon-def field: no file under `weapons\` contains the
+string, and `ammoCounterClip` has no "none"-like value (its only values across the whole tree are
+Magazine 63, Beltfed 8, Shotgun 6, AltWeapon 4, ShortMagazine 2, Rocket 2). So it is engine-computed
+or set from script, and **the fix is not a simple weapon-def edit.**
+
+Next moves, cheapest first:
+- grep `t6zm.exe`'s string table for `hideAmmo` ([[t6-dvar-names-from-exe]] technique) to find what
+  feeds it;
+- check whether any GSC/CSC builtin sets it per-weapon;
+- if it turns out to be unreachable, the fallback is for the mod to ship its own
+  `ammoareazombie.lua`. 🛑 That is a LAST resort: LUI here is compiled bytecode that cannot be
+  decompiled ([[t6-lui-bytecode-format]]), the file would shadow all three DLC maps at once, and
+  Origins' HUD is already a known-fragile area (checkpoint 64/65, the ring-menu work).
