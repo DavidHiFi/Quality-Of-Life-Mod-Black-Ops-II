@@ -8,6 +8,18 @@
 // ============================================================================
 >game,T6
 
+// --- PROBE v1.99.81 -------------------------------------------------------
+//  Declares an ipak that does not exist, purely so the engine PRINTS every
+//  directory it is willing to look for one in:
+//      "Zone mod is trying to find ipak zm_qol_hd in <dir>"
+//  That answers whether a mod can ever ship replacement STOCK textures, since
+//  stock textures live in ipaks and nothing else can override them. Declaring
+//  a missing ipak is safe - stock zones already do it (patch_zm asks for
+//  lowmip, common_zm and patch_all, none of which exist) and the engine just
+//  logs "ipak file not found" and carries on.
+//  REMOVE once the log has been read.
+>level.ipak_read,zm_qol_hd
+
 include,mod_base
 include,mod_locations
 include,mod_wonderweapons
