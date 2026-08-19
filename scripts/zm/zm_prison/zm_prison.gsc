@@ -39,6 +39,12 @@ init()
     //  a root file referencing it would be an unresolved external on every other
     //  map AT LOAD - a runtime guard does not help. AI_CONTEXT rule 2.
     level.zmqol_ww_boss_hit = ::zmqol_brutus_ww_hit;
+
+    //  v1.99.62 - the Death Machine must not survive an afterlife trip.
+    //  Installed from a thread rather than straight from init() because the
+    //  pointer it chains is published by maps\mp\zombies\_zm_afterlife::init()
+    //  and our init()'s position relative to that is not something to bet on.
+    level thread zmqol_install_afterlife_loadout_hook();
 }
 
 // ============================================================================
@@ -446,3 +452,160 @@ qol_check_solo_status()
     println( "[zm_qol] solo status: expected=" + n_expected + " connected=" + getnumconnectedplayers() + " is_forever_solo_game=" + level.is_forever_solo_game );
 }
 
+
+// ============================================================================
+//  DEATH MACHINE vs THE AFTERLIFE  (v1.99.62)
+// ----------------------------------------------------------------------------
+//  Reported by a player: "in mob of the dead if i get the death machine and then
+//  die with it i keep it for infinity".
+//
+//  WHY - measured in the stock scripts, not inferred:
+//
+//  Going down in Mob is NOT last stand. maps\mp\zombies\_zm_afterlife.gsc:347-355,
+//  inside afterlife_player_damage_callback(), intercepts the lethal hit, sets
+//  self.afterlife = 1 and threads afterlife_laststand(). No "death" notify fires
+//  and player_is_in_laststand() stays false.
+//
+//  afterlife_laststand() (:491) then calls [[ level.afterlife_save_loadout ]]()
+//  as its third statement, and afterlife_save_loadout() (:1182) snapshots
+//  getweaponslistprimaries() wholesale into self.loadout.weapons. The Death
+//  Machine is in the player's hands at that moment, so it goes into the
+//  snapshot. On revive, afterlife_laststand_cleanup() -> afterlife_give_loadout()
+//  (:1251) re-gives every weapon in that snapshot - and re-gives it PERMANENTLY,
+//  with no timer, because by then the mod's own end_deathmachine threads have
+//  long since fired and cleared their state. Hence "for infinity".
+//
+//  🛑 It is specific to Mob. On every other map a down is real last stand: the
+//  laststand pistol swap changes the current weapon, end_deathmachine_on_weapon_switch()
+//  sees that and ends the power-up on the spot, and nothing snapshots a weapon
+//  list. Nothing here is needed - or wanted - anywhere else, which is why it
+//  lives in the map script.
+//
+//  WHAT THIS DOES: chains level.afterlife_save_loadout and blanks the Death
+//  Machine out of the snapshot AFTER stock has taken it.
+//
+//  🌟 The blanking token is stock's own. afterlife_give_loadout() skips any entry
+//  equal to "none" (:1268), right beside the isdefined() skip at :1266. So the
+//  entry is set to "none" rather than removed - no array is re-indexed, no
+//  ammo/alt-weapon parallel array falls out of step, and every other reader of
+//  self.loadout.weapons in the map (zm_alcatraz_utility.gsc:1247/1255 and
+//  _zm_afterlife.gsc:800) only ever string-compares it, so "none" is inert there.
+//
+//  The scrub runs AFTER the snapshot, deliberately. Taking the gun off the player
+//  BEFORE it would also work only if takeweapon() updates getweaponslistprimaries()
+//  in the same frame, and that is an engine timing assumption this project has no
+//  measurement for. Editing the array afterwards is pure script data and cannot
+//  race anything.
+//
+//  The power-up still ENDS the way it always did - end_deathmachine_on_weapon_switch()
+//  fires when the afterlife hands the player lightning hands. This changes only
+//  what comes back afterwards.
+// ============================================================================
+zmqol_install_afterlife_loadout_hook()
+{
+    level endon( "end_game" );
+
+    //  _zm_afterlife::init() (:74) is the ONLY place in the map that assigns this
+    //  pointer - zm_prison_ffotd.gsc:46 re-points give_loadout, never save_loadout
+    //  - so once it is defined it is safe to chain. Wait up to 3s for it.
+    n_tries = 0;
+    while ( !isDefined( level.afterlife_save_loadout ) && n_tries < 60 )
+    {
+        wait 0.05;
+        n_tries++;
+    }
+
+    if ( !isDefined( level.afterlife_save_loadout ) )
+    {
+        println( "[zm_qol] afterlife loadout hook NOT installed - level.afterlife_save_loadout never appeared" );
+        return;
+    }
+
+    if ( isDefined( level.zmqol_orig_afterlife_save_loadout ) )
+        return;   //  already installed
+
+    level.zmqol_orig_afterlife_save_loadout = level.afterlife_save_loadout;
+    level.afterlife_save_loadout = ::zmqol_afterlife_save_loadout;
+    println( "[zm_qol] afterlife loadout hook installed (death machine scrub)" );
+}
+
+zmqol_afterlife_save_loadout()
+{
+    //  self = the player entering the afterlife.
+    if ( isDefined( level.zmqol_orig_afterlife_save_loadout ) )
+        self [[ level.zmqol_orig_afterlife_save_loadout ]]();
+    else
+        self maps\mp\zombies\_zm_afterlife::afterlife_save_loadout();
+
+    self zmqol_scrub_deathmachine_from_loadout();
+}
+
+zmqol_scrub_deathmachine_from_loadout()
+{
+    if ( !isDefined( self.loadout ) || !isDefined( self.loadout.weapons ) )
+        return;
+
+    //  Only the power-up gun. minigun_alcatraz_zm is a real box weapon this mod
+    //  adds elsewhere and must be kept.
+    weapon = "deathmachine_zm";
+    if ( isDefined( level.deathmachine_weapon ) )
+        weapon = level.deathmachine_weapon;
+
+    n_found = 0;
+    n_kept = 0;
+    for ( i = 0; i < self.loadout.weapons.size; i++ )
+    {
+        if ( !isDefined( self.loadout.weapons[i] ) )
+            continue;
+
+        if ( self.loadout.weapons[i] == weapon )
+        {
+            self.loadout.weapons[i] = "none";
+            n_found++;
+            continue;
+        }
+
+        if ( self.loadout.weapons[i] != "none" )
+            n_kept++;
+    }
+
+    if ( n_found == 0 )
+        return;
+
+    //  🛑 Safety valve. If the Death Machine were somehow the player's only
+    //  weapon, blanking it would leave give_loadout() calling setspawnweapon on
+    //  an empty entry. Put it back and take the old behaviour rather than risk
+    //  reviving someone weaponless - it cannot happen in normal play (Mob starts
+    //  everyone on m1911_zm and zombies cannot drop weapons), so this is a guard,
+    //  not a path.
+    if ( n_kept == 0 )
+    {
+        for ( i = 0; i < self.loadout.weapons.size; i++ )
+        {
+            if ( isDefined( self.loadout.weapons[i] ) && self.loadout.weapons[i] == "none" )
+                self.loadout.weapons[i] = weapon;
+        }
+        println( "[zm_qol] death machine scrub SKIPPED - it was the only saved weapon" );
+        return;
+    }
+
+    //  current_weapon points at whatever the player was holding, which is the
+    //  entry just blanked. Repoint it at the first real weapon so
+    //  afterlife_give_loadout()'s setspawnweapon/switchtoweaponimmediate (:1297)
+    //  get a valid name.
+    if ( isDefined( self.loadout.current_weapon ) &&
+         isDefined( self.loadout.weapons[self.loadout.current_weapon] ) &&
+         self.loadout.weapons[self.loadout.current_weapon] == "none" )
+    {
+        for ( i = 0; i < self.loadout.weapons.size; i++ )
+        {
+            if ( isDefined( self.loadout.weapons[i] ) && self.loadout.weapons[i] != "none" )
+            {
+                self.loadout.current_weapon = i;
+                break;
+            }
+        }
+    }
+
+    println( "[zm_qol] death machine scrubbed from afterlife loadout (" + n_found + " entry, " + n_kept + " kept)" );
+}
