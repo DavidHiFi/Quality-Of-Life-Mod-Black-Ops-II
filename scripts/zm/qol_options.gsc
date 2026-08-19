@@ -123,8 +123,8 @@ init()
     //
     //  🛑 The watcher's str_prev_color_timer / _round seeds MUST match these two
     //  strings exactly, or the first pass sees a change and repaints on spawn.
-    qol_opt_dvar( "hud_color_timer",       "0.2 0.3 0.6" );
-    qol_opt_dvar( "hud_color_round_timer", "0.2 0.3 0.6" );
+    qol_opt_dvar( "hud_color_timer",       "0.3 0.45 0.9" );
+    qol_opt_dvar( "hud_color_round_timer", "0.3 0.45 0.9" );
 
     //  Read by quality_of_life::get_pack_a_punch_weapon_options(). Default 1
     //  keeps the animated camo exactly where this mod already had it.
@@ -1008,6 +1008,7 @@ qol_opt_character()
 
     n_last = -1;
     b_last_saw_cia_flag = 0;
+    b_seen_once = 0;
 
     for ( ;; )
     {
@@ -1095,6 +1096,30 @@ qol_opt_character()
 
             self.favorite_wall_weapons_list = [];
             self [[ level.givecustomcharacters ]]();
+
+            //  ================================================================
+            //  🛑 v1.99.66 - THE SCOREBOARD BADGE CANNOT FOLLOW A MID-MATCH
+            //  SWITCH, AND THAT IS MEASURED, NOT ASSUMED.
+            //
+            //  The emblem watcher logs every write. On the user's 2026-08-19
+            //  test the log reads:
+            //      [zm_qol] scoreboard emblem -> faction_cia (should_use_cia=1)
+            //      [zm_qol] scoreboard emblem -> faction_cdc (should_use_cia=0)
+            //  so g_TeamIcon_Allies WAS changed to faction_cdc the moment
+            //  `character 2` ran - and the scoreboard still drew CIA. The icon is
+            //  therefore resolved when the scoreboard is built, not when it is
+            //  opened, and setdvar is the only lever GSC has (_scoreboard.gsc is
+            //  four setdvar calls and nothing else).
+            //
+            //  So the pre-game pick is correct - the user confirmed it - and the
+            //  console path says so rather than pretending. Say it once, and only
+            //  for a change made after the first application, so the normal
+            //  spawn-time pick stays silent.
+            //  ================================================================
+            if ( b_seen_once && isdefined( level.should_use_cia ) )
+                self iprintln( "^3[zm_qol] ^7character changed ^3- the scoreboard badge is fixed when the match starts and cannot follow" );
+
+            b_seen_once = 1;
         }
 
         wait 0.5;
@@ -1229,8 +1254,8 @@ qol_opt_hud_watcher()
     //  below), so the watcher only ever has to act on a real console change.
     //  v1.95.3 - both are the same dull navy now; these MUST track the two
     //  qol_opt_dvar defaults above or the first pass repaints on spawn.
-    str_prev_color_timer = "0.2 0.3 0.6";
-    str_prev_color_round = "0.2 0.3 0.6";
+    str_prev_color_timer = "0.3 0.45 0.9";
+    str_prev_color_round = "0.3 0.45 0.9";
 
     //  -1 so the first pass always writes the LUI flag once, whatever hud_master
     //  says. Seeding it to 1 would leave the flag unset on a player who joined
@@ -1566,7 +1591,7 @@ qol_opt_round_timer_hud( b_on )
         //  v1.95.3 - dull navy blue, same value as the game timer above, user
         //  2026-08-14. Set at creation for the same reason: the watcher no-ops on
         //  its first pass. Console override: hud_color_round_timer "r g b".
-        self.qol_hud_roundtimer.color = ( 0.2, 0.3, 0.6 );
+        self.qol_hud_roundtimer.color = ( 0.3, 0.45, 0.9 );
         self.qol_hud_roundtimer.hidewheninmenu = 1;
 
         if ( isdefined( level.qol_round_start_time ) )

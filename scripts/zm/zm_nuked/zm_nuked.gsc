@@ -369,7 +369,17 @@ bring_perk( machine, trigger, b_no_flight )
         machine.angles = machine.original_angles;
         machine.origin = ( machine.original_pos[0], machine.original_pos[1], machine.origin[2] );
         machine moveto( machine.original_pos, 3.0, 0.25, 0.75 );
-        machine waittill( "movedone" );
+        //  🛑 v1.99.66 - A FIXED WAIT, NOT waittill( "movedone" ).
+        //  One of the nine machines did not land on the first in-game test while
+        //  the log said all nine threads started, so a thread stopped somewhere
+        //  before the blocker crate was deleted - and this waittill is the only
+        //  place in the no-flight path that can wait forever. move_perk() raised
+        //  every machine with a 5.0s moveto at map start, so if the blackscreen
+        //  clears quickly that raise can still be running when this second moveto
+        //  begins, and a "movedone" belonging to the first move is easy to miss
+        //  or to consume out of order. The move takes exactly 3.0 seconds, so
+        //  waiting 3.05 is the same wait with no way to hang.
+        wait 3.05;
     }
 
     machine.origin = machine.original_pos;
@@ -395,6 +405,10 @@ bring_perk( machine, trigger, b_no_flight )
         machine.fx unlink();
         machine.fx delete();
     }
+
+    //  v1.99.66 - names every machine that actually completes a landing, so a
+    //  missing one can be identified from the log instead of from a screenshot.
+    println( "[zm_qol] nuketown machine LANDED: " + machine.targetname + " at " + machine.origin );
     machine notify( machine.turn_on_notify );
     level notify( machine.turn_on_notify );
     machine vibrate( vectorscale( ( 0, -1, 0 ), 100.0 ), 0.3, 0.4, 3 );
@@ -507,7 +521,12 @@ perks_from_the_sky()
     //  user asked to remove. Quick Revive simply comes down with everything else.
     if ( getdvarintdefault( "nuked_all_machines", 0 ) )
     {
-        wait 3.0;
+        //  v1.99.66 - 5.0, not 3.0. move_perk() lifts every machine with a 5.0s
+        //  moveto that starts during map load, and a second moveto issued while
+        //  the first is still running is the likeliest reason one machine failed
+        //  to land on the first test. Waiting 5s after the blackscreen clears
+        //  puts the lift certainly behind us.
+        wait 5.0;
         zmqol_nuked_drop_all_at_once();
         return;
     }
@@ -806,6 +825,7 @@ zmqol_nuked_drop_all_at_once()
         if ( !isdefined( a_machines[i] ) || !isdefined( a_triggers[i] ) )
             continue;
 
+        println( "[zm_qol] nuketown machine SENT: " + a_machines[i].targetname );
         level thread bring_perk( a_machines[i], a_triggers[i], 1 );
         n_sent++;
 

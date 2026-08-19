@@ -1470,7 +1470,42 @@ zmqol_vulture_brighter_eyes()
 	if ( !isDefined( level.perk_vulture ) || !isDefined( level.perk_vulture.vulture_vision ) )
 		return;
 
-	level.perk_vulture.vulture_vision.actors_eye_glow_override = n_fx;
+	//  ========================================================================
+	//  🛑 v1.99.66 - WRITTEN FOREVER, NOT ONCE, AND IT REPORTS ITSELF.
+	//
+	//  v1.99.65 set this a single time and the user saw no change at all - not
+	//  a subtle change, none. The two ways that happens are "the write never
+	//  landed" and "the write landed and drawing the effect twice is invisible",
+	//  and one boot cannot tell them apart without a line in the log. So: the
+	//  value is re-asserted on a slow loop, which also survives anything that
+	//  rebuilds level.perk_vulture.vulture_vision after this point
+	//  (vulture_vision_init() runs on player connect, i.e. AFTER this), and the
+	//  first application prints.
+	//
+	//  📝 Every third of a second, one comparison and at most one assignment.
+	//  Nothing allocates and nothing iterates.
+	//  ========================================================================
+	b_said = 0;
+
+	for ( ;; )
+	{
+		if ( isDefined( level.perk_vulture ) && isDefined( level.perk_vulture.vulture_vision ) )
+		{
+			if ( !isDefined( level.perk_vulture.vulture_vision.actors_eye_glow_override ) ||
+			     level.perk_vulture.vulture_vision.actors_eye_glow_override != n_fx )
+			{
+				level.perk_vulture.vulture_vision.actors_eye_glow_override = n_fx;
+
+				if ( !b_said )
+				{
+					b_said = 1;
+					println( "[zm_qol] vulture eye glow override applied" );
+				}
+			}
+		}
+
+		wait 0.3;
+	}
 }
 
 zmqol_vulture_machines_build()

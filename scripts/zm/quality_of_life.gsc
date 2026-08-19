@@ -1576,7 +1576,7 @@ timer()
     //  its first pass, which would leave this element on the engine default
     //  (white) if creation didn't set it. Console override, live, no rebuild:
     //  hud_color_timer "r g b".
-    timer.color = ( 0.2, 0.3, 0.6 );
+    timer.color = ( 0.3, 0.45, 0.9 );
     timer.alpha = 0;
     timer.hidewheninmenu = 1;
     flag_wait( "initial_blackscreen_passed" );
