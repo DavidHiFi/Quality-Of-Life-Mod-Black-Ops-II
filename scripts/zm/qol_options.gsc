@@ -133,6 +133,15 @@ init()
 
     //  Read by quality_of_life::get_pack_a_punch_weapon_options(). Default 1
     //  keeps the animated camo exactly where this mod already had it.
+    //
+    //  v1.99.83, queue item 11 - anim_pap_camo is the MASTER row on the GAME
+    //  tab. The three per-map dvars below stay, unchanged and still readable
+    //  from the console, because they are already archived in players' configs
+    //  and removing them would silently reset anyone who had set one. The
+    //  master is ANDed with them: OFF means camo 39 (stock) on all three maps
+    //  whatever the per-map dvars say, ON leaves the per-map behaviour exactly
+    //  as it has always been.
+    qol_opt_dvar( "anim_pap_camo",         "1" );
     qol_opt_dvar( "anim_pap_camo_mob",     "1" );
     qol_opt_dvar( "anim_pap_camo_buried",  "1" );
     qol_opt_dvar( "anim_pap_camo_origins", "1" );
@@ -193,6 +202,25 @@ init()
     //  autocompletes it; quality_of_life.gsc::zmqol_better_deadshot_scale()
     //  reads it on every bullet, so it is live both ways mid-game.
     qol_opt_dvar( "better_deadshot", "0" );
+
+    //  v1.99.83 - BOX LIMITS, queue item 30. OFF (0) by default, because the
+    //  no-limits box is what this mod has always shipped and a new switch must
+    //  not change existing behaviour until it is thrown. 1 puts stock's three
+    //  checks back, in stock's own order, inside
+    //  maps\mp\zombies\_zm_magicbox::treasure_chest_canplayerreceiveweapon() -
+    //  read per candidate weapon inside the spin loop, so the row is live and
+    //  the very next spin obeys it.
+    qol_opt_dvar( "box_limits", "0" );
+
+    //  v1.99.83 - CUSTOM POWER-UPS, queue item 25. ON (1) by default: Zombie
+    //  Blood, Blood Money and the Death Machine are drops this mod already ships
+    //  on every map, so the switch changes nothing until it is thrown. OFF puts
+    //  the drop table back to stock. It gates ONLY the drop-table registration -
+    //  never a clientfield, visionset or precache - so the per-map bit budget is
+    //  identical either way and the row cannot break a map load. Read once at
+    //  map load, so it takes effect on the next map. See
+    //  quality_of_life::zmqol_custom_powerups_enabled().
+    qol_opt_dvar( "custom_powerups", "1" );
 
     //  v1.99.74 - AIM ASSIST, its own row on CONTROLS > GAMEPAD. Default 1 =
     //  stock. 🛑 It can only take assist AWAY - see the banner over

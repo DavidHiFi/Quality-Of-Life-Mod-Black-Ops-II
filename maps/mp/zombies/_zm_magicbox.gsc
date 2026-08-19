@@ -1015,10 +1015,50 @@ treasure_chest_chooserandomweapon( player )
 //
 //  🛑 NOT verified in game yet.
 // ============================================================================
+//  ---------------------------------------------------------------------------
+//  v1.99.83, queue item 30 - THE "BOX LIMITS" ROW ON THE GAME TAB.
+//
+//  The feature above was always-on until now. The row gates it:
+//      box_limits 0  (DEFAULT)  no limits - exactly what this mod has always
+//                               done, so the switch changes nothing until it is
+//                               thrown.
+//      box_limits 1             vanilla. All three stock checks come back, in
+//                               stock's own order, so the box behaves bit for
+//                               bit like the base game: one Ray Gun, no
+//                               duplicate pulls, per-map wonder-weapon caps.
+//
+//  🌟 The three checks are restored EXACTLY where stock has them, not bolted on
+//  at the top: stock runs has_weapon_or_upgrade and limited_weapon_below_quota
+//  BEFORE player_can_use_content and the custom hook, and
+//  special_weapon_magicbox_check LAST, after the hook. Both helpers live in
+//  maps\mp\zombies\_zm_weapons (:1896 and :725), which this file already
+//  #includes, so the unqualified calls resolve the same way stock's do.
+//
+//  📝 treasure_chest_give_weapon below is deliberately NOT gated. It only fires
+//  when the player is already holding the PaP'd copy of the weapon the box just
+//  gave, and with limits ON stock's has_weapon_or_upgrade makes the box never
+//  offer that weapon in the first place - so it is unreachable in vanilla mode
+//  rather than wrong there, and leaving it costs nothing.
+//
+//  📝 The read is per candidate weapon inside the spin loop, which is what makes
+//  the row live: flip it and the very next box spin obeys the new setting, with
+//  no map reload.
+//  ---------------------------------------------------------------------------
 treasure_chest_canplayerreceiveweapon( player, weapon, pap_triggers )
 {
     if ( !get_is_in_box( weapon ) )
         return 0;
+
+    box_limits = getdvarintdefault( "box_limits", 0 );
+
+    if ( box_limits )
+    {
+        if ( isdefined( player ) && player has_weapon_or_upgrade( weapon ) )
+            return 0;
+
+        if ( !limited_weapon_below_quota( weapon, player, pap_triggers ) )
+            return 0;
+    }
 
     if ( !player player_can_use_content( weapon ) )
         return 0;
@@ -1028,6 +1068,9 @@ treasure_chest_canplayerreceiveweapon( player, weapon, pap_triggers )
         if ( ![[ level.custom_magic_box_selection_logic ]]( weapon, player, pap_triggers ) )
             return 0;
     }
+
+    if ( box_limits && isdefined( player ) && isdefined( level.special_weapon_magicbox_check ) )
+        return player [[ level.special_weapon_magicbox_check ]]( weapon );
 
     return 1;
 }

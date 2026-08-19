@@ -608,9 +608,16 @@ init()
     precacheitem( "deathmachine_zm" );
     level.deathmachine_weapon = "deathmachine_zm";
     level.deathmachine_duration = getdvarintdefault( "sv_deathmachine_duration", 30 );
-    include_zombie_powerup( "deathmachine" );
-    add_zombie_powerup( "deathmachine", "zombie_pickup_minigun", &"ZOMBIE_POWERUP_MINIGUN", ::drop_deathmachine, 0, 0, 0 );
-    powerup_set_can_pick_up_in_last_stand( "deathmachine", 0 );
+    //  v1.99.83, queue item 25 - CUSTOM POWER-UPS. Only the three registration
+    //  calls are gated; precacheitem, the model precache, the duration and the
+    //  damage callback above and below stay unconditional, so nothing that
+    //  might already hold a Death Machine loses its handler.
+    if ( zmqol_custom_powerups_enabled() )
+    {
+        include_zombie_powerup( "deathmachine" );
+        add_zombie_powerup( "deathmachine", "zombie_pickup_minigun", &"ZOMBIE_POWERUP_MINIGUN", ::drop_deathmachine, 0, 0, 0 );
+        powerup_set_can_pick_up_in_last_stand( "deathmachine", 0 );
+    }
     maps\mp\zombies\_zm_spawner::register_zombie_damage_callback( ::deathmachine_damage_response );
 
     // --- high_round_fix ---
@@ -1164,21 +1171,36 @@ get_pack_a_punch_weapon_options( weapon )
     //  anim_pap_camo_buried / _mob / _origins, all defaulting to 1 so the
     //  behaviour is unchanged unless someone turns one off at the console.
     //  Camo 40 is the animated one, 39 the static default.
+    //
+    //  v1.99.83, queue item 11 - ANIMATED CAMO PATCH on the GAME tab. The
+    //  master dvar anim_pap_camo gates all three maps at once; the per-map
+    //  dvars are untouched and still work from the console, so anyone who had
+    //  set one keeps it. Master OFF = camo 39 everywhere = exact stock.
+    //
+    //  🛑 THE ROW AFFECTS THE NEXT PACK-A-PUNCH, NOT GUNS ALREADY UPGRADED, and
+    //  that is stock's own doing, not a shortcut here: the four lines above
+    //  cache the result in self.pack_a_punch_weapon_options[weapon] and return
+    //  the cached value forever after, so a weapon's camo is decided once, when
+    //  it comes out of the machine. Clearing that cache mid-match would not
+    //  restyle the gun in the player's hands either - the options are baked
+    //  into the weapon the player is carrying and only a re-give would change
+    //  them. Flipping this row therefore changes every gun PaP'd from then on.
+    anim_camo_master = getdvarintdefault( "anim_pap_camo", 1 );
     if ( level.script == "zm_buried" )
     {
         if ( base == "slowgun_zm" || base == "slowgun_upgraded_zm" || ( base == "rnma_zm" || base == "rnma_upgraded_zm" ) )
             camo_index = 39;
-        else if ( getdvarintdefault( "anim_pap_camo_buried", 1 ) )
+        else if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_buried", 1 ) )
             camo_index = 40;
     }
     else if ( level.script == "zm_prison" )
     {
-        if ( getdvarintdefault( "anim_pap_camo_mob", 1 ) )
+        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_mob", 1 ) )
             camo_index = 40;
     }
     else if ( level.script == "zm_tomb" )
     {
-        if ( getdvarintdefault( "anim_pap_camo_origins", 1 ) )
+        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_origins", 1 ) )
             camo_index = 40;
     }
     lens_index = randomintrange( 0, 6 );
@@ -9104,8 +9126,54 @@ zmqol_enable_fire_sale()
 //  owning it globally cannot regress the two maps that already had it - the
 //  mod.ff asset-ownership trap does not apply.
 // ============================================================================
+// ============================================================================
+//  zmqol_custom_powerups_enabled  -  the CUSTOM POWER-UPS row on the GAME tab
+//  (v1.99.83, queue item 25)
+//
+//  User, 2026-08-19: ON = the mod's added drops (Zombie Blood, Blood Money,
+//  Death Machine); OFF = the stock power-up table only.
+//
+//  🛑 WHAT THIS GATES, AND WHAT IT DELIBERATELY DOES NOT.
+//  It gates ONLY the calls that put a power-up into the drop table -
+//  include_powerup / include_zombie_powerup / add_zombie_powerup /
+//  powerup_set_can_pick_up_in_last_stand - and the Blood Money drop-function
+//  re-point. It does NOT gate a single registerclientfield, visionset,
+//  loadfx or precache.
+//
+//  🌟 THAT IS THE WHOLE SAFETY ARGUMENT, and it is the trap QUEUE.md flagged as
+//  the highest-risk part of this item. A clientfield registered on the server
+//  and not on the client - or registered on one map's boot and not the next -
+//  is EXE_CLIENT_FIELD_MISMATCH at load, which is fatal and gives no useful
+//  error (ERROR_CATALOGUE §1). Leaving every registration exactly where it is
+//  means the per-map bit budget with this row OFF is byte-identical to the
+//  budget with it ON, on every map, so the row cannot break a boot. The cost is
+//  a few reserved bits nobody reads while it is off, which is invisible.
+//
+//  🌟 ORIGINS IS ALREADY CORRECT WITHOUT A SPECIAL CASE, and that is measured:
+//    - Zombie Blood: zmqol_zombie_blood_enabled() already returns 0 on zm_tomb
+//      because Origins registers the power-up itself, so this row never reaches
+//      it there.
+//    - Blood Money: Origins includes it in its OWN main() -
+//      <gsc-dump>\ZM\Maps\Origins\maps\mp\zm_tomb.gsc:1176
+//      include_powerup( "bonus_points_player" ) - so skipping this mod's
+//      include on Origins changes nothing, and skipping the drop-function
+//      re-point returns it to stock's ::func_should_never_drop, i.e. dig-site
+//      only. That IS Origins' vanilla behaviour, which is exactly what OFF is
+//      supposed to mean per the user's requirement.
+//
+//  📝 Read at map load, not per drop, because these are registration calls that
+//  only happen once. Flipping the row takes effect on the next map.
+// ============================================================================
+zmqol_custom_powerups_enabled()
+{
+    return getdvarintdefault( "custom_powerups", 1 );
+}
+
 zmqol_enable_blood_money()
 {
+    if ( !zmqol_custom_powerups_enabled() )
+        return;
+
     maps\mp\zombies\_zm_utility::include_powerup( "bonus_points_player" );
 }
 
@@ -9143,6 +9211,12 @@ zmqol_enable_blood_money()
 // ============================================================================
 zmqol_blood_money_natural_drop()
 {
+    //  v1.99.83, queue item 25 - CUSTOM POWER-UPS off leaves stock's
+    //  ::func_should_never_drop in place, which is Blood Money's vanilla state
+    //  on every map, Origins' dig sites included.
+    if ( !zmqol_custom_powerups_enabled() )
+        return;
+
     for ( i = 0; i < 600; i++ )
     {
         if ( isdefined( level.zombie_powerups ) &&
@@ -9327,32 +9401,49 @@ zmqol_enable_zombie_blood()
 
     registerclientfield( "allplayers", "player_zombie_blood_fx", 14000, 1, "int" );
 
-    maps\mp\zombies\_zm_utility::include_powerup( "zombie_blood" );
+    //  v1.99.83, queue item 25 - CUSTOM POWER-UPS gates the DROP TABLE ENTRY and
+    //  nothing else.
+    //
+    //  🛑 THIS IS AN `if` BLOCK AND NOT AN EARLY `return` ON PURPOSE. Everything
+    //  after it - the two vsmgr priorities - is read later in the same map load
+    //  by zmqol_register_zombie_blood_visionsets(), which passes them straight
+    //  into vsmgr_register_info(). Returning here would leave them undefined, so
+    //  the visionset would register with a bad priority or not at all, and the
+    //  number of registered visionsets is what sets visionset_slot's BIT WIDTH.
+    //  Server and client disagreeing on that width is a silent desync that boots
+    //  clean and then never shows the effect ([[t6-visionset-slot-silent-desync]]),
+    //  or EXE_CLIENT_FIELD_MISMATCH outright. The registrations must be
+    //  identical with the row on and off; only the drop changes.
+    if ( zmqol_custom_powerups_enabled() )
+    {
+        maps\mp\zombies\_zm_utility::include_powerup( "zombie_blood" );
 
-    //  See the block comment: add_zombie_powerup() writes into both of these and
-    //  _zm_powerups::init() has not run yet. Its own creation lines are
-    //  isdefined-guarded, so seeding them here cannot lose stock's entries.
-    if ( !isdefined( level.zombie_powerup_array ) )
-        level.zombie_powerup_array = [];
+        //  See the block comment: add_zombie_powerup() writes into both of these
+        //  and _zm_powerups::init() has not run yet. Its own creation lines are
+        //  isdefined-guarded, so seeding them here cannot lose stock's entries.
+        if ( !isdefined( level.zombie_powerup_array ) )
+            level.zombie_powerup_array = [];
 
-    if ( !isdefined( level.zombie_special_drop_array ) )
-        level.zombie_special_drop_array = [];
+        if ( !isdefined( level.zombie_special_drop_array ) )
+            level.zombie_special_drop_array = [];
 
-    //  Arguments copied verbatim from _zm_powerup_zombie_blood.gsc:17. The hint
-    //  string is genuinely &"ZOMBIE_POWERUP_MAX_AMMO" in stock - Treyarch reused
-    //  Max Ammo's - and it is core-localized, so it resolves on every map.
-    maps\mp\zombies\_zm_powerups::add_zombie_powerup( "zombie_blood",
-        "p6_zm_tm_blood_power_up",
-        &"ZOMBIE_POWERUP_MAX_AMMO",
-        maps\mp\zombies\_zm_powerups::func_should_always_drop,
-        1, 0, 0, undefined,
-        "powerup_zombie_blood",
-        "zombie_powerup_zombie_blood_time",
-        "zombie_powerup_zombie_blood_on" );
+        //  Arguments copied verbatim from _zm_powerup_zombie_blood.gsc:17. The
+        //  hint string is genuinely &"ZOMBIE_POWERUP_MAX_AMMO" in stock -
+        //  Treyarch reused Max Ammo's - and it is core-localized, so it resolves
+        //  on every map.
+        maps\mp\zombies\_zm_powerups::add_zombie_powerup( "zombie_blood",
+            "p6_zm_tm_blood_power_up",
+            &"ZOMBIE_POWERUP_MAX_AMMO",
+            maps\mp\zombies\_zm_powerups::func_should_always_drop,
+            1, 0, 0, undefined,
+            "powerup_zombie_blood",
+            "zombie_powerup_zombie_blood_time",
+            "zombie_powerup_zombie_blood_on" );
 
-    maps\mp\zombies\_zm_powerups::powerup_set_can_pick_up_in_last_stand( "zombie_blood", 0 );
+        maps\mp\zombies\_zm_powerups::powerup_set_can_pick_up_in_last_stand( "zombie_blood", 0 );
 
-    maps\mp\zombies\_zm_utility::onplayerconnect_callback( ::zmqol_zb_init_player_vars );
+        maps\mp\zombies\_zm_utility::onplayerconnect_callback( ::zmqol_zb_init_player_vars );
+    }
 
     if ( !isdefined( level.vsmgr_prio_visionset_zm_powerup_zombie_blood ) )
         level.vsmgr_prio_visionset_zm_powerup_zombie_blood = 15;

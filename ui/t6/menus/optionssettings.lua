@@ -1323,6 +1323,39 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- perk does nothing at all; this is what makes it worth buying either way.
 	T(QolButtons, LocalClientIndex, "BETTER DEADSHOT",    "better_deadshot",      "Deadshot doubles bullet headshot damage. Works on mouse too.")
 
+	-- v1.99.83, queue item 11. ON by default - the animated Pack-a-Punch camo
+	-- is behaviour the mod has always had on Mob, Buried and Origins, so the
+	-- switch changes nothing until it is thrown. OFF is exact stock: camo 39,
+	-- the static one, on all three. The three per-map dvars anim_pap_camo_mob /
+	-- _buried / _origins are untouched and still work from the console; this
+	-- row is ANDed with them, so nobody's saved per-map setting is lost.
+	-- 🛑 It decides the camo at the moment a gun is Pack-a-Punched. A gun
+	-- already in your hands keeps the camo it was given - stock caches the
+	-- weapon options per weapon and the options are baked into the carried
+	-- weapon. See get_pack_a_punch_weapon_options() in quality_of_life.gsc.
+	T(QolButtons, LocalClientIndex, "ANIMATED CAMO PATCH", "anim_pap_camo",      "Animated Pack-a-Punch camo on Mob, Buried and Origins.")
+
+	-- v1.99.83, queue item 30. OFF by default, and that is not a typo: the box
+	-- with NO limits is what this mod has always shipped, so DISABLED is the
+	-- existing behaviour and the switch changes nothing until it is thrown.
+	-- ENABLED restores the base game exactly - one Ray Gun, no pulling a gun you
+	-- already hold, per-map wonder-weapon caps - by putting stock's own three
+	-- checks back in stock's own order. It is live: flip it and the next spin
+	-- obeys it. See treasure_chest_canplayerreceiveweapon() in
+	-- maps\mp\zombies\_zm_magicbox.gsc.
+	T(QolButtons, LocalClientIndex, "BOX LIMITS",         "box_limits",         "Vanilla mystery box rules. Off allows duplicates and no caps.")
+
+	-- v1.99.83, queue item 25. ON by default - Zombie Blood, Blood Money and the
+	-- Death Machine are drops the mod already ships, so the switch changes
+	-- nothing until it is thrown. OFF is the stock power-up table.
+	-- 🛑 Origins keeps its own Zombie Blood and its own dig-site Blood Money
+	-- either way: the mod never registers Zombie Blood there, and Origins
+	-- includes Blood Money in its own main(). OFF means "vanilla for this map",
+	-- not "no Zombie Blood anywhere".
+	-- 📝 Takes effect on the next map: these are registrations that happen once
+	-- at load, not per drop.
+	T(QolButtons, LocalClientIndex, "CUSTOM POWER-UPS",   "custom_powerups",    "The mod's extra drops. Off leaves the stock power-ups only.")
+
 	-- 🛑 v1.99.61 - INTRO CREDITS IS GONE FROM THIS TAB. It moved to HUD and was
 	-- renamed FLASH CREDITS (user, 2026-08-18: *"it should be under the HUD tab
 	-- as it's a heads-up display element"*). Its DVAR is still intro_credits -
@@ -1333,7 +1366,7 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- Removing the last row left a TRAILING spacer, which is the same layout
 	-- fault as two spacers touching. It went with the row.
 
-	return QolContainer                              -- 9 rows + 1 spacer = 9.5
+	return QolContainer                              -- 12 rows + 1 spacer = 12.5
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
