@@ -1350,6 +1350,9 @@ zmqol_init_vulture_trimmed()
 	//  v1.99.65 - Vulture Aid makes the zombie eyes BRIGHTER. See the banner
 	//  below zmqol_init_vulture_trimmed() for the whole reasoning.
 	level thread zmqol_vulture_brighter_eyes();
+
+	//  v1.99.69 - and only ONE eye glow while the perk is held. See the banner.
+	level thread zmqol_vulture_single_eye();
 }
 
 // ============================================================================
@@ -2544,4 +2547,81 @@ zmqol_wallbuy_box_init()
 	// left-hand gun
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "gl_m16_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m1911lh_upgraded_zm", 0 );
+}
+
+// ============================================================================
+//  zmqol_vulture_single_eye  (CLIENT)  -  one eye glow, not two    (v1.99.69)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-19: *"the eye glow changed from yellow to blue, but you can
+//  still see the yellow glow hint so fix that so that when you got vultures aid
+//  it doesn't have double eye glow effects"*.
+//
+//  🛑 THE DOUBLING IS STOCK, NOT A BUG THIS MOD INTRODUCED. Vulture Aid's eye
+//  effect is an EXTRA one: _zm.csc:644 gives every zombie its normal eye, and
+//  _zm_perk_vulture.csc:504 adds the perk's on top of it, on the same tag. On
+//  Buried the two are similar enough to read as one. With a deliberately
+//  different effect on top, both are visible - which is exactly what was
+//  reported.
+//
+//  🌟 STOCK ALREADY SHIPS BOTH HALVES OF THE FIX, so nothing is reimplemented:
+//  clientscripts\mp\zombies\_zm::deletezombieeyes() and ::createzombieeyes().
+//  Both are idempotent - delete early-outs when the fx is already gone, create
+//  early-outs when one already exists - so calling them on a loop is safe.
+//
+//  📝 WHY A LOOP AND NOT AN EVENT. Zombies spawn constantly and each one builds
+//  its own normal eye on spawn, so a one-shot pass at the moment the perk is
+//  bought would only cover the zombies alive at that instant. The loop also
+//  restores the normal eye on the falling edge, so losing the perk puts every
+//  zombie back exactly as stock left it.
+//
+//  ⚠️ Cost: one pass every 0.25s over the tracked zombie list, and only while
+//  somebody holds the perk. Each call is an isdefined test that early-outs.
+//
+//  🛑 The 0-3 loop is the local client slots for splitscreen. On a single client
+//  slots 1-3 have no eye fx recorded, so those calls early-out immediately.
+// ============================================================================
+zmqol_vulture_single_eye()
+{
+	level endon( "end_game" );
+
+	b_suppressing = [];
+
+	for ( ;; )
+	{
+		wait 0.25;
+
+		if ( !isDefined( level.perk_vulture ) ||
+		     !isDefined( level.perk_vulture.vulture_vision ) ||
+		     !isDefined( level.perk_vulture.vulture_vision.actors_eye_glow ) )
+			continue;
+
+		a_zombies = level.perk_vulture.vulture_vision.actors_eye_glow;
+
+		for ( n = 0; n < 4; n++ )
+		{
+			b_has = isDefined( level.perk_vulture.players_with_vulture_perk ) &&
+			        isDefined( level.perk_vulture.players_with_vulture_perk[ n ] );
+
+			if ( b_has )
+			{
+				for ( i = 0; i < a_zombies.size; i++ )
+				{
+					if ( isDefined( a_zombies[i] ) )
+						a_zombies[i] clientscripts\mp\zombies\_zm::deletezombieeyes( n );
+				}
+
+				b_suppressing[ n ] = 1;
+			}
+			else if ( isDefined( b_suppressing[ n ] ) && b_suppressing[ n ] )
+			{
+				for ( i = 0; i < a_zombies.size; i++ )
+				{
+					if ( isDefined( a_zombies[i] ) )
+						a_zombies[i] clientscripts\mp\zombies\_zm::createzombieeyes( n );
+				}
+
+				b_suppressing[ n ] = 0;
+			}
+		}
+	}
 }

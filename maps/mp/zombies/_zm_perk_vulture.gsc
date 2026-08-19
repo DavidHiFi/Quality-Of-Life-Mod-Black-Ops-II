@@ -1969,6 +1969,7 @@ zmqol_vulture_marker_scan()
     for ( ;; )
     {
         a_trigs = getentarray( "zombie_vending", "targetname" );
+        n_marked = 0;
 
         for ( i = 0; i < a_trigs.size; i++ )
         {
@@ -1987,6 +1988,17 @@ zmqol_vulture_marker_scan()
 
             trig.machine.zmqol_marker_code = n_code;
             trig.machine setclientfield( "zmqol_vulture_marker", n_code );
+            n_marked++;
+        }
+
+        if ( !isdefined( level.zmqol_marker_said ) && n_marked > 0 )
+        {
+            //  One line, once - it names how many machines the server actually
+            //  found and marked, which is the only way to tell "the scan missed
+            //  them" from "the player already owns that perk, so stock hides the
+            //  icon by design".
+            level.zmqol_marker_said = 1;
+            println( "[zm_qol] vulture markers: " + n_marked + " machine(s) marked" );
         }
 
         wait 2;
