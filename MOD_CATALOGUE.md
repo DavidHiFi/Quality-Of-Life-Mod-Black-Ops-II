@@ -534,11 +534,28 @@ future."*
 Nothing below was deleted from the project — it was moved here. The README is now a player-facing
 page: what the mod is, how to install it, what it does, what is broken.
 
-## 11a. Textures — the disclaimer that was cut
+## 11a. Textures
 
-The mod **no longer ships an upscaled texture pack**. Removed in v1.57.7: loose `.iwi` in
-`mod.iwd` did not reliably override the stock art, and it cost 2 GB for no visible result. A
-player's own pack goes in `%LOCALAPPDATA%\Plutonium\storage\t6\images\`, which does work.
+🛑 **CORRECTED 2026-08-19, v1.99.77: the mod SHIPS an upscaled texture pack again.** 118 `.iwi`
+(+258 MB, `mod.iwd` is now 353 MB) at the user's explicit instruction — *"get all the .iwi files
+from the folder working for my mod now"* — after being shown the search-order evidence below.
+Contents: 3 font atlases (`devfonts` 1024², `distfont` 512², `gamefonts_pc_720` 2048×4096), optic
+reticles and scope overlays at 1024², loadscreens at 1024², perk icons at 64², HUD equipment icons,
+and vending-machine colour/spec maps at 2048²–4096².
+
+Three files from the source folder were **deliberately NOT taken**, because the mod already ships
+its own and `build.bat` step [1/6] re-copies `zone_assets\images\*.iwi` over `images\` every build
+anyway: `loadscreen_zm_hellcatraz`, `loadscreen_transit_standard_busdepot`, and `side_small` — the
+last being the sharpest case (mod's is **8×8 DXT5**, the pack's is **128×128 DXT3**, and
+`mod_tac45.zone` + `mod_wonderweapons.zone` both declare the name, so the pack's copy would be read
+through an 8px header).
+
+🌟 **The lookup order is now MEASURED, not assumed** — `console_zm.log`'s `Current search path:`
+block prints it in priority order: `mod.iwd` is **rank 1**, `storage\t6\` (which is how
+`storage\t6\images\` resolves) is **rank 4**. So the mod's copies beat a player's own pack, and
+nothing the mod can ship ranks below it. The earlier history: v1.57.7 dropped a 2 GB pack for "no
+visible result" — that verdict was reached without this evidence and should not be treated as
+proof that mod-shipped `.iwi` do not work.
 
 v1.93.0 removed two perk icons the mod still shipped — `specialty_vulture_zombies.iwi` and
 `specialty_tombstone_zombies.iwi` — because `mod.iwd\images\` beats `storage\t6\images\` and they
