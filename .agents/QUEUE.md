@@ -8544,3 +8544,76 @@ port *from*, and item 15's open question is answered on the way: the mod already
 `mods\mp_gunj71st_v4\mod.ff`, a third-party multiplayer mod, which is under the no-import rule.
 These four are asset jobs needing a sanctioned source, and they were not attempted rather than
 half-attempted.
+
+## ITEM 21 — CARPENTER: 🌟 MEASURED AS **STOCK BEHAVIOUR**, NOT A BUG IN THIS MOD
+
+The friend reported barriers snapping up with no rebuild animation. Two things were checked, and
+neither leaves room for the mod.
+
+**1. The mod does not touch carpenter anywhere.** `maps\` in this project contains exactly six
+overrides — `_zm_magicbox`, `_zm_perk_divetonuke`, `_zm_perk_vulture`, `_zm_weap_freezegun`,
+`_zm_weap_tesla`, `_zm_weap_thundergun` — and **`_zm_powerups.gsc` is not among them**. Grepped the
+whole tree: no `start_carpenter`, no `start_carpenter_new`, no `repair_far_boards`, no
+`level.use_new_carpenter_func`, no `level.board_repair_distance_squared`. Origins' own
+`zm_tomb.gsc:1699` reads the `exterior_goal` structs carpenter also uses, but only reads them.
+
+**2. Stock snaps far barriers by design.** `_zm_powerups.gsc:2477 start_carpenter_new()` splits the
+window boards in two:
+
+```gsc
+boards_near_players = get_near_boards( window_boards );
+boards_far_from_players = get_far_boards( window_boards );
+level repair_far_boards( boards_far_from_players, ... );   // <- no animation, instant
+for ( i = 0; i < boards_near_players.size; i++ )           // <- the animated rebuild loop
+```
+
+`get_near_boards` / `get_far_boards` split on `level.board_repair_distance_squared` = **562500**,
+i.e. **750 units**. So every barrier more than 750 units from any player is *supposed* to snap, with
+no animation, and on a big map that is most of them.
+
+🛑 **The one case that would still be a bug** is a barrier the player is standing next to snapping.
+That is the only question left, and it is a one-look answer next time it happens: stand at a barrier
+inside 750 units and grab a Carpenter. Everything else in the report is stock.
+
+## ITEM 13 — CUSTOM CAMOS: 🌟 THE CAUSE IS FILE PRECEDENCE, AND IT IS MEASURED
+
+*"Custom animated camos from `plutonium/t6/images` are ignored."*
+
+**The mod ships 70 `camo_*.iwi` inside `mod.iwd`, and 64 of them are stock ipak-backed names.**
+Measured with the ipak index parser against `zone\all`'s 32,200 name hashes:
+
+```
+mod images\ total: in-ipak=167  not-in-ipak=1  name-unknown=211
+  of which camo*: in-ipak=64   not-in-ipak=0   name-unknown=6
+```
+
+And the search path, printed in the user's own log after `loadmod`, is:
+
+```
+1 storage\t6\mods\zm_qol\mod.iwd     <- the mod's copy of camo_*.iwi
+...
+4 storage\t6\                        <- the player's own images\ folder
+```
+
+**Rank 1 beats rank 4, so the player's file is never read.** That is the whole of "ignored", and no
+script can change it: image resolution happens on the file system, not in GSC or LUI.
+
+They arrived as dependencies of the wonder-weapon port (commit `bb44073`), sitting in
+`zone_assets\images\` and copied into `images\` by `build.bat` step [1].
+
+### The candidate fix, and the single test it needs before it can ship
+
+**Stop shipping the 64 stock-name camo `.iwi`** (keeping the 6 whose names are not in the stock
+list). The mod.ff camo image *headers* would then resolve their pixels from the ipak, exactly as
+they do for someone with no mod, and the player's own file at rank 4 becomes the top loose copy.
+
+🛑 **NOT SHIPPED, because one assumption in that sentence is untested.** Checkpoint 84 proved that a
+fastfile carries no pixels and that loose `.iwi` reach the renderer for images in **no** ipak; it
+never demonstrated a `mod.ff` image header pulling its pixels **out of an ipak**. If that does not
+happen, dropping the files turns every camo black on every map — a far worse regression than the
+bug. The cheap test is one file: delete a single in-ipak `camo_*.iwi` from `images\`, rebuild, and
+look at that camo in game. If it still renders, the other 63 can follow in one go.
+
+📝 The second half of the request — *"a cycle between them and the mod's own"* — cannot be a menu
+row for the same reason. Which `.iwi` wins is decided when the file system is searched, so the
+choice is an install-time one, not a runtime one.

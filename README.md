@@ -76,8 +76,11 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   CIA showed a CDC badge — in stock too, whenever its random roll picked CIA.
 
 **HUD and menus**
-- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 31 toggles, so you never
+- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 37 toggles, so you never
   have to type a chat command.
+- **Three new rows on the zombies pause menu itself**: **RESTART GAME** (stock's own confirm
+  popup and `fast_restart`, re-connected — Plutonium's UI had dropped the button), **INSTANT
+  EXIT** straight to the lobby with no game-over music or scoreboard, and **QUIT TO DESKTOP**.
 - **Three more on the stock ADVANCED tab** (main menu *and* pause menu): **Night Mode**, **Fog** and
   **Higher Draw Distance**, sitting with the game's own image-quality settings where they belong.
   The stock **Depth Of Field** row there also gains a fourth step, **DISABLED** — base BO2 only
