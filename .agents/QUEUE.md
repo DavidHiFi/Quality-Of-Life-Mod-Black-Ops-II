@@ -8448,3 +8448,99 @@ Build A (pre-probe, had the six) froze. Build B (v1.99.81, probe + the six) froz
 **DEPLOYED, NOT YET BOOTED.** If it still freezes: the next step is the ff/iwd split — two mod
 folders, one with `mod.ff` and no `mod.iwd`, one with `mod.iwd` and no `mod.ff` — which halves the
 remaining search in one boot.
+
+---
+
+# 2026-08-20 (AFK session) — v1.99.82 … v1.99.86
+
+The user went out and asked for as much of the queue as could be done properly without them, with
+the standing bar unchanged: nothing half-built, nothing guessed, and anything that cannot be done
+perfectly gets written up rather than shipped.
+
+## SHIPPED — all deployed and hash-verified, NONE booted
+
+| version | item | what |
+|---|---|---|
+| 1.99.82 | 26 | mod-unload freeze: 6 `mod.ff` assets that duplicate live `common_zm` assets removed |
+| 1.99.83 | 11, 30, 25 | GAME tab: ANIMATED CAMO PATCH, BOX LIMITS, CUSTOM POWER-UPS |
+| 1.99.84 | 24 | the silent announcer lines — a Nuketown-only announcer-prefix miss |
+| 1.99.85 | 28, 29 | pause menu: INSTANT EXIT, QUIT TO DESKTOP (+ a build.bat correctness fix) |
+| 1.99.86 | 32 | CHEATS tab: CHANGE ROUND, KILL HORDE, END ROUND (+ two real bug fixes) |
+
+## 🌟 ITEM 34 — A MEASUREMENT THAT MOVES IT, TAKEN WITHOUT A BOOT
+
+Two things were settled this session.
+
+**1. The ipak probe fired and answered its question.** `console_zm.log.006` carries the v1.99.81
+probe's output in full:
+
+```
+Zone mod is trying to find ipak zm_qol_hd in F:\...\Call of Duty Black Ops II\zone\all\
+ipak file not found: zm_qol_hd
+Zone mod is trying to find ipak zm_qol_hd in F:\...\Call of Duty Black Ops II\zone\english\
+ipak file not found: zm_qol_hd
+```
+
+**Two directories, both inside the BO2 install, and no mod folder among them.** So a mod can never
+ship its own `.ipak`; an ipak is a game-folder install. That closes the branch checkpoint 84 §4 left
+open, and the probe has been removed from `mod.zone`.
+
+**2. 🌟 EVERY ONE of the user's own 51 loose textures is an ipak-backed image.** Re-ran the ipak
+index parser (32,200 unique name hashes across every `.ipak` in `zone\all`, names resolved through
+`T6-iPak-Unpacker\iPak_Utils\image_names.csv`) against
+`%LOCALAPPDATA%\Plutonium\storage\t6\images\`:
+
+```
+storage\t6\images        in-ipak=51  known-but-not-in-ipak=0  name-unknown=0
+```
+
+That folder is the player's own, hand-assembled set (50 files, plus the one Speed Cola probe file
+this project put there). **If a loose `.iwi` at rank 4 could never beat an ipak, all fifty of those
+files would be doing nothing** — which is not a conclusion to reach about a set someone curated
+deliberately. It is evidence, not proof, and it is the same cell checkpoint 84 wanted the Speed Cola
+boot to settle; it now has strong support before that boot.
+
+**What that implies, stated as the hypothesis it is:** the loose-image loader does not consult the
+whole FS search path. Rank 4 (`storage\t6\`) works; rank 1 (inside `mod.iwd`), rank 2
+(`storage\t6\mods\zm_qol\`) and rank 6 (`<BO2>\mods\zm_qol\`) were all booted and all did nothing.
+If that is right, the textures are deliverable — but only into the **player's own** `images\`
+folder, never from a mods folder.
+
+🛑 **This is the user's decision and it is not being made for them.** The choice is:
+- ship the pack as a **separate optional download** on the release, with one line of instruction
+  ("drop these into `%LOCALAPPDATA%\Plutonium\storage\t6\images\`"), which also happens to satisfy
+  the second half of their requirement for free — a player who already has a texture of that name
+  keeps it, because the copier refuses to overwrite; or
+- drop the idea, on the grounds that it is not "put the mod in your mods folder and you have
+  textures".
+
+The 260 MB pack has deliberately NOT been attached to a release unilaterally.
+
+## 🛑 STILL OPEN AND WHY — the things deliberately not built
+
+**Item 27, RESTART GAME.** Plutonium's own `class.lua` has removed stock's entire restart branch,
+handler included, so QUEUE.md's earlier reading — "the work is one LUI override relaxing the
+session-mode condition" — is out of date: the restart itself would have to be supplied. The only
+stock mechanism is the GSC builtin `map_restart(1)` (`_zm_gametype.gsc:1197`,
+`_globallogic.gsc:960`), which stock uses to restart a **Grief round** with the game state
+deliberately preserved. Whether that yields a clean round-1 Survival match under Plutonium cannot be
+settled from the files, and a "restart" that hands the player back their perks and round number is
+the half-working row this project does not ship. **One boot decides it.**
+
+**Item 4 / item 24's Death Machine half, on Nuketown only.** Its payload is Die Rise's
+`zmb_vox_ann_death_machine`
+(`devraw\english\sound\vox\scripted\zmb\announcer\death_machine.SN65.pc.snd.flac`) and Die Rise's
+announcer is Richtofen. Nuketown's Samantha set is 8 rows and contains no Death Machine line — **no
+Samantha Death Machine recording exists anywhere in the game**. So on Nuketown before the moon
+transmission the only options are Richtofen's voice while Samantha is announcing, or silence.
+Silence is what ships. **The user's call.**
+
+**Items 15, 16, 17, 18 — the four weapon ports (Dragunov, MM1, Bouncing Betties, M14).** 🛑 **There
+are no campaign fastfiles on this machine at all**: `<BO2>\zone\` holds only `all\` and `english\`,
+and neither contains an `sp_*` zone. So the campaign Dragunov and MM1 have no asset source here to
+port *from*, and item 15's open question is answered on the way: the mod already ships `svu_zm`
+(`displayName WEAPON_SVU`), and BO2 has no separate "dragunov" weapon — no such string exists in
+`t6zm.exe` or anywhere in the starter kit's reference tree. A `weapon,drag_mp` does exist inside
+`mods\mp_gunj71st_v4\mod.ff`, a third-party multiplayer mod, which is under the no-import rule.
+These four are asset jobs needing a sanctioned source, and they were not attempted rather than
+half-attempted.

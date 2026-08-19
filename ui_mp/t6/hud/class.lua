@@ -1,5 +1,5 @@
 -- ============================================================================
---  zm_qol v1.99.85 - THE ZOMBIES PAUSE MENU, +2 ROWS. Queue items 28 and 29.
+--  zm_qol - THE ZOMBIES PAUSE MENU, +3 ROWS. Queue items 27, 28 and 29.
 --
 --  User, 2026-08-19, from a friend's screen-share:
 --    28  INSTANT EXIT   - under the existing END GAME, straight to the lobby
@@ -10,17 +10,22 @@
 --  🛑 END GAME IS NOT TOUCHED. The user was explicit about that; these are
 --  additions beside it.
 --
---  🛑 ITEM 27, "RESTART GAME", IS DELIBERATELY NOT HERE. See QUEUE.md. Short
---  version: stock builds that button, but PLUTONIUM'S OWN class.lua - this
---  file's base - has removed the whole branch, handler included, so it is not a
---  matter of relaxing a condition. Re-adding the button means also supplying the
---  restart itself, and the only stock mechanism is the GSC builtin
---  map_restart(1) (_zm_gametype.gsc:1197, _globallogic.gsc:960), which stock
---  uses to restart a GRIEF ROUND with the game state deliberately preserved.
---  Whether that yields a clean round-1 Survival match under Plutonium cannot be
---  settled from the files, and a "restart" that hands the player back their
---  perks and round number is exactly the half-working row this project does not
---  ship. It needs one boot to decide, and it is written up rather than guessed.
+--  🌟 27 RESTART GAME - the SECOND row, directly under RESUME GAME, which is
+--                      where the user asked for it and also exactly where stock
+--                      puts it. Shipped v1.99.87.
+--
+--  🛑 IT IS NOT MERELY A RELAXED CONDITION, WHICH IS WHAT QUEUE.md ASSUMED.
+--  Stock gates the button on the session being SYSTEMLINK or OFFLINE, and
+--  Plutonium reports neither - but PLUTONIUM'S OWN class.lua, this file's base,
+--  has removed the whole branch and its handler as well, so there was no
+--  condition left to relax. What made it shippable anyway is that the rest of
+--  the feature is still in the game: patch_zm.ff ships
+--  ui_mp\t6\zombie\restartgamepopupzombie.lua with the confirm popup intact,
+--  and stock's own restart inside it is Engine.Exec( controller, 'fast_restart' )
+--  - a command whose string is present in t6zm.exe. So this is Treyarch's
+--  button, Treyarch's popup and Treyarch's restart command, re-connected. The
+--  popup needed two lines changed for the same session-mode reason; they are
+--  marked in that file.
 --
 --  ── WHY THIS FILE CAN BE OVERRIDDEN AT ALL, measured ────────────────────────
 --  `class.lua` is loaded at BOOT, before any mod is on the search path
@@ -103,6 +108,15 @@ end
 -- mainlobby.lua uses it for xsigninlive, and this mod's optionssettings.lua
 -- already uses it for vid_restart and snd_restart. Both command names were
 -- confirmed present in t6zm.exe's string table.
+-- v1.99.87 - RESTART GAME's handler, queue item 27. Same one line as
+-- EndGameButtonPressed above, pointed at stock's own popup: patch_zm.ff ships
+-- ui_mp\t6\zombie\restartgamepopupzombie.lua, whose LUI.createMenu is called
+-- "RestartGamePopup", and it is loaded lazily when first opened - by which time
+-- the mod's copy is rank 1 on the search path.
+CoD.Class.ZmQolRestartPressed = function (IngameMenuWidget, ClientInstance)
+	IngameMenuWidget:openPopup("RestartGamePopup", ClientInstance.controller)
+end
+
 CoD.Class.ZmQolInstantExitPressed = function (IngameMenuWidget, ClientInstance)
 	Engine.Exec(ClientInstance.controller, "disconnect")
 end
@@ -150,6 +164,16 @@ CoD.Class.PrepareClassButtonList = function (LocalClientIndex, IngameMenuWidget)
 	if CoD.isZombie == true then
 		if Engine.CanPauseZombiesGame() and CoD.canLeaveGame(LocalClientIndex) then
 			CoD.Class.AddButton(IngameMenuWidget, Engine.Localize("MENU_RESUMEGAME_CAPS"), "soloResumeGame")
+			-- zm_qol v1.99.87 - RESTART GAME, queue item 27, as the SECOND row
+			-- directly under RESUME GAME. That is where the user asked for it
+			-- and it is also exactly where stock puts it: stock's own
+			-- PrepareClassButtonList adds MENU_RESTART_LEVEL_CAPS here, inside
+			-- this same if, gated on the session being SYSTEMLINK or OFFLINE.
+			-- Plutonium reports neither, and its class.lua dropped the whole
+			-- branch, so the row is re-added without that test. The string and
+			-- the popup are both stock; see restartgamepopupzombie.lua for the
+			-- two lines that had to change in the popup itself.
+			CoD.Class.AddButton(IngameMenuWidget, Engine.Localize("MENU_RESTART_LEVEL_CAPS"), "zmqol_restart_game")
 		end
 	else
 		if UIExpression.Team(LocalClientIndex, "name") ~= "TEAM_SPECTATOR" and CoD.IsWagerMode() == false then
@@ -218,6 +242,7 @@ LUI.createMenu.class = function (LocalClientIndex)
 	-- way open_endGamePopup is: a handler with no button is inert, and this
 	-- keeps the registration out of the isZombie branch below where the button
 	-- code cannot see it.
+	IngameMenuWidget:registerEventHandler("zmqol_restart_game", CoD.Class.ZmQolRestartPressed)
 	IngameMenuWidget:registerEventHandler("zmqol_instant_exit", CoD.Class.ZmQolInstantExitPressed)
 	IngameMenuWidget:registerEventHandler("zmqol_quit_desktop", CoD.Class.ZmQolQuitToDesktopPressed)
 	if CoD.isZombie == true then
