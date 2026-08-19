@@ -353,6 +353,19 @@ CoD.PrivateGameLobby.Dvars[2].values[13] = 12
 --  every game of Nuketown there is. The dvar can never leak into a mode where
 --  the row is hidden.
 --
+--
+--  🛑 THE HINT IS ONE LINE, AND THAT IS A MEASURED BUDGET, NOT A STYLE CHOICE.
+--  v1.99.63 shipped a 147-character hint; it wrapped, and the second line was
+--  drawn straight through the map preview image (user screenshot, 2026-08-19).
+--
+--  🌟 MEASURED OFF THAT SCREENSHOT. It is 2000 px wide for LUI's 1280 units, so
+--  1.5625 px per unit. The line that DID fit was 97 characters and rendered
+--  x 327 -> 1513, i.e. 1186 px, about 12.06 px per character; the next word
+--  ("every", ~72 px) is what would not fit, so the wrap boundary is between
+--  1513 and 1585 px. 87 characters is ~1050 px - roughly 16% inside it.
+--
+--  📝 The other hand-written hint in this file, PERK LIMIT's, is 83 characters
+--  and has shipped on one line since v1.99.26. Treat ~90 as the ceiling.
 --  🛑 THE DVAR NAME IS FROZEN. It is what the console takes and what ends up in
 --  the player's archived config; renaming the visible label is free, renaming
 --  `nuked_all_machines` silently resets everyone's saved choice.
@@ -360,7 +373,7 @@ CoD.PrivateGameLobby.DvarDefaults["nuked_all_machines"] = 0
 CoD.PrivateGameLobby.Dvars[3] = {}
 CoD.PrivateGameLobby.Dvars[3].id = "nuked_all_machines"
 CoD.PrivateGameLobby.Dvars[3].name = "MACHINE DROPS"
-CoD.PrivateGameLobby.Dvars[3].hintText = "STOCK spreads the perk machines and Pack-a-Punch out over rounds 3 to 26. ALL ON ROUND 1 airlifts every one of them in as soon as the match starts."
+CoD.PrivateGameLobby.Dvars[3].hintText = "STOCK spreads the machines over rounds 3 to 26. ALL ON ROUND 1 brings them all at once."
 CoD.PrivateGameLobby.Dvars[3].labels = {}
 CoD.PrivateGameLobby.Dvars[3].labels[1] = "STOCK"
 CoD.PrivateGameLobby.Dvars[3].labels[2] = "ALL ON ROUND 1"
