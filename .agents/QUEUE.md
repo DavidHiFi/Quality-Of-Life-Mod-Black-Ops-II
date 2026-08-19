@@ -8308,3 +8308,143 @@ externals in `quality_of_life.gsc` — `maps\mp\zombies\_zm_utility::is_headshot
 `maps\mp\zombies\_zm_weapons::get_base_weapon_name` had been written with their backslashes
 stripped (`mapsmpzombies_zm_utility::...`) in the v1.99.75 BETTER DEADSHOT probe. That killed every
 map at load and is why the user could not start a game.
+
+---
+
+## 2026-08-20 — ITEM 26/28 (mod-unload freeze): re-reported by the user, and the trigger note is WRONG
+
+User, 2026-08-20: *"the mod freezes still when unloading the mod after playing a game of zombies,
+fix that right now for good."*
+
+### 🌟 MEASURED THIS SESSION, from the user's own live `console_zm.log` (opened 22:25:13, last
+### written 00:37) — **THE FREEZE DOES NOT NEED A MATCH**
+
+That log is one complete session, boot to hang, and it contains **no map fastfile, no
+`CSC Executed`, no server init** — the mod was loaded at line 682/711 and unloaded at line 912 with
+**no game ever started**, and it hung anyway. So the note carried since 2026-08-19 ("load → unload
+with no match = fine") is **not reproducible on the user's own machine** and must not be used to
+scope the fix. The friend's control test was a single trial.
+
+Shape of the tail, in order: the frontend's usual `Could not load material` block → `FS_Startup`
+with the mod paths already gone from the search path → `Unloading fastfile mod` → **nothing**.
+No `DB_FlushGump`, no crash dump in `%LOCALAPPDATA%\Plutonium\crashdumps` (newest is 2026-08-18).
+A hang, not a crash.
+
+### What was ruled OUT offline this session (each measured, not argued)
+
+| suspect | how it died |
+|---|---|
+| `mod.iwd` size (435 MB, the 119 dead hash `.iwi`) | the friend reproduces the freeze on a **release** build that has none of them |
+| the rebuilt soundbank's bad header checksum (`cccc…` where stock prints a real MD5) | **every** mod-built bank is like that — `zm_reimagined` and `zm_technoopscollection` are byte-identical in that field |
+| "big `mod.ff` / lots of assets" | `zm_reimagined`'s `mod.ff` is **bigger and broader** (1388 images, 1193 materials, 129 scripts, 4 soundbanks, 3 menus vs our 917/678/16/1/0) |
+| shipping a soundbank at all | 8 of the 14 installed mods ship one |
+| reading the engine to find the bug | 🛑 `Unloading fastfile %s` is **not a string in `t6zm.exe`** (Steam's or Plutonium's copy) — mod zone load/unload is **Plutonium's own injected code**, and that binary is not on disk to read |
+
+### One environmental variable that is NOT yet ruled out
+
+`%LOCALAPPDATA%\Plutonium\bin\` has **ReShade 6.7.3** (`dxgi.dll`) with an RTX preset, and its
+`ReShade.log1` records `IDXGISwapChain::SetFullscreenState(Fullscreen = TRUE)` at **00:36:27**, ~30 s
+before the hang. A main thread waiting on a render thread that ReShade is holding through a
+fullscreen transition produces exactly this symptom: black screen, **music still playing**, no crash
+dump. Worth a control run before any code is blamed.
+
+### 🛑 NEXT STEP IS A MEASUREMENT, NOT A BUILD — three steps, one boot, no build needed
+
+1. Load **another installed mod** (`zm_reimagined` is the right one — bigger `mod.ff` than ours) →
+   back at the menu → unload it with **U**.
+   - **Freezes too** → not zm_qol's fault at all; the work moves to Plutonium/ReShade.
+   - **Unloads clean** → it is ours, and step 1 has also printed, for free, whether
+     `zm_reimagined`'s zone declares an ipak (`Zone mod is trying to find ipak …`).
+2. Same boot, if step 1 was clean: load **zm_qol** → unload with **U**, no match. The live log says
+   this hangs; confirm it in a session where another mod just unloaded cleanly.
+3. If step 2 hangs: rename `%LOCALAPPDATA%\Plutonium\bin\dxgi.dll` to `dxgi.off` (ReShade off) and
+   repeat step 2.
+
+### First candidate fix, held until the measurement lands (do NOT ship it before, it would confound)
+
+`zone_source\mod_base.zone:4` declares `>level.ipak_read,zm`. Facts: `patch_zm` loads ipak `zm` at
+**every** boot (live log line 65-66) and it is never unloaded — even at full shutdown, no
+`Unloading ipak zm` line exists in any of the 16 logs on disk. Our zone re-requests it
+(`ipak zm already loaded`) and the engine then prints `Built adjacency info for IPaks 18ms`, so
+loading our zone **rebuilds the global ipak adjacency table**; unloading it must undo that, a code
+path only zones-with-ipaks take. The declaration is inherited from the donor `mod.ff` via
+`--regen-base`, not something this project chose.
+⚠️ Before shipping it, prove the mod's images do not need it — the mod already draws images whose
+pixels live in ipaks we do **not** declare (`dlczm0`-`dlczm4`), which is the argument that lookup is
+global, but it has not been tested with the line removed.
+
+### 🌟 2026-08-20 — THE CONTROL TEST LANDED, AND IT NAMED THE ONLY STRUCTURAL DIFFERENCE
+
+User ran it: **zm_qol → unload → FROZE. Reimagined → unload → CLEAN**, same boot session, same
+machine, same ReShade, and Reimagined's `mod.ff` is the bigger of the two. So ReShade, display mode,
+mod size and Plutonium itself are all **ruled out**. It is this mod.
+
+#### 🌟 What a SUCCESSFUL unload looks like (first ever captured, `console_zm.log` 00:56, Reimagined)
+
+```
+Unloading fastfile mod
+Unloading ipak patch_mp          <- only the ipaks THAT zone added; `mp` was "already loaded" and was skipped
+Unloading ipak sp
+Could not load image "$lineargray".      <- default assets re-registering
+DB_FlushGump 0..3 / Sys_GumpFlushed
+Loading fastfile patch_ui_zm / en_ui_zm / ui_zm     <- the UI zone is RELOADED
+loadmod: loaded          (empty = no mod)
+```
+
+zm_qol dies on the **first** line and never reaches the ipak step, so the hang is inside the
+teardown of the mod zone's own assets.
+
+#### Two more suspects killed with that log
+
+- **`>level.ipak_read,zm`** — Reimagined declares `mp` the same way ("already loaded") and Plutonium
+  correctly skips it at unload, unloading only the two paks that zone added itself. Not our bug.
+  **Left in place deliberately.**
+- **the v1.99.81 `zm_qol_hd` missing-ipak probe** — the freeze reproduces on `console_zm.log.005`,
+  a boot with no probe in the file. Not the cause. (Removed anyway in v1.99.82; it had answered.)
+
+#### 🌟 THE FINDING: 6 assets in `mod.ff` duplicate assets in `common_zm.ff`, which never unloads
+
+Indexed both mods' `mod.ff` against the five zones that stay loaded at the menu (`patch_zm`,
+`code_post_gfx_zm`, `ui_zm`, `patch_ui_zm`, `common_zm` — 4,100 assets) and compared:
+
+| class | zm_qol collisions | Reimagined collisions |
+|---|---|---|
+| image | 64 | 68 |
+| material | 49 | 46 |
+| techniqueset | 16 | 13 |
+| fx | 5 | 1 |
+| physpreset | 1 | 2 |
+| **xmodel** | **5** | **0** |
+| **script** | **1** | **0** |
+
+Every class Reimagined also collides on is **proven survivable by its clean unload**. `xmodel` and
+`script` are the only two it does not, and they are ours alone:
+
+```
+script,clientscripts/mp/zombies/_zm_weap_thundergun.csc   <- common_zm
+xmodel,fx_char_gib_chunk_bone03 / _fat / _flesh03 / _meat01 / _meat02   <- common_zm
+```
+
+All six came in with the Thundergun/Freezegun port (`mod_wonderweapons.zone`).
+
+#### v1.99.82 — the six declarations removed. **No regression, and that is measured, not assumed**
+
+- The client script we were shipping is **the same script as stock's**: ours is raw source, common_zm's
+  is compiled bytecode of the same code — diffed against the gsc-dump's decompile, the only
+  differences are brace style and `true`/`false` vs `1`/`0`. Its one caller,
+  `scripts/zm/thundergun.csc:30`, now resolves to common_zm's copy, which is loaded on **every**
+  zombies map (`Loading fastfile common_zm`, every log).
+- The 5 gib xmodels are stock models common_zm owns under the same names. The 4 gib models
+  common_zm does **not** have (`bone01`, `bone02`, `flesh01`, `flesh02`) are still declared.
+- Verified after linking: `Unlinker --list` on the **deployed** `mod.ff` finds none of the six, and
+  nothing re-added them as a dependency (5,216 → 5,210 assets). `mod.ff` md5
+  `d9ec7da458afd30d3469f4e051a39379`, source-vs-deployed **match**.
+
+#### Why the experiment is clean if it works
+
+Build A (pre-probe, had the six) froze. Build B (v1.99.81, probe + the six) froze. Build C
+(v1.99.82) differs from A by **the six alone**. A clean unload on C therefore names them.
+
+**DEPLOYED, NOT YET BOOTED.** If it still freezes: the next step is the ff/iwd split — two mod
+folders, one with `mod.ff` and no `mod.iwd`, one with `mod.iwd` and no `mod.ff` — which halves the
+remaining search in one boot.

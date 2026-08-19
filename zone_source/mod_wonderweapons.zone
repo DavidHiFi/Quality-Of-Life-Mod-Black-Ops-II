@@ -18,7 +18,8 @@
 // v1.99.21 - script,maps/mp/zombies/_zm_weap_thundergun.gsc REMOVED: mod.iwd's
 //            copy is what loads (console_zm.log: "loaded successfully from raw"),
 //            so the copy in here was a stale duplicate. See mod_base.zone.
-script,clientscripts/mp/zombies/_zm_weap_thundergun.csc
+// UNLOAD-FREEZE TEST v1.99.82: duplicates a LIVE common_zm asset
+// script,clientscripts/mp/zombies/_zm_weap_thundergun.csc
 techniqueset,mc_sw4_3d_unlit_3layer_nofog_falloff_5z943qe4
 image,~-gthunder_chamber_main_c
 image,thunder_chamber_scroll_base
@@ -258,13 +259,13 @@ xmodel,t5_wpn_zmb_freezegun_v2_view
 xmodel,t5_wpn_zmb_freezegun_v2_world
 xmodel,fx_char_gib_chunk_bone01
 xmodel,fx_char_gib_chunk_bone02
-xmodel,fx_char_gib_chunk_bone03
-xmodel,fx_char_gib_chunk_fat
+// xmodel,fx_char_gib_chunk_bone03   (in common_zm)
+// xmodel,fx_char_gib_chunk_fat      (in common_zm)
 xmodel,fx_char_gib_chunk_flesh01
 xmodel,fx_char_gib_chunk_flesh02
-xmodel,fx_char_gib_chunk_flesh03
-xmodel,fx_char_gib_chunk_meat01
-xmodel,fx_char_gib_chunk_meat02
+// xmodel,fx_char_gib_chunk_flesh03  (in common_zm)
+// xmodel,fx_char_gib_chunk_meat01   (in common_zm)
+// xmodel,fx_char_gib_chunk_meat02   (in common_zm)
 xmodel,p_zombie_ice_chunk_01
 xmodel,p_zombie_ice_chunk_02
 image,camo_off_solid
