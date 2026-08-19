@@ -10,7 +10,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- BUILT, AWAITING THE USER'S BOOT: **v1.99.60**, the non-default cross on the CHARACTER row. Everything else through v1.99.59 is confirmed in game.
+- BUILT, AWAITING THE USER'S BOOT: **v1.99.61** (six changes, see checkpoint 79 §4), **v1.99.62** (Death Machine no longer survives Mob's afterlife) and **v1.99.63** (Nuketown MACHINE DROPS lobby row + `.machines`). Everything through v1.99.59 is confirmed in game.
 - 🛑 **IN FLIGHT: item 3 + 19** — the prone perk-bonus rewrite and its PERK BONUS POINTS toggle. Then items 1 (Part C), 20, 21, 22, 23 in that order: the user gave one ordered batch on 2026-08-18 and explicitly asked for it to be worked straight through.
 - ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
 - ✅ **v1.99.55 CONFIRMED 2026-08-18** — *"the sound effects seem to be no longer chopping/cutting out for brief moments any more"*. 🛑 One good session is not proof of a mechanism: say "not reproduced since the merge", not "fixed".
