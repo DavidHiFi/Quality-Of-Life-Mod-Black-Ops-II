@@ -1276,6 +1276,12 @@ zmqol_init_vulture_trimmed()
 	if ( zmqol_vulture_has_scriptmover_field() )
 		registerclientfield( "scriptmover", "vulture_perk_scriptmover", 12000, 4, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_callback_scriptmover, 0, 0 );
 
+	//  v1.99.67 - the Wunderfizz see-through marker. Server twin and the
+	//  whole rationale: maps\mp\zombies\_zm_perk_vulture.gsc, function
+	//  zmqol_vulture_wunderfizz_marker_enabled(). The two gates must agree.
+	if ( zmqol_vulture_wunderfizz_marker_enabled() )
+		registerclientfield( "scriptmover", "zmqol_vulture_wunderfizz", 12000, 1, "int", ::zmqol_vulture_wunderfizz_cf, 0, 0 );
+
 	registerclientfield( "zbarrier", "vulture_perk_zbarrier", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_vision_mystery_box, 0, 0 );
 	registerclientfield( "toplayer", "sndVultureStink", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::sndvulturestink );
 	registerclientfield( "world", "vulture_perk_disable_solo_quick_revive_glow", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_disable_solo_quick_revive_glow, 0, 0 );
@@ -1508,6 +1514,59 @@ zmqol_vulture_brighter_eyes()
 	}
 }
 
+
+// ============================================================================
+//  zmqol_vulture_wunderfizz_marker_enabled  /  _cf   (CLIENT)      (v1.99.67)
+// ----------------------------------------------------------------------------
+//  🛑 THIS GATE MUST RETURN THE SAME ANSWER AS ITS SERVER TWIN in
+//  maps\mp\zombies\_zm_perk_vulture.gsc. If they disagree the scriptmover set is
+//  a different width on each side and every player is dropped with
+//  EXE_CLIENT_FIELD_MISMATCH at load. Buried is excluded because the perk there
+//  is Treyarch's and its client half is a compiled script this mod does not
+//  replace; Origins and TranZit never run the perk at all.
+// ============================================================================
+zmqol_vulture_wunderfizz_marker_enabled()
+{
+	map = getDvar( "mapname" );
+
+	if ( map == "zm_buried" || map == "zm_tomb" || map == "zm_transit" )
+		return 0;
+
+	return 1;
+}
+
+//  Records each Wunderfizz machine as it appears, and lights it immediately if
+//  this client is already holding the perk - the machines spawn at match start,
+//  long before anyone can buy Vulture Aid, but a late spawn must not be missed.
+zmqol_vulture_wunderfizz_cf( localclientnumber, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	if ( !isDefined( level.zmqol_wf_ents ) )
+		level.zmqol_wf_ents = [];
+
+	if ( !newval )
+		return;
+
+	for ( i = 0; i < level.zmqol_wf_ents.size; i++ )
+	{
+		if ( isDefined( level.zmqol_wf_ents[i] ) && level.zmqol_wf_ents[i] == self )
+			return;
+	}
+
+	level.zmqol_wf_ents[ level.zmqol_wf_ents.size ] = self;
+
+	//  Already holding the perk? Rebuild the marker set so this one joins it.
+	//  zmqol_vulture_machines_enable() clears the old set first, so this cannot
+	//  stack duplicates.
+	if ( isDefined( level.perk_vulture ) &&
+	     isDefined( level.perk_vulture.players_with_vulture_perk ) &&
+	     isDefined( level.perk_vulture.players_with_vulture_perk[ localclientnumber ] ) &&
+	     isDefined( level.perk_vulture.fx_array ) &&
+	     isDefined( level.perk_vulture.fx_array[ localclientnumber ] ) &&
+	     isDefined( level.perk_vulture.fx_array[ localclientnumber ].player_ent ) )
+	{
+		level.perk_vulture.fx_array[ localclientnumber ].player_ent zmqol_vulture_machines_enable( localclientnumber );
+	}
+}
 zmqol_vulture_machines_build()
 {
 	a_out = [];
@@ -1628,6 +1687,36 @@ zmqol_vulture_machines_enable( localclientnumber )
 		a_ids[ a_ids.size ] = playfx( localclientnumber, level._effect[ str_fx ], s_spot.origin, anglestoforward( v_angles ), anglestoup( v_angles ) );
 		a_perks[ a_perks.size ] = str_perk;
 	}
+
+	//  ========================================================================
+	//  v1.99.67 - THE WUNDERFIZZ MARKERS, folded into the same fx list.
+	//
+	//  They ride this function rather than getting one of their own so that the
+	//  existing disable path tears them down too - one list, one lifetime, and
+	//  no chance of a marker outliving the perk.
+	//
+	//  🌟 The effect is the mystery box's own, exactly as asked: stock loads
+	//  maps/zombie/fx_zm_vulture_glow_mystery_box as
+	//  "vulture_perk_mystery_box_glow" (_zm_perk_vulture.csc:43) and this file's
+	//  trimmed init loads the same name, so nothing new has to ship.
+	//
+	//  📝 The entities come from the zmqol_vulture_wunderfizz clientfield rather
+	//  than from a struct list, because unlike a perk machine a Wunderfizz is not
+	//  in the map file - the mod spawns it at runtime at coordinates that depend
+	//  on gametype and start location, so the client cannot re-derive it.
+	//  ========================================================================
+	if ( isDefined( level.zmqol_wf_ents ) && isDefined( level._effect[ "vulture_perk_mystery_box_glow" ] ) )
+	{
+		for ( i = 0; i < level.zmqol_wf_ents.size; i++ )
+		{
+			if ( !isDefined( level.zmqol_wf_ents[i] ) )
+				continue;
+
+			a_ids[ a_ids.size ] = playfx( localclientnumber, level._effect[ "vulture_perk_mystery_box_glow" ], level.zmqol_wf_ents[i].origin, anglestoforward( ( 0, 0, 0 ) ), anglestoup( ( 0, 0, 0 ) ) );
+			a_perks[ a_perks.size ] = "zmqol_wunderfizz";
+		}
+	}
+
 
 	if ( !isDefined( level.zmqol_vulture_fx ) )
 		level.zmqol_vulture_fx = [];

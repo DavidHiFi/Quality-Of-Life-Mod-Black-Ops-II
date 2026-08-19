@@ -1568,6 +1568,15 @@ wunderfizzSetup(origin, angles, model)
 	wunderfizzMachine = spawn("script_model", origin);
 	wunderfizzMachine setModel(model);
 	wunderfizzMachine rotateTo(angles, .1);
+
+
+	//  v1.99.67 - Vulture Aid sees this machine through walls, with the mystery
+	//  box's question-mark glow. Threaded rather than set inline: the clientfield
+	//  is registered inside _zm_perk_vulture::init_vulture(), which is the perk's
+	//  init thread, and nothing guarantees that has run before the Wunderfizz
+	//  machines are spawned. Writing an unregistered clientfield is an error, so
+	//  the thread waits for proof the registration happened.
+	wunderfizzMachine thread zmqol_wf_mark_for_vulture();
 	// Selects which registered tree this entity animates on. main() must already
 	// have run scriptmodelsuseanimtree() or this throws "Unrecognized animtree".
 	wunderfizzMachine useanimtree( #animtree );
@@ -2568,4 +2577,43 @@ givePerk(perk)
         	return;
     	self notify("burp");
 	}
+}
+
+// ============================================================================
+//  zmqol_wf_mark_for_vulture  -  flag this machine for Vulture Aid  (v1.99.67)
+// ----------------------------------------------------------------------------
+//  🛑 THE GATE IS ASKED HERE TOO, NOT ASSUMED. It is the same function that
+//  decides whether the clientfield is registered at all, so on a map where it
+//  was not this never writes - which matters because a write to an unregistered
+//  field is a script error, and Plutonium swallows script errors silently.
+//
+//  🌟 level.perk_vulture IS THE PROOF THE REGISTRATION HAPPENED. init_vulture()
+//  creates it a few lines above its registerclientfield calls, in one
+//  synchronous block, so once it exists and a frame has passed the field is
+//  certainly registered. Waiting on it is exact; a fixed sleep would be a guess.
+// ============================================================================
+zmqol_wf_mark_for_vulture()
+{
+	self endon( "death" );
+	level endon( "end_game" );
+
+	if ( !maps\mp\zombies\_zm_perk_vulture::zmqol_vulture_wunderfizz_marker_enabled() )
+		return;
+
+	n_tries = 0;
+
+	while ( !isdefined( level.perk_vulture ) && n_tries < 1200 )
+	{
+		wait 0.05;
+		n_tries++;
+	}
+
+	if ( !isdefined( level.perk_vulture ) )
+	{
+		println( "[zm_qol] wunderfizz vulture marker: perk never initialised, marker skipped" );
+		return;
+	}
+
+	wait 0.05;
+	self setclientfield( "zmqol_vulture_wunderfizz", 1 );
 }

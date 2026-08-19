@@ -104,6 +104,13 @@ init_vulture()
     if ( zmqol_vulture_has_scriptmover_field() )
         registerclientfield( "scriptmover", "vulture_perk_scriptmover", 12000, 4, "int" );
 
+    //  v1.99.67 - the Wunderfizz see-through marker. One bit, scriptmover set.
+    //  See zmqol_vulture_wunderfizz_marker_enabled() for the gate and the
+    //  measured budget. The machines themselves are flagged in
+    //  scripts/zm/wunderfizz.gsc::wunderfizzSetup().
+    if ( zmqol_vulture_wunderfizz_marker_enabled() )
+        registerclientfield( "scriptmover", "zmqol_vulture_wunderfizz", 12000, 1, "int" );
+
     registerclientfield( "zbarrier", "vulture_perk_zbarrier", 12000, 1, "int" );
     registerclientfield( "toplayer", "sndVultureStink", 12000, 1, "int" );
     registerclientfield( "world", "vulture_perk_disable_solo_quick_revive_glow", 12000, 1, "int" );
@@ -240,6 +247,50 @@ zmqol_vulture_has_disease_meter()
 zmqol_vulture_has_scriptmover_field()
 {
     return getdvar( "mapname" ) != "zm_tomb";
+}
+
+// ============================================================================
+//  zmqol_vulture_wunderfizz_marker_enabled  -  gate for the Wunderfizz marker
+//                                                                   (v1.99.67)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-19: *"the wunderfizz machines still didn't have an icon for
+//  vultures aid. fix that to have the same question mark icon as the mystery
+//  box for the wunderfizz machine"*. Stock Vulture Aid was written for Buried,
+//  which has no Wunderfizz, so no such marker exists anywhere in the game.
+//
+//  🛑 THE GATE IS ABOUT WHO OWNS THE CLIENT HALF, NOT ABOUT WHO HAS THE PERK.
+//  This file ships raw in mod.iwd, so it shadows stock's copy on EVERY map -
+//  including Buried, where the perk is Treyarch's own and the client half is
+//  Buried's COMPILED _zm_perk_vulture.csc. Registering a field here that that
+//  compiled script does not register is a width mismatch on the scriptmover
+//  set, which is EXE_CLIENT_FIELD_MISMATCH at load for every player.
+//
+//  So the marker exists exactly where zm_expanded.csc::zmqol_init_vulture_trimmed()
+//  supplies the client half - every map the mod enables Vulture on. Buried keeps
+//  stock's perk untouched; Origins and TranZit do not run this function at all
+//  (the perk is off there for clientfield-budget reasons), so they are listed
+//  only to make the rule readable rather than because it changes anything.
+//
+//  🌟 THE BIT WAS MEASURED, NOT HOPED FOR. Stock scriptmover usage from the
+//  per-map dumps in Black Ops 2 Grand Resources\...\Clientfields\: Nuketown
+//  8/32, Die Rise 11/32, Mob 15/32. This mod adds 4 (vulture_perk_scriptmover)
+//  and 1 (zmqol_whoswho_clone_glow) on top, plus 4 on Die Rise for the escape
+//  pod - so the worst case is about 20/32 and one more bit is comfortable.
+//  Buried is 25/32 stock and Origins is 32/32, which is exactly why neither of
+//  them is in scope here.
+//
+//  🛑 THE CLIENT TWIN IS zm_expanded.csc::zmqol_vulture_wunderfizz_marker_enabled()
+//  AND IT MUST RETURN THE SAME ANSWER. If the two ever disagree the scriptmover
+//  set differs in width between server and client and everyone is dropped.
+// ============================================================================
+zmqol_vulture_wunderfizz_marker_enabled()
+{
+    map = getdvar( "mapname" );
+
+    if ( map == "zm_buried" || map == "zm_tomb" || map == "zm_transit" )
+        return 0;
+
+    return 1;
 }
 
 add_additional_stink_locations_for_zone( str_zone, a_zones )
