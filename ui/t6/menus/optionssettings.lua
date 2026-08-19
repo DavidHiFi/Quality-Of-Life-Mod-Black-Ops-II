@@ -1149,7 +1149,13 @@ CoD.OptionsSettings.QolNoArchive = {
 	infinite_sprint = true,
 	fly = true,
 	rapid_fire = true,
-	no_power = true
+	no_power = true,
+	-- v1.99.86 - the three ACTION rows. An archived set_round 50 would jump the
+	-- player to round 50 on their next launch, and an archived kill_horde 1
+	-- would fire on map load. They are per-match actions, never preferences.
+	set_round = true,
+	kill_horde = true,
+	end_round = true
 }
 
 CoD.OptionsSettings.QolArchive = function (DvarName)
@@ -1446,7 +1452,34 @@ CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientInde
 	T(QolCheatsButtons, LocalClientIndex, "RAPID FIRE",      "rapid_fire",     "Faster firing on every weapon.")
 	T(QolCheatsButtons, LocalClientIndex, "NO POWER NEEDED", "no_power",       "Perks and doors work without power.")
 
-	return QolCheatsContainer                                       -- 7 total
+	-- ========================================================================
+	--  v1.99.86, queue item 32 - three ACTION rows, user request 2026-08-19.
+	--
+	--  🌟 These are not settings, they are one-shot actions, and they use the
+	--  shape zmqol_round_dvar_watch() already had for set_round: the row writes
+	--  a value, GSC does the thing and writes the dvar back to 0, so the row
+	--  snaps back to DISABLED / OFF by itself. That is why KILL HORDE and END
+	--  ROUND read as toggles that will not stay on - they are buttons.
+	--
+	--  🛑 ALL THREE ARE IN QolNoArchive, and that is not optional. An archived
+	--  `set_round 50` would jump the player to round 50 on their next launch
+	--  before they had touched anything, and an archived `kill_horde 1` would
+	--  fire the moment a map loaded. Same reason fly and godmode are in there.
+	--
+	--  📝 Console twins, per this project's rule that every row is bindable:
+	--  `set_round <n>`, `kill_horde 1`, `end_round 1`. set_round is also the
+	--  existing `.round <n>` chat command.
+	-- ========================================================================
+	CoD.OptionsSettings.QolChoice(QolCheatsButtons, LocalClientIndex, "CHANGE ROUND", "set_round",
+		"Jump to a round. Returns to OFF once it fires.", {
+			{ "OFF", 0 }, { "1", 1 }, { "5", 5 }, { "10", 10 }, { "15", 15 },
+			{ "20", 20 }, { "25", 25 }, { "30", 30 }, { "40", 40 }, { "50", 50 },
+			{ "75", 75 }, { "100", 100 }, { "150", 150 }, { "200", 200 }, { "255", 255 }
+		})
+	T(QolCheatsButtons, LocalClientIndex, "KILL HORDE",      "kill_horde",     "Kill every zombie on the map. Bosses are left alone.")
+	T(QolCheatsButtons, LocalClientIndex, "END ROUND",       "end_round",      "Finish this round now.")
+
+	return QolCheatsContainer                                      -- 10 total
 end
 
 LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)

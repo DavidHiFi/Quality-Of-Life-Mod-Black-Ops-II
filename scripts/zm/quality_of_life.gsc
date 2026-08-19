@@ -8211,21 +8211,22 @@ zmqol_goto_round( n_target, e_player )
     level.round_number = n_target - 1;
     level.zombie_total = 0;
 
-    a_enemies = get_round_enemy_array();
+    //  🌟 v1.99.86 - THE KILL MOVED INTO zmqol_kill_horde(), AND THAT FIXED TWO
+    //  REAL BUGS THIS FUNCTION HAD SHIPPED WITH: it damaged magic-bullet-shield
+    //  zombies (scripted and boss zombies, which breaks the map script waiting
+    //  on them) and it did not reset health first, so on Die Rise - whose
+    //  zombies can hold NEGATIVE health - `health + 666` was not lethal and the
+    //  horde survived the jump. See the banner over zmqol_kill_horde().
+    //
+    //  📝 Spawn pacing needs no explicit fix here and deliberately gets none.
+    //  Parking round_number one below the target and letting stock's own
+    //  round_think() advance it is what re-derives the spawn delay, the move
+    //  speed and the health for the new round - so this never writes
+    //  level.zombie_vars[...] or level.zombie_move_speed itself, which is the
+    //  stock-global hazard QUEUE.md flagged for this item.
+    n_killed = zmqol_kill_horde();
 
-    if ( isdefined( a_enemies ) )
-    {
-        for ( i = 0; i < a_enemies.size; i++ )
-        {
-            if ( !isdefined( a_enemies[i] ) || !isalive( a_enemies[i] ) )
-                continue;
-
-            //  +666 is stock's own margin in both goto-round implementations.
-            a_enemies[i] dodamage( a_enemies[i].health + 666, a_enemies[i].origin );
-        }
-    }
-
-    println( "[zm_qol] .round: " + n_from + " -> " + n_target );
+    println( "[zm_qol] .round: " + n_from + " -> " + n_target + "  (" + n_killed + " killed)" );
 
     if ( isdefined( e_player ) )
         e_player iprintln( "^2[zm_qol] round ^7" + n_from + " ^2-> ^7" + n_target );
@@ -8241,9 +8242,39 @@ zmqol_round_dvar_watch()
     if ( getdvar( "set_round" ) == "" )
         setdvar( "set_round", "0" );
 
+    //  v1.99.86, queue item 32 - KILL HORDE and END ROUND ride this same thread
+    //  rather than getting one each. Both are one-shot actions with the same
+    //  shape as set_round: write 1, it fires, it writes itself back to 0, so a
+    //  bind works on every press and the CHEATS row snaps back to DISABLED.
+    if ( getdvar( "kill_horde" ) == "" )
+        setdvar( "kill_horde", "0" );
+
+    if ( getdvar( "end_round" ) == "" )
+        setdvar( "end_round", "0" );
+
     for ( ;; )
     {
         wait 0.25;
+
+        if ( getdvarintdefault( "kill_horde", 0 ) )
+        {
+            setdvar( "kill_horde", "0" );
+            n_killed = zmqol_kill_horde();
+            println( "[zm_qol] kill_horde: " + n_killed + " killed" );
+        }
+
+        if ( getdvarintdefault( "end_round", 0 ) )
+        {
+            setdvar( "end_round", "0" );
+
+            //  Stock ends a round when the last zombie of the round's quota is
+            //  gone, so BOTH halves are needed: zero the quota still to spawn,
+            //  then clear what is already on the map. Killing alone just makes
+            //  the rest of the quota spawn.
+            level.zombie_total = 0;
+            n_killed = zmqol_kill_horde();
+            println( "[zm_qol] end_round: round " + level.round_number + ", " + n_killed + " killed" );
+        }
 
         n_want = getdvarintdefault( "set_round", 0 );
 
@@ -8253,6 +8284,55 @@ zmqol_round_dvar_watch()
         setdvar( "set_round", "0" );
         level thread zmqol_goto_round( n_want, undefined );
     }
+}
+
+// ============================================================================
+//  zmqol_kill_horde  -  clear every live round zombie, and the two things that
+//  quietly go wrong if you do it naively  (v1.99.86, queue item 32)
+//
+//  Returns how many were killed, so the callers can print something honest.
+//
+//  🛑 1. MAGIC-BULLET-SHIELD ZOMBIES ARE SKIPPED. That shield is what stock puts
+//  on scripted and boss zombies - the Origins panzer, Mob's brutus, the Die Rise
+//  elevator scripts - and damaging one anyway does not just kill something it
+//  should not, it breaks the map script that was waiting on it. The mod already
+//  respects this in two other places (the nuke at :848 and :865, the tesla gun at
+//  _zm_weap_tesla.gsc:304); this brings the round jump into line with them.
+//
+//  🛑 2. HEALTH IS RESET BEFORE THE DAMAGE, BECAUSE OF DIE RISE. Its zombies can
+//  carry NEGATIVE health, and `dodamage( self.health + 666 )` on a zombie at
+//  -5000 health asks for -4334 damage, which is not lethal - the horde simply
+//  survives the jump. Setting a known positive health first makes the +666
+//  margin mean what it says on every map.
+//
+//  📝 Both of these were already written down as load-bearing in QUEUE.md's
+//  item-32 notes, and zmqol_goto_round() - which has shipped since v1.62 - had
+//  NEITHER. So this is a real bug fix on the existing .round command, not only
+//  plumbing for the two new rows.
+// ============================================================================
+zmqol_kill_horde()
+{
+    a_enemies = get_round_enemy_array();
+
+    if ( !isdefined( a_enemies ) )
+        return 0;
+
+    n_killed = 0;
+
+    for ( i = 0; i < a_enemies.size; i++ )
+    {
+        if ( !isdefined( a_enemies[i] ) || !isalive( a_enemies[i] ) )
+            continue;
+
+        if ( is_magic_bullet_shield_enabled( a_enemies[i] ) )
+            continue;
+
+        a_enemies[i].health = 10000;
+        a_enemies[i] dodamage( a_enemies[i].health + 666, a_enemies[i].origin );
+        n_killed++;
+    }
+
+    return n_killed;
 }
 
 zmqol_fly_dvar_watch()
