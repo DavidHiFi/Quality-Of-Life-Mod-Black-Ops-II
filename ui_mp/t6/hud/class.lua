@@ -129,6 +129,17 @@ CoD.Class.ZmQolRestartPressed = function (IngameMenuWidget, ClientInstance)
 	Engine.Exec(ClientInstance.controller, "map_restart")
 end
 
+-- v1.99.92 - FAST RESTART, directly under RESTART LEVEL. User, 2026-08-20:
+-- *"add another option just underneath the Restart Level option called Fast
+-- Restart, which as the name implies does the same thing as the fast_restart
+-- console command which restarts the match but without the cutscenes."*
+-- Same one-Exec shape as RESTART LEVEL, which the user confirmed working on
+-- Origins in the same message. fast_restart is stock RESTART GAME's own command
+-- and the string is present in t6zm.exe.
+CoD.Class.ZmQolFastRestartPressed = function (IngameMenuWidget, ClientInstance)
+	Engine.Exec(ClientInstance.controller, "fast_restart")
+end
+
 CoD.Class.ZmQolInstantExitPressed = function (IngameMenuWidget, ClientInstance)
 	Engine.Exec(ClientInstance.controller, "disconnect")
 end
@@ -186,6 +197,10 @@ CoD.Class.PrepareClassButtonList = function (LocalClientIndex, IngameMenuWidget)
 			-- the popup are both stock; see restartgamepopupzombie.lua for the
 			-- two lines that had to change in the popup itself.
 			CoD.Class.AddButton(IngameMenuWidget, Engine.Localize("MENU_RESTART_LEVEL_CAPS"), "zmqol_restart_game")
+			-- v1.99.92 - FAST RESTART, immediately under it and inside the same
+			-- CanPauseZombiesGame/canLeaveGame gate: it restarts the same match,
+			-- so it must not be offered where a restart is not allowed.
+			CoD.Class.AddButton(IngameMenuWidget, Engine.Localize("FAST RESTART"), "zmqol_fast_restart")
 		end
 	else
 		if UIExpression.Team(LocalClientIndex, "name") ~= "TEAM_SPECTATOR" and CoD.IsWagerMode() == false then
@@ -255,6 +270,7 @@ LUI.createMenu.class = function (LocalClientIndex)
 	-- keeps the registration out of the isZombie branch below where the button
 	-- code cannot see it.
 	IngameMenuWidget:registerEventHandler("zmqol_restart_game", CoD.Class.ZmQolRestartPressed)
+	IngameMenuWidget:registerEventHandler("zmqol_fast_restart", CoD.Class.ZmQolFastRestartPressed)
 	IngameMenuWidget:registerEventHandler("zmqol_instant_exit", CoD.Class.ZmQolInstantExitPressed)
 	IngameMenuWidget:registerEventHandler("zmqol_quit_desktop", CoD.Class.ZmQolQuitToDesktopPressed)
 	if CoD.isZombie == true then
