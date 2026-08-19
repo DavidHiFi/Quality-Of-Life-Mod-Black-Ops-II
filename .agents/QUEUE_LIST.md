@@ -6,16 +6,17 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 (2026-08-16) for a plain list with no other differentiation.
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **82** · mod version **1.99.75**
+- SYNCED TO: checkpoint **82** · mod version **1.99.76**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
 - ✅ **v1.99.72 ACCEPTED BY THE USER 2026-08-19** - all Vulture Aid marker icons; see the Vulture Aid entry in *Closed*.
-- **BUILT, AWAITING THE USER’S BOOT: v1.99.75** - AIM ASSIST moved directly under TARGET ASSIST, plus TWO print-only probes. 🛑 **BETTER DEADSHOT and the Deadshot head lock-on BOTH tested as NOT WORKING on 2026-08-19** (user, on a controller, both assists enabled). Neither is fixed; both now name their own cause in the log. See checkpoint 82 §3 - do not change either before reading those lines.
-- ✅ **NOTHING IN FLIGHT.** Vulture Aid (old items 24 and 25) was closed by the user 2026-08-19: *"im ok with the state of vulture aid so close any tasks related to it, everything works fine."*
+- **BUILT, AWAITING THE USER’S BOOT: v1.99.76** - carries everything in v1.99.75 PLUS one cosmetic search-order probe for item 34 (`images\xenonbutton_a.iwi` = a Y glyph). 🛑 Delete that file before any release.
+- **v1.99.75** - AIM ASSIST moved directly under TARGET ASSIST, plus TWO print-only probes. 🛑 **BETTER DEADSHOT and the Deadshot head lock-on BOTH tested as NOT WORKING on 2026-08-19** (user, on a controller, both assists enabled). Neither is fixed; both now name their own cause in the log. See checkpoint 82 §3 - do not change either before reading those lines.
+- 🛑 **IN FLIGHT: item 34** — the v1.99.76 search-order probe, awaiting the same boot as the Deadshot probes. Vulture Aid (old items 24 and 25) was closed by the user 2026-08-19: *"im ok with the state of vulture aid so close any tasks related to it, everything works fine."*
 - ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
 - ✅ **v1.99.55 CONFIRMED 2026-08-18** — *"the sound effects seem to be no longer chopping/cutting out for brief moments any more"*. 🛑 One good session is not proof of a mechanism: say "not reproduced since the merge", not "fixed".
-- The list is **33 items** (5 struck through). Items 24-33 were all added 2026-08-19 (they were 26-35 before Vulture Aid was closed): 24-26 from the Nuketown test report, 27-29 from the friend's screen-share, 30-32 from the Strat Tester comparison, 33 from the gamepad-menu request. 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** - it did not ship; the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
+- The list is **34 items** (5 struck through). Item 34 was added 2026-08-19 (the 121-file upscaled texture pack). Items 24-33 were all added 2026-08-19 (they were 26-35 before Vulture Aid was closed): 24-26 from the Nuketown test report, 27-29 from the friend's screen-share, 30-32 from the Strat Tester comparison, 33 from the gamepad-menu request. 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** - it did not ship; the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
@@ -141,6 +142,34 @@ user: which map, and roughly how far the barriers were.
     with the user that this is what they want.
     📝 Depends on item 20 — the head lock-on is currently dead on every map anyway
     (`level.disable_deadshot_clientfield = 1`), so 20 must land first or this cannot be tested.
+34. **Ship the 121 upscaled `.iwi` textures WITH the mod, but let a player's own
+    `storage\t6\images\` copies win by filename** (user, 2026-08-19) — *"i simply want my mod to
+    come with the .iwi textures as apart of my mod ... but if someone who's using my mod has their
+    own custom textures in the images folder for plutonium for the same .iwi filenames it uses
+    their custom textures instead of mine."* Source folder: `H:\Claude\ship these to the images of
+    my mod claude` — 121 files, **259 MB**, valid T6 IWIs (`IWi` + `0x1b`, DXT1/DXT5): scope
+    overlays and reticles at 1024², loadscreens at 1024², perk icons at 64², vending-machine
+    textures upscaled to **2048²** (16 MB each). **20 of the names are already declared in
+    `mod.ff`** (`side_small`, 4 `mtl_t6_attach_optic_*`, 5 `scope_overlay_*`, 5
+    `specialty_*_zombies`, `zombie_vending_marathon_n`, 4 `~-g`/`~~-g` vending images) — for those
+    the header dimensions come from `mod.ff`, so a 2048² file read through a stock-size header
+    renders garbage unless checked first.
+    🛑 **MEASURED BLOCKER, from the user's own `console_zm.log` (`Current search path:` block,
+    printed in priority order):** `storage\t6\mods\zm_qol\mod.iwd` is **rank 1** and the
+    `storage\t6\` root that holds `images\` is **rank 4**. So anything the mod ships in
+    `mod.iwd\images\` is found FIRST and beats the player's own copy — the exact forcing v1.93.0
+    had to undo. Nothing the mod ships can rank below the player's folder: ranks 1-2 are the mod
+    folder. The lowest-ranked writable slots are `storage\t6\main` (rank 8) and `<BO2>\mods\zm_qol`
+    (rank 6), both of which ARE below the images folder — an optional add-on `.iwd` dropped there
+    would behave exactly as asked, but is a manual install, not one of the 5 mod files.
+    ⚠️ **ONE RESIDUAL HYPOTHESIS, being tested at v1.99.76:** Plutonium's own
+    `images/{}.iwi` loader could special-case the images folder ahead of the file system, in which
+    case the request works as stated. Probe shipped: `images\xenonbutton_a.iwi` in `mod.iwd` is a
+    byte copy of the user's own `xenonbutton_y.iwi` (both 32×32 DXT5, `code_post_gfx_zm.ff` owns
+    image+material for both). On a controller, a **Y** glyph where **A** belongs = mod.iwd wins and
+    the request is impossible as stated; the user's own **A** glyph = the images folder wins and all
+    121 can ship in `mod.iwd`. 🛑 **THE PROBE MUST BE DELETED EITHER WAY BEFORE ANY RELEASE.**
+
 <!-- /LIST -->
 ---
 ## Closed — off the list, kept for the record

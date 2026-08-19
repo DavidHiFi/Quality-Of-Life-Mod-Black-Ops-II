@@ -8203,3 +8203,70 @@ Do not re-derive this from scratch if a marker icon is ever questioned again —
 
 📝 Ported-perk parity was left intact throughout: the user was asked whether to override stock's
 "hide a machine's marker once you own that perk" and chose **leave it as stock**.
+
+---
+
+## Item 34 — the 121-file upscaled texture pack, and the MEASURED search order (2026-08-19, v1.99.76)
+
+User: *"ship these to the images of my mod claude make my mod stream those textures to the game, and
+make sure they're not hard-streamed or whatever, so if someone uses the images folder for plutonium
+in their t6 folder, seperate to my mod they can use their own textures/icons without my mod forcing
+these icons."* Restated when offered alternatives: *"i simply want my mod to come with the .iwi
+textures as apart of my mod ... but if someone who's using my mod has their own custom textures in
+the images folder for plutonium for the same .iwi filenames it uses their custom textures instead of
+mine."*
+
+**Source:** `H:\Claude\ship these to the images of my mod claude` — 121 `.iwi`, **259 MB**. All
+structurally valid (`IWi` + version `0x1b`; formats `0x0b` DXT1 / `0x0d` DXT5). Content: scope
+overlays + optic reticles (1024²), loadscreens (1024²), perk icons (64²), HUD grenade icons,
+vending-machine colour/spec maps upscaled to **2048²** (16 MB each). 20 names are already declared
+in `mod.ff` (see QUEUE_LIST item 34 for the list) — those carry a header-dimension mismatch risk.
+
+### 🌟 THE FACT THAT SETTLES IT — the engine prints its own lookup order
+
+`console_zm.log` line 619 onward, from the user's own machine, `Current search path:` in priority
+order:
+
+| rank | path |
+|---|---|
+| **1** | `…\storage\t6\mods\zm_qol\mod.iwd` (580 files) |
+| 2 | `…\storage\t6\mods\zm_qol` |
+| 3 | `…\storage\t6\raw` |
+| **4** | `…\storage\t6\` ← **the player's `images\` folder resolves through here** |
+| 5 | `…\storage\t6\players` |
+| 6 | `<BO2>\mods\zm_qol` |
+| 7 | `<BO2>\usermaps` |
+| 8 | `…\storage\t6\main` |
+| 9-11 | `<BO2>\main`, `<BO2>\main_shared`, `<BO2>\players` |
+
+`mod.iwd` is rank 1; the player's images folder is rank 4. **Anything the mod ships in
+`mod.iwd\images\` is found first and wins.** This retro-confirms the previously-unverified claim in
+`MOD_CATALOGUE.md` §11a (which `QUEUE.md:3434` had flagged as *"has not been verified offline"*),
+and explains the v1.93.0 perk-icon removal.
+
+**No mod-shipped file can rank below the player's folder** — ranks 1-2 are the mod folder itself.
+The lowest-ranked writable slots that DO sit below it are `storage\t6\main` (rank 8) and
+`<BO2>\mods\zm_qol` (rank 6). An optional add-on `.iwd` dropped in either behaves exactly as the
+user asked (beats stock, loses to their own `images\`), but is a manual install, not one of the 5
+mod files.
+
+### The one residual hypothesis, and the probe that kills it
+
+Plutonium's own image loader string is `images/{}.iwi` (in `plutonium-bootstrapper-win32.exe`,
+sitting directly beside its ipak code and beside `fx/%s.efx`). If that loader special-cases the
+`images\` folder *ahead* of the file system, the search-path order above would not govern images and
+the user's request would work as stated. Against that: raw `.efx` provably load out of
+`mod.iwd\fx\` through the same family of code, i.e. through FS.
+
+**Probe shipped in v1.99.76:** `images\xenonbutton_a.iwi` inside `mod.iwd` is a byte-for-byte copy
+of the user's own `xenonbutton_y.iwi`. Both are 32×32 DXT5 with identical headers, and
+`code_post_gfx_zm.ff` owns `image` + `material` for both (`Unlinker --list`), so the material is
+live in every Zombies session and there is no dimension mismatch.
+
+- Button prompts show a **Y** glyph where **A** belongs → `mod.iwd` wins → the request is impossible
+  as stated; the answer is the optional add-on `.iwd`.
+- Button prompts show the user's own **A** glyph → the images folder wins → ship all 121 in
+  `mod.iwd` exactly as asked.
+
+🛑 **The probe file must be deleted either way before any release** — left in, it forces a wrong
+button icon on every player.
