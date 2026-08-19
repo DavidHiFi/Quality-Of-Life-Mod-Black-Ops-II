@@ -6,12 +6,12 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 (2026-08-16) for a plain list with no other differentiation.
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **78** · mod version **1.99.60**
+- SYNCED TO: checkpoint **80** · mod version **1.99.69**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- BUILT, AWAITING THE USER'S BOOT: **v1.99.61** (six changes, see checkpoint 79 §4), **v1.99.62** (Death Machine no longer survives Mob's afterlife) and **v1.99.63** (Nuketown MACHINE DROPS lobby row + `.machines`). Everything through v1.99.59 is confirmed in game.
-- 🛑 **IN FLIGHT: item 3 + 19** — the prone perk-bonus rewrite and its PERK BONUS POINTS toggle. Then items 1 (Part C), 20, 21, 22, 23 in that order: the user gave one ordered batch on 2026-08-18 and explicitly asked for it to be worked straight through.
+- BUILT, AWAITING THE USER'S BOOT: **v1.99.69**. v1.99.61-64 are confirmed in game; v1.99.65-69 are partly confirmed - see checkpoint 80 §0 for the per-item table. 🛑 **v1.99.62 (Death Machine vs Mob's afterlife) has never been booted at all.**
+- 🛑 **IN FLIGHT: items 24 and 25** - the Wunderfizz/perk-machine Vulture markers and the Vulture zombie-eye glow. Both were worked through v1.99.67-69; see checkpoint 80 §3 for what is settled and what is still disputed.
 - ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
 - ✅ **v1.99.55 CONFIRMED 2026-08-18** — *"the sound effects seem to be no longer chopping/cutting out for brief moments any more"*. 🛑 One good session is not proof of a mechanism: say "not reproduced since the merge", not "fixed".
 - The list is **25 items** (5 struck through). 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** — they assumed it shipped alongside the Olympia and M1911 on 2026-08-18. It did not, and the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
