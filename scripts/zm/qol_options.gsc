@@ -972,8 +972,10 @@ qol_opt_character()
 {
     self endon( "disconnect" );
 
-    if ( !isdefined( level.givecustomcharacters ) )
-        return;
+    //  🛑 v1.99.65 - NOT AN EARLY RETURN ANY MORE. level.givecustomcharacters is
+    //  assigned during the map's own main()/preinit, and a player thread can
+    //  start before that; returning here killed the picker for the whole match.
+    //  The loop below tests it every pass instead.
 
     //  ========================================================================
     //  🛑 v1.99.58 - TWO EARLY RETURNS REMOVED, AND BOTH WERE WRONG.
@@ -1005,16 +1007,48 @@ qol_opt_character()
     //  ========================================================================
 
     n_last = -1;
+    b_last_saw_cia_flag = 0;
 
     for ( ;; )
     {
-        n_want = getdvarintdefault( "character", 0 );
+        if ( !isdefined( level.givecustomcharacters ) )
+        {
+            wait 0.5;
+            continue;
+        }
 
-        //  0 means "leave it alone" - the player keeps whoever they spawned as.
-        if ( n_want > 0 && n_want != n_last )
+        n_want = getdvarintdefault( "character", 0 );
+        b_sees_cia_flag = isdefined( level.should_use_cia );
+
+        //  ====================================================================
+        //  🛑 v1.99.65 - THIS USED TO FIRE ONCE AND LATCH, AND ON A CDC/CIA MAP
+        //  THAT MADE THE LOBBY PICKER PICK THE WRONG TEAM.
+        //
+        //  User, 2026-08-19: *"in the pre-game menu i set the character override
+        //  to CIA and started the match with the CDC viewarm/player model"* -
+        //  while `character 1` typed at the console MID-GAME worked. Those two
+        //  facts together name the cause exactly.
+        //
+        //  level.should_use_cia is set by the map's survival_init()
+        //  (zm_nuked.gsc:41-44, zm_transit.gsc:88-92, zm_tomb.gsc:72-75), but
+        //  level.givecustomcharacters is set earlier, in main() (zm_nuked.gsc:98).
+        //  So there is a window where this loop can run with the character
+        //  function available and the team flag NOT yet defined. In that window
+        //  the block below skips the should_use_cia write, give_team_characters()
+        //  reads whatever the random roll left, and the player is dressed as the
+        //  wrong team - and because n_last was already set, it never tried again.
+        //  Typing the dvar later lands outside the window, which is exactly why
+        //  the console worked and the lobby did not.
+        //
+        //  🌟 THE FIX IS TO RE-APPLY WHEN THE FLAG TURNS UP. One extra condition:
+        //  the choice changed, OR should_use_cia has appeared since the last
+        //  application. It can fire at most twice per choice and it is the same
+        //  code path both times.
+        //  ====================================================================
+        if ( n_want > 0 && ( n_want != n_last || ( b_sees_cia_flag && !b_last_saw_cia_flag ) ) )
         {
             n_last = n_want;
-
+            b_last_saw_cia_flag = b_sees_cia_flag;
             //  1-4 in the console maps to characterindex 0-3, so the dvar reads
             //  the way a player expects rather than exposing the engine index.
             self.characterindex = ( n_want - 1 ) % 4;

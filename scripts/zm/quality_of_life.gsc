@@ -3920,8 +3920,18 @@ zmqol_team_emblem_watch()
             return;
     }
 
-    str_last = "";
-
+    //  🛑 v1.99.65 - THE LATCH COMPARED AGAINST ITSELF, NOT THE DVAR.
+    //  str_last remembered what this loop last WROTE, so anything that wrote
+    //  g_TeamIcon_Allies afterwards - _scoreboard::init() is the obvious one,
+    //  and it runs late - stuck permanently, because str_want still equalled
+    //  str_last and the loop never wrote again. Comparing against the live dvar
+    //  makes it self-healing at no cost.
+    //
+    //  📝 The println is deliberate and stays. The user reported a CDC badge on
+    //  a CIA player after changing character mid-game, and the two candidate
+    //  causes - "this never wrote" versus "the scoreboard caches the icon when
+    //  it is built" - cannot be told apart from a screenshot. One line in
+    //  console_zm.log settles it on the next boot.
     for ( ;; )
     {
         if ( isdefined( level.should_use_cia ) )
@@ -3931,10 +3941,10 @@ zmqol_team_emblem_watch()
             if ( level.should_use_cia )
                 str_want = "faction_cia";
 
-            if ( str_want != str_last )
+            if ( getdvar( "g_TeamIcon_Allies" ) != str_want )
             {
-                str_last = str_want;
                 setdvar( "g_TeamIcon_Allies", str_want );
+                println( "[zm_qol] scoreboard emblem -> " + str_want + " (should_use_cia=" + level.should_use_cia + ")" );
             }
         }
 

@@ -239,7 +239,7 @@ init_nuked_perks()
     }
 }
 
-bring_perk( machine, trigger )
+bring_perk( machine, trigger, b_no_flight )
 {
     players = get_players();
     is_doubletap = 0;
@@ -251,6 +251,39 @@ bring_perk( machine, trigger )
     is_deadshot = 0;
     is_phd = 0;
     flag_waitopen( "perk_vehicle_bringing_in_perk" );
+
+    //  ========================================================================
+    //  v1.99.65 - b_no_flight: land where you stand, no quad, no queue.
+    //
+    //  User, 2026-08-19, after seeing ALL ON ROUND 1 work: *"if you could make
+    //  it so that the siren blares once and everything drops all at one time
+    //  instead of the machines dropping one after another it'd be better so you
+    //  don't have to wait"*.
+    //
+    //  🛑 THE QUEUE IS NOT A CHOICE, IT IS THE VEHICLE. Every arrival rides
+    //  level.perk_arrival_vehicle down a numbered path, and there is exactly one
+    //  of it, so nine arrivals can only ever be nine trips. Dropping them
+    //  together therefore means not using the quad at all.
+    //
+    //  🌟 WHAT REPLACES IT COSTS NOTHING AND KEEPS THE FALL. move_perk() already
+    //  parked every machine 8000 units up and recorded original_pos/_angles, so
+    //  the machine can simply be slid across to its landing x/y and then moved
+    //  DOWN to the floor - a real drop from the sky, all nine at once, ending in
+    //  the same landing block below: the same quake, the same gib, the same
+    //  trigger_on, the same perk lights. Nothing about the landing is forked.
+    //
+    //  📝 The two arrival sounds move OUT of here for this path - the caller
+    //  plays them once for the whole flight rather than nine times over.
+    //  ========================================================================
+    if ( isDefined( b_no_flight ) && b_no_flight )
+    {
+        //  Slide to the landing column first, then fall. The per-perk x/y offset
+        //  below is applied to original_pos, so read it after that block - hence
+        //  only the fall itself is deferred, via b_no_flight further down.
+        machine setclientfield( "clientfield_perk_intro_fx", 1 );
+    }
+    else
+    {
     playsoundatposition( "zmb_perks_incoming_quad_front", ( 0, 0, 0 ) );
     playsoundatposition( "zmb_perks_incoming_alarm", ( -2198, 486, 327 ) );
     machine setclientfield( "clientfield_perk_intro_fx", 1 );
@@ -267,6 +300,7 @@ bring_perk( machine, trigger )
 #/
     level.perk_arrival_vehicle perk_follow_path( start_node );
     machine unlink();
+    }
     offset = ( 0, 0, 0 );
 
     if ( issubstr( machine.targetname, "doubletap" ) )
@@ -324,7 +358,20 @@ bring_perk( machine, trigger )
         trigger.blocker_model delete();
     }
 
+
     machine.original_pos = machine.original_pos + ( offset[0], offset[1], 0 );
+
+    if ( isDefined( b_no_flight ) && b_no_flight )
+    {
+        //  Move across to the landing column at the parked height, then fall
+        //  into it. accel/decel are stock's own move_perk shape, so the arrival
+        //  reads as a drop rather than a teleport.
+        machine.angles = machine.original_angles;
+        machine.origin = ( machine.original_pos[0], machine.original_pos[1], machine.origin[2] );
+        machine moveto( machine.original_pos, 3.0, 0.25, 0.75 );
+        machine waittill( "movedone" );
+    }
+
     machine.origin = machine.original_pos;
     machine.angles = machine.original_angles;
 
@@ -334,13 +381,20 @@ bring_perk( machine, trigger )
         level.quick_revive_final_angles = machine.angles;
     }
 
-    machine.fx stoploopsound( 0.5 );
+    //  🛑 machine.fx only exists on the quad path - guard every use of it.
+    if ( isDefined( machine.fx ) )
+        machine.fx stoploopsound( 0.5 );
+
     machine setclientfield( "clientfield_perk_intro_fx", 0 );
     playsoundatposition( "zmb_perks_incoming_land", machine.origin );
     trigger trigger_on();
     machine thread bring_perk_landing_damage();
-    machine.fx unlink();
-    machine.fx delete();
+
+    if ( isDefined( machine.fx ) )
+    {
+        machine.fx unlink();
+        machine.fx delete();
+    }
     machine notify( machine.turn_on_notify );
     level notify( machine.turn_on_notify );
     machine vibrate( vectorscale( ( 0, -1, 0 ), 100.0 ), 0.3, 0.4, 3 );
@@ -444,6 +498,20 @@ perks_from_the_sky()
     level.zmqol_nuked_dropping = 0;
 
     flag_wait( "initial_blackscreen_passed" );
+
+    //  MACHINE DROPS = ALL ON ROUND 1 (pre-game lobby, Nuketown survival only).
+    //  Read HERE rather than at init, so the lobby's write has certainly landed.
+    //
+    //  🛑 IT GOES BEFORE THE SOLO QUICK REVIVE FLIGHT, DELIBERATELY. That flight
+    //  is one full quad trip; leaving it in front would have kept the wait the
+    //  user asked to remove. Quick Revive simply comes down with everything else.
+    if ( getdvarintdefault( "nuked_all_machines", 0 ) )
+    {
+        wait 3.0;
+        zmqol_nuked_drop_all_at_once();
+        return;
+    }
+
     wait( randomfloatrange( 5.0, 15.0 ) );
     players = get_players();
 
@@ -453,17 +521,6 @@ perks_from_the_sky()
         //  Index 0 is Quick Revive and solo gets it first. Stock's rule, kept.
         zmqol_nuked_bring_machine( 0 );
     }
-
-    //  MACHINE DROPS = ALL ON ROUND 1 (pre-game lobby, Nuketown survival only).
-    //  Read HERE rather than at init, so the lobby's write has certainly landed.
-    if ( getdvarintdefault( "nuked_all_machines", 0 ) )
-    {
-        while ( level.zmqol_nuked_machines.size > 0 )
-            zmqol_nuked_bring_machine( -1 );
-
-        return;
-    }
-
     wait_for_round_range( 3, 5 );
     wait( randomintrange( 30, 60 ) );
     zmqol_nuked_bring_machine( -1 );
@@ -690,11 +747,81 @@ zmqol_nuked_drop_all_machines()
     level thread zmqol_nuked_drop_all_thread();
     return n_left;
 }
-
 zmqol_nuked_drop_all_thread()
 {
     level endon( "end_game" );
+    zmqol_nuked_drop_all_at_once();
+}
 
-    while ( isdefined( level.zmqol_nuked_machines ) && level.zmqol_nuked_machines.size > 0 )
-        zmqol_nuked_bring_machine( -1 );
+// ============================================================================
+//  zmqol_nuked_drop_all_at_once  -  one siren, everything lands together
+//                                                                   (v1.99.65)
+// ----------------------------------------------------------------------------
+//  Drives both the ALL ON ROUND 1 lobby option and the ".machines" command.
+//
+//  🛑 THE MUTEX IS TAKEN FOR THE WHOLE OPERATION, not per machine. If a
+//  scheduled quad trip is already in the air this waits for it, and while this
+//  runs the schedule cannot start one - otherwise a machine could be linked to
+//  the vehicle and moveto'd by two owners at once.
+//
+//  🌟 THE MACHINES ARE PULLED OFF THE LIST BEFORE ANY OF THEM MOVES. That is
+//  what makes it safe to hand nine of them to nine threads: the list is empty
+//  before the first thread runs, so nothing else can pick one up.
+//
+//  📝 The arrival sounds are played ONCE, here, rather than nine times inside
+//  bring_perk - that is the "siren blares once" the user asked for. The landing
+//  sound stays per machine, because nine machines hitting the ground is nine
+//  impacts and they all land in the same second anyway.
+// ============================================================================
+zmqol_nuked_drop_all_at_once()
+{
+    level endon( "end_game" );
+
+    if ( !isdefined( level.zmqol_nuked_machines ) )
+        return;
+
+    while ( isdefined( level.zmqol_nuked_dropping ) && level.zmqol_nuked_dropping )
+        wait 0.05;
+
+    if ( level.zmqol_nuked_machines.size <= 0 )
+        return;
+
+    level.zmqol_nuked_dropping = 1;
+
+    a_machines = level.zmqol_nuked_machines;
+    a_triggers = level.zmqol_nuked_machine_triggers;
+
+    level.zmqol_nuked_machines = [];
+    level.zmqol_nuked_machine_triggers = [];
+
+    //  The siren, once, for the whole flight.
+    playsoundatposition( "zmb_perks_incoming_quad_front", ( 0, 0, 0 ) );
+    playsoundatposition( "zmb_perks_incoming_alarm", ( -2198, 486, 327 ) );
+    wait 2.0;
+
+    n_sent = 0;
+
+    for ( i = 0; i < a_machines.size; i++ )
+    {
+        if ( !isdefined( a_machines[i] ) || !isdefined( a_triggers[i] ) )
+            continue;
+
+        level thread bring_perk( a_machines[i], a_triggers[i], 1 );
+        n_sent++;
+
+        //  🛑 A 0.05s gap between starts, on purpose. Nine machines entering the
+        //  landing block in ONE frame is nine setclientfields, nine sounds and
+        //  eighteen exploders down the reliable command ring, which holds 128 -
+        //  see ERROR_CATALOGUE §7b. Spread over 0.45s the peak is a ninth of that
+        //  and the fall is 3s, so they still land together to the eye.
+        wait 0.05;
+    }
+
+
+    println( "[zm_qol] nuketown: dropped " + n_sent + " machine(s) together" );
+
+    //  The fall is 3.0s inside bring_perk; hold the mutex until they are all
+    //  down so a scheduled trip cannot overlap the tail of it.
+    wait 4.0;
+    level.zmqol_nuked_dropping = 0;
 }

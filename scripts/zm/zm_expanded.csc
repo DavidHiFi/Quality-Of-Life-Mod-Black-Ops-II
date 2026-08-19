@@ -1340,6 +1340,10 @@ zmqol_init_vulture_trimmed()
 	level.perk_vulture.custom_funcs_disable[0] = ::zmqol_vulture_machines_disable;
 
 	level.zombie_eyes_clientfield_cb_additional = clientscripts\mp\zombies\_zm_perk_vulture::vulture_eye_glow_callback_from_system;
+
+	//  v1.99.65 - Vulture Aid makes the zombie eyes BRIGHTER. See the banner
+	//  below zmqol_init_vulture_trimmed() for the whole reasoning.
+	level thread zmqol_vulture_brighter_eyes();
 }
 
 // ============================================================================
@@ -1392,6 +1396,81 @@ zmqol_vulture_perks_match_string()
 		return "";
 
 	return str_gametype + "_perks_" + str_location;
+}
+
+// ============================================================================
+//  zmqol_vulture_brighter_eyes  (CLIENT)  -  Vulture Aid brightens zombie eyes
+//                                                                   (v1.99.65)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-19: *"i gave myself all perks, and the zombies' eyes remained
+//  the same amount of glow... make it so vultures aid makes their eyes glow
+//  slightly brighter... a niche little visual enhancement for the perk"*.
+//
+//  🛑 STOCK ALREADY PLAYS AN EYE EFFECT FOR THIS PERK, AND THAT IS WHY NOTHING
+//  LOOKED BROKEN. _zm_perk_vulture.csc:45 loads misc/fx_zombie_eye_vulture and
+//  :504 attaches it to J_Eyeball_LE for anyone holding the perk. It is a
+//  different eye, not a brighter one - which is exactly what was reported.
+//
+//  🌟 WHAT THIS CHANGES, AND WHY IT IS PROVABLY BRIGHTER RATHER THAN "probably".
+//  set_vulture_custom_eye_glow()/actors_eye_glow_override (:508) is stock's own
+//  published hook for choosing that effect, read fresh on every zombie. Point it
+//  at the eye effect the map is ALREADY drawing on every zombie
+//  (_zm.csc:632-633) and each zombie ends up with that same effect drawn twice -
+//  once by the normal eye code, once by the perk. Same colour, more of it. No
+//  judgement about how bright some other effect happens to be, and no new asset:
+//  the effect is already loaded on every map, by the core client script.
+//
+//  🛑 IT FOLLOWS THE MAP, NOT A HARDCODED NAME. Buried swaps eye_glow for the
+//  blue one (zm_buried_fx.csc:16) and _zm.csc honours level._override_eye_fx
+//  above it, so both are read here in the same order stock reads them. A
+//  hardcoded misc/fx_zombie_eye_single would have put orange eyes on Buried's
+//  blue zombies.
+//
+//  📝 SCOPE IS EXACTLY THE PERK, FOR FREE. The effect is played by stock's
+//  _zombie_eye_glow_enable(), which runs only for a client whose player holds
+//  Vulture Aid, and stock's _zombie_eye_glow_disable() deletes that same fx id
+//  the moment the perk goes. Nothing here has to add a gate or clean anything
+//  up, so it cannot stick for the rest of the game.
+//
+//  📝 It waits for the effect rather than reading it at init: this runs as the
+//  perk's init thread and there is no guarantee _zm.csc has loaded its effects
+//  first. Bounded, so a map that somehow never defines one just leaves stock's
+//  behaviour in place.
+// ============================================================================
+zmqol_vulture_brighter_eyes()
+{
+	level endon( "end_game" );
+
+	n_tries = 0;
+
+	while ( !isDefined( level._override_eye_fx ) && !isDefined( level._effect[ "eye_glow" ] ) && n_tries < 200 )
+	{
+		wait 0.05;
+		n_tries++;
+	}
+
+	if ( isDefined( level._override_eye_fx ) )
+		n_fx = level._override_eye_fx;
+	else if ( isDefined( level._effect[ "eye_glow" ] ) )
+		n_fx = level._effect[ "eye_glow" ];
+	else
+		return;
+
+	//  vulture_vision_init() creates the struct this override lives on, and it
+	//  runs on player connect - later than this thread. Wait for it rather than
+	//  giving up, or the override would silently never be applied.
+	n_tries = 0;
+
+	while ( ( !isDefined( level.perk_vulture ) || !isDefined( level.perk_vulture.vulture_vision ) ) && n_tries < 1200 )
+	{
+		wait 0.05;
+		n_tries++;
+	}
+
+	if ( !isDefined( level.perk_vulture ) || !isDefined( level.perk_vulture.vulture_vision ) )
+		return;
+
+	level.perk_vulture.vulture_vision.actors_eye_glow_override = n_fx;
 }
 
 zmqol_vulture_machines_build()
