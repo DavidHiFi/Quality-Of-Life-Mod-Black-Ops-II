@@ -880,5 +880,90 @@ disable_zombie_spawn_locations()
 
 			i++;
 		}
+
+		// ====================================================================
+		//  zm_qol v1.99.90 - HELLHOUNDS SPAWNED OUTSIDE THE ARENA (queue: user,
+		//  2026-08-20, screenshot: a dog on the wrecked truck north of the diner,
+		//  player at (-4935,-6885)).
+		//
+		//  🛑 THE LOOP ABOVE IS ONLY HALF THE JOB, and the comment further up this
+		//  file says so without following it through: _zm_zonemgr.gsc:214-248 files
+		//  a struct tagged "dog_location" / "screecher_location" /
+		//  "avogadro_location" into zone.dog_locations / .screecher_locations /
+		//  .avogadro_locations and NEVER into zone.spawn_locations. So every
+		//  spawner this location script disabled above stayed live for hellhounds.
+		//
+		//  The path, verified end to end:
+		//    1. _zm_zonemgr::create_spawner_list() (:944-976) rebuilds
+		//       level.enemy_dog_locations EVERY SECOND from zone.dog_locations of
+		//       every zone that is enabled + active + spawning_allowed, honouring
+		//       each struct's own .is_enabled - the same flag this loop writes.
+		//    2. zm_transit.gsc:96 sets level.dog_spawn_func = dog_spawn_transit_logic,
+		//       which picks a location 400-1150 units from EVERY player and, when
+		//       none qualifies, falls back to dog_locs[0] with NO distance check.
+		//    3. transit_zone_init() connects zone_trans_diner to zone_roadside_west
+		//       and zone_gas on flag "always_on" (:1571-1573), so in Diner survival
+		//       that zone is enabled and goes active the moment a player stands in
+		//       the arena - handing 6 dog locations 1,000-1,400 units up the road.
+		//
+		//  Which structs come off, and why each one is out of the arena:
+		//    - the whole zone_trans_diner / zone_trans_diner2 groups: this same
+		//      function already declares them out of bounds for regular zombies by
+		//      disabling every spawn/riser struct they own. Nothing else in the
+		//      arena spawns there.
+		//    - three dog structs sitting on top of a riser this function disables
+		//      by origin. MEASURED, not assumed - each is 127-196 units from its
+		//      disabled riser, while the next nearest disabled riser is >500:
+		//        (-5272,-6400,-35.4)  is 181u from (-5130,-6512,-35.4)
+		//        (-4013,-6521,-41.9)  is 196u from (-3825,-6576,-52.7)
+		//        (-6550,-7250,-36)    is 127u from (-6462,-7159,-64)
+		//
+		//  🌟 12 dog locations remain enabled across zone_din, zone_diner_roof,
+		//  zone_gar, zone_gas, zone_roadside_east and zone_roadside_west, so the
+		//  list can never empty out - an empty level.enemy_dog_locations would make
+		//  dog_spawn_transit_logic return undefined and hang the dog round.
+		//
+		//  🛑 DELIBERATELY DINER-ONLY. The obvious general rule - "a zone with no
+		//  enabled zombie spawners may not spawn dogs" - was checked against the
+		//  mapents of every dog-capable map and it is WRONG: 8 of Nuketown's 16
+		//  zones (garage, alleys, truck, start) carry dog locations and no regular
+		//  spawner at all, by design. Applying it globally would have deleted most
+		//  of Nuketown's hellhound spawns.
+		// ====================================================================
+		zmqol_disable_out_of_arena_ai_locations( zone.dog_locations );
+		zmqol_disable_out_of_arena_ai_locations( zone.screecher_locations );
+		zmqol_disable_out_of_arena_ai_locations( zone.avogadro_locations );
+	}
+}
+
+//  Structs are references in GSC, so writing .is_enabled through a copied array
+//  still flags the one struct create_spawner_list() reads.
+zmqol_disable_out_of_arena_ai_locations( a_locs )
+{
+	if ( !isdefined( a_locs ) )
+		return;
+
+	for ( i = 0; i < a_locs.size; i++ )
+	{
+		if ( a_locs[i].targetname == "zone_trans_diner_spawners" )
+		{
+			a_locs[i].is_enabled = false;
+		}
+		else if ( a_locs[i].targetname == "zone_trans_diner2_spawners" )
+		{
+			a_locs[i].is_enabled = false;
+		}
+		else if ( a_locs[i].origin == (-5272, -6400, -35.4) )
+		{
+			a_locs[i].is_enabled = false;
+		}
+		else if ( a_locs[i].origin == (-4013, -6521, -41.9) )
+		{
+			a_locs[i].is_enabled = false;
+		}
+		else if ( a_locs[i].origin == (-6550, -7250, -36) )
+		{
+			a_locs[i].is_enabled = false;
+		}
 	}
 }
