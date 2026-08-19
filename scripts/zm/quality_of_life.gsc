@@ -481,6 +481,7 @@ init()
     zmqol_mp_weapons_init();
     zmqol_wallbuy_box_init();
     level thread zmqol_wallbuy_box_reassert();
+    level thread zmqol_wallbuy_variant_keep();   // wall buy = the box's variant (v1.99.91)
     level thread zmqol_stranded_zombie_probe();
     level thread zmqol_round_dvar_watch();
     level thread zmqol_credits_banner();
@@ -608,16 +609,20 @@ init()
     precacheitem( "deathmachine_zm" );
     level.deathmachine_weapon = "deathmachine_zm";
     level.deathmachine_duration = getdvarintdefault( "sv_deathmachine_duration", 30 );
-    //  v1.99.83, queue item 25 - CUSTOM POWER-UPS. Only the three registration
-    //  calls are gated; precacheitem, the model precache, the duration and the
-    //  damage callback above and below stay unconditional, so nothing that
-    //  might already hold a Death Machine loses its handler.
-    if ( zmqol_custom_powerups_enabled() )
-    {
-        include_zombie_powerup( "deathmachine" );
-        add_zombie_powerup( "deathmachine", "zombie_pickup_minigun", &"ZOMBIE_POWERUP_MINIGUN", ::drop_deathmachine, 0, 0, 0 );
-        powerup_set_can_pick_up_in_last_stand( "deathmachine", 0 );
-    }
+    //  🛑 v1.99.91 - THE REGISTRATION IS NEVER GATED AGAIN. v1.99.83 wrapped
+    //  these three calls in `if ( zmqol_custom_powerups_enabled() )`, on the
+    //  belief that add_zombie_powerup() only fills the drop table. It does not:
+    //  _zm_powerups.gsc:446-452 ends with registerclientfield( "toplayer", ... )
+    //  for any powerup that carries a client_field_name, so gating the call
+    //  gates a CLIENTFIELD. That is what dropped every map with
+    //  EXE_CLIENT_FIELD_MISMATCH the moment the row was turned off
+    //  ("Clientfield 'powerup_zombie_blood' in set [toplayer] is not registered
+    //  on the server", console_zm.log 2026-08-20).
+    //  The row is now enforced where it belongs: in the drop predicate, which
+    //  ::drop_deathmachine reads LIVE on every drop.
+    include_zombie_powerup( "deathmachine" );
+    add_zombie_powerup( "deathmachine", "zombie_pickup_minigun", &"ZOMBIE_POWERUP_MINIGUN", ::drop_deathmachine, 0, 0, 0 );
+    powerup_set_can_pick_up_in_last_stand( "deathmachine", 0 );
     maps\mp\zombies\_zm_spawner::register_zombie_damage_callback( ::deathmachine_damage_response );
 
     // --- high_round_fix ---
@@ -2213,6 +2218,11 @@ dm_onplayerspawned()
 
 drop_deathmachine()
 {
+    //  v1.99.91 - CUSTOM POWER-UPS is enforced here, live, instead of at
+    //  registration time. See the block at the include_zombie_powerup call.
+    if ( !zmqol_custom_powerups_enabled() )
+        return 0;
+
     if ( is_true( getdvarintdefault( "sv_deathmachine_powerup", 1 ) ) )
     {
         return 1;
@@ -3054,7 +3064,32 @@ nofog_onplayerconnect()
         //  those builds can be sitting on a persisted 0 - "stop setting it"
         //  would leave those players with no fog and no idea why. This makes the
         //  default deterministic instead of inherited.
-        player setclientdvar( "r_fog", "1" );
+        //
+        // ====================================================================
+        //  🌟 v1.99.91 - AND IT IS NO LONGER A HARDCODED 1. THIS LINE IS WHY THE
+        //  FOG ROW NEVER SAVED.
+        //
+        //  User, 2026-08-20: *"make sure the-game menu options' selections save
+        //  even after restarting the game, same as actual settings from the
+        //  standard settings menu."*
+        //
+        //  Measured: of the 40 rows the mod's options tabs add, 39 are already
+        //  written to %LOCALAPPDATA%\Plutonium\storage\t6\players\mods\zm_qol\
+        //  plutonium_zm.cfg as `seta` lines and come back correctly - the ten
+        //  that are not are the CHEATS rows, deliberately excluded by
+        //  CoD.OptionsSettings.QolNoArchive. The ONE genuine failure was FOG,
+        //  and it had two causes stacked:
+        //    1. r_fog is cheat-protected and Plutonium never archives it, so the
+        //       `seta` the menu runs for every other row does nothing for it.
+        //    2. this line then forced it back to 1 on every single connect, so
+        //       even a hand-edited config could not have survived.
+        //  The row now drives `fog_enabled`, an ordinary mod dvar that archives
+        //  like the other 39, and this line applies it. r_fog remains the thing
+        //  the renderer reads, so typing `r_fog 0` at the console still works
+        //  until the next spawn.
+        // ====================================================================
+        player setclientdvar( "r_fog", getdvarintdefault( "fog_enabled", 1 ) );
+        player thread zmqol_fog_dvar_watch();
 
         //  🛑 v1.99.54 - r_dof_enable IS NO LONGER FORCED TO 0 HERE, and this
         //  line has to go for the new ADVANCED-tab DEPTH OF FIELD row to mean
@@ -3072,6 +3107,45 @@ nofog_onplayerconnect()
         //  because this is a per-player connect hook that always runs, and the
         //  bind must exist before the first flight, not after it.
         player zmqol_fly_key_bind();
+    }
+}
+
+// ============================================================================
+//  zmqol_fog_dvar_watch  -  v1.99.91, the FOG row's live half
+//
+//  The ADVANCED tab's FOG row writes `fog_enabled` (an ordinary mod dvar, so it
+//  archives to the per-mod config like every other row); the renderer only ever
+//  reads r_fog. This carries one to the other the moment it changes, so the row
+//  still applies instantly the way it did when it wrote r_fog directly.
+//
+//  🛑 ONE WRITER, AND ONLY ON CHANGE. setclientdvar every quarter second would
+//  fight anyone typing `r_fog 0` at the console and would spend a reliable
+//  command each time ([[t6-reliable-command-ring]]); this writes only when
+//  fog_enabled actually moves.
+// ============================================================================
+zmqol_fog_dvar_watch()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    //  Seeded with the value already applied by the connect hook, so the first
+    //  pass is a no-op.
+    n_prev = getdvarintdefault( "fog_enabled", 1 );
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        n_now = getdvarintdefault( "fog_enabled", 1 );
+
+        if ( n_now != n_prev )
+        {
+            n_prev = n_now;
+            self setclientdvar( "r_fog", n_now );
+        }
     }
 }
 
@@ -4464,14 +4538,18 @@ zmqol_dev_command_listener()
             if ( tokens.size > 1 )
                 str_arg = tokens[1];
 
+            //  v1.99.91 - both front-ends write fog_enabled, which the ADVANCED
+            //  tab's FOG row also drives and which zmqol_fog_dvar_watch()
+            //  carries to r_fog. One owner, so the chat command and the menu row
+            //  can never disagree, and .fog now survives a restart like the row.
             if ( str_arg == "off" )
             {
-                player setclientdvar( "r_fog", "0" );
+                setdvar( "fog_enabled", "0" );
                 player iprintln( "^1[zm_qol] fog OFF ^7- the world edge will be visible" );
             }
             else if ( str_arg == "on" )
             {
-                player setclientdvar( "r_fog", "1" );
+                setdvar( "fog_enabled", "1" );
                 player iprintln( "^2[zm_qol] fog ON ^7(default)" );
             }
             else
@@ -6753,18 +6831,48 @@ zmqol_velocity_dvar_watch()
     //  v1.95.0 - the first pass is SILENT. It is not a user action; it is this
     //  watcher catching up with a value the config already had.
     b_first = 1;
+    //  v1.99.91 - -1 so the first pass never reads as a hud_master change.
+    n_prev_master = -1;
 
     for ( ;; )
     {
         wait 0.25;
 
-        b_want = getdvarintdefault( "velocity", 0 );
+        // ====================================================================
+        //  🛑 v1.99.91 - hud_master TAKES THE METER DOWN WITH THE REST OF THE HUD.
+        //
+        //  User, 2026-08-20: *"make sure the HUD option ... is a definitive
+        //  on/off toggle for ALL hud ui elements, so even the velocity meter too
+        //  which doesn't get toggled off when I have my hud off ... so yeah just
+        //  make sure when HUD is set to Disabled the hud is really disabled, not
+        //  just some hud elements."*
+        //
+        //  The meter is this mod's own hudelem, so setclientuivisibilityflag(
+        //  "hud_visible", 0 ) - which takes the GAME's hud down - never touched
+        //  it. Every other element this mod owns already reads hud_master in its
+        //  own repaint loop (health :1436, zombie counter :1680, shield :1828,
+        //  perk pop-up :11954); this one did not. It does now.
+        //
+        //  🌟 THE `velocity` DVAR IS NOT WRITTEN. Turning the HUD off must not
+        //  silently reset a saved setting ([[zm-qol-naming-and-versioning]]: the
+        //  dvar is the user's, the row is only a view of it), so the preference
+        //  is left alone and only the ELEMENT comes and goes. Turn the HUD back
+        //  on and the meter returns exactly as it was.
+        // ====================================================================
+        b_master = getdvarintdefault( "hud_master", 1 );
+        b_want = getdvarintdefault( "velocity", 0 ) && b_master;
         b_have = isdefined( self.zmqol_vel_hud );
 
+        //  Silent when the change came from hud_master rather than from the user
+        //  touching the meter itself - ".hud off" must not print "velocity meter
+        //  OFF" as if it had been asked for.
+        b_quiet = b_first || ( b_master != n_prev_master );
+        n_prev_master = b_master;
+
         if ( b_want && !b_have )
-            self zmqol_velocity_set( 1, b_first );
+            self zmqol_velocity_set( 1, b_quiet );
         else if ( !b_want && b_have )
-            self zmqol_velocity_set( 0, b_first );
+            self zmqol_velocity_set( 0, b_quiet );
 
         b_first = 0;
     }
@@ -7783,6 +7891,24 @@ zmqol_mp_weapons_init()
 //                  the gun only is_in_box changes, so cost, hint and vox stay
 //                  exactly as the map set them.
 //
+//  🛑🛑 v1.99.91 - THE M14 PARAGRAPH BELOW IS WRONG AND THE M14 IS NOW SHIPPED.
+//  It is kept because the reasoning error is worth seeing. It concluded "this
+//  mod ships no m14 def and no m14 art, so this is an asset job" - true about
+//  mod.ff, and irrelevant, because the M14 never needed to come from mod.ff.
+//  EVERY zombies map registers it itself, measured in the stock dump:
+//      zm_transit.gsc:1999  zm_transit_dr.gsc:706  zm_nuked.gsc:876
+//      zm_highrise.gsc:834  zm_buried.gsc:1134     zm_prison.gsc:778
+//      zm_tomb.gsc:1006     - each followed by include_weapon( "m14_zm", 0 )
+//  add_zombie_weapon has already built the struct and the map's own fastfile has
+//  already loaded the def, the models and the anims - which is exactly the case
+//  zmqol_wallbuy_box_add() handles by flipping is_in_box and returning. The gun
+//  is a working wall buy on every map today; the ONLY thing that kept it out of
+//  the box was that trailing 0. The add_zombie_weapon fallback in that function
+//  is therefore unreachable for the M14 on every shipping map, and its stock
+//  values (m14_upgraded_zm, &"ZOMBIE_WEAPON_M14", 500, "rifle") are passed
+//  anyway so the call is correct if a future map ever omits it.
+//
+//  The paragraph as written in v1.99.58:
 //  THE M14 IS DELIBERATELY NOT HERE, AND THE USER DID ASK FOR IT. m14_zm is a
 //  real BO2 weapon (_zm.gsc:1218 registers its wall-buy fx; Buried and Die Rise
 //  register the gun), but this mod ships NO m14 weapon def and NO m14 art -
@@ -7814,6 +7940,9 @@ zmqol_wallbuy_box_names()
     a[a.size] = "m16_zm";
     a[a.size] = "rottweil72_zm";
     a[a.size] = "m1911_zm";
+    //  v1.99.91 - the M14, user 2026-08-20. See the correction block above for
+    //  why it was held back and why that reason turned out not to apply.
+    a[a.size] = "m14_zm";
     return a;
 }
 
@@ -7826,6 +7955,7 @@ zmqol_wallbuy_box_init()
     zmqol_wallbuy_box_add( "m16_zm",        "m16_gl_upgraded_zm",     &"ZOMBIE_WEAPON_M16",        1200, "burstrifle" );
     zmqol_wallbuy_box_add( "rottweil72_zm", "rottweil72_upgraded_zm", &"ZOMBIE_WEAPON_ROTTWEIL72",  500, "shotgun" );
     zmqol_wallbuy_box_add( "m1911_zm",      "m1911_upgraded_zm",      &"ZOMBIE_WEAPON_M1911",        50, "" );
+    zmqol_wallbuy_box_add( "m14_zm",        "m14_upgraded_zm",        &"ZOMBIE_WEAPON_M14",         500, "rifle" );
 
     //  Alt-weapon halves. NEVER a box result - the M16's grenade launcher and
     //  Mustang & Sally's left-hand gun - but they must resolve or the weapon
@@ -9249,11 +9379,38 @@ zmqol_custom_powerups_enabled()
     return getdvarintdefault( "custom_powerups", 1 );
 }
 
+// ============================================================================
+//  zmqol_zb_should_drop / zmqol_bm_should_drop  -  v1.99.91
+//
+//  The CUSTOM POWER-UPS row is enforced HERE, in the drop predicate, and no
+//  longer at registration time. _zm_powerups::get_valid_powerup() calls
+//  [[ struct.func_should_drop_with_regular_powerups ]]() on every drop attempt
+//  (_zm_powerups.gsc:337), so the dvar is read live: flipping the row takes
+//  effect on the very next drop, with no registration, no clientfield and no
+//  visionset moving underneath it.
+//
+//  🛑 THIS IS THE FIX FOR EXE_CLIENT_FIELD_MISMATCH. Never gate a
+//  registration call on this row again - see the block above
+//  zmqol_enable_zombie_blood's include_powerup for the whole failure.
+// ============================================================================
+zmqol_zb_should_drop()
+{
+    return zmqol_custom_powerups_enabled();
+}
+
+zmqol_bm_should_drop()
+{
+    return zmqol_custom_powerups_enabled();
+}
+
 zmqol_enable_blood_money()
 {
-    if ( !zmqol_custom_powerups_enabled() )
-        return;
-
+    //  v1.99.91 - unconditional. include_powerup() decides whether stock's own
+    //  add_zombie_powerup( "bonus_points_player", ... ) survives its include-list
+    //  early-return (_zm_powerups.gsc:419), so gating it moved a registration.
+    //  bonus_points_player carries no client_field_name, so it was not the field
+    //  that killed the boots - but the rule is now absolute for every powerup in
+    //  this mod, because the next one added might.
     maps\mp\zombies\_zm_utility::include_powerup( "bonus_points_player" );
 }
 
@@ -9291,19 +9448,19 @@ zmqol_enable_blood_money()
 // ============================================================================
 zmqol_blood_money_natural_drop()
 {
-    //  v1.99.83, queue item 25 - CUSTOM POWER-UPS off leaves stock's
-    //  ::func_should_never_drop in place, which is Blood Money's vanilla state
-    //  on every map, Origins' dig sites included.
-    if ( !zmqol_custom_powerups_enabled() )
-        return;
-
+    //  v1.99.91 - the re-point happens on every map now, but it points at
+    //  ::zmqol_bm_should_drop, which returns 0 while CUSTOM POWER-UPS is off.
+    //  That is Blood Money's vanilla behaviour (stock hands it
+    //  ::func_should_never_drop), reached without changing when anything is
+    //  registered. Origins' dig sites never went through this predicate and are
+    //  untouched either way.
     for ( i = 0; i < 600; i++ )
     {
         if ( isdefined( level.zombie_powerups ) &&
              isdefined( level.zombie_powerups[ "bonus_points_player" ] ) )
         {
             level.zombie_powerups[ "bonus_points_player" ].func_should_drop_with_regular_powerups =
-                maps\mp\zombies\_zm_powerups::func_should_always_drop;
+                ::zmqol_bm_should_drop;
             return;
         }
 
@@ -9481,8 +9638,27 @@ zmqol_enable_zombie_blood()
 
     registerclientfield( "allplayers", "player_zombie_blood_fx", 14000, 1, "int" );
 
-    //  v1.99.83, queue item 25 - CUSTOM POWER-UPS gates the DROP TABLE ENTRY and
-    //  nothing else.
+    //  🛑🛑 v1.99.91 - THIS BLOCK IS NO LONGER GATED, AND MUST NEVER BE AGAIN.
+    //  v1.99.83 wrapped it in `if ( zmqol_custom_powerups_enabled() )` believing
+    //  add_zombie_powerup() only fills the drop table. IT ALSO REGISTERS THE
+    //  CLIENTFIELD: _zm_powerups.gsc:446-452
+    //      if ( isdefined( client_field_name ) )
+    //          registerclientfield( "toplayer", client_field_name, ... 2, "int" );
+    //  and the client half (zm_expanded.csc::zmqol_enable_zombie_blood) registers
+    //  it UNCONDITIONALLY. So turning the row off desynchronised the two sides and
+    //  every map died at load:
+    //      "Clientfield 'powerup_zombie_blood' in set [toplayer] is not
+    //       registered on the server"  -> EXE_CLIENT_FIELD_MISMATCH
+    //  measured in console_zm.log on Nuketown, Buried, Die Rise and TranZit,
+    //  2026-08-20. Origins and Mob were the only maps that still loaded, for the
+    //  two reasons that prove the mechanism: Origins registers Zombie Blood
+    //  itself in stock, and zmqol_zombie_blood_enabled() returns 0 on Mob, so on
+    //  those two maps the two sides still agreed.
+    //
+    //  🌟 THE ROW IS NOW ENFORCED IN THE DROP PREDICATE (::zmqol_zb_should_drop),
+    //  which is read live on every drop attempt. Registration is byte-identical
+    //  with the row on and off - which is what the original comment below was
+    //  trying to guarantee and what add_zombie_powerup silently broke.
     //
     //  🛑 THIS IS AN `if` BLOCK AND NOT AN EARLY `return` ON PURPOSE. Everything
     //  after it - the two vsmgr priorities - is read later in the same map load
@@ -9494,7 +9670,6 @@ zmqol_enable_zombie_blood()
     //  clean and then never shows the effect ([[t6-visionset-slot-silent-desync]]),
     //  or EXE_CLIENT_FIELD_MISMATCH outright. The registrations must be
     //  identical with the row on and off; only the drop changes.
-    if ( zmqol_custom_powerups_enabled() )
     {
         maps\mp\zombies\_zm_utility::include_powerup( "zombie_blood" );
 
@@ -9511,10 +9686,14 @@ zmqol_enable_zombie_blood()
         //  hint string is genuinely &"ZOMBIE_POWERUP_MAX_AMMO" in stock -
         //  Treyarch reused Max Ammo's - and it is core-localized, so it resolves
         //  on every map.
+        //  v1.99.91 - the drop predicate is OURS now, not core's
+        //  ::func_should_always_drop. It returns always-drop while CUSTOM
+        //  POWER-UPS is on and never-drop while it is off, read live, so the row
+        //  can gate the drop without touching a single registration.
         maps\mp\zombies\_zm_powerups::add_zombie_powerup( "zombie_blood",
             "p6_zm_tm_blood_power_up",
             &"ZOMBIE_POWERUP_MAX_AMMO",
-            maps\mp\zombies\_zm_powerups::func_should_always_drop,
+            ::zmqol_zb_should_drop,
             1, 0, 0, undefined,
             "powerup_zombie_blood",
             "zombie_powerup_zombie_blood_time",
@@ -14305,4 +14484,191 @@ zmqol_aim_assist_disable_all()
 
         a_zombies[i] disableaimassist();
     }
+}
+
+// ============================================================================
+//  zmqol_wallbuy_variant_*  -  A WALL BUY GIVES THE SAME VARIANT THE BOX GIVES
+//                                                                  (v1.99.91)
+//
+//  User, 2026-08-20: *"I grabbed the B23R wallbuy ... then when I spun the box
+//  and got the B23R version from the box which I'm pretty certain is the B23R
+//  extended mag ... just make it so the B23R and also [any] wall buy weapon that
+//  has a mystery box version that has a attachment, make it so that the wall buy
+//  version also has the same attachment as the box version (Again same as you
+//  did previously in the mods' development for the MP40) ... fixing that for all
+//  gun wallbuys with box attachment variants would fix the issue of being able
+//  to have the same weapon twice."*
+//
+//  -- WHY THE MOD CAUSED THIS, MEASURED FROM THE STOCK DUMP -------------------
+//  In stock BO2 exactly ONE map has attachment variants in its box: Origins,
+//  with ak74u_extclip_zm, beretta93r_extclip_zm and mp40_stalker_zm (a grep of
+//  every map's include_weapon calls - the other five maps have none at all).
+//  This mod puts the first two into the box on EVERY map:
+//      zm_transit.gsc:592,598  zm_nuked.gsc:698,703  zm_highrise.gsc:530,535
+//      zm_buried.gsc:159,164   zm_prison.gsc:351,355
+//  while the wall buy still hands out the plain def - so the box copy and the
+//  wall-buy copy are two different weapons and both fit in the inventory. That
+//  is the duplicate B23R the user ended up holding on Nuketown, and it is the
+//  same shape as the Origins MP40 the user had fixed on 2026-08-07.
+//
+//  -- THE MECHANISM IS ORIGINS' OWN, GENERALISED ------------------------------
+//  zm_tomb.gsc's zmqol_tomb_mp40_stalker_wallbuys() is the proven version of
+//  this and every hard-won detail in it is carried over:
+//    - retag the unitrigger STUB's .zombie_weapon_upgrade / .weapon_upgrade,
+//      because _zm_weapons.gsc:1120 reads the weapon off the stub live at
+//      purchase, so this does not have to race init_spawnable_weapon_upgrade();
+//    - push the same value onto any ALREADY-LIVE trigger, because
+//      copy_zombie_keys_onto_trigger (_zm_unitrigger.gsc:624-629) copies it once
+//      at build time and a built trigger is never rebuilt, so a stub-only fix
+//      leaves an existing wall buy handing out the old gun;
+//    - refresh hint_string and cost from the replacement's own registration, and
+//      REFUSE to touch anything if that weapon is not in level.zombie_weapons -
+//      get_weapon_hint/cost index it directly, and writing an undefined hint is
+//      what killed the buy prompt outright in v1.59.2;
+//    - re-scan for the whole match instead of once, because the one-shot version
+//      lost a race it could not see (v1.80.0) and gave the plain gun for the
+//      rest of the game.
+//
+//  ORIGINS' OWN MP40 THREAD IS DELIBERATELY LEFT RUNNING. It is confirmed
+//  working in game and this pass writes the identical value, so the overlap is a
+//  no-op rather than a conflict. Nothing is removed from a working feature to
+//  make a new one tidier.
+//
+//  THE PAIRS ARE ONLY EVER BASE -> VARIANT OF THE SAME GUN, so ammo, hint and
+//  cost all already match: the mod's per-map scripts register each variant with
+//  the same hint and cost as the base and call add_shared_ammo_weapon() on it.
+//  A map that has neither the wall buy nor the variant simply matches nothing.
+//
+//      zmqol_wallbuy_variant 0    off - every wall buy gives what the map set
+//      zmqol_wallbuy_variant 1    DEFAULT
+// ============================================================================
+zmqol_wallbuy_variant_pairs()
+{
+    a = [];
+    a[ "beretta93r_zm" ] = "beretta93r_extclip_zm";
+    a[ "ak74u_zm" ]      = "ak74u_extclip_zm";
+    a[ "mp40_zm" ]       = "mp40_stalker_zm";
+    return a;
+}
+
+zmqol_wallbuy_variant_keep()
+{
+    level endon( "end_game" );
+
+    if ( !getdvarintdefault( "zmqol_wallbuy_variant", 1 ) )
+        return;
+
+    n_passes = 0;
+
+    //  Same cadence and cap as Origins' thread: 900 passes at 2s covers any
+    //  realistic match, and a stub that registers late is caught whenever it
+    //  appears rather than only inside an opening window.
+    while ( n_passes < 900 )
+    {
+        zmqol_wallbuy_variant_pass();
+        n_passes++;
+        wait 2;
+    }
+}
+
+zmqol_wallbuy_variant_pass()
+{
+    if ( !isdefined( level._unitriggers ) || !isdefined( level._unitriggers.trigger_stubs ) )
+        return 0;
+
+    a_pairs = zmqol_wallbuy_variant_pairs();
+    a_from  = getarraykeys( a_pairs );
+    a_stubs = level._unitriggers.trigger_stubs;
+    n_total = 0;
+
+    for ( p = 0; p < a_from.size; p++ )
+    {
+        str_from = a_from[p];
+        str_to   = a_pairs[ str_from ];
+
+        //  The replacement must be a registered weapon on THIS map, or
+        //  get_weapon_hint/cost return undefined and the wall buy loses its
+        //  prompt entirely. A map without the variant is left completely alone.
+        if ( !isdefined( level.zombie_weapons ) || !isdefined( level.zombie_weapons[ str_to ] ) )
+            continue;
+
+        str_hint = maps\mp\zombies\_zm_weapons::get_weapon_hint( str_to );
+        n_cost   = maps\mp\zombies\_zm_weapons::get_weapon_cost( str_to );
+
+        if ( !isdefined( str_hint ) || !isdefined( n_cost ) )
+            continue;
+
+        n_this = 0;
+
+        for ( i = 0; i < a_stubs.size; i++ )
+        {
+            if ( !isdefined( a_stubs[i] ) || !isdefined( a_stubs[i].zombie_weapon_upgrade ) )
+                continue;
+
+            if ( a_stubs[i].zombie_weapon_upgrade != str_from )
+                continue;
+
+            a_stubs[i].zombie_weapon_upgrade = str_to;
+
+            if ( isdefined( a_stubs[i].weapon_upgrade ) )
+                a_stubs[i].weapon_upgrade = str_to;
+
+            a_stubs[i].hint_string = str_hint;
+            a_stubs[i].cost        = n_cost;
+
+            //  The already-built triggers carry their own copy.
+            a_stubs[i] zmqol_wallbuy_variant_push_live();
+
+            n_this++;
+        }
+
+        if ( n_this > 0 )
+            println( "[zm_qol] wallbuy variant: " + n_this + " " + str_from + " wall buy(s) now give " + str_to );
+
+        n_total += n_this;
+    }
+
+    return n_total;
+}
+
+// ----------------------------------------------------------------------------
+//  The body of zm_tomb.gsc::zmqol_mp40_push_to_live_triggers(), which is
+//  confirmed working in game. It lives here as well rather than being called
+//  across files because that one is inside a MAP script - a root script may not
+//  reference maps\mp\zm_tomb... at all (AI_CONTEXT rule 2: the reference
+//  resolves at LOAD time and would kill every other map).
+// ----------------------------------------------------------------------------
+zmqol_wallbuy_variant_push_live()
+{
+    n = 0;
+
+    if ( isdefined( self.trigger ) )
+    {
+        self.trigger.zombie_weapon_upgrade = self.zombie_weapon_upgrade;
+
+        if ( isdefined( self.trigger.weapon_upgrade ) )
+            self.trigger.weapon_upgrade = self.zombie_weapon_upgrade;
+
+        n++;
+    }
+
+    if ( isdefined( self.playertrigger ) )
+    {
+        keys = getarraykeys( self.playertrigger );
+
+        for ( k = 0; k < keys.size; k++ )
+        {
+            if ( !isdefined( self.playertrigger[ keys[k] ] ) )
+                continue;
+
+            self.playertrigger[ keys[k] ].zombie_weapon_upgrade = self.zombie_weapon_upgrade;
+
+            if ( isdefined( self.playertrigger[ keys[k] ].weapon_upgrade ) )
+                self.playertrigger[ keys[k] ].weapon_upgrade = self.zombie_weapon_upgrade;
+
+            n++;
+        }
+    }
+
+    return n;
 }

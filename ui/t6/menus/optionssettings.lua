@@ -873,7 +873,19 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 	-- ========================================================================
 	local T = CoD.OptionsSettings.QolToggle
 	T(AdvancedTabButtonList, LocalClientIndex, "NIGHT MODE",          "night_mode", "Darker, moodier lighting.")
-	T(AdvancedTabButtonList, LocalClientIndex, "FOG",                 "r_fog",      "World fog. Off shows the map edge.")
+	-- 🌟 v1.99.91 - THIS ROW WRITES fog_enabled, NOT r_fog, AND THAT IS THE FIX
+	-- FOR "the options don't save". r_fog is cheat-protected, so the `seta` that
+	-- QolArchive runs for every other row is refused for it and it never reaches
+	-- the per-mod config - and quality_of_life.gsc then forced r_fog back to 1 on
+	-- every connect. fog_enabled is an ordinary mod dvar: it archives exactly
+	-- like the other 39 rows, and the GSC side applies it to r_fog on connect and
+	-- on every change (zmqol_fog_dvar_watch). The renderer still reads r_fog, so
+	-- typing `r_fog 0` at the console keeps working until the next spawn.
+	--
+	-- 🛑 This is the ONE row whose dvar was deliberately renamed, against the
+	-- standing "a renamed row keeps its dvar" rule, because r_fog was never
+	-- saved in the first place - there is no stored preference to lose.
+	T(AdvancedTabButtonList, LocalClientIndex, "FOG",                 "fog_enabled","World fog. Off shows the map edge.")
 	T(AdvancedTabButtonList, LocalClientIndex, "HIGHER DRAW DISTANCE","lod_fix",    "Stops foreground textures popping in and out at high FOV.")
 
 	-- 🛑 v1.99.54 - THIS WAS TWO CONSECUTIVE SPACERS AND ONE OF THEM IS GONE,
@@ -1349,7 +1361,11 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- checks back in stock's own order. It is live: flip it and the next spin
 	-- obeys it. See treasure_chest_canplayerreceiveweapon() in
 	-- maps\mp\zombies\_zm_magicbox.gsc.
-	T(QolButtons, LocalClientIndex, "BOX LIMITS",         "box_limits",         "Vanilla mystery box rules. Off allows duplicates and no caps.")
+	-- v1.99.91 - renamed and inverted at the user's request (2026-08-20). ON is
+	-- the unlocked box (duplicates, Mk1 + Mk2, no wonder-weapon cap), OFF is
+	-- vanilla box rules with the mod's custom guns still in the roster. The dvar
+	-- had to change with it - see the migration in qol_options::init().
+	T(QolButtons, LocalClientIndex, "NO BOX LIMITS",      "no_box_limits",      "Unlocked mystery box: duplicates and no caps. Off is vanilla rules.")
 
 	-- v1.99.83, queue item 25. ON by default - Zombie Blood, Blood Money and the
 	-- Death Machine are drops the mod already ships, so the switch changes

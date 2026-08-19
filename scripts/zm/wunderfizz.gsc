@@ -1570,13 +1570,19 @@ wunderfizzSetup(origin, angles, model)
 	wunderfizzMachine rotateTo(angles, .1);
 
 
-	//  v1.99.67 - Vulture Aid sees this machine through walls, with the mystery
-	//  box's question-mark glow. Threaded rather than set inline: the clientfield
-	//  is registered inside _zm_perk_vulture::init_vulture(), which is the perk's
-	//  init thread, and nothing guarantees that has run before the Wunderfizz
-	//  machines are spawned. Writing an unregistered clientfield is an error, so
-	//  the thread waits for proof the registration happened.
-	wunderfizzMachine thread zmqol_wf_mark_for_vulture();
+	//  🛑 v1.99.91 - THE MARKER IS NO LONGER SET HERE, and that is the fix for
+	//  "every location has a Vulture icon".
+	//
+	//  User, 2026-08-20: *"for the Wunderfizz machine icons for Vulture Aid, make
+	//  it so only the active Wunderfizz machine has an icon and anytime it moves
+	//  it goes away so that way only the active Wunderfizz machine has the
+	//  Vulture Aid icon."*
+	//
+	//  This ran once per machine at spawn, so all of them - up to six on Origins,
+	//  five of which are dormant - were marked for the whole match. The marker is
+	//  now written by the machine's own arrival branch and cleared by its
+	//  departure branch, next to the ball, the glow and the hint string, which
+	//  already follow level.currentWunderfizzLocation. One state, one owner.
 	// Selects which registered tree this entity animates on. main() must already
 	// have run scriptmodelsuseanimtree() or this throws "Unrecognized animtree".
 	wunderfizzMachine useanimtree( #animtree );
@@ -1612,7 +1618,29 @@ wunderfizzSetup(origin, angles, model)
 	}
 
 	cost = level.wunderfizzCost;
-	trig = spawn("trigger_radius", origin, 1, 50, 50);
+	// ========================================================================
+	//  🌟 v1.99.91 - "trigger_radius_use", NOT "trigger_radius". THIS is why the
+	//  Wunderfizz felt like hold-to-interact.
+	//
+	//  User, 2026-08-20: *"make the Wunderfizz press to interact for purchasing
+	//  it and picking up the Perk bottle from the machine too, not hold to
+	//  interact/grab like it is right now."*
+	//
+	//  A plain trigger_radius is a PROXIMITY trigger: its "trigger" notify fires
+	//  because the player is standing in it, with no reference to the use key.
+	//  The buy loop then samples `player UseButtonPressed()` at that instant, so
+	//  the purchase only went through if the key happened to be DOWN when the
+	//  touch fired - which is holding it, in practice.
+	//
+	//  trigger_radius_use is the engine's press-to-use trigger and is what stock
+	//  uses everywhere it wants a use prompt (maps\mp\killstreaks\
+	//  _remote_weapons.gsc:184, maps\mp\gametypes\_weaponobjects.gsc:1986 ...).
+	//  Its "trigger" notify fires ON THE PRESS, so the UseButtonPressed() check
+	//  below is true on the same frame and every existing line keeps working -
+	//  the constructor arguments are identical (origin, spawnflags, radius,
+	//  height) and nothing else about the trigger changes.
+	// ========================================================================
+	trig = spawn("trigger_radius_use", origin, 1, 50, 50);
 	trig SetCursorHint("HINT_NOICON");
 	wunderfizzMachine thread wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle);
 }
@@ -1784,6 +1812,10 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 			//  was never hidden - showpart on a visible part is a no-op.
 			self showpart( "j_ball" );
 
+			//  v1.99.91 - and the Vulture Aid marker with it. Only the live
+			//  machine advertises itself; see the note at wunderfizzSetup().
+			self thread zmqol_wf_vulture_marker( 1 );
+
 			self zmqol_wf_anim( "start" );
 			wait 1;
 			self zmqol_wf_anim( "idle" );
@@ -1804,7 +1836,7 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 					continue;
 				}
 
-				trig SetHintString("Hold ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
+				trig SetHintString("Press ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
 				trig waittill("trigger", player);
 				if(player UseButtonPressed() && player.score >= cost && player.isDrinkingPerk == 0)
 				{
@@ -1873,6 +1905,11 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 								// and puff on the way out - stock's shut_down plus
 								// fx_departure_steam.
 								self notify( "zmqol_wf_ball_off" );
+								//  v1.99.91 - the marker leaves with the orb, at the
+								//  same instant the light and the ball do, so a player
+								//  in Vulture vision never sees an icon on a machine
+								//  the orb has left.
+								self thread zmqol_wf_vulture_marker( 0 );
 								self zmqol_wf_anim( "shut_down" );
 								self thread zmqol_wf_departure_steam();
 								wait 7;
@@ -1952,8 +1989,32 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 										// thread killer off those maps.
 										self.bottle setModel(getPerkBottleModel(perklist[j]));
 
-										trig SetHintString("Hold ^3&&1^7 for " + perkName);
+										trig SetHintString("Press ^3&&1^7 for " + perkName);
+										// ================================================
+										//  🌟 v1.99.91 - A TAP TAKES THE BOTTLE NOW.
+										//
+										//  User, 2026-08-20: *"make the Wunderfizz press to
+										//  interact for purchasing it and picking up the
+										//  Perk bottle from the machine too, not hold to
+										//  interact/grab like it is right now."*
+										//
+										//  Nothing here ever required a HOLD in the engine
+										//  sense - there is no usetime on the trigger. What
+										//  it required was the use button to still be down
+										//  at the moment of a poll, and the poll ran once
+										//  every 0.2s. A normal tap is shorter than that,
+										//  so it was missed about as often as not and the
+										//  only reliable way to grab the bottle was to hold
+										//  the key. Sampling every server frame catches a
+										//  tap, and the 7-second window is unchanged.
+										//
+										//  📝 The fx retrigger stays on its own 0.2s beat -
+										//  it is a visual heartbeat, and firing it four
+										//  times as often would be four times the fx work
+										//  for no visible difference.
+										// ================================================
 										time = 7;
+										n_fx_beat = 0;
 										while(time > 0)
 										{
 											if(player UseButtonPressed() && distance(player.origin, trig.origin) < 65)
@@ -1961,9 +2022,16 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 												player thread givePerk(perklist[j]);
 												break;
 											}
-											if( isdefined( wunderfx ) ) TriggerFX(wunderfx);
-											wait .2;
-											time -= .2;
+											n_fx_beat += 0.05;
+
+											if( n_fx_beat >= 0.2 )
+											{
+												n_fx_beat = 0;
+												if( isdefined( wunderfx ) ) TriggerFX(wunderfx);
+											}
+
+											wait .05;
+											time -= .05;
 										}
 										self setModel(model);
 										self.bottle setModel("tag_origin");
@@ -1981,20 +2049,20 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 								}
 								if( isdefined( wunderfx ) ) wunderfx Delete();
 								wait 2;
-								trig SetHintString("Hold ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
+								trig SetHintString("Press ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
 							}
 						}
 						else
 						{
 							trig SetHintString("You Have All " + perks.size + " Perks");
 							wait 2;
-							trig SetHintString("Hold ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
+							trig SetHintString("Press ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
 						}
 					}
 					else{
 						trig SetHintString("You Can Only Hold " + level.perk_purchase_limit + " Perks");
 						wait 2;
-						trig SetHintString("Hold ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
+						trig SetHintString("Press ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
 					}
 				}
 				wait .1;
@@ -2592,7 +2660,10 @@ givePerk(perk)
 //  synchronous block, so once it exists and a frame has passed the field is
 //  certainly registered. Waiting on it is exact; a fixed sleep would be a guess.
 // ============================================================================
-zmqol_wf_mark_for_vulture()
+//  v1.99.91 - takes the value now: 1 on arrival, 0 on departure. The wait for
+//  level.perk_vulture only ever costs anything on the first call of the match;
+//  after that it is defined and this writes on the next frame.
+zmqol_wf_vulture_marker( n_code )
 {
 	self endon( "death" );
 	level endon( "end_game" );
@@ -2615,5 +2686,5 @@ zmqol_wf_mark_for_vulture()
 	}
 
 	wait 0.05;
-	self setclientfield( "zmqol_vulture_marker", 1 );   //  1 = Wunderfizz, see zmqol_vulture_marker_code()
+	self setclientfield( "zmqol_vulture_marker", n_code );   //  1 = Wunderfizz, see zmqol_vulture_marker_code()
 }

@@ -1049,7 +1049,28 @@ treasure_chest_canplayerreceiveweapon( player, weapon, pap_triggers )
     if ( !get_is_in_box( weapon ) )
         return 0;
 
-    box_limits = getdvarintdefault( "box_limits", 0 );
+    //  🌟 v1.99.91 - THE ROW IS "NO BOX LIMITS" NOW AND IT READS THE OTHER WAY.
+    //
+    //  User, 2026-08-20: *"rename BOX LIMITS to NO BOX LIMITS and flip the
+    //  current enabled/disabled state for the option, so enabled means
+    //  non-vanilla box limits (unlocked box, able to get both mk1 and mk2 raygun
+    //  + same weapon twice etc.), and disabled means the box has vanilla limits
+    //  while retaining all the custom guns you're able to get from the box."*
+    //
+    //      no_box_limits 1  (DEFAULT)  no limits - what this mod has always done
+    //      no_box_limits 0             vanilla: one Ray Gun, no duplicate pulls,
+    //                                  per-map wonder-weapon caps. The custom
+    //                                  gun ROSTER is untouched either way - it is
+    //                                  built by get_is_in_box / level.zombie_weapons
+    //                                  above, which this switch never reaches.
+    //
+    //  🛑 A NEW DVAR NAME, NOT AN INVERTED READ OF THE OLD ONE. Inverting
+    //  box_limits in place would have silently flipped the setting of anyone who
+    //  had already saved it - their archived `box_limits "0"` meant "no limits"
+    //  and would suddenly have meant "vanilla". qol_options::init() migrates the
+    //  old value across once (no_box_limits = !box_limits) so nobody's choice
+    //  changes, and nothing reads box_limits any more.
+    box_limits = !getdvarintdefault( "no_box_limits", 1 );
 
     if ( box_limits )
     {

@@ -184,6 +184,7 @@ struct_init()
 	scripts\zm\locs\loc_common::enable_wallbuys( a_wallbuys );
 
 	zmqol_add_semtex_wallbuy();
+	zmqol_add_claymore_wallbuy();   // v1.99.91 - the shack claymore
 
 	gameObjects = getEntArray("script_model", "classname");
 
@@ -678,6 +679,106 @@ zmqol_add_semtex_wallbuy()
 	scripts\zm\replaced\utility::add_struct( s_buy );
 
 	println( "[zm_qol] diner semtex: wallbuy struct at (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ") yaw " + v_angles[1] );
+}
+
+// ============================================================================
+//  THE DINER CLAYMORE WALL BUY                                     (v1.99.91)
+//
+//  User, 2026-08-20: *"in Diner survival, similar to how I earlier on in the
+//  mods' development got you to add a semtex wallbuy in the toilet room, add a
+//  claymore wallbuy in the shack with juggernog and a easter egg teddy bear in
+//  it right next to this barrier here, i flashed the co-ordinates on screen with
+//  the .where chat command, make sure it's aligned properly with the wall and
+//  isn't sideways like how you've done in the past."*
+//
+//  Flashed spot: x -3615  y -7398  z -58  yaw 270.
+//
+//  -- SHAPE: STOCK'S OWN, NOT INVENTED --------------------------------------
+//  The zm_transit ents dump has exactly one claymore wall buy, at the farm:
+//      { targetname "claymore_purchase"  zombie_weapon_upgrade "claymore_zm"
+//        target "pf1919_auto37"  origin "8827 -5838 103"  angles "0 90 0" }
+//      { targetname "pf1919_auto37"  model "t6_wpn_claymore_world"
+//        origin "8827 -5838 103"  angles "0 180 0" }
+//  Two structs at the SAME origin, with the model struct rotated +90 from the
+//  buy struct. Both halves are picked up exactly like a weapon_upgrade pair -
+//  _zm_weapons.gsc:849 and its client twin _zm_weapons.csc:182 both arraycombine
+//  getstructarray( "claymore_purchase", "targetname" ) into the spawnable list -
+//  which is why this needs the same server+client pair the semtex needed, and
+//  for the same reason: one "world" clientfield per wall buy, named from the
+//  struct, so a struct on one side only is EXE_CLIENT_FIELD_MISMATCH at load.
+//
+//  -- THE YAW, DERIVED RATHER THAN GUESSED ----------------------------------
+//  "Sideways" is the failure mode the user called out, so the angle is taken
+//  from the stock pair above rather than from the model's bounds:
+//    - At the farm claymore, the walkable side is +Y: every pathnode within 120
+//      units sits at dy 0..+95 and none at negative dy. So the wall's outward
+//      normal there points +Y, i.e. 90 degrees.
+//    - Stock's buy struct is yaw 90 and its model struct is yaw 180. So the rule
+//      is  buy yaw = the wall's outward normal angle,  model yaw = that + 90.
+//    - .where reports where the player STOOD and which way they FACED, and this
+//      mod's own convention for it is "stand where you want it, face the way it
+//      should face" (quality_of_life.gsc:4799). Facing 270 therefore means the
+//      claymore faces 270, so the wall's outward normal is 270 and the pair is
+//      buy yaw 270 / model yaw 0 (270 + 90).
+//
+//  -- THE HEIGHT, MEASURED --------------------------------------------------
+//  Stock's claymore sits at z 103 with its floor at ~52 (its nearest pathnodes
+//  are z 78, and in this same map a pathnode sits 26 units above the floor -
+//  the Diner nodes are z -32 with the floor at -58). That is 51 units up the
+//  wall. The flashed z is the player's feet, so the floor here is -58 and the
+//  same 51 units puts this one at z -7.
+//
+//  -- WHAT IS AND IS NOT SETTLED --------------------------------------------
+//  The orientation and the mount height are derived from measurements. The
+//  DISTANCE to the wall is not: .where reports where the player was standing,
+//  not the surface they were looking at, and neither the base map's ents nor the
+//  survival addon's carry a barrier or brush face within 1000 units of the spot
+//  that could pin the plane down offline. So the origin defaults to the flashed
+//  spot exactly, and x/y/z/yaw are dvars - the same treatment the Diner semtex
+//  had while it was being landed, and the same two-line nudge if it needs one:
+//      zmqol_claymore_diner_y -7430      (into the wall, 1 unit at a time)
+//      zmqol_claymore_diner_z -7          (up or down the wall)
+//
+//  🛑 THE DVARS ARE READ ON BOTH SIDES FROM THE SAME DEFAULTS. Changing one
+//  renames the clientfield on both sides identically, which is safe; changing
+//  one side's default alone is a guaranteed drop at load.
+//
+//  📝 NO ASSET WORK. claymore_zm is already in this mod's include list for
+//  TranZit (scripts\zm\zm_transit\zm_transit.csc:82 and the server twin), and
+//  t6_wpn_claymore_world is stock's own wall-buy model, already in the level for
+//  the farm claymore - the same reasoning that settled the semtex bag.
+// ============================================================================
+zmqol_claymore_wallbuy_origin()
+{
+	// Twin of zm_expanded.csc::zmqol_claymore_wallbuy_origin(). Same dvars, same
+	// defaults - if these ever disagree the two sides register different
+	// clientfield names and everyone is dropped at load.
+	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3615 ), getdvarintdefault( "zmqol_claymore_diner_y", -7398 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+}
+
+zmqol_add_claymore_wallbuy()
+{
+	v_origin = zmqol_claymore_wallbuy_origin();
+	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 270 );
+
+	// The buy struct takes the wall's outward normal; the model struct takes
+	// that + 90. Stock's own pair, see the block above.
+	s_model = spawnstruct();
+	s_model.targetname = "zmqol_claymore_diner";
+	s_model.origin = v_origin;
+	s_model.angles = ( 0, n_yaw + 90, 0 );
+	s_model.model = "t6_wpn_claymore_world";
+	scripts\zm\replaced\utility::add_struct( s_model );
+
+	s_buy = spawnstruct();
+	s_buy.targetname = "claymore_purchase";
+	s_buy.origin = v_origin;
+	s_buy.angles = ( 0, n_yaw, 0 );
+	s_buy.zombie_weapon_upgrade = "claymore_zm";
+	s_buy.target = "zmqol_claymore_diner";
+	scripts\zm\replaced\utility::add_struct( s_buy );
+
+	println( "[zm_qol] diner claymore: wallbuy struct at (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ") yaw " + n_yaw );
 }
 
 zmqol_unlock_shield_buildable_entities()

@@ -71,6 +71,11 @@ init()
     qol_opt_dvar( "vulture_eye_fx",        "2" );
     qol_opt_dvar( "disable_player_quotes", "1" );
     qol_opt_dvar( "coop_pause",            "0" );
+    //  v1.99.91 - the ADVANCED tab's FOG row and the .fog command both write
+    //  this; quality_of_life::zmqol_fog_dvar_watch() carries it to r_fog. It
+    //  exists because r_fog is cheat-protected and therefore never archived,
+    //  which is why FOG was the one menu row that did not survive a restart.
+    qol_opt_dvar( "fog_enabled",           "1" );
 
     //  v1.85.0 - THE MASTER SWITCH, driven by ".hud on" / ".hud off".
     //  hud_all forces the individual hud_* options ON; hud_master overrides the
@@ -203,14 +208,26 @@ init()
     //  reads it on every bullet, so it is live both ways mid-game.
     qol_opt_dvar( "better_deadshot", "0" );
 
-    //  v1.99.83 - BOX LIMITS, queue item 30. OFF (0) by default, because the
-    //  no-limits box is what this mod has always shipped and a new switch must
-    //  not change existing behaviour until it is thrown. 1 puts stock's three
-    //  checks back, in stock's own order, inside
-    //  maps\mp\zombies\_zm_magicbox::treasure_chest_canplayerreceiveweapon() -
-    //  read per candidate weapon inside the spin loop, so the row is live and
-    //  the very next spin obeys it.
-    qol_opt_dvar( "box_limits", "0" );
+    // ------------------------------------------------------------------------
+    //  v1.99.91 - NO BOX LIMITS (was BOX LIMITS, v1.99.83, queue item 30).
+    //
+    //  ON (1) by default: the unlocked box - duplicates, both Ray Guns, no
+    //  per-map wonder-weapon cap - which is what this mod has always shipped.
+    //  OFF puts stock's three checks back, in stock's own order, inside
+    //  maps\mp\zombies\_zm_magicbox::treasure_chest_canplayerreceiveweapon().
+    //  Read per candidate weapon inside the spin loop, so the row is live: flip
+    //  it and the very next spin obeys it.
+    //
+    //  🛑 THE MIGRATION IS THE POINT OF THESE FOUR LINES. The meaning is
+    //  inverted from the old row, so carrying the old dvar name across would
+    //  have flipped the setting of anyone who had already saved one. Their
+    //  archived box_limits is read ONCE, inverted into the new name, and never
+    //  read again. A player who never saw the old row gets the default.
+    // ------------------------------------------------------------------------
+    if ( getdvar( "no_box_limits" ) == "" && getdvar( "box_limits" ) != "" )
+        setdvar( "no_box_limits", "" + ( !getdvarintdefault( "box_limits", 0 ) ) );
+
+    qol_opt_dvar( "no_box_limits", "1" );
 
     //  v1.99.83 - CUSTOM POWER-UPS, queue item 25. ON (1) by default: Zombie
     //  Blood, Blood Money and the Death Machine are drops this mod already ships
@@ -1344,6 +1361,38 @@ qol_opt_hud_watcher()
         {
             n_prev_master = b_master;
             self setclientuivisibilityflag( "hud_visible", b_master );
+
+            // ================================================================
+            //  🌟 v1.99.91 - THE SESSION WATERMARK GOES WITH IT.
+            //
+            //  User, 2026-08-20: *"same with the draw identifier ... make sure
+            //  when HUD is set to Disabled the hud is really disabled, not just
+            //  some hud elements."*
+            //
+            //  cg_drawIdentifier is the Plutonium dvar behind the GAME tab's
+            //  DRAW IDENTIFIER row (ui/t6/menus/optionssettings.lua:1267) - the
+            //  "*1787171762-0fe7-..." line across the top of the screen. It is
+            //  drawn by the client, not by any hudelem or LUI widget this mod
+            //  owns, so neither hud_visible nor any hud_* dvar could reach it.
+            //
+            //  🛑 THE USER'S OWN SETTING IS PRESERVED, NOT OVERWRITTEN. The
+            //  value is stashed on the first switch-off and put back verbatim on
+            //  switch-on, so a player who had it off keeps it off, and a player
+            //  who had it on gets it back. Writing a hardcoded 1 on restore
+            //  would quietly turn the watermark on for everyone who had it off.
+            // ================================================================
+            if ( !b_master )
+            {
+                if ( !isdefined( self.qol_drawid_saved ) )
+                    self.qol_drawid_saved = getdvarintdefault( "cg_drawIdentifier", 1 );
+
+                setdvar( "cg_drawIdentifier", 0 );
+            }
+            else if ( isdefined( self.qol_drawid_saved ) )
+            {
+                setdvar( "cg_drawIdentifier", self.qol_drawid_saved );
+                self.qol_drawid_saved = undefined;
+            }
         }
 
         self qol_opt_show( self.qol_hud_timer, b_master && ( b_all || getdvarintdefault( "hud_timer", 1 ) ) );

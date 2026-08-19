@@ -108,13 +108,25 @@ end
 -- mainlobby.lua uses it for xsigninlive, and this mod's optionssettings.lua
 -- already uses it for vid_restart and snd_restart. Both command names were
 -- confirmed present in t6zm.exe's string table.
--- v1.99.87 - RESTART GAME's handler, queue item 27. Same one line as
--- EndGameButtonPressed above, pointed at stock's own popup: patch_zm.ff ships
--- ui_mp\t6\zombie\restartgamepopupzombie.lua, whose LUI.createMenu is called
--- "RestartGamePopup", and it is loaded lazily when first opened - by which time
--- the mod's copy is rank 1 on the search path.
+-- v1.99.91 - RESTART GAME is now ONE console command and nothing else.
+--
+-- User, 2026-08-20: *"the only one that didn't work was the Restart option, it
+-- did a bunch of wacky stuff and also froze my game, just make it behave the
+-- same way as the map_restart console command, it simply restarts map not
+-- complicated at all."*
+--
+-- v1.99.87 routed this through stock's RestartGamePopup, whose RestartLevel
+-- runs a fade-to-black, a `silence`, a controller-rumble stop, sets
+-- ui_busyBlockIngameMenu and only then restarts - and it restarted with
+-- `fast_restart`. That is the "wacky stuff", and with the UI busy-blocked a
+-- restart that does not complete leaves the game frozen with no way back.
+-- The popup override has been deleted with this change; stock's own copy in
+-- patch_zm.ff is untouched and is what any other caller now gets.
+--
+-- This is the same shape as INSTANT EXIT below, which the user confirmed
+-- working in the same session: one Engine.Exec of one command the user named.
 CoD.Class.ZmQolRestartPressed = function (IngameMenuWidget, ClientInstance)
-	IngameMenuWidget:openPopup("RestartGamePopup", ClientInstance.controller)
+	Engine.Exec(ClientInstance.controller, "map_restart")
 end
 
 CoD.Class.ZmQolInstantExitPressed = function (IngameMenuWidget, ClientInstance)

@@ -344,6 +344,7 @@ struct_class_init()
 	// after the loop - exactly as the server's struct_init() does.
 	zmqol_enable_wallbuys();
 	zmqol_add_semtex_wallbuy();
+	zmqol_add_claymore_wallbuy();   // v1.99.91 - twin of the diner location script
 }
 
 // ============================================================================
@@ -415,6 +416,45 @@ zmqol_add_semtex_wallbuy()
 	zmqol_client_add_struct( s_buy );
 
 	println( "[zm_qol] CLIENT diner semtex: wallbuy struct at (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ")" );
+}
+
+zmqol_claymore_wallbuy_origin()
+{
+	//  EXACT TWIN of scripts\zm\locs\zm_transit_loc_diner.gsc::
+	//  zmqol_claymore_wallbuy_origin(). Same dvars, same defaults. The wall buy's
+	//  "world" clientfield is named from zombie_weapon_upgrade + "_" + origin
+	//  (_zm_weapons.csc:218), so a single unit of drift between these two
+	//  functions renames the field on one side only and drops every player at
+	//  load with EXE_CLIENT_FIELD_MISMATCH.
+	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3615 ), getdvarintdefault( "zmqol_claymore_diner_y", -7398 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+}
+
+zmqol_add_claymore_wallbuy()
+{
+	if ( getdvar( "mapname" ) != "zm_transit" || getdvar( "ui_zm_mapstartlocation" ) != "diner" )
+		return;
+
+	v_origin = zmqol_claymore_wallbuy_origin();
+	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 270 );
+
+	//  Stock's own pair: the model struct is rotated +90 from the buy struct.
+	//  See the long block on the server copy for where that came from.
+	s_model = spawnstruct();
+	s_model.targetname = "zmqol_claymore_diner";
+	s_model.origin = v_origin;
+	s_model.angles = ( 0, n_yaw + 90, 0 );
+	s_model.model = "t6_wpn_claymore_world";
+	zmqol_client_add_struct( s_model );
+
+	s_buy = spawnstruct();
+	s_buy.targetname = "claymore_purchase";
+	s_buy.origin = v_origin;
+	s_buy.angles = ( 0, n_yaw, 0 );
+	s_buy.zombie_weapon_upgrade = "claymore_zm";
+	s_buy.target = "zmqol_claymore_diner";
+	zmqol_client_add_struct( s_buy );
+
+	println( "[zm_qol] CLIENT diner claymore: wallbuy struct at (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ")" );
 }
 
 zmqol_enable_wallbuys()
@@ -1388,6 +1428,7 @@ zmqol_init_vulture_trimmed()
 	//  v1.99.69 - and only ONE eye glow while the perk is held. See the banner.
 	level thread zmqol_vulture_single_eye();
 	level thread zmqol_vulture_marker_height_watch();
+	level thread zmqol_vulture_marker_perk_watch();   // v1.99.91 - hide on purchase
 }
 
 // ============================================================================
@@ -2698,15 +2739,20 @@ zmqol_wallbuy_box_init()
 	if ( !getdvarintdefault( "zmqol_wallbuy_box", 1 ) )
 		return;
 
-	// the three that go in the box
+	// the four that go in the box - v1.99.91 added the M14, and this list MUST
+	// stay identical to quality_of_life.gsc::zmqol_wallbuy_box_init()'s: the
+	// client's include_weapon builds level._display_box_weapons, which is what
+	// draws the gun model over the open box.
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m16_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "rottweil72_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m1911_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m14_zm" );
 
 	// their Pack-a-Punch halves - included, but never a box result
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m16_gl_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "rottweil72_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m1911_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "m14_upgraded_zm", 0 );
 
 	// alt-weapon halves - the M16's grenade launcher and Mustang & Sally's
 	// left-hand gun
@@ -2787,6 +2833,120 @@ zmqol_vulture_single_eye()
 
 				b_suppressing[ n ] = 0;
 			}
+		}
+	}
+}
+
+// ============================================================================
+//  zmqol_vulture_marker_perk_watch  -  A MACHINE LOSES ITS MARKER THE MOMENT
+//                                      YOU BUY THAT PERK           (v1.99.91)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-20, screenshot: *"I gave myself only Vulture Aid using the chat
+//  command, then drank PHD Flopper and the weapon icon that you can see there in
+//  the screenshot didn't disappear after purchasing the perk, but Deadshot
+//  Daiquiri did lose the icon as intended like regular perks do, so just make
+//  sure that when you buy perks from the perk machines they lose their icons
+//  same with the weapons white and blue icon for the machines that didn't have
+//  Vulture Aid icons to start with."*
+//
+//  -- THE CAUSE ---------------------------------------------------------------
+//  zmqol_vulture_machine_should_show() already refuses to draw a marker for a
+//  perk the local player owns, and every perk this mod can mark is mapped to its
+//  specialty in zmqol_vulture_marker_perk() - PhD included (code 12 ->
+//  specialty_flakjacket). The filter is simply never RE-RUN: it is evaluated
+//  inside zmqol_vulture_machines_enable(), which only runs when a marker's
+//  clientfield changes, when Vulture vision is toggled, or when the height dvar
+//  moves. Buy a perk with the markers already up and nothing re-evaluates them,
+//  so the icon stays lit until something else happens to rebuild the set.
+//
+//  Deadshot looked like it worked for exactly one reason: stock's own
+//  vulture_global_perk_client_callback registers a callback on perk_dead_shot
+//  (_zm_perk_vulture.csc:783) which tears down ITS marker - a path that never
+//  existed for the perks Treyarch never drew.
+//
+//  -- THE FIX -----------------------------------------------------------------
+//  Watch the local player's owned-perk set and rebuild when it changes. That is
+//  perk-agnostic on purpose: it fixes PhD, the three skull machines (Tombstone /
+//  Electric Cherry / Who's Who) and anything added later, without depending on
+//  which perks stock happens to hook.
+//
+//  Cost: one pass a second, and only while a local client is actually holding
+//  Vulture Aid - level.perk_vulture.fx_array is only populated then, which is
+//  the same guard chain the height watcher uses. Each pass is a dozen hasperk()
+//  calls and, in the steady state, nothing else: the rebuild only fires when the
+//  signature string actually differs.
+//
+//  zmqol_vulture_machines_enable() clears the previous set before drawing (its
+//  first statement is zmqol_vulture_machines_disable), so a rebuild can never
+//  stack duplicate fx.
+// ============================================================================
+zmqol_vulture_marker_perk_signature( localclientnumber )
+{
+	//  Every specialty zmqol_vulture_marker_perk() can return, in a fixed order.
+	//  A string rather than an array so the comparison is one cheap test.
+	a = [];
+	a[a.size] = "specialty_armorvest";
+	a[a.size] = "specialty_rof";
+	a[a.size] = "specialty_quickrevive";
+	a[a.size] = "specialty_fastreload";
+	a[a.size] = "specialty_weapupgrade";
+	a[a.size] = "specialty_longersprint";
+	a[a.size] = "specialty_additionalprimaryweapon";
+	a[a.size] = "specialty_nomotionsensor";
+	a[a.size] = "specialty_deadshot";
+	a[a.size] = "specialty_flakjacket";
+	a[a.size] = "specialty_scavenger";
+	a[a.size] = "specialty_grenadepulldeath";
+	a[a.size] = "specialty_finalstand";
+
+	str = "";
+
+	for ( i = 0; i < a.size; i++ )
+	{
+		if ( self hasperk( localclientnumber, a[i] ) )
+			str = str + "1";
+		else
+			str = str + "0";
+	}
+
+	return str;
+}
+
+zmqol_vulture_marker_perk_watch()
+{
+	level endon( "end_game" );
+
+	a_last = [];
+
+	for ( ;; )
+	{
+		wait 1;
+
+		if ( !isDefined( level.perk_vulture ) || !isDefined( level.perk_vulture.fx_array ) )
+			continue;
+
+		for ( c = 0; c < 4; c++ )
+		{
+			if ( !isDefined( level.perk_vulture.players_with_vulture_perk ) ||
+			     !isDefined( level.perk_vulture.players_with_vulture_perk[ c ] ) ||
+			     !isDefined( level.perk_vulture.fx_array[ c ] ) ||
+			     !isDefined( level.perk_vulture.fx_array[ c ].player_ent ) )
+			{
+				//  Not holding Vulture (any more). Drop the signature so the next
+				//  time they do, the first pass is treated as a change and the
+				//  markers are rebuilt against their perks as they are then.
+				a_last[ c ] = undefined;
+				continue;
+			}
+
+			e_player = level.perk_vulture.fx_array[ c ].player_ent;
+			str_now = e_player zmqol_vulture_marker_perk_signature( c );
+
+			if ( isDefined( a_last[ c ] ) && a_last[ c ] == str_now )
+				continue;
+
+			a_last[ c ] = str_now;
+			e_player zmqol_vulture_machines_enable( c );
 		}
 	}
 }

@@ -44,7 +44,45 @@
 --  LUI dump, which is the same source this project's already-shipped and
 --  user-confirmed hudpowerupszombie.lua override came from.
 -- ============================================================================
-require("T6.HUD.HUDDigit")
+-- ============================================================================
+--  🛑 v1.99.91 - THE TOP-LEVEL require() WAS FATAL. DO NOT PUT IT BACK.
+--
+--  User, 2026-08-20: Origins and Mob froze after the intro with a Windows error
+--  ding. console_zm.log.004/.005:
+--      Havok Script Panic - Unprotected error
+--      (ui_mp/T6/HUD.lua:367: function expected instead of nil)
+--      ... in function 'AddHUDWidgets' <- 'ForceHUDRefresh'
+--  i.e. HUD.lua called a nil where a LUI.createMenu.* was expected, while
+--  building the zombie HUD. TranZit/Diner survival was unaffected in the same
+--  session, and Nuketown / Buried / Die Rise / TranZit classic never got that
+--  far (they died on the clientfield mismatch first).
+--
+--  ── THE MECHANISM, ALL OF IT MEASURED ──────────────────────────────────────
+--  1. Stock ships ammoareazombie.lua ONLY inside zm_buried_patch.ff /
+--     zm_prison_patch.ff / zm_tomb_patch.ff, so stock can only ever load it
+--     AFTER that fastfile is loaded.
+--  2. huddigit.lua - what "T6.HUD.HUDDigit" resolves to - ships in exactly the
+--     same three fastfiles (plus patch/ and patch_mp/, neither of which is
+--     loaded in a zombies session). It is NOT in patch_zm.ff. Checked by
+--     listing the decompiled LUI dump, not assumed.
+--  3. Shipping our copy on disk makes the engine load it EARLY: console_zm.log
+--     .004 line 897 "Loaded menu file: ui_mp/t6/zombie/ammoareazombie.lua",
+--     line 935 "Loading fastfile zm_tomb_patch". Our file loaded 38 lines
+--     before its own dependency's fastfile.
+--  4. So this require ran when T6.HUD.HUDDigit could not resolve. The menu
+--     loader swallows the error (the log shows the "Loaded menu file" line and
+--     no panic), the rest of the chunk never executes, and
+--     LUI.createMenu.AmmoAreaZombie is never assigned - which is precisely the
+--     nil HUD.lua then called.
+--
+--  ── THE FIX ────────────────────────────────────────────────────────────────
+--  Defer the require into the constructor. By the time HUD.lua calls
+--  LUI.createMenu.AmmoAreaZombie the map's patch fastfile is long loaded, so
+--  the require resolves exactly as it does for stock. require() is cached, so
+--  the later CoD.HUDDigit reads in UpdateAmmo / UpdateOverheat are covered by
+--  the same single call. Nothing at file scope may touch CoD.HUDDigit - it is
+--  read only inside functions, which was already true and must stay true.
+-- ============================================================================
 CoD.AmmoAreaZombie = {}
 CoD.AmmoAreaZombie.Right = -28
 CoD.AmmoAreaZombie.Bottom = -7
@@ -64,6 +102,8 @@ CoD.AmmoAreaZombie.InventoryIconSize = 64
 CoD.AmmoAreaZombie.InventoryIconEnabledAlpha = 1
 CoD.AmmoAreaZombie.InventoryAnimationDuration = 250
 LUI.createMenu.AmmoAreaZombie = function (f1_arg0)
+	--  v1.99.91 - deferred from file scope; see the block at the top of the file.
+	require("T6.HUD.HUDDigit")
 	local f1_local0 = CoD.Menu.NewSafeAreaFromState("AmmoAreaZombie", f1_arg0)
 	f1_local0:setOwner(f1_arg0)
 	f1_local0.scaleContainer = CoD.SplitscreenScaler.new(nil, CoD.Zombie.SplitscreenMultiplier)
