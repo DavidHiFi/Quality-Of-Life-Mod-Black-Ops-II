@@ -9751,6 +9751,44 @@ zmqol_register_announcer_vox()
 
             maps\mp\zombies\_zm_audio_announcer::createvox( "bonus_points_player", "qol_powerup_blood_money" );
             maps\mp\zombies\_zm_audio_announcer::createvox( "deathmachine", "qol_powerup_death_machine" );
+
+            //  ================================================================
+            //  🌟 DIAGNOSTIC ONLY (v1.99.70) - no behaviour change.
+            //
+            //  User, 2026-08-19: every STOCK power-up announced correctly and
+            //  only Blood Money and Zombie Blood were silent. That rules out the
+            //  whole announcer path - _zm_audio_announcer::init(), leaderdialog,
+            //  allowzmbannouncer, pers["team"] - because those are shared, and
+            //  it rules out the createvox keys, which match the power-up names
+            //  exactly ("bonus_points_player", "zombie_blood").
+            //
+            //  What is left is the alias lookup, and it splits three ways. The
+            //  rows are in the deployed bank - verified with
+            //  `Unlinker --include-assets soundbank -o dump mod.ff`, all six
+            //  vox_zmba_qol_* rows present in mod.all.aliases.csv - but that
+            //  proves the ROW shipped, not that the engine can resolve it or
+            //  that the FLAC payload is reachable. Those cannot be separated
+            //  offline: the dumper recovered 0 of 2363 payloads on this machine,
+            //  so its "could not find data" warnings prove nothing either way.
+            //
+            //  soundexists() is the engine's own answer, and it is what stock's
+            //  get_number_variants() (_zm_spawner.gsc:1689-1696) uses. Reading
+            //  it here separates:
+            //      stock 1, qol 1  -> the alias resolves; the payload or its
+            //                         bus/stream routing is the fault
+            //      stock 1, qol 0  -> the engine cannot see a MOD bank alias by
+            //                         name; the ported lines need a different
+            //                         route entirely
+            //      stock 0         -> soundexists() is not usable as evidence
+            //                         here, discard this probe
+            //  ================================================================
+            println( "[zm_qol] vox probe: stock_maxammo_0=" + soundexists( "vox_zmba_powerup_maxammo_0" ) +
+                     " qol_zblood=" + soundexists( "vox_zmba_qol_powerup_zombie_blood" ) +
+                     " qol_zblood_0=" + soundexists( "vox_zmba_qol_powerup_zombie_blood_0" ) +
+                     " qol_bmoney=" + soundexists( "vox_zmba_qol_powerup_blood_money" ) +
+                     " qol_bmoney_0=" + soundexists( "vox_zmba_qol_powerup_blood_money_0" ) +
+                     " qol_dmachine_0=" + soundexists( "vox_zmba_qol_powerup_death_machine_0" ) );
+
             return;
         }
 

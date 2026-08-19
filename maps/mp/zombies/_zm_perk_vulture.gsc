@@ -1989,6 +1989,18 @@ zmqol_vulture_marker_scan()
             trig.machine.zmqol_marker_code = n_code;
             trig.machine setclientfield( "zmqol_vulture_marker", n_code );
             n_marked++;
+
+            //  🌟 DIAGNOSTIC ONLY (v1.99.70) - no behaviour change. It names the
+            //  perk and the code for every machine the scan marks, so "wrong
+            //  icon on that machine" can be read out of the user's own log
+            //  instead of guessed at from a screenshot. Code 10 is the neutral
+            //  fallback - any perk with no fx_zm_vulture_glow_* of its own.
+            str_dbg = "(undefined)";
+
+            if ( isdefined( trig.script_noteworthy ) )
+                str_dbg = trig.script_noteworthy;
+
+            println( "[zm_qol] vulture marker: " + str_dbg + " -> code " + n_code );
         }
 
         if ( !isdefined( level.zmqol_marker_said ) && n_marked > 0 )

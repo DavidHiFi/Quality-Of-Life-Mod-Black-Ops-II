@@ -7738,3 +7738,397 @@ the M16 / Olympia / M1911 did. Two separate pieces of work, either of which can 
 
 **The M16, Olympia and M1911 were quick for one reason only: their assets were already in `mod.ff`.**
 That is the dividing line for every remaining weapon request — check it first, before promising.
+
+---
+
+## 2026-08-19 — the Nuketown test report: one thing settled, three added
+
+### ✅ SETTLED BY LOG — item 24's perk-machine half is NOT broken
+
+The user's screenshot shows two Nuketown perk machines with no Vulture icon and the report reads
+*"Perk machines still missing Vultures Aid icons."* **The server marked every machine on the map.**
+`console_zm.log`:
+
+```
+[zm_qol] vulture markers: 9 machine(s) marked
+```
+
+Nine is every machine the mod drops on Nuketown (checkpoint 80 §5: ten pads, nine machines). So
+`zmqol_vulture_marker_scan()` found them all through `use_trigger.machine` and wrote the clientfield.
+
+**What hid the icons is stock's own rule, kept deliberately.**
+`zm_expanded.csc::zmqol_vulture_machine_should_show()`:
+
+```
+if ( str_perk == "specialty_weapupgrade" || str_perk == "specialty_nomotionsensor" ) return 1;
+return !( self hasperk( localclientnumber, str_perk ) );
+```
+
+A machine glows only for a perk you do **not** own — that is the point of Vulture Aid. **The
+screenshot shows eleven perk icons in the player's HUD row**, i.e. every perk in the mod, and the
+log shows `.givevulture` / `.givevultures` typed in chat. With every perk held, every machine except
+Pack-a-Punch and the Vulture machine itself is correctly hidden.
+
+🛑 **The checkpoint 80 §4 test was therefore never run.** It said *"Buy Vulture Aid and NOTHING
+ELSE."* Until that is done, there is no evidence of a defect here. Do **not** change the gate — it is
+stock parity, and this project does not tune ported perks ([[zm-qol-port-never-tune]]).
+
+### 26 — POWER-UP ANNOUNCER LINES MISSING
+
+Verified about the path, offline, before any build:
+
+1. `_zm_powerups.gsc:1147` announces every power-up generically:
+   `leaderdialog( self.powerup_name, self.power_up_grab_player.pers["team"] )`.
+2. `_zm_audio_announcer::init()` is called from `_zm_audio::init()` (`_zm_audio.gsc:23`) on **every**
+   map, and registers `carpenter / insta_kill / double_points / nuke / full_ammo / fire_sale /
+   minigun / zombie_blood / boxmove / dogstart`. So `game["zmbdialog"]` is populated on Nuketown.
+3. `level.powerup_intro_vox` and `level.powerup_vo_available` — the two hooks that can swallow the
+   line before it is spoken — are set by **`zm_transit` only** (`zm_transit.gsc:111-112`) in the whole
+   2,093-file stock dump. Neither exists on `zm_nuked`.
+4. `level.allowzmbannouncer` is set to 1 in that init and cleared **only** by
+   `zm_buried_sq.gsc:1449`. Not reachable on Nuketown.
+5. The mod overrides no announcer or power-up script: `maps\` contains only `_zm_magicbox`,
+   `_zm_perk_divetonuke`, `_zm_perk_vulture`, `_zm_weap_freezegun`, `_zm_weap_tesla`,
+   `_zm_weap_thundergun`. `zmqol_register_announcer_vox()` only *adds* keys via `createvox`; it
+   never clears `game["zmbdialog"]`.
+6. The mod's three alias rows are present in `soundbank\mod.all.aliases.additions.csv`, each shipped
+   twice (with and without the `_0` suffix), which covers both `getleaderdialogvariant()` branches.
+
+**So nothing in the mod is on the stock announcer path.** That splits the problem in two and the
+split cannot be resolved from any log or dump in the workspace:
+
+| if the user reports | the fault is | where to look |
+|---|---|---|
+| stock power-ups silent **too** (Max Ammo, Insta-Kill, Double Points, Nuke, Carpenter) | global — something suppressing `playlocalsound` on the announcer bus, or `pers["team"]` not `allies`/`axis` (`leaderdialogonplayer` returns early), or an environment/volume issue | print `game["zmbdialog"][name]`, `level.allowzmbannouncer` and `self.pers["team"]` at grab time |
+| **only** Zombie Blood / Blood Money / Death Machine silent | the mod's own bank — `soundexists()` not seeing a `mod.all` alias, or the payload missing from the deployed `mod.all.sabs` | dump the deployed `mod.ff`'s soundbank alias table and confirm the three `vox_zmba_qol_*` rows and their FLAC payloads survived the build |
+
+🛑 **Ask the discriminator before building anything.** Guessing here means shipping a fix for a
+mechanism that was never broken.
+
+### 27 — CUSTOM POWER-UPS TOGGLE
+
+Registration points already exist and are the natural gate:
+`quality_of_life.gsc:612` `add_zombie_powerup( "deathmachine", ... )`,
+`:9095 zmqol_enable_blood_money()`, `:9308 zmqol_enable_zombie_blood()` (which itself already calls
+`zmqol_zombie_blood_enabled()`), plus `:489 level thread zmqol_blood_money_natural_drop()`.
+
+🛑 **Two traps to design around before writing it:**
+- **Origins must keep Zombie Blood.** It is that map's own stock drop. OFF must mean "this map's
+  vanilla table", so on `zm_tomb` the toggle must leave stock's own registration alone rather than
+  suppress it. `zmqol_zombie_blood_enabled()` already has a map gate — read it first.
+- **A clientfield registered on one side and not the other is `EXE_CLIENT_FIELD_MISMATCH`.** Zombie
+  Blood registers `player_zombie_blood_fx` (`:9316`) and two visionsets. The toggle is a **dvar read
+  at level load**, and the client twin in `zm_expanded.csc` must read the same dvar the same way, or
+  the map will not boot with the option off. This is the single highest-risk part of the item.
+
+### 28 — MOD SWITCH FREEZE
+
+`console_zm.log` (live file, 15:56) ends on the literal last line:
+
+```
+Unloading fastfile mod
+```
+
+Everything before it is healthy: Plutonium had already found `mods/zm_technoopscollection`, added its
+`images.iwd` (255 files) and printed the full rebuilt search path. The hang is in the **unload of
+zm_qol's `mod.ff`**, after the new mod's files were staged and before its zone was linked.
+
+Prime suspect, not yet proven: the asset-ownership trap ([[t6-modff-asset-ownership-trap]]).
+`zone_source\mod_locations.zone` makes `mod.ff` the owner of frontend-visible assets — e.g.
+`material,specialty_vulture_zombies` at `:326` — and the same log shows the menu resolving perk HUD
+materials moments earlier. If a live LUI widget still holds a pointer into a zone being torn down,
+a black screen with the music still running is exactly the symptom.
+
+📝 **Cheap discriminating test for the user, no build needed:** load a *different* mod first, then
+switch to a third one, and see whether the same freeze happens without zm_qol in the picture. That
+separates "zm_qol's mod.ff" from "Plutonium cannot hot-swap mods at all".
+
+---
+
+## 2026-08-19 (later) — the friend's screen-share: three pause-menu items, and #28 gets its trigger
+
+### 29 — RESTART GAME: 🌟 STOCK ALREADY BUILDS IT, AND THE SCREENSHOT PROVES WHAT KILLS IT
+
+The zombies pause menu is built by **`ui_mp/t6/hud/class.lua`**, function
+`CoD.Class.PrepareClassButtonList` (decompiled dump:
+`POWER UP TIMERS\black_ops_2_decompiled_lua_dump\T6_lua_files\T6\patch_zm\ui_mp\t6\hud\class.lua:100-131`).
+The zombies branch is:
+
+```lua
+if Engine.CanPauseZombiesGame() and CoD.canLeaveGame(f12_arg0) then
+    CoD.Class.AddButton(f12_arg1, Engine.Localize("MENU_RESUMEGAME_CAPS"), "soloResumeGame")
+    if (Engine.SessionModeIsMode(CoD.SESSIONMODE_SYSTEMLINK) == true) or Engine.SessionModeIsMode(CoD.SESSIONMODE_OFFLINE) == true then
+        CoD.Class.AddButton(f12_arg1, Engine.Localize("MENU_RESTART_LEVEL_CAPS"), "openRestartGamePopup")
+    end
+end
+CoD.Class.AddButton(f12_arg1, Engine.Localize("MENU_OPTIONS_CAPS"), "open_options")
+```
+
+**RESTART GAME is stock, and it is already the second button — exactly where the user asked for it.**
+It is gated on the session being SYSTEMLINK or OFFLINE.
+
+🌟 **This is measured, not inferred.** The friend's screenshot shows **RESUME GAME present** and
+**RESTART GAME absent**. RESUME GAME sits inside the *outer* `if`, so that condition passed —
+`CanPauseZombiesGame()` and `canLeaveGame()` are both true. The only thing left that can suppress
+the second button is the inner session-mode test. So Plutonium reports neither SYSTEMLINK nor
+OFFLINE, which is the LUI-side face of [[t6-plutonium-session-mode-solo]] (every Plutonium game
+looks like an online private match).
+
+**Cost: nothing new ships.** `MENU_RESTART_LEVEL_CAPS` is an existing localized string and
+`openRestartGamePopup` is an existing action. The change is one override of `class.lua` relaxing
+that one condition.
+
+🛑 **PRE-MORTEM, three ways it still fails:**
+1. **`openRestartGamePopup` may not be reachable in zombies on Plutonium** even once the button is
+   drawn — the popup and its confirm handler have their own gates. Must be traced before shipping,
+   not after.
+2. **The restart itself may not work.** `map_restart` and `fast_restart` both exist in `t6zm.exe`
+   (verified: `tr -c '[:print:]' '\n' < t6zm.exe | grep -x ...`), but whether a zombies match
+   restarts cleanly under Plutonium — round counter, perks, weapons — is untested.
+3. **`ui_mp/t6/hud/class.lua` may not be overridable from `mod.iwd`.** The mod already overrides
+   `ui_mp/t6/zombie/*.lua`, but `class.lua` lives in `patch_zm.ff`, a different fastfile
+   ([[t6-lui-fastfile-map]]). Confirm the override actually takes before writing any logic —
+   `Loaded menu file:` in `console_zm.log` names the path that won.
+
+### 30 / 31 — INSTANT EXIT and QUIT TO DESKTOP
+
+Same file, same function, two more `CoD.Class.AddButton` calls after the existing END GAME block.
+
+**Verified precedent for the action:** stock LUI already calls
+`Engine.Exec(<controller>, "disconnect")` — it appears in the decompiled dump, so this is the shipped
+route, not an invention. All four commands exist in `t6zm.exe`'s string table: `quit`, `disconnect`,
+`map_restart`, `fast_restart`. The user additionally has `disconnect` bound to a key and confirms it
+works.
+
+🛑 **END GAME stays untouched** — the user was explicit. INSTANT EXIT is an addition beside it.
+📝 A `quit` button needs no confirmation popup by the user's description ("closes the game
+instantly"), but it sits one row from END GAME on a menu people navigate blind. Worth asking whether
+they want a confirm step before it ships.
+
+### 28 — AMENDED: the freeze has a trigger, and it is not mod-switching
+
+Second report, from the friend, and it is far more precise than the first:
+
+- Load zm_qol → **start a match** → end the game → unload the mod with **U** → **freeze**.
+- Load zm_qol → unload it immediately, **no match started** → **no freeze**.
+- Another mod, same sequence → **no freeze**. So it is specific to zm_qol.
+
+Combined with the user's own capture, whose `console_zm.log` ends on the literal last line
+`Unloading fastfile mod`, the shape is now:
+
+🌟 **Unloading zm_qol's `mod.ff` hangs, but only once a map has been loaded and torn down.**
+Mod-switching (the first report) and pressing U (the second) are the *same* code path — both unload
+the fastfile. The "no match started" case surviving says the mod.ff itself unloads fine; something
+the **map load** creates keeps a reference into it.
+
+That reframes the prime suspect. It is less likely to be the frontend holding a material, and more
+likely to be something registered during a match that outlives it. Candidates to check offline,
+none confirmed yet:
+- assets `mod.ff` owns that a *map* fastfile resolved against during play
+  (`zone_source\mod_locations.zone` — [[t6-modff-asset-ownership-trap]], [[t6-oat-load-order-decides-asset-copy]]);
+- the mod's own `.csc` client scripts and any fx/clientfield state left registered;
+- the LUI widgets the mod overrides (`hudpowerupszombie.lua`, `hudcraftablestombzombie.lua`), which
+  are instantiated only once a match starts.
+
+📝 The friend's control test (another mod, same sequence, no freeze) is the useful half — it rules
+out "Plutonium cannot unload after a match" as a general limitation.
+
+#### 26 — ADDENDUM: THE PORTED LINES ARE THE WRONG ANNOUNCER OFF ORIGINS
+
+User, 2026-08-19: *"richtofen should be saying max ammo for max ammo not samantha, unless the map i
+was playing was origins."* Correct — BO2's Green Run announcer is Richtofen; Samantha is Origins'.
+
+Both ported payloads were dumped from **`zmb_tomb.english`** (Origins), so they are **Samantha's
+voice**, and `zmqol_register_announcer_vox()` points the keys at them on **every** map:
+
+```
+zone_assets\sound\zmb\qol\vox_zmba_powerup_zombie_blood_d_0.SN40.pc.snd.flac   (92,993 b)
+zone_assets\sound\zmb\qol\vox_zmba_powerup_blood_money_d_0.SN40.pc.snd.flac    (64,106 b)
+```
+
+🛑 So even once item 26's silence is fixed, Zombie Blood and Blood Money will speak in the **wrong
+announcer** on Nuketown, TranZit, Die Rise, Buried and Mob. That is a completeness-audit failure
+(sound fx column) and must not be shipped quietly.
+
+📝 Not yet checked, and it decides the outcome: whether a **Richtofen** take of either line exists in
+any shipped bank. Treyarch recorded these for Origins only as far as the v1.65.0 dump went, so the
+likely answer is no — in which case the honest options are the user's call, not ours: accept
+Samantha everywhere, or gate both lines to Origins and leave them silent elsewhere. Do not decide
+this without asking.
+
+---
+
+## 2026-08-19 — v1.99.70: fallback marker height, plus two probes
+
+### ✅ ANSWERED: which Nuketown machines get the neutral icon — **exactly two**
+
+Measured, not guessed. `zm_nuked.gsc:108-141` sets the nine machines the mod drops; run each
+`script_noteworthy` through `_zm_perk_vulture.gsc::zmqol_vulture_marker_code()`'s eight-case switch:
+
+| machine | script_noteworthy | code |
+|---|---|---|
+| Quick Revive | `specialty_quickrevive` | 4 |
+| Speed Cola | `specialty_fastreload` | 5 |
+| Double Tap | `specialty_rof` | 3 |
+| Juggernog | `specialty_armorvest` | 2 |
+| Pack-a-Punch | `specialty_weapupgrade` | 6 |
+| Stamin-Up | `specialty_longersprint` | 7 |
+| Mule Kick | `specialty_additionalprimaryweapon` | 8 |
+| **Deadshot** | `specialty_deadshot` | **10 — fallback** |
+| **PhD Flopper** | `specialty_flakjacket` | **10 — fallback** |
+
+🌟 **The user's own diagnosis was right.** Treyarch authored `fx_zm_vulture_glow_*` for eight perks
+only, because Buried has eight machines — and Deadshot and PhD Flopper are not among them. There is
+no glow effect for either anywhere in BO2, and new fx cannot be authored (OAT dumps no `FxEffectDef`,
+retested on `OAT.BSP.v2.0` per checkpoint 80 §3). So a neutral icon is the ceiling, not a shortcut.
+
+### WHAT SHIPPED
+
+**The height.** `zmqol_vulture_marker_height()` now lifts code 10 as well as code 1, by
+`getdvarintdefault( "vulture_marker_height", 38 )`. Codes 2-9 keep 0 deliberately: those are
+Treyarch's own machine-authored effects, drawn by stock at the machine origin, and the user has
+never complained about them. Code 10's effect (`fx_zm_vulture_glow_question`) was authored for a
+**wall buy**, whose entity origin already sits at icon height on a wall — at a machine's base it
+lands on the floor. Same effect, different anchor; that is the entire bug.
+
+🛑 **38 is an inference, and it is labelled as one.** It is the Wunderfizz value the user has already
+confirmed reads as centred, and Deadshot/PhD are the same class of vending cabinet
+(`p6_zm_al_vending_ads_on` / `p6_zm_al_vending_nuke_on`, both listed in `mod.ff`). Measuring their
+real bounds means dumping every xmodel in `mod.ff`, which was judged not worth it **because the dvar
+makes it settleable in game in seconds**.
+
+**`zmqol_vulture_marker_height_watch()` — and it was nearly a half-fix.** Pre-mortem caught that
+`zmqol_vulture_marker_height()` is only read inside `zmqol_vulture_machines_enable()`, which runs
+just when a marker's clientfield value changes or the perk is gained. The server stops re-sending
+once every machine is marked, so typing the dvar mid-game would have moved nothing. The watcher polls
+once a second and re-runs `zmqol_vulture_machines_enable()` on change; that function disables the old
+set first, so a re-apply cannot stack duplicate fx.
+
+📝 **A tuning dvar that needs a rebuild to tune is not a tuning dvar.** Worth remembering as a
+general check: whenever a constant becomes a dvar, find what re-reads it, and if nothing does, ship
+the re-read with it.
+
+### TWO PROBES (println only, zero behaviour change)
+
+1. `[zm_qol] vulture marker: <perk> -> code <n>` — one line per machine, from the server scan. Turns
+   "wrong icon on that machine" into a log read instead of a screenshot argument.
+2. `[zm_qol] vox probe: stock_maxammo_0=… qol_zblood=… …` — `soundexists()` on one stock alias as a
+   control plus all four mod aliases. See the block comment at `quality_of_life.gsc` for how the
+   three outcomes are read.
+
+### 26 — the announcer, narrowed by the user's test
+
+**Every stock power-up announced correctly; only Blood Money and Zombie Blood were silent.** That
+kills the whole shared-path branch of the table in the earlier entry — `_zm_audio_announcer::init()`,
+`leaderdialog`, `allowzmbannouncer`, `pers["team"]` are all fine, and the `createvox` keys match the
+power-up names exactly. Death Machine was not observed either way.
+
+🛑 **A NEGATIVE RESULT WORTH RECORDING: the soundbank dump does NOT settle the payload question.**
+`Unlinker --include-assets soundbank -o dump mod.ff` puts all six `vox_zmba_qol_*` rows in
+`mod.all.aliases.csv`, so the rows shipped — but it recovered **0 payloads out of 2363 aliases** and
+still emitted 472 "could not find data" warnings, including for sounds the mod demonstrably plays.
+So those warnings are a dumper limitation on this machine, **not** evidence the audio is missing.
+Do not cite them as a cause. The `soundexists()` probe is there because of exactly this.
+
+✅ **The voice question is closed by the user**: *"which should have the samantha ones due to them
+only meant to be on origins."* Keep Samantha on every map. The earlier addendum's open decision is
+resolved — no Richtofen take is needed.
+
+### 22 — SCOREBOARD: REOPENED, AND CHECKPOINT 80's "PRE-MATCH CONFIRMED" IS WRONG
+
+User, 2026-08-19, with screenshot: *"regardless of which team i choose in the character selection
+pre-game menu, CIA or CDC i always have the CIA icon in the scoreboard"*. Checkpoint 80 §0 recorded
+the pre-match pick as confirmed; that was confirmed in one direction only and does not hold. The
+mid-match finding (proven impossible, §2) is unaffected — this is about the pre-game choice.
+Not investigated yet.
+
+---
+
+## 2026-08-19 (later still) — Strat Tester comparison: items 32-34
+
+**Source the user supplied and explicitly asked to draw from:** `H:\Claude\Strat-Tester-BO2` (their
+own git clone; the screenshot's GAME tab matches it — there is also an unrelated
+`H:\Claude\BO2-StratTester`, a different and much smaller mod, which is NOT the one).
+
+📝 **On the no-import rule.** `AI_CONTEXT.md` rule 7 forbids importing from other mods, with
+BO2-Reimagined as the standing exception. The user supplied this source and asked for these features
+by name, which authorises it the same way — but the same discipline applies: **adapt, never
+bulk-copy**, and keep zm_qol's own option/dvar conventions.
+
+### 32 — BOX LIMITS: 🌟 THE FEATURE ALREADY EXISTS, ALWAYS ON
+
+`zm_qol` ships a raw override of `maps\mp\zombies\_zm_magicbox.gsc` whose `main()` prints:
+
+```
+[zm_qol] _zm_magicbox override ACTIVE (double_weapons + no_limits)
+```
+
+It is the BO2-No-Box-Limits `double_weapons-no_limits` behaviour (JezuzLizard), documented in that
+file's own header at `:979-1006`, replacing `treasure_chest_canplayerreceiveweapon` (`:1018`) and
+lifting `limited_weapon_below_quota`'s `add_limited_weapon` quotas.
+
+🛑 **So the request is a GATE, not a feature — and the OFF path is the whole job.** Because the
+override shadows stock wholesale, "vanilla box limits" cannot be reached by skipping our code; the
+disabled branch has to reproduce stock's own `treasure_chest_canplayerreceiveweapon` and
+`limited_weapon_below_quota` faithfully. Both are in the stock dump
+(`reference\gsc-dump\ZM\Core\maps\mp\zombies\_zm_magicbox.gsc`), so this is verifiable rather than
+guesswork — but it must be diffed call-by-call, not approximated.
+
+📝 Read at level load or live? A live toggle is nicer and probably safe (the check runs per box
+spin), but confirm nothing caches the quota table at init before promising it.
+
+### 33 — TELEPORT: the mechanism is trivial, the DESTINATIONS are the work
+
+`Strat-Tester-BO2\scripts\zm\strattester\commands.gsc:104-166`, `tpcase()`. Stripped of its
+localisation, each destination is one line:
+
+```gsc
+case "diner": pos = (-5012, -6694, -60); ang = (0, -127, 0); break;
+...
+player setOrigin( pos );
+player setPlayerAngles( ang );
+```
+
+🛑 **THE TABLE IS HAND-AUTHORED PER MAP, AND ITS COVERAGE DOES NOT MATCH THIS MOD.** Strat Tester
+ships destinations for TranZit (10), Mob (4), Die Rise (2), Buried (3) and Origins (9) — and
+**nothing for Nuketown**, which is the map the user tests on most. It also has nothing for zm_qol's
+custom survival locations. Shipping the port as-is gives an EXECUTE TELEPORT row that silently does
+nothing on Nuketown (`tpcase` falls through to `default: return;`), which is exactly the
+half-implementation this project does not ship.
+
+🌟 **The mod already has the tool to author them: `.where` prints `x y z yaw`** — it is in the
+user's own screenshots. Destinations should be agreed with the user per map rather than invented.
+
+📝 Two Strat Tester entries read a live map global rather than a constant — `level.the_bus.origin`
+(TranZit) and `level.vh_tank.origin` (Origins). Those are level variables, not `maps\mp\...`
+function references, so they do not trip the root-script "Unresolved external" rule — but they are
+undefined on every other map and must be guarded.
+
+### 34 — CHANGE ROUND / KILL HORDE / END ROUND
+
+`Strat-Tester-BO2\scripts\zm\strattester\utility.gsc:167-222`. All three are short:
+
+```gsc
+changeRound(rnd, w) { ... level.round_number = rnd; endRound(); changeSpawnRate(); }
+endRound()          { level.zombie_total = 0; killHorde(); }
+killHorde()         { foreach zombie: skip magic-bullet-shield; health = 10000;
+                      dodamage( health + 666, origin ); }
+```
+
+🌟 **Three details in there are load-bearing and would be easy to drop:**
+1. `is_magic_bullet_shield_enabled( zombie )` is skipped — that shield protects scripted/boss
+   zombies, and damaging them anyway breaks map scripts.
+2. `health = 10000` before the damage is a **Die Rise** workaround — its zombies can carry negative
+   health, so `health + 666` would not be lethal without the reset.
+3. `changeSpawnRate()` re-derives `level.zombie_vars["zombie_spawn_delay"]` and
+   `level.zombie_move_speed` for the new round. Skip it and a round jump leaves the old pacing —
+   the round number changes and the difficulty does not.
+
+🛑 **`level.zombie_vars[...]` and `level.zombie_move_speed` are STOCK globals**, so this is exactly
+the [[t6-ported-script-stock-globals]] case: writing them re-tunes every stock system that reads
+them for the rest of the match. Correct for a deliberate round jump, wrong if it ever runs by
+accident — so the CHANGE ROUND row must not be reachable without intent.
+
+📝 zm_qol's CHEATS tab convention: every row must also be a console command/dvar
+([[zm-qol-commands-as-dvars]]). CHANGE ROUND is a value row (Strat Tester uses `st_round`), the
+other two are action rows.

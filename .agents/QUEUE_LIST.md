@@ -10,11 +10,11 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- BUILT, AWAITING THE USER'S BOOT: **v1.99.69**. v1.99.61-64 are confirmed in game; v1.99.65-69 are partly confirmed - see checkpoint 80 §0 for the per-item table. 🛑 **v1.99.62 (Death Machine vs Mob's afterlife) has never been booted at all.**
+- BUILT, AWAITING THE USER'S BOOT: **v1.99.70** - fallback Vulture marker height (dvar `vulture_marker_height`, default 38) + its live-re-apply watcher, plus two println-only probes (per-machine marker codes, and a soundexists check on the announcer aliases). v1.99.61-69 findings are in checkpoint 80; item 24 markers are CONFIRMED working by the user 2026-08-19.
 - 🛑 **IN FLIGHT: items 24 and 25** - the Wunderfizz/perk-machine Vulture markers and the Vulture zombie-eye glow. Both were worked through v1.99.67-69; see checkpoint 80 §3 for what is settled and what is still disputed.
 - ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
 - ✅ **v1.99.55 CONFIRMED 2026-08-18** — *"the sound effects seem to be no longer chopping/cutting out for brief moments any more"*. 🛑 One good session is not proof of a mechanism: say "not reproduced since the merge", not "fixed".
-- The list is **25 items** (5 struck through). 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** — they assumed it shipped alongside the Olympia and M1911 on 2026-08-18. It did not, and the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
+- The list is **34 items** (5 struck through). Items 26-34 were all added 2026-08-19: 26-28 from the Nuketown test report, 29-31 from the friend's screen-share, 32-34 from the Strat Tester comparison. 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** - it did not ship; the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
@@ -98,6 +98,47 @@ user: which map, and roughly how far the barriers were.
     Origins, where the perk is off entirely. So the eye glow should already be live on Die Rise,
     Mob, Nuketown and Buried. Ask the user which map they were on before writing anything - this is
     either a bug in something that exists, or a request for brighter-than-stock.
+26. **Power-up announcer voice lines are missing** (user, 2026-08-19, Nuketown survival) — no
+    Samantha callout on pickup: they named Zombie Blood and Blood Money, and said the same for
+    "other typical power-up drops". 🛑 **DISCRIMINATOR NEEDED BEFORE ANY BUILD:** were the STOCK
+    power-ups (Max Ammo / Insta-Kill / Double Points / Nuke / Carpenter) silent too, or only the
+    mod's three? The two answers lead to completely different work — see QUEUE.md.
+    Overlaps item 4 (Death Machine pickup voice line), which is the same path.
+27. **CUSTOM POWER-UPS toggle on the GAME tab** (user, 2026-08-19) — ON = the mod's added drops
+    (Zombie Blood, Blood Money, Death Machine); OFF = stock power-up table only. 🛑 **Origins keeps
+    Zombie Blood either way** — it is that map's stock drop, so OFF must mean "vanilla for this
+    map", not "no Zombie Blood anywhere". Dvar name must be chosen once and never renamed.
+28. **Switching to another mod while zm_qol is loaded freezes the game** (user screenshot, 2026-08-19)
+    — the Load Mod? prompt accepts, the screen holds, then goes fully black with the zombies menu
+    music still playing. 🌟 **MEASURED:** `console_zm.log` ends on the literal last line
+    `Unloading fastfile mod`, immediately after Plutonium had already rebuilt the search path for
+    `mods/zm_technoopscollection`. So the hang is in the unload of zm_qol's own `mod.ff`, not in the
+    other mod's load. Prime suspect is the asset-ownership trap: `mod.ff` owns materials/images that
+    the frontend still has resolved. Not yet designed.
+29. **Pause menu: RESTART GAME** (user, 2026-08-19, friend's screenshot) — wanted as the **second**
+    option, under RESUME GAME. 🌟 **IT IS ALREADY STOCK AND THE SCREENSHOT PROVES WHY IT IS MISSING** —
+    see QUEUE.md. No new asset needed: the string `MENU_RESTART_LEVEL_CAPS` and the action
+    `openRestartGamePopup` both already exist. The work is one LUI override.
+30. **Pause menu: INSTANT EXIT** (user, 2026-08-19) — under the existing END GAME, straight to the
+    lobby with no game-over music and no scoreboard. Same effect as the `disconnect` console command
+    the user already has bound. END GAME must stay exactly as it is.
+31. **Pause menu: QUIT TO DESKTOP** (user, 2026-08-19) — runs the `quit` console command, closes the
+    game instantly.
+32. **BOX LIMITS toggle on the GAME tab** (user, 2026-08-19) — ON = vanilla box limits; OFF = the
+    no-limits behaviour (both Ray Guns at once, duplicates, per-player). 🌟 **THE FEATURE IS ALREADY
+    SHIPPED AND ALWAYS-ON** — `maps\mp\zombies\_zm_magicbox.gsc:24` prints *"_zm_magicbox override
+    ACTIVE (double_weapons + no_limits)"*. So this is a gate on existing code, not a new feature.
+    The work is the OFF path: the override fully shadows stock, so disabled must reproduce stock's
+    own `treasure_chest_canplayerreceiveweapon` / `limited_weapon_below_quota`, both of which are in
+    the gsc-dump.
+33. **TP DESTINATION + EXECUTE TELEPORT on the CHEATS tab** (user, 2026-08-19, from Strat Tester) —
+    a left/right destination selector plus an execute row. 🛑 **THE DESTINATIONS ARE HAND-AUTHORED
+    PER MAP AND NUKETOWN HAS NONE** — see QUEUE.md. Mechanism itself is trivial (`setOrigin` +
+    `setPlayerAngles`); the work is the coordinate table, and `.where` already prints what is needed.
+34. **CHANGE ROUND, KILL HORDE and END ROUND on the CHEATS tab** (user, 2026-08-19, from Strat
+    Tester) — three rows. Mechanism is short and readable; the traps are the magic-bullet-shield
+    skip, Die Rise's negative-health zombies, and re-deriving the spawn rate after a round jump.
+    All three are in QUEUE.md.
 <!-- /LIST -->
 ---
 ## Closed — off the list, kept for the record

@@ -1353,6 +1353,7 @@ zmqol_init_vulture_trimmed()
 
 	//  v1.99.69 - and only ONE eye glow while the perk is held. See the banner.
 	level thread zmqol_vulture_single_eye();
+	level thread zmqol_vulture_marker_height_watch();
 }
 
 // ============================================================================
@@ -1681,15 +1682,89 @@ zmqol_vulture_marker_perk( n_code )
 //  BASE. User, 2026-08-19: *"the icon on the wunderfizz machine ... is on the
 //  bottom of the machine, move it to the center/in the middle"*. The Wunderfizz
 //  bottle spawns at +55 (wunderfizz.gsc), so the machine is roughly that tall
-//  and +38 is its middle. Perk machine markers keep the base, which is where
-//  stock draws them on Buried.
+//  and +38 is its middle.
+//
+//  🌟 v1.99.70 - CODE 10 NOW GETS THE SAME LIFT, AND FOR THE SAME REASON.
+//  User, 2026-08-19: *"the icon is at the bottom of the machines which don't
+//  have the right icons assigned for them not the middle of the machines like
+//  they should be"*. That is exactly the set of machines on code 10 - the ones
+//  with no authored glow fx of their own, which fall back to
+//  vulture_perk_wallbuy_dynamic (fx_zm_vulture_glow_question).
+//
+//  🛑 WHY ONLY 1 AND 10, AND NOT 2-9. Codes 2-9 are Treyarch's own
+//  fx_zm_vulture_glow_* effects, authored to sit on a machine and drawn by stock
+//  at the machine origin with no offset - the user has never complained about
+//  those, so they keep 0. Code 10's effect was authored for a WALL BUY, whose
+//  entity origin is already at icon height on a wall, so at a machine's base it
+//  sits on the floor. Same effect, different anchor: that is the whole bug.
+//
+//  🌟 THE VALUE IS A DVAR BECAUSE IT CANNOT BE MEASURED OFFLINE. OpenAssetTools
+//  can list the cabinet xmodels (p6_zm_al_vending_ads_on for Deadshot,
+//  p6_zm_al_vending_nuke_on for PhD Flopper) but dumping their bounds means
+//  dumping every xmodel in mod.ff. 38 is not a guess - it is the Wunderfizz
+//  value the user has already confirmed reads as centred, and those are the same
+//  class of vending cabinet - but it is an inference, so `vulture_marker_height`
+//  lets them settle it in one boot instead of costing a rebuild per nudge.
 zmqol_vulture_marker_height( n_code )
 {
-	if ( n_code == 1 )
-		return 38;
+	if ( n_code == 1 || n_code == 10 )
+		return getdvarintdefault( "vulture_marker_height", 38 );
 
 	return 0;
 }
+// ============================================================================
+//  zmqol_vulture_marker_height_watch  -  makes the height dvar actually tunable
+//                                                                   (v1.99.70)
+// ----------------------------------------------------------------------------
+//  🛑 WITHOUT THIS THE DVAR IS DEAD WEIGHT. zmqol_vulture_marker_height() is
+//  read inside zmqol_vulture_machines_enable(), and that only runs when a
+//  marker's clientfield VALUE CHANGES (zmqol_vulture_marker_cf) or when the perk
+//  is gained. The server's scan re-sends nothing once every machine is marked,
+//  so typing `vulture_marker_height 25` mid-game would have moved nothing and
+//  the user would have had to sit through a rebuild per nudge - which is exactly
+//  what putting it behind a dvar was meant to avoid.
+//
+//  📝 It reuses zmqol_vulture_machines_enable(), which clears the previous set
+//  before drawing (its first statement is zmqol_vulture_machines_disable), so a
+//  re-apply cannot stack duplicate fx. Same guard chain as the clientfield
+//  callback's own rebuild block, for the same reason: fx_array and player_ent
+//  are only populated while a local client is actually holding Vulture Aid.
+// ============================================================================
+zmqol_vulture_marker_height_watch()
+{
+	level endon( "end_game" );
+
+	n_last = getdvarintdefault( "vulture_marker_height", 38 );
+
+	for ( ;; )
+	{
+		wait 1;
+
+		n_now = getdvarintdefault( "vulture_marker_height", 38 );
+
+		if ( n_now == n_last )
+			continue;
+
+		n_last = n_now;
+
+		if ( !isDefined( level.perk_vulture ) || !isDefined( level.perk_vulture.fx_array ) )
+			continue;
+
+		for ( c = 0; c < 4; c++ )
+		{
+			if ( isDefined( level.perk_vulture.players_with_vulture_perk ) &&
+			     isDefined( level.perk_vulture.players_with_vulture_perk[ c ] ) &&
+			     isDefined( level.perk_vulture.fx_array[ c ] ) &&
+			     isDefined( level.perk_vulture.fx_array[ c ].player_ent ) )
+			{
+				level.perk_vulture.fx_array[ c ].player_ent zmqol_vulture_machines_enable( c );
+			}
+		}
+
+		println( "[zm_qol] vulture marker height -> " + n_now );
+	}
+}
+
 //  🛑 v1.99.68 - NO LONGER CALLED. The marker list comes from the server now,
 //  through the zmqol_vulture_marker clientfield - see zmqol_vulture_machines_enable().
 //  Kept only because the reasoning below documents exactly why the struct route

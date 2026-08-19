@@ -34,6 +34,9 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   only — one in_box flag on include_weapon is the entire difference — so it could never appear
   in the box on any map. It keeps stock's own cost, name and voice line, and its Pack-a-Punch is
   the Skullcrusher with its grenade launcher, exactly as the wall buy always gave you.
+- **No box limits.** The box will give you a weapon you are already holding, and both Ray Guns
+  can be in play at once — including the Mark II alongside the Mark I, and the same gun to more
+  than one player. This is currently **always on**; a GAME-tab toggle for it is queued, not shipped.
 - **Three Black Ops 1 wonder weapons**: Thundergun, Wunderwaffe DG-2, Winter's Howl, each with
   its upgrade. They handle the special enemies properly — Brutus dies in two hits from any of
   them, helmet off on the first.
