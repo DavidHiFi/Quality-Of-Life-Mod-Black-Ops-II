@@ -14,7 +14,7 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - 🛑 **IN FLIGHT: item 3 + 19** — the prone perk-bonus rewrite and its PERK BONUS POINTS toggle. Then items 1 (Part C), 20, 21, 22, 23 in that order: the user gave one ordered batch on 2026-08-18 and explicitly asked for it to be worked straight through.
 - ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
 - ✅ **v1.99.55 CONFIRMED 2026-08-18** — *"the sound effects seem to be no longer chopping/cutting out for brief moments any more"*. 🛑 One good session is not proof of a mechanism: say "not reproduced since the merge", not "fixed".
-- The list is **23 items** (5 struck through). 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** — they assumed it shipped alongside the Olympia and M1911 on 2026-08-18. It did not, and the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
+- The list is **25 items** (5 struck through). 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** — they assumed it shipped alongside the Olympia and M1911 on 2026-08-18. It did not, and the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
@@ -83,6 +83,21 @@ user: which map, and roughly how far the barriers were.
     scoreboard reads. Must be correct for both CDC and CIA
 23. **A Nuketown perk drop location is sunk into the ground** (user screenshot `TNl6kvDWyc.jpg`,
     2026-08-18) — Mule Kick, on the rock slope near the crater, player at x 1511 y 889 z -60
+24. **Wunderfizz has no Vulture Aid see-through icon** (user, 2026-08-19) — every other machine on
+    the map is marked when Vulture Aid is held; the mod's Wunderfizz is the odd one out because
+    stock's Vulture Aid was written for Buried, which has no Wunderfizz. Wanted: the mystery box's
+    question-mark glow (`vulture_perk_mystery_box_glow`) on every Wunderfizz, on every map.
+    🌟 Looks cheap: the mod's own marker system (`zm_expanded.csc::zmqol_vulture_machines_enable`)
+    is entirely client-side and spends no clientfield bits, and stock's `vulture_perk_scriptmover`
+    is a 4-bit field using only values 0-3, so a 5th value is free. Not yet designed.
+25. **Zombie eyes should glow brighter with Vulture Aid** (user, 2026-08-19) — 🛑 **VERIFY BEFORE
+    BUILDING: stock Vulture Aid already does this.** `_zm_perk_vulture.csc:45` loads
+    `misc/fx_zombie_eye_vulture` and `:58` wires it to `vulture_perk_actor` value 1; the mod's
+    trimmed client init (`zm_expanded.csc:1329/1342`) registers both that field and
+    `level.zombie_eyes_clientfield_cb_additional`, and `vulture_perk_actor` is dropped only on
+    Origins, where the perk is off entirely. So the eye glow should already be live on Die Rise,
+    Mob, Nuketown and Buried. Ask the user which map they were on before writing anything - this is
+    either a bug in something that exists, or a request for brighter-than-stock.
 <!-- /LIST -->
 ---
 ## Closed — off the list, kept for the record
