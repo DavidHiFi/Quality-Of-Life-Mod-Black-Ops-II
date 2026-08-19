@@ -6,15 +6,16 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 (2026-08-16) for a plain list with no other differentiation.
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **80** · mod version **1.99.69**
+- SYNCED TO: checkpoint **82** · mod version **1.99.75**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- BUILT, AWAITING THE USER'S BOOT: **v1.99.70** - fallback Vulture marker height (dvar `vulture_marker_height`, default 38) + its live-re-apply watcher, plus two println-only probes (per-machine marker codes, and a soundexists check on the announcer aliases). v1.99.61-69 findings are in checkpoint 80; item 24 markers are CONFIRMED working by the user 2026-08-19.
-- 🛑 **IN FLIGHT: items 24 and 25** - the Wunderfizz/perk-machine Vulture markers and the Vulture zombie-eye glow. Both were worked through v1.99.67-69; see checkpoint 80 §3 for what is settled and what is still disputed.
+- ✅ **v1.99.72 ACCEPTED BY THE USER 2026-08-19** - all Vulture Aid marker icons; see the Vulture Aid entry in *Closed*.
+- **BUILT, AWAITING THE USER’S BOOT: v1.99.75** - AIM ASSIST moved directly under TARGET ASSIST, plus TWO print-only probes. 🛑 **BETTER DEADSHOT and the Deadshot head lock-on BOTH tested as NOT WORKING on 2026-08-19** (user, on a controller, both assists enabled). Neither is fixed; both now name their own cause in the log. See checkpoint 82 §3 - do not change either before reading those lines.
+- ✅ **NOTHING IN FLIGHT.** Vulture Aid (old items 24 and 25) was closed by the user 2026-08-19: *"im ok with the state of vulture aid so close any tasks related to it, everything works fine."*
 - ✅ **v1.99.54 PARTS A+B CONFIRMED IN GAME 2026-08-18** (user screenshot). Item 1 is now Part C only: INTRO CREDITS → HUD as FLASH INTRO CREDITS, plus a new FLASH HELP DISCLAIMER pop-up.
 - ✅ **v1.99.55 CONFIRMED 2026-08-18** — *"the sound effects seem to be no longer chopping/cutting out for brief moments any more"*. 🛑 One good session is not proof of a mechanism: say "not reproduced since the merge", not "fixed".
-- The list is **34 items** (5 struck through). Items 26-34 were all added 2026-08-19: 26-28 from the Nuketown test report, 29-31 from the friend's screen-share, 32-34 from the Strat Tester comparison. 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** - it did not ship; the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
+- The list is **33 items** (5 struck through). Items 24-33 were all added 2026-08-19 (they were 26-35 before Vulture Aid was closed): 24-26 from the Nuketown test report, 27-29 from the friend's screen-share, 30-32 from the Strat Tester comparison, 33 from the gamepad-menu request. 🛑 **Item 18, the M14, is OPEN even though the user asked for it to be crossed off** - it did not ship; the reason is assets, not registration. See the v1.99.60 note in QUEUE.md.
 - 🛑 Three things survive their closed parent items and are **the user's call, not to-dos**:
   Who's Who on **Origins** (43 absent assets, checkpoint 75 §3), the Titus's `fly_titus_futz` /
   `fly_tar21_futz` (defined in no bank in the game), and the freezegun's non-lethal hit marker
@@ -70,7 +71,7 @@ user: which map, and roughly how far the barriers were.
 19. **PERK BONUS POINTS toggle** on the GAME tab (user, 2026-08-18) — enabled/disabled. ON = +100 per
     machine from proning; OFF = **no prone points at all**, including Origins' stock 25 (the native
     "loose change" easter egg must be suppressed too, not just left at 25)
-20. **Deadshot head aim-assist is dead on controller** (user's friend, gamepad, 2026-08-18) — it locks
+20. **Deadshot head aim-assist is dead on controller** — 🛑 **THE FIX ALREADY SHIPPED, IN v1.99.61, AND THIS ENTRY WAS STALE.** `zm_expanded.csc::zmqol_deadshot_perk_callback()` is registered on the ALREADY-PAID-FOR `perk_dead_shot` clientfield and makes stock's `usealternateaimparams()` call, so the bit-budget worry below never applied and no bit was spent. Live via `replaceFunc(...perks_register_clientfield)`. **Still unverified in game** - it needs a gamepad, so the user cannot test it alone. Original report: (user's friend, gamepad, 2026-08-18) — it locks
     to the upper torso instead of the head. 🛑 CAUSE ALREADY MEASURED: `init_client_flags()` in
     `quality_of_life.gsc` sets `level.disable_deadshot_clientfield = 1` on **every** map (stock sets it
     only on Buried), so the `deadshot_perk` clientfield never registers and
@@ -83,65 +84,85 @@ user: which map, and roughly how far the barriers were.
     scoreboard reads. Must be correct for both CDC and CIA
 23. **A Nuketown perk drop location is sunk into the ground** (user screenshot `TNl6kvDWyc.jpg`,
     2026-08-18) — Mule Kick, on the rock slope near the crater, player at x 1511 y 889 z -60
-24. **Wunderfizz has no Vulture Aid see-through icon** (user, 2026-08-19) — every other machine on
-    the map is marked when Vulture Aid is held; the mod's Wunderfizz is the odd one out because
-    stock's Vulture Aid was written for Buried, which has no Wunderfizz. Wanted: the mystery box's
-    question-mark glow (`vulture_perk_mystery_box_glow`) on every Wunderfizz, on every map.
-    🌟 Looks cheap: the mod's own marker system (`zm_expanded.csc::zmqol_vulture_machines_enable`)
-    is entirely client-side and spends no clientfield bits, and stock's `vulture_perk_scriptmover`
-    is a 4-bit field using only values 0-3, so a 5th value is free. Not yet designed.
-25. **Zombie eyes should glow brighter with Vulture Aid** (user, 2026-08-19) — 🛑 **VERIFY BEFORE
-    BUILDING: stock Vulture Aid already does this.** `_zm_perk_vulture.csc:45` loads
-    `misc/fx_zombie_eye_vulture` and `:58` wires it to `vulture_perk_actor` value 1; the mod's
-    trimmed client init (`zm_expanded.csc:1329/1342`) registers both that field and
-    `level.zombie_eyes_clientfield_cb_additional`, and `vulture_perk_actor` is dropped only on
-    Origins, where the perk is off entirely. So the eye glow should already be live on Die Rise,
-    Mob, Nuketown and Buried. Ask the user which map they were on before writing anything - this is
-    either a bug in something that exists, or a request for brighter-than-stock.
-26. **Power-up announcer voice lines are missing** (user, 2026-08-19, Nuketown survival) — no
+24. **Power-up announcer voice lines are missing** — 🛑 **RE-REPORTED 2026-08-19 and NARROWED to exactly two: Blood Money and Zombie Blood.** Every stock power-up announces correctly, so the shared announcer path is ruled out (checkpoint 81 §3). The v1.99.70 probe returned `stock_maxammo_0=1 qol_zblood=1 qol_bmoney=1` — **`soundexists()` is TRUE for the mod's aliases**, so the rows shipped and the engine sees them by name. That leaves the payload or the play routing, not registration. Original report: (user, 2026-08-19, Nuketown survival) — no
     Samantha callout on pickup: they named Zombie Blood and Blood Money, and said the same for
     "other typical power-up drops". 🛑 **DISCRIMINATOR NEEDED BEFORE ANY BUILD:** were the STOCK
     power-ups (Max Ammo / Insta-Kill / Double Points / Nuke / Carpenter) silent too, or only the
     mod's three? The two answers lead to completely different work — see QUEUE.md.
     Overlaps item 4 (Death Machine pickup voice line), which is the same path.
-27. **CUSTOM POWER-UPS toggle on the GAME tab** (user, 2026-08-19) — ON = the mod's added drops
+25. **CUSTOM POWER-UPS toggle on the GAME tab** (user, 2026-08-19) — ON = the mod's added drops
     (Zombie Blood, Blood Money, Death Machine); OFF = stock power-up table only. 🛑 **Origins keeps
     Zombie Blood either way** — it is that map's stock drop, so OFF must mean "vanilla for this
     map", not "no Zombie Blood anywhere". Dvar name must be chosen once and never renamed.
-28. **Switching to another mod while zm_qol is loaded freezes the game** (user screenshot, 2026-08-19)
+26. **Switching to another mod while zm_qol is loaded freezes the game** (user screenshot, 2026-08-19)
     — the Load Mod? prompt accepts, the screen holds, then goes fully black with the zombies menu
     music still playing. 🌟 **MEASURED:** `console_zm.log` ends on the literal last line
     `Unloading fastfile mod`, immediately after Plutonium had already rebuilt the search path for
     `mods/zm_technoopscollection`. So the hang is in the unload of zm_qol's own `mod.ff`, not in the
     other mod's load. Prime suspect is the asset-ownership trap: `mod.ff` owns materials/images that
     the frontend still has resolved. Not yet designed.
-29. **Pause menu: RESTART GAME** (user, 2026-08-19, friend's screenshot) — wanted as the **second**
+27. **Pause menu: RESTART GAME** (user, 2026-08-19, friend's screenshot) — wanted as the **second**
     option, under RESUME GAME. 🌟 **IT IS ALREADY STOCK AND THE SCREENSHOT PROVES WHY IT IS MISSING** —
     see QUEUE.md. No new asset needed: the string `MENU_RESTART_LEVEL_CAPS` and the action
     `openRestartGamePopup` both already exist. The work is one LUI override.
-30. **Pause menu: INSTANT EXIT** (user, 2026-08-19) — under the existing END GAME, straight to the
+28. **Pause menu: INSTANT EXIT** (user, 2026-08-19) — under the existing END GAME, straight to the
     lobby with no game-over music and no scoreboard. Same effect as the `disconnect` console command
     the user already has bound. END GAME must stay exactly as it is.
-31. **Pause menu: QUIT TO DESKTOP** (user, 2026-08-19) — runs the `quit` console command, closes the
+29. **Pause menu: QUIT TO DESKTOP** (user, 2026-08-19) — runs the `quit` console command, closes the
     game instantly.
-32. **BOX LIMITS toggle on the GAME tab** (user, 2026-08-19) — ON = vanilla box limits; OFF = the
+30. **BOX LIMITS toggle on the GAME tab** (user, 2026-08-19) — ON = vanilla box limits; OFF = the
     no-limits behaviour (both Ray Guns at once, duplicates, per-player). 🌟 **THE FEATURE IS ALREADY
     SHIPPED AND ALWAYS-ON** — `maps\mp\zombies\_zm_magicbox.gsc:24` prints *"_zm_magicbox override
     ACTIVE (double_weapons + no_limits)"*. So this is a gate on existing code, not a new feature.
     The work is the OFF path: the override fully shadows stock, so disabled must reproduce stock's
     own `treasure_chest_canplayerreceiveweapon` / `limited_weapon_below_quota`, both of which are in
     the gsc-dump.
-33. **TP DESTINATION + EXECUTE TELEPORT on the CHEATS tab** (user, 2026-08-19, from Strat Tester) —
+31. **TP DESTINATION + EXECUTE TELEPORT on the CHEATS tab** (user, 2026-08-19, from Strat Tester) —
     a left/right destination selector plus an execute row. 🛑 **THE DESTINATIONS ARE HAND-AUTHORED
     PER MAP AND NUKETOWN HAS NONE** — see QUEUE.md. Mechanism itself is trivial (`setOrigin` +
     `setPlayerAngles`); the work is the coordinate table, and `.where` already prints what is needed.
-34. **CHANGE ROUND, KILL HORDE and END ROUND on the CHEATS tab** (user, 2026-08-19, from Strat
+32. **CHANGE ROUND, KILL HORDE and END ROUND on the CHEATS tab** (user, 2026-08-19, from Strat
     Tester) — three rows. Mechanism is short and readable; the traps are the magic-bullet-shield
     skip, Die Rise's negative-health zombies, and re-deriving the spawn rate after a round jump.
     All three are in QUEUE.md.
+33. **Split TARGET ASSIST into two rows on CONTROLS > GAMEPAD** — ✅ **ROW SHIPPED v1.99.74 (`aim_assist`), after the user reaffirmed the request having been shown the evidence below.** It drives `disableaimassist()` on zombies, which is the only script-reachable aim-assist lever, so it can switch assist OFF independently of TARGET ASSIST but cannot switch it ON when TARGET ASSIST is off. 🛑 **VERIFYING IT NEEDS A GAMEPAD** - the user plays mouse and keyboard and cannot see the effect themselves. 🛑 **THE ORIGINAL GOAL IS STILL NOT MET AND WAS NEVER REACHABLE THIS WAY:** The retail build registers only **9** `aim_*` dvars (`aim_accel_turnrate_*`, `aim_input_graph_*`, `aim_scale_view_axis`, `aim_turnrate_*`) - read straight out of the user's own `console_zm.log` dvar dump, 3080 total dvars. `aim_lockon_enabled`, `aim_slowdown_enabled`, `aim_autoaim_enabled`, `aim_automelee_enabled` and the whole `aim_alternate_lockon_*` block are STRINGS IN `t6zm.exe` BUT NOT REGISTERED DVARS, so a second menu row would have nothing to write to. `input_targetAssist` is a PROFILE var (no `input_*` dvar appears in the dump at all) and is the single retail switch. `enableaimassist()`/`disableaimassist()` are per-TARGET-ENTITY calls (stock uses them on zombies, the Ghost, the quadrotor), not a player-side switch. 📝 **The v1.99.73 BETTER DEADSHOT toggle addresses the actual goal from the other side** - it makes the perk worth buying with target assist off and on mouse and keyboard alike. ⚠️ One caveat kept honest: the dvar dump was taken in a MOUSE-AND-KEYBOARD session; if those dvars are registered lazily when a controller is connected, this verdict changes. A gamepad session's log settles it. Original request: (user, 2026-08-19) — so Deadshot
+    Daiquiri's head lock-on does not depend on general aim assist being switched on. 🌟 **T6
+    ALREADY SEPARATES THEM AT THE ENGINE LEVEL** — grepped out of `t6zm.exe`'s string table:
+    `aim_lockon_enabled`, `aim_slowdown_enabled`, `aim_autoaim_enabled` and `aim_automelee_enabled`
+    are four independent switches, and there is a whole `aim_alternate_lockon_*` parameter set
+    (`_strength`, `_pitch_strength`, `_region_height`, `_region_width`, `_deflection`) which is what
+    Deadshot's `usealternateaimparams()` swaps to. So the split is real, not invented.
+    🛑 **FIRST CHECK, BEFORE ANY BUILD: does `usealternateaimparams()` actually need
+    `input_targetAssist` on?** The request assumes it does. If the alternate params ride on
+    `aim_lockon_enabled` rather than the profile var, the menu row is not the blocker and the whole
+    design changes. 🛑 Also note "so Deadshot works as vanilla" is not quite right: in vanilla BO2
+    Deadshot is equally dead with target assist off, because it redirects aim assist rather than
+    creating it. Decoupling is an improvement ON vanilla, not a restoration of it — worth confirming
+    with the user that this is what they want.
+    📝 Depends on item 20 — the head lock-on is currently dead on every map anyway
+    (`level.disable_deadshot_clientfield = 1`), so 20 must land first or this cannot be tested.
 <!-- /LIST -->
 ---
 ## Closed — off the list, kept for the record
+### Closed 2026-08-19 (Vulture Aid) — two, by the user's word
+*"im ok with the state of vulture aid so close any tasks related to it, everything works fine."*
+
+| old # | item | shipped as |
+|---|---|---|
+| **24** | Wunderfizz has no Vulture Aid see-through icon | v1.99.68 marker rewrite → v1.99.72 white/blue mystery-box `?` |
+| **25** | Zombie eyes should glow brighter with Vulture Aid | stock `misc/fx_zombie_eye_vulture`, already live |
+
+**Renumbering map (old → new):** 26→24 · 27→25 · 28→26 · 29→27 · 30→28 · 31→29 · 32→30 ·
+33→31 · 34→32 · 35→33. Everything 1–23 is unchanged.
+
+🛑 **COULD RESURFACE — what was closed WITHOUT a confirmed boot.** The user closed these while
+**v1.99.72 was deployed and never reported as booted**. That version is where PhD Flopper's radiation
+trefoil, Deadshot's reticle, the shared skull for Tombstone / Electric Cherry / Who's Who, and the
+Wunderfizz `?` first actually *drew* — v1.99.71's icons never loaded at all (LF line endings in the
+raw `.efx`; the engine only loads CRLF). So "everything works fine" may describe v1.99.71 or
+v1.99.72. If a wrong or missing marker icon is ever reported again, **start here**, not from scratch.
+
+
 ### Closed 2026-08-18 (third pass) — one, confirmed in game
 Old **2** of the 8-line list → the list is now 7, old 3-8 become 1-7 (old 1 keeps its number).
 | old # | item | state when it was closed |

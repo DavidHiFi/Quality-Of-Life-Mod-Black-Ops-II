@@ -239,6 +239,46 @@ every pixel really varies 0–255. Rebuilt from the intact `.png` dump via `png2
 `ImageConverter --t6` → format `0x01` (ARGB32). `build_ff.bat` mandatory: header and pixels must
 come from one file.
 
+## 5a-2. Every missing marker icon authored ✅ *(v1.99.72, accepted by the user 2026-08-19)*
+
+🛑 **v1.99.71 shipped these and they drew NOTHING.** The raw `.efx` were written with LF line
+endings; every `.efx` this engine loads is CRLF, so `loadfx()` returned undefined and the marker
+loop's `continue` skipped the machine outright - a worse result than the wrong icon it replaced.
+v1.99.72 fixed the line endings and turned that `continue` into a fallback, so a missing effect can
+never again mean a missing marker. **Any new raw `.efx` in this project must be CRLF.**
+
+Beyond the two below, v1.99.72 also gives Tombstone, Electric Cherry and Who's Who the stock skull
+(`gfx_fxt_perk_skull_blend` / `_lesnflare`, dumped from this mod's own `mod.ff` and confirmed to
+bind `fxt_zmb_perk_skull`), and finally gives the Wunderfizz the white/blue mystery-box `?` the user
+asked for on 2026-08-19 - it had been drawing crossed rifles.
+
+Treyarch drew **eight** `fx_zm_vulture_glow_*` effects, one per Buried machine. Deadshot
+(`specialty_deadshot`) and PhD Flopper (`specialty_flakjacket`) are not among them, and no such
+effect exists in any BO2 fastfile, so on the maps where this mod adds those two machines both fell
+through to the code-10 fallback — `fx_zm_vulture_glow_question`, whose texture is
+`fxt_zmb_perk_rifle`: **crossed rifles**. Reported by the user as "a default white and blue weapon
+icon", and confirmed against their own screenshot plus the per-machine code probe in their log
+(`specialty_deadshot -> code 10`, `specialty_flakjacket -> code 10`).
+
+**What ships:**
+
+| part | asset |
+|---|---|
+| effects | `fx/maps/zombie/fx_zm_vulture_glow_deadshot.efx`, `_flopper.efx` — raw `.efx` in `mod.iwd`, two elements each |
+| materials | `gfx_fxt_perk_{deadshot,flopper}_{blend,lesnflare}` — clones of the stock skull pair, colorMap swapped |
+| images | `fxt_zmb_perk_deadshot` (reticle), `fxt_zmb_perk_flopper` (radiation trefoil), 128×128 IWI format `0x01` |
+| codes | server `zmqol_vulture_marker_code()` returns **11** / **12**; client maps both in `_fx`, `_perk` and `_height` |
+
+🌟 **The `_blend` + `_lesnflare` pair is what makes a marker draw through walls** — dumping the
+stock materials out of this mod's own `mod.ff` showed `_blend` with `depthTest: less_equal` and
+`_lesnflare` with `depthTest: disabled`, additive. Cloning both preserves that exactly; authoring a
+single material would have produced a marker you could only see in line of sight.
+
+🛑 **`vulture_marker_height` was never a real dvar until this version.** The client read it with
+`getdvarintdefault()`, which returns the default without creating the dvar, so the console answered
+`Unknown cmd vulture_marker_height`. The server now registers it once in `init()`, guarded so a
+value typed in a previous map is not stamped back to 38.
+
 ## 5b. Perk-machine markers rewritten ✅ *(v1.62.4, deployed — not yet verified)*
 
 Two measured defects in stock, detailed in `STOCK_REFERENCE.md` §5: the machine list is keyed by

@@ -8930,6 +8930,18 @@ perks()
     create_dvar( "whoswho_knife", 1 );
     level thread zmqol_whoswho_knife_onplayerconnect();
 
+    //  v1.99.73 - BETTER DEADSHOT. Off by default: it is new behaviour, and a
+    //  new switch must never change what the mod already does until it is
+    //  thrown. See zmqol_better_deadshot_install() for the whole mechanism.
+    create_dvar( "better_deadshot", 0 );
+    level thread zmqol_better_deadshot_install();
+
+    //  v1.99.74 - AIM ASSIST, user request 2026-08-19. Default 1 = stock.
+    //  See the banner over zmqol_aim_assist_watch() for exactly what this can
+    //  and cannot reach - it is measured, and it is narrower than the label.
+    create_dvar( "aim_assist", 1 );
+    level thread zmqol_aim_assist_watch();
+
     //  v1.99.39 - user request 2026-08-17. The Pack-a-Punched crossbow's bolts
     //  draw zombies to them like a monkey bomb. See zmqol_awful_lawton_watch().
     level thread zmqol_awful_lawton_onplayerconnect();
@@ -13880,5 +13892,226 @@ zmqol_awful_lawton_follow_if_moving()
         }
 
         v_last = self.origin;
+    }
+}
+
+// ============================================================================
+//  BETTER DEADSHOT  -  v1.99.73, user request 2026-08-19
+// ----------------------------------------------------------------------------
+//  *"add an option in the game tab in settings as an option to make deadshot do
+//  double headshot damage, same as reimagined. Just a simple on/off switch"*
+//
+//  🛑 WHY DEADSHOT NEEDED THIS AT ALL. Deadshot Daiquiri's entire stock effect is
+//  ONE client-side engine call - `self usealternateaimparams()`, made by
+//  _zm.csc:611 on the deadshot_perk clientfield - which swaps the aim-assist
+//  lock-on to a parameter set that favours the head. Aim assist exists only on a
+//  controller, so on mouse and keyboard the perk does *nothing whatsoever*. That
+//  is stock, not a fault in this mod, and it is the reason the perk has the
+//  reputation it does.
+//
+//  🌟 THE HOOK: RE-POINT level.callbackactordamage, DO NOT replaceFunc.
+//  Stock installs its own wrapper as a POINTER (`level.callbackactordamage =
+//  ::actor_damage_override_wrapper`, _zm.gsc:976), and CLAUDE.md §4 failure mode
+//  3 is exactly this shape: a `::fn` captured at assignment cannot be relied on
+//  to follow a later replaceFunc. Re-pointing is the prescribed route.
+//
+//  🛑 AND ORIGINS RE-POINTS IT TOO. zm_tomb.gsc:219 installs
+//  tomb_actor_damage_override_wrapper, which adds the Zombie-Blood damage gate,
+//  the capture-zombie points and the tank/gib death handling before calling
+//  stock's wrapper qualified. So this must CHAIN to whatever is already
+//  installed rather than assume stock's - that is what level.zmqol_prev_actordamage
+//  is for. Nothing is reimplemented and no map's own damage rules are lost.
+//
+//  🌟 IT SCALES THE INCOMING DAMAGE, NOT THE FINAL DAMAGE. BO2-Reimagined does
+//  `final_damage *= 2` inside its own copy of actor_damage_override; this mod
+//  does not own that function, and reproducing it would mean re-implementing
+//  Origins' wrapper as well. Pre-scaling lets the entire existing chain run
+//  untouched. 📝 The one behavioural difference, stated rather than hidden: an
+//  enemy whose `self.actor_damage_func` returns a FIXED number regardless of
+//  input - Brutus-style armour rules - is unaffected here where Reimagined would
+//  double it. That is arguably the more correct outcome, but it IS a difference.
+//
+//  The eligibility test is Reimagined's, as asked: bullet headshots only,
+//  shotguns excluded except the KSG, metalstorm excluded.
+//
+//  🛑 INSTALLED AFTER initial_blackscreen_passed. Stock sets the pointer during
+//  map init and Origins re-points it there too; installing any earlier would
+//  either be overwritten or would capture the wrong predecessor. No zombie can
+//  be damaged before that flag, so nothing is missed.
+// ============================================================================
+zmqol_better_deadshot_install()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    flag_wait( "initial_blackscreen_passed" );
+
+    if ( !isdefined( level.callbackactordamage ) )
+        return;
+
+    //  Guarded so a second call can never chain the wrapper to itself, which
+    //  would be an infinite recursion on the first bullet fired.
+    if ( isdefined( level.zmqol_prev_actordamage ) )
+        return;
+
+    level.zmqol_prev_actordamage = level.callbackactordamage;
+    level.callbackactordamage = ::zmqol_actor_damage_wrapper;
+
+    println( "[zm_qol] better deadshot: damage chain installed" );
+}
+
+zmqol_actor_damage_wrapper( inflictor, attacker, damage, flags, meansofdeath, weapon, vpoint, vdir, shitloc, psoffsettime, boneindex )
+{
+    damage = zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc );
+
+    self [[ level.zmqol_prev_actordamage ]]( inflictor, attacker, damage, flags, meansofdeath, weapon, vpoint, vdir, shitloc, psoffsettime, boneindex );
+}
+
+//  Returns the damage unchanged unless every condition holds.
+zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc )
+{
+    b_on = getdvarintdefault( "better_deadshot", 0 ) != 0;
+
+    if ( !isdefined( damage ) || !isdefined( attacker ) || !isplayer( attacker ) )
+        return damage;
+
+    if ( !isdefined( meansofdeath ) || !isdefined( weapon ) )
+        return damage;
+
+    b_perk = attacker hasperk( "specialty_deadshot" );
+    b_bullet = meansofdeath == "MOD_PISTOL_BULLET" || meansofdeath == "MOD_RIFLE_BULLET";
+    b_head = mapsmpzombies_zm_utility::is_headshot( weapon, shitloc, meansofdeath );
+
+    // ====================================================================
+    //  🔬 v1.99.75 PROBE - PRINT ONLY, NO BEHAVIOUR CHANGE.
+    //  User, 2026-08-19: the toggle was flipped through a whole round 25 and
+    //  headshots never doubled. "[zm_qol] better deadshot: damage chain
+    //  installed" IS in their log, so the wrapper runs and one of the tests
+    //  below is the one saying no. This names which instead of guessing.
+    //  Capped at 12 lines a game, and only on a shot that hit a HEAD.
+    //  🛑 DELETE THIS BLOCK once the cause is known.
+    // ====================================================================
+    if ( b_head )
+    {
+        if ( !isdefined( level.zmqol_bd_probe_n ) )
+            level.zmqol_bd_probe_n = 0;
+
+        if ( level.zmqol_bd_probe_n < 12 )
+        {
+            level.zmqol_bd_probe_n++;
+            println( "[zm_qol] bd probe: dvar=" + b_on + " perk=" + b_perk + " bullet=" + b_bullet + " mod=" + meansofdeath + " loc=" + shitloc + " wep=" + weapon + " dmg=" + damage );
+        }
+    }
+
+    if ( !b_on || !b_perk || !b_bullet || !b_head )
+        return damage;
+
+    //  Shotguns are excluded because a pellet spread would multiply per pellet.
+    //  The KSG is the exception Reimagined carves out - it fires a slug.
+    if ( isdefined( weaponclass( weapon ) ) && issubstr( weaponclass( weapon ), "spread" ) )
+    {
+        if ( mapsmpzombies_zm_weapons::get_base_weapon_name( weapon, 1 ) != "ksg_zm" )
+            return damage;
+    }
+
+    //  The Peacekeeper's metalstorm variants report as rifle bullets but fire in
+    //  bursts that would stack the multiplier.
+    if ( issubstr( weapon, "metalstorm" ) )
+        return damage;
+
+    return damage * 2;
+}
+
+// ============================================================================
+//  AIM ASSIST  -  v1.99.74, user request 2026-08-19
+// ----------------------------------------------------------------------------
+//  *"seperate target assist from aim assist on the gamepad controls menu"*, then
+//  *"do the aim assist option under target assist right now."*
+//
+//  🛑 READ THIS BEFORE CHANGING ANYTHING HERE - WHAT THIS ROW CAN AND CANNOT DO.
+//  It can take aim assist AWAY. It cannot give it back when the player's own
+//  TARGET ASSIST switch is off, and nothing in the retail build can. Measured,
+//  not assumed:
+//
+//    * The live game registers NINE aim_* dvars, all of them turn-rate ones
+//      ( aim_accel_turnrate_*, aim_input_graph_*, aim_scale_view_axis,
+//        aim_turnrate_* ) - counted out of this install's own console_zm.log
+//      dvar dump, 3080 total dvars.
+//    * aim_lockon_enabled, aim_slowdown_enabled, aim_autoaim_enabled,
+//      aim_automelee_enabled and the whole aim_alternate_lockon_* block are
+//      STRINGS INSIDE t6zm.exe BUT NOT REGISTERED DVARS. Writing one creates a
+//      fresh dvar nothing reads.
+//    * input_targetAssist is a PROFILE var, not a dvar - no input_* entry
+//      appears anywhere in the dump - and it is the single retail switch.
+//
+//  🌟 SO THE ONE REAL LEVER IS THE TARGET SIDE, AND STOCK USES IT ITSELF.
+//  enableaimassist() / disableaimassist() are per-ENTITY calls that mark whether
+//  a thing can be assisted ONTO. Stock calls `guy enableaimassist()` on every
+//  zombie it spawns ( _zm_utility.gsc:258 ) and disableaimassist() on the Ghost,
+//  the Sloth and Origins' quadrotor. Turning that off for every zombie removes
+//  aim assist in the only place it exists - which is a genuine switch, and it is
+//  independent of the player's TARGET ASSIST row.
+//
+//  📝 DEADSHOT IS NOT FIXED BY THIS, AND WAS NEVER GOING TO BE. Its head snap is
+//  usealternateaimparams(), which re-tunes assist rather than creating it. The
+//  BETTER DEADSHOT toggle ( v1.99.73 ) is what makes the perk worth buying with
+//  assist off and on mouse and keyboard.
+//
+//  Default 1 = stock. A new switch must not change what the mod already does.
+// ============================================================================
+zmqol_aim_assist_watch()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    level endon( "end_game" );
+
+    flag_wait( "initial_blackscreen_passed" );
+
+    //  -1 so the first pass always applies, which is what picks up a value the
+    //  player left in their config from a previous session.
+    n_last = -1;
+
+    for ( ;; )
+    {
+        n_now = getdvarintdefault( "aim_assist", 1 ) != 0;
+
+        if ( n_now != n_last )
+        {
+            n_last = n_now;
+            level.zmqol_aim_assist_on = n_now;
+            println( "[zm_qol] aim assist -> " + n_now );
+        }
+
+        //  🛑 THIS ONLY EVER DISABLES, AND THAT IS DELIBERATE - RE-ENABLING WOULD
+        //  BE A REGRESSION. getaiarray( level.zombie_team ) returns the special
+        //  AI too, and stock calls disableaimassist() on Buried's Ghost
+        //  ( _zm_ai_ghost.gsc:597 ), Buried's Sloth ( _zm_ai_sloth.gsc:1071 ) and
+        //  Origins' quadrotor ( _zm_ai_quadrotor.gsc:780 ) on purpose. A blanket
+        //  re-enable pass would hand aim assist to all three, which stock never
+        //  does and nobody asked for.
+        //
+        //  Switching back ON therefore needs no pass at all: stock's own spawner
+        //  gives every zombie enableaimassist() as it spawns
+        //  ( _zm_utility.gsc:258 ), so the round heals itself as it turns over.
+        //  Only the zombies already alive at the moment of the switch keep it
+        //  off, and they are dead within the round.
+        if ( !n_now )
+            zmqol_aim_assist_disable_all();
+
+        wait 1;
+    }
+}
+
+zmqol_aim_assist_disable_all()
+{
+    a_zombies = getaiarray( level.zombie_team );
+
+    for ( i = 0; i < a_zombies.size; i++ )
+    {
+        if ( !isdefined( a_zombies[i] ) )
+            continue;
+
+        a_zombies[i] disableaimassist();
     }
 }

@@ -1,5 +1,154 @@
 require("T6.menus.safeareamenu")
 
+-- ============================================================================
+--  zm_qol v1.99.73 - THE "CONTROLS" HEADING IS CENTRED IN GAME.
+--
+--  User, 2026-08-19, with a screenshot: *"make sure in the controls menu the
+--  controls text is centered right above where it says combat, for some reason
+--  my mod pushes it off to the left."*
+--
+--  🛑 THE MOD DID NOT PUSH IT. THIS IS STOCK, AND HERE IS THE PROOF.
+--  optionscontrols.lua's in-game branch is
+--
+--      controlsWidget = CoD.InGameMenu.New( "OptionsControlsMenu",
+--                                           localClientIndex,
+--                                           Engine.Localize("MENU_CONTROLS_CAPS") )
+--
+--  and CoD.InGameMenu.New passes that title to addTitle(title) with ONE
+--  argument, so CoD.Menu.addTitle(text, alignment) falls back to its default of
+--  LUI.Alignment.Left. Its out-of-game branch four lines below passes
+--  LUI.Alignment.Center explicitly, which is why the heading is centred at the
+--  main menu and left in game. Retail behaviour, on every install.
+--
+--  What the mod DID do is fix the same fault on ITS OWN menu in v1.95.1 (see the
+--  block above LUI.createMenu.OptionsSettingsMenu), which is what made the stock
+--  one look wrong by comparison.
+--
+--  🌟 WHY THIS IS A WRAPPER AND NOT A SHIPPED optionscontrols.lua. Shipping our
+--  own copy would SHADOW Plutonium's patched one, and that has already cost this
+--  project once - it is what deleted RAW INPUT, MOUSE ACCELERATION and FIX HIGH
+--  POLL RATE LAG from the user's CONTROLS menu (checkpoint 48 §4). Wrapping the
+--  menu constructor from a file we already ship changes one alignment and
+--  nothing else.
+--
+--  The require is what makes this load-order-proof: LUI.createMenu is populated
+--  by the menu file itself, so we pull it in first rather than hoping it is
+--  already there. pcall'd because a failed require hard-crashes LUI, and a
+--  left-aligned heading is a cosmetic loss rather than a broken menu.
+-- ============================================================================
+pcall(require, "T6.menus.optionscontrols")
+
+if LUI and LUI.createMenu and LUI.createMenu.OptionsControlsMenu then
+	local ZmQolStockControlsMenu = LUI.createMenu.OptionsControlsMenu
+
+	LUI.createMenu.OptionsControlsMenu = function (localClientIndex)
+		local controlsWidget = ZmQolStockControlsMenu(localClientIndex)
+
+		if controlsWidget and controlsWidget.titleElement then
+			controlsWidget.titleElement:setAlignment(LUI.Alignment.Center)
+		end
+
+		return controlsWidget
+	end
+end
+
+-- ============================================================================
+--  zm_qol v1.99.74 - AIM ASSIST, ITS OWN ROW ON CONTROLS > GAMEPAD.
+--
+--  User, 2026-08-19: *"seperate target assist from aim assist on the gamepad
+--  controls menu"*, then *"do the aim assist option under target assist right
+--  now."*
+--
+--  🛑 WHAT THE ROW ACTUALLY REACHES IS NARROWER THAN ITS LABEL, and that is
+--  written up in full over zmqol_aim_assist_watch() in quality_of_life.gsc.
+--  Short version: it can take aim assist away, it cannot give it back when the
+--  player's own TARGET ASSIST is off, because the finer-grained aim_* dvars are
+--  strings in t6zm.exe and not registered dvars. It drives the mod's own
+--  `aim_assist`, which turns zombies into non-assist targets.
+--
+--  🌟 IT IS A WRAPPER, NOT A SHIPPED optionscontrols.lua, AND THAT IS THE WHOLE
+--  POINT. CoD.OptionsControls.CreateGamepadTab is a plain field on a global
+--  table, so it can be wrapped from a file this mod already ships. Shipping our
+--  own copy of the menu would shadow Plutonium's patched one - which is exactly
+--  what deleted RAW INPUT, MOUSE ACCELERATION and FIX HIGH POLL RATE LAG the
+--  last time (checkpoint 48 §4). Proof that copy is stale: the `.aside` in
+--  Plutonium's raw folder builds TARGET ASSIST as the SECOND row, while the
+--  user's own screenshot shows it SEVENTH, below LOOK SENSITIVITY.
+--
+--  📝 The row lands at the BOTTOM of the GAMEPAD tab, under everything including
+--  TARGET ASSIST. Inserting it directly beneath that one row would mean
+--  reordering LUI children after construction, which is not something this
+--  project can verify offline - so it is not attempted.
+-- ============================================================================
+if CoD and CoD.OptionsControls and CoD.OptionsControls.CreateGamepadTab then
+	local ZmQolStockGamepadTab = CoD.OptionsControls.CreateGamepadTab
+
+	--  🛑 v1.99.75 - THE ROW IS NOW INSERTED DIRECTLY UNDER TARGET ASSIST, AND
+	--  IT HAD TO BE DONE THIS WAY. v1.99.74 appended it and it landed under
+	--  DEADZONE MIN, which the user reported as *"it looks out of place"*.
+	--  CoD.ButtonList has add* methods and removeAllButtons and NOTHING ELSE -
+	--  read out of the shipped bytecode's method table in
+	--  BO2-Raw-files\ui\t6\buttonlist.lua - so there is no insert-at-index and no
+	--  way to reorder after the fact. The only place the row can be put next to
+	--  TARGET ASSIST is at the moment TARGET ASSIST itself is added.
+	--
+	--  So: for the duration of the stock tab build only, the list returned by
+	--  CoD.Options.CreateButtonList gets an INSTANCE-level override of
+	--  addProfileLeftRightSelector, which shadows the class method. When the row
+	--  carrying MENU_TARGET_ASSIST_CAPS goes in, ours goes in straight after.
+	--  Both of stock's branches for that row - the normal one and Plutonium's
+	--  locked "disabled on this server" one - pass the same label, so matching on
+	--  the label catches either.
+	--
+	--  Everything is restored the instant the stock function returns, so no other
+	--  menu in the game sees a patched CreateButtonList.
+	CoD.OptionsControls.CreateGamepadTab = function (gamepadTab, localClientIndex)
+		local StockCreateButtonList = CoD.Options.CreateButtonList
+		local TargetAssistLabel = Engine.Localize("MENU_TARGET_ASSIST_CAPS")
+		local AlreadyAdded = false
+
+		CoD.Options.CreateButtonList = function (...)
+			local ButtonList = StockCreateButtonList(...)
+
+			if ButtonList and ButtonList.addProfileLeftRightSelector then
+				local StockAddSelector = ButtonList.addProfileLeftRightSelector
+
+				ButtonList.addProfileLeftRightSelector = function (SelfList, ClientIndex, Label, VarName, Description)
+					local Selector = StockAddSelector(SelfList, ClientIndex, Label, VarName, Description)
+
+					if not AlreadyAdded and Label == TargetAssistLabel and CoD.OptionsSettings and CoD.OptionsSettings.QolToggle then
+						AlreadyAdded = true
+						CoD.OptionsSettings.QolToggle(
+							SelfList,
+							ClientIndex,
+							"AIM ASSIST",
+							"aim_assist",
+							"Aim assist on zombies. Separate from Target Assist."
+						)
+					end
+
+					return Selector
+				end
+			end
+
+			return ButtonList
+		end
+
+		local Ok, GamepadContainer = pcall(ZmQolStockGamepadTab, gamepadTab, localClientIndex)
+
+		--  Restored before anything can go wrong with the result, and restored
+		--  even if the stock builder threw - a patched global left behind would
+		--  follow every other menu in the game.
+		CoD.Options.CreateButtonList = StockCreateButtonList
+
+		if not Ok then
+			return ZmQolStockGamepadTab(gamepadTab, localClientIndex)
+		end
+
+		return GamepadContainer
+	end
+end
+
 CoD.OptionsSettings = {}
 CoD.OptionsSettings.CurrentTabIndex = 1
 CoD.OptionsSettings.NeedVidRestart = false
@@ -1167,6 +1316,12 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- for a 100/25/off ladder. Live both ways; see prone_bonus_monitor() in
 	-- quality_of_life.gsc and origins_change_patch() in zm_tomb\zm_tomb.gsc.
 	T(QolButtons, LocalClientIndex, "PERK BONUS POINTS",  "perk_bonus_points",    "Prone at a perk machine for +100, once per machine.")
+
+	-- v1.99.73, user request 2026-08-19. OFF by default - it is new behaviour,
+	-- and every switch on this tab leaves the mod as it was until thrown.
+	-- Deadshot's stock effect is aim-assist only, so on mouse and keyboard the
+	-- perk does nothing at all; this is what makes it worth buying either way.
+	T(QolButtons, LocalClientIndex, "BETTER DEADSHOT",    "better_deadshot",      "Deadshot doubles bullet headshot damage. Works on mouse too.")
 
 	-- 🛑 v1.99.61 - INTRO CREDITS IS GONE FROM THIS TAB. It moved to HUD and was
 	-- renamed FLASH CREDITS (user, 2026-08-18: *"it should be under the HUD tab

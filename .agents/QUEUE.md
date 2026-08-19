@@ -8132,3 +8132,74 @@ accident — so the CHANGE ROUND row must not be reachable without intent.
 📝 zm_qol's CHEATS tab convention: every row must also be a console command/dvar
 ([[zm-qol-commands-as-dvars]]). CHANGE ROUND is a value row (Strat Tester uses `st_round`), the
 other two are action rows.
+
+---
+
+## 2026-08-19 — item 35: split TARGET ASSIST from general aim assist
+
+**User's words:** *"seperate target assist from aim assist on the gamepad controls menu, so that
+way deadshot daiquri doesn't require target assist to be enabled to function so deadshot daiquri
+works as vanilla"*
+
+### What is already proven
+
+🌟 **T6 separates the assist systems at the engine level.** Grepped out of `t6zm.exe`'s string
+table (the [[t6-dvar-names-from-exe]] method — `tr -c '[:print:]' '\n' | grep`, because `strings` is
+not installed here and fails silently):
+
+| dvar | system |
+|---|---|
+| `aim_lockon_enabled` | lock-on — the pull toward a target |
+| `aim_slowdown_enabled` | slowdown — crosshair drag near a target |
+| `aim_autoaim_enabled` | auto-aim |
+| `aim_automelee_enabled` | auto-melee |
+| `aim_alternate_lockon_strength` / `_pitch_strength` / `_region_height` / `_region_width` / `_deflection` | 🌟 the **alternate** lock-on parameter set |
+
+That last row is the important one. Deadshot Daiquiri's whole effect is
+`self usealternateaimparams()` ([[t6-deadshot-aim-assist]]), and `aim_alternate_lockon_*` is the
+parameter block it swaps to. So the two behaviours the user wants apart really are separate systems
+with separate switches — this is not a request to invent something.
+
+### 🛑 The check that has to come first
+
+**Does `usealternateaimparams()` actually require `input_targetAssist` to be on?** The request
+assumes the menu row is the blocker. It may not be: the alternate params may ride on
+`aim_lockon_enabled`, which the row may or may not drive. Settle that before designing anything —
+`optionscontrols.lua` (Plutonium's, which already locks the row when `sv_allowAimAssist` is 0) and
+the profile-var → dvar path are where the answer is.
+
+### 🛑 "Works as vanilla" is not what this would do
+
+In vanilla BO2 Deadshot is **equally dead with target assist off**, because it redirects aim assist
+rather than creating it. Decoupling them is an improvement *on* vanilla, not a restoration of it.
+That is worth putting to the user before building, because it cuts against
+[[zm-qol-port-never-tune]] — this is a deliberate deviation, and it should be their explicit call
+rather than something inferred from the word "vanilla".
+
+### 📝 Blocked behind item 20
+
+The head lock-on is dead on **every** map today: `init_client_flags()` sets
+`level.disable_deadshot_clientfield = 1` everywhere, so `deadshot_perk` never registers and
+`_zm.csc::player_deadshot_perk_handler` never runs. Until item 20 lands there is nothing to test a
+menu split against.
+
+---
+
+## 2026-08-19 — Vulture Aid CLOSED by the user
+
+*"im ok with the state of vulture aid so close any tasks related to it, everything works fine."*
+
+Old items **24** (Wunderfizz see-through icon) and **25** (brighter zombie eyes) are cut from
+`QUEUE_LIST.md` and recorded in its *Closed* section with the old→new renumbering map
+(26→24 … 35→33; 1–23 unchanged).
+
+🛑 **What was NOT confirmed, in case it resurfaces.** This was closed while **v1.99.72 was deployed
+and never reported as booted**. v1.99.72 is the version where the icons first actually *drew* —
+v1.99.71's raw `.efx` shipped with LF line endings and the engine only loads CRLF, so `loadfx()`
+returned undefined and the marker loop skipped those machines entirely. So "everything works fine"
+may be describing v1.99.71's behaviour (crossed rifles / nothing) or v1.99.72's (the real icons).
+Do not re-derive this from scratch if a marker icon is ever questioned again — start from
+`MOD_CATALOGUE.md` §5a-2.
+
+📝 Ported-perk parity was left intact throughout: the user was asked whether to override stock's
+"hide a machine's marker once you own that perk" and chose **leave it as stock**.

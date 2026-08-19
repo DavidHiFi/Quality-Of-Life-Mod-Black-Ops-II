@@ -344,6 +344,34 @@ fx,misc/fx_zombie_powerup_vulture
 fx,misc/fx_zombie_eye_vulture
 
 // ----------------------------------------------------------------------------
+//  VULTURE AID - DEADSHOT + PhD FLOPPER MARKER ICONS, v1.99.71
+//
+//  🛑 TREYARCH NEVER DREW THESE TWO. Buried has eight perk machines and eight
+//  fx_zm_vulture_glow_* effects; Deadshot (specialty_deadshot) and PhD Flopper
+//  (specialty_flakjacket) are not among them, so both fell through to the code
+//  10 fallback - fx_zm_vulture_glow_question, whose texture is fxt_zmb_perk_rifle,
+//  a pair of CROSSED RIFLES. That is the "default white and blue weapon icon"
+//  the user reported on 2026-08-19, measured off their own screenshot.
+//
+//  🌟 The two new effects are raw .efx in mod.iwd\fx\ (raw .efx are proven to
+//  load - see fx_zombie_tesla_tube_view, which exists in no retail fastfile).
+//  Only their MATERIALS have to come out of mod.ff, which is what these four
+//  lines are for. Each is a byte-for-byte clone of gfx_fxt_perk_skull_blend /
+//  _lesnflare - dumped from this mod's own mod.ff - with the colorMap swapped.
+//  The _blend copy is depth-tested and the _lesnflare copy has depthTest
+//  disabled: that pair is how every stock vulture marker draws through walls.
+//
+//  The two images are new 128x128 icons built from BO2's own machine art
+//  (p6_zm_al_vending_nuke / _ads logos) in the same white-silhouette style as
+//  fxt_zmb_perk_skull. They arrive as dependencies of the materials; their
+//  pixels ship loose in mod.iwd\images\ like every other icon here.
+// ----------------------------------------------------------------------------
+material,gfx_fxt_perk_flopper_blend
+material,gfx_fxt_perk_flopper_lesnflare
+material,gfx_fxt_perk_deadshot_blend
+material,gfx_fxt_perk_deadshot_lesnflare
+
+// ----------------------------------------------------------------------------
 //  VULTURE AID - THE BRIGHTER ZOMBIE EYES, v1.99.68
 //
 //  🛑 THESE THREE ARE CANDIDATES FOR ONE CHOICE, NOT THREE FEATURES. The user

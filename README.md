@@ -48,10 +48,12 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 - Wunderfizz on every map.
 - ⚠️ **Vulture Aid is absent on Origins and TranZit** — both maps are out of per-player network
   field space, and shipping it there crashes the map at load. Those two keep the other eleven.
-- **Deadshot Daiquiri's head lock-on works on a controller again.** The perk's headline effect is a
-  single client-side call, and the mod had switched off the network field that triggers it on every
-  map (stock only does that on Buried). It now rides a field the game already sends, so it costs no
-  network space and works on Buried too, where stock's own wiring is disabled by design.
+- ⚠️ **Deadshot Daiquiri's head lock-on is NOT working, and this line used to claim it was.** The
+  perk's headline effect is a single client-side call, and the mod had switched off the network field
+  that triggers it on every map (stock only does that on Buried). The repair rides a field the game
+  already sends, so it costs no network space — but a controller test on 2026-08-19, with both
+  assists enabled, showed no head lock at all. **Treat the perk as aim-assist-only and currently
+  broken on every map** until that is fixed; the cause is being measured rather than guessed at.
 
 **Power-ups**
 - **Death Machine** drop, **Blood Money** on every map, **Zombie Blood** on four more maps,

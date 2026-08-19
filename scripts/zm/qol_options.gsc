@@ -187,6 +187,19 @@ init()
     //  exact vanilla, down to the same random 0.1-0.7s wait stock takes.
     qol_opt_dvar( "instant_nuke", "1" );
 
+    //  v1.99.73 - BETTER DEADSHOT, user request 2026-08-19. OFF by default: a
+    //  doubled headshot is new behaviour and a new switch must not change what
+    //  the mod already does until it is thrown. Registered here so the console
+    //  autocompletes it; quality_of_life.gsc::zmqol_better_deadshot_scale()
+    //  reads it on every bullet, so it is live both ways mid-game.
+    qol_opt_dvar( "better_deadshot", "0" );
+
+    //  v1.99.74 - AIM ASSIST, its own row on CONTROLS > GAMEPAD. Default 1 =
+    //  stock. 🛑 It can only take assist AWAY - see the banner over
+    //  quality_of_life.gsc::zmqol_aim_assist_watch() for the measurement behind
+    //  that, and do not widen the label without re-reading it.
+    qol_opt_dvar( "aim_assist", "1" );
+
     //  Model pop-in. On by default - it is a pure image-quality win with no
     //  gameplay effect. See qol_opt_lod_fix() for what it actually writes.
     qol_opt_dvar( "lod_fix", "1" );

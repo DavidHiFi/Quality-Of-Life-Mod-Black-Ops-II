@@ -57,9 +57,16 @@
 >    sit immediately before `fx, maps/zombie/fx_zmb_wall_buy_question` — Buried's own wall-buy
 >    marker, which `_zm_perk_vulture.csc` never loads.
 >
-> What `fx_zm_vulture_glow_question` actually draws is `fxt_zmb_perk_magic_box`, whose alpha is
-> a "?" and a hook — visible in the alpha contact sheet. That is one of the 11 fixed above, so
-> **v1.62.3 covers the wall-buy "?" marker too.**
+> 🛑 **CORRECTED v1.99.71 — this paragraph used to say `fx_zm_vulture_glow_question` draws
+> `fxt_zmb_perk_magic_box` (a "?" and a hook). IT DRAWS `fxt_zmb_perk_rifle` — CROSSED RIFLES.**
+> That was an inference from the contact sheet, never a measurement, and the user's screenshot
+> settled it: with Vulture Aid held, the PhD Flopper machine (code 10, so `glow_question`) carries a
+> white/blue **crossed-rifles** icon, while the mystery box in the same frame carries the yellow
+> **?-and-hook** — which is `vulture_perk_mystery_box_glow` and `fxt_zmb_perk_magic_box`. Two
+> different effects, two different textures, both visible at once. The wall-buy "?" marker claim
+> above is therefore wrong too: `glow_question` is the marker for a wall WEAPON, which is why its
+> texture is a weapon. Both textures are still among the 11 fixed in v1.62.3, so nothing is missing
+> — only the name-to-texture mapping was wrong.
 >
 > 📝 Adding question_mark would have been pure cost: `mod.ff` would then **own** a Buried asset
 > it has no use for, which is the ownership trap that has broken maps here before.

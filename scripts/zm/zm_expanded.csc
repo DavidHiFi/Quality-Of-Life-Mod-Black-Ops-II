@@ -1317,6 +1317,40 @@ zmqol_init_vulture_trimmed()
 	level._effect["vulture_perk_powerup_drop"] = loadfx( "maps/zombie/fx_zm_vulture_glow_powerup" );
 	level._effect["vulture_perk_zombie_eye_glow"] = loadfx( "misc/fx_zombie_eye_vulture" );
 
+	//  🌟 v1.99.71 - THE TWO ICONS TREYARCH NEVER DREW. Deadshot and PhD Flopper
+	//  have no fx_zm_vulture_glow_* of their own in any BO2 fastfile, so both fell
+	//  through to code 10 (fx_zm_vulture_glow_question), whose texture is
+	//  fxt_zmb_perk_rifle - crossed rifles. That is the "default white and blue
+	//  weapon icon" the user reported, confirmed by measuring their screenshot
+	//  against the icon's own alpha channel rather than by guessing.
+	//
+	//  These two are ours: raw .efx in mod.iwd\fx\ (proven to load), each drawing
+	//  gfx_fxt_perk_<perk>_blend and _lesnflare - clones of the stock skull pair
+	//  with the colorMap swapped, so the depth-tested + depth-disabled pairing
+	//  that makes a marker show through walls is inherited exactly.
+	level._effect["vulture_perk_machine_glow_deadshot"] = loadfx( "maps/zombie/fx_zm_vulture_glow_deadshot" );
+	level._effect["vulture_perk_machine_glow_flopper"] = loadfx( "maps/zombie/fx_zm_vulture_glow_flopper" );
+
+	//  v1.99.72 - the SKULL, for every machine with no icon of its own: Tombstone,
+	//  Electric Cherry, Who's Who, and anything added later. The user asked for
+	//  exactly this ("just give it the stock skull symbol instead"), and it is a
+	//  measurement rather than a guess: gfx_fxt_perk_skull_blend / _lesnflare were
+	//  dumped out of this mod's own mod.ff and both bind "image":
+	//  "fxt_zmb_perk_skull". Binding the materials directly is what makes that
+	//  certain - naming a stock EFFECT would not have been, because OAT cannot dump
+	//  an FxEffectDef, so nothing here can prove which texture fx_zm_vulture_glow_jugg
+	//  actually draws (it has its own gfx_fxt_perk_jugg_* pair, which is NOT the skull).
+	level._effect["vulture_perk_machine_glow_generic"] = loadfx( "maps/zombie/fx_zm_vulture_glow_generic" );
+
+	//  v1.99.72 - the Wunderfizz, finally as asked. User, 2026-08-19: *"should be
+	//  the mystery box icon still but white and blue instead of yellow"*. It has
+	//  been drawing vulture_perk_wallbuy_dynamic all along, which is
+	//  fxt_zmb_perk_rifle - crossed rifles, a wall-WEAPON marker. The yellow ?-and-
+	//  hook they were comparing against is fx_zm_vulture_glow_mystery_box, and the
+	//  yellow is baked into that effect's colorGraph, not into the texture. Same
+	//  texture (gfx_fxt_perk_magic_box_*), our own colours: white icon, blue glow.
+	level._effect["vulture_perk_machine_glow_wunderfizz"] = loadfx( "maps/zombie/fx_zm_vulture_glow_wunderfizz" );
+
 	level.perk_vulture = spawnstruct();
 	level.perk_vulture.array_stink_zombies = [];
 	level.perk_vulture.array_stink_drop_locations = [];
@@ -1645,7 +1679,7 @@ zmqol_vulture_marker_fx( n_code )
 {
 	switch ( n_code )
 	{
-		case 1:  return "vulture_perk_wallbuy_dynamic";
+		case 1:  return "vulture_perk_machine_glow_wunderfizz";
 		case 2:  return "vulture_perk_machine_glow_juggernog";
 		case 3:  return "vulture_perk_machine_glow_doubletap";
 		case 4:  return "vulture_perk_machine_glow_revive";
@@ -1654,9 +1688,20 @@ zmqol_vulture_marker_fx( n_code )
 		case 7:  return "vulture_perk_machine_glow_marathon";
 		case 8:  return "vulture_perk_machine_glow_mule_kick";
 		case 9:  return "vulture_perk_machine_glow_vulture";
+		case 11: return "vulture_perk_machine_glow_deadshot";
+		case 12: return "vulture_perk_machine_glow_flopper";
+
+		//  Tombstone / Electric Cherry / Who's Who - real machines on some maps,
+		//  no icon of their own anywhere in BO2. They share the skull.
+		case 13: return "vulture_perk_machine_glow_generic";
+		case 14: return "vulture_perk_machine_glow_generic";
+		case 15: return "vulture_perk_machine_glow_generic";
 	}
 
-	return "vulture_perk_wallbuy_dynamic";
+	//  10 - any perk with no case above. The skull, not the crossed rifles the
+	//  fallback used to draw ( fx_zm_vulture_glow_question = fxt_zmb_perk_rifle,
+	//  a WALL WEAPON marker, which is why it looked so wrong on a perk machine ).
+	return "vulture_perk_machine_glow_generic";
 }
 
 zmqol_vulture_marker_perk( n_code )
@@ -1671,6 +1716,18 @@ zmqol_vulture_marker_perk( n_code )
 		case 7:  return "specialty_longersprint";
 		case 8:  return "specialty_additionalprimaryweapon";
 		case 9:  return "specialty_nomotionsensor";
+
+		//  These two now behave exactly like every other machine: stock's
+		//  vulture_global_perk_client_callback deletes a marker once you own the
+		//  perk, and it already registers perk_dead_shot -> specialty_deadshot and
+		//  perk_dive_to_nuke -> specialty_flakjacket
+		//  ( _zm_perk_vulture.csc:783-784 ), so returning the real perk names is
+		//  what keeps them in step with stock rather than permanently lit.
+		case 11: return "specialty_deadshot";
+		case 12: return "specialty_flakjacket";
+		case 13: return "specialty_scavenger";
+		case 14: return "specialty_grenadepulldeath";
+		case 15: return "specialty_finalstand";
 	}
 
 	//  1 (Wunderfizz) and 10 (any perk with no icon of its own) are never owned
@@ -1707,7 +1764,12 @@ zmqol_vulture_marker_perk( n_code )
 //  lets them settle it in one boot instead of costing a rebuild per nudge.
 zmqol_vulture_marker_height( n_code )
 {
-	if ( n_code == 1 || n_code == 10 )
+	//  v1.99.71 - 11 and 12 (Deadshot, PhD Flopper) join the lift. Their .efx
+	//  spawn at spawnOrgZ 0 like every other marker, so without it they would sit
+	//  on the floor exactly as the code 10 fallback did.
+	//  Everything the mod draws itself spawns at spawnOrgZ 0, which on a machine
+	//  model is the FLOOR. Only Treyarch's own eight (2-9) carry their own offset.
+	if ( n_code != 0 && ( n_code < 2 || n_code > 9 ) )
 		return getdvarintdefault( "vulture_marker_height", 38 );
 
 	return 0;
@@ -1906,6 +1968,17 @@ zmqol_vulture_machines_enable( localclientnumber )
 			continue;
 
 		str_fx = zmqol_vulture_marker_fx( n_code );
+
+		//  🛑 v1.99.72 - THIS USED TO BE A `continue`, AND THAT IS HOW A MACHINE
+		//  ENDED UP WITH NO MARKER AT ALL. v1.99.71 pointed PhD Flopper and
+		//  Deadshot at two new raw .efx that the engine never loaded (they shipped
+		//  with LF line endings; every .efx the engine does load here is CRLF), so
+		//  level._effect[...] was undefined and the loop silently skipped both
+		//  machines - a worse result than the wrong icon it replaced. Falling back
+		//  to a stock effect that is always present means the failure mode is now
+		//  "wrong picture", never "nothing there".
+		if ( !isDefined( level._effect[ str_fx ] ) )
+			str_fx = "vulture_perk_wallbuy_dynamic";
 
 		if ( !isDefined( level._effect[ str_fx ] ) )
 			continue;
@@ -2178,11 +2251,28 @@ zmqol_deadshot_perk_callback( localclientnum, oldval, newval, bnewent, binitials
 	if ( isdefined( level.zombies_global_perk_client_callback ) )
 		self [[ level.zombies_global_perk_client_callback ]]( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump );
 
+	//  ====================================================================
+	//  🔬 v1.99.75 PROBE - PRINT ONLY, NO BEHAVIOUR CHANGE.
+	//  User, 2026-08-19, on a controller with BOTH assists enabled: Deadshot
+	//  did not lock to heads at all. The v1.99.61 fix has never been verified,
+	//  and there are two very different reasons it could be silent - this
+	//  callback never firing, or the local-player guard rejecting it - so the
+	//  line is printed BEFORE the guard and again after.
+	//  🛑 DELETE once the cause is known.
+	//  ====================================================================
+	println( "[zm_qol] deadshot cf: newval=" + newval + " client=" + localclientnum + " initial=" + binitialsnap );
+
 	if ( !self islocalplayer() || isspectating( localclientnum, 0 ) || isdefined( level.localplayers[localclientnum] ) && self getentitynumber() != level.localplayers[localclientnum] getentitynumber() )
+	{
+		println( "[zm_qol] deadshot cf: REJECTED by the local-player guard" );
 		return;
+	}
 
 	if ( newval )
+	{
+		println( "[zm_qol] deadshot cf: usealternateaimparams()" );
 		self usealternateaimparams();
+	}
 	else
 		self clearalternateaimparams();
 }

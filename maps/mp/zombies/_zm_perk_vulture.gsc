@@ -128,7 +128,19 @@ init_vulture()
 
     //  v1.99.68 - the see-through machine markers. See the banner on the function.
     if ( zmqol_vulture_marker_enabled() )
+    {
+        //  🛑 v1.99.71 - WITHOUT THIS THE DVAR DOES NOT EXIST. The client reads it
+        //  with getdvarintdefault(), which returns the default without ever
+        //  creating the dvar - so the console answered "Unknown cmd
+        //  vulture_marker_height" when the user tried to tune it live (reported
+        //  2026-08-19, with a screenshot). One setdvar registers the name; the
+        //  client's zmqol_vulture_marker_height_watch() does the rest. Guarded so
+        //  a value typed in a previous map is not stamped back to the default.
+        if ( getdvar( "vulture_marker_height" ) == "" )
+            setdvar( "vulture_marker_height", 38 );
+
         level thread zmqol_vulture_marker_scan();
+    }
     level thread vulture_perk_watch_fire_sale();
     level thread vulture_perk_watch_powerup_drops();
     level thread vulture_handle_solo_quick_revive();
@@ -2035,6 +2047,20 @@ zmqol_vulture_marker_code( str_perk )
         case "specialty_longersprint":            return 7;
         case "specialty_additionalprimaryweapon": return 8;
         case "specialty_nomotionsensor":          return 9;
+
+        //  v1.99.71 - the two Treyarch never drew. Both used to fall through to
+        //  10, whose effect is fx_zm_vulture_glow_question = crossed rifles.
+        //  zm_qol ships fx_zm_vulture_glow_deadshot / _flopper as raw .efx.
+        case "specialty_deadshot":                return 11;
+        case "specialty_flakjacket":              return 12;
+
+        //  v1.99.72 - real machines on some maps, no icon anywhere in BO2. All
+        //  three draw the skull; naming them separately is what lets the client
+        //  hide each one when its own perk is bought, exactly like stock.
+        //  🛑 15 IS THE CEILING - the clientfield is 4 bits.
+        case "specialty_scavenger":               return 13;
+        case "specialty_grenadepulldeath":        return 14;
+        case "specialty_finalstand":              return 15;
     }
 
     return 10;
