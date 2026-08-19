@@ -100,13 +100,34 @@ if errorlevel 1 echo    [skip] couldn't write to Plutonium - the send-ready copy
 
 echo.
 echo [6/6] Refreshing LUI copies in Plutonium's raw\ folder...
-REM  Plutonium searches raw\ BEFORE mod.iwd, so a stale .lua sitting in raw\
-REM  silently shadows the one you just packed and your edit appears to do
-REM  nothing. Any .lua that exists in BOTH this project and raw\ is refreshed
-REM  here. Files only in raw\ are left alone - they are not ours.
+REM  v1.99.85 - THE REASON GIVEN HERE USED TO BE WRONG, AND IT COST A FILE.
+REM  It said 'Plutonium searches raw\ BEFORE mod.iwd'. Measured out of
+REM  console_zm.log, that is only true when NO MOD IS LOADED. The search path
+REM  printed right after 'loadmod: loaded mods/zm_qol' is, in order:
+REM        1 storage\t6\mods\zm_qol\mod.iwd
+REM        2 storage\t6\mods\zm_qol
+REM        3 storage\t6\raw     - raw is BELOW mod.iwd, not above it
+REM  So a .lua in mod.iwd wins for anything loaded once the mod is up.
+REM
+REM  What actually needs this step is the FRONTEND menus, which LUI loads at
+REM  BOOT, before any mod is on the search path at all - optionssettings.lua,
+REM  privategamelobby_project.lua and selectmaplistzombie.lua. Those three
+REM  genuinely cannot be delivered any other way.
+REM
+REM  IN-GAME LUI MUST NOT BE SYNCED HERE. ui_mp\t6\hud\class.lua, the pause
+REM  menu, is reloaded AFTER the mod loads - it appears twice in the log, once
+REM  at boot and once after 'Loading fastfile mod' - so mod.iwd delivers it on
+REM  its own, to downloaders as well as to this machine. Copying it into raw\
+REM  would also leave the mod's rows in the player's VANILLA pause menu with no
+REM  mod loaded, and leave a stale copy shadowing Plutonium's own file the next
+REM  time they update it. It is in the skip table below for that reason. Put
+REM  any other in-game .lua there too.
+REM
+REM  Any other .lua that exists in BOTH this project and raw\ is refreshed here.
+REM  Files only in raw\ are left alone - they are not ours.
 set "RAW_DIR=%LOCALAPPDATA%\Plutonium\storage\t6\raw"
 set "PROJ_DIR=%~dp0"
-"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$raw=$env:RAW_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $raw)){ Write-Host '    [skip] no raw\ folder - nothing shadows the mod'; exit 0 }; $n=0; @('ui_mp','ui') | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $proj $_) -Recurse -Filter *.lua -ErrorAction SilentlyContinue } | ForEach-Object { $rel=$_.FullName.Substring($proj.Length); $dst=Join-Path $raw $rel; if(Test-Path -LiteralPath $dst){ Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [sync] ' + $rel); $n++ } }; if($n -eq 0){ Write-Host '    [ok] nothing in raw\ shadows this mod' }" 2>nul
+"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$raw=$env:RAW_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $raw)){ Write-Host '    [skip] no raw\ folder - nothing shadows the mod'; exit 0 }; $skip=@{ 'ui_mp\t6\hud\class.lua'=$true }; $n=0; @('ui_mp','ui') | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $proj $_) -Recurse -Filter *.lua -ErrorAction SilentlyContinue } | ForEach-Object { $rel=$_.FullName.Substring($proj.Length); if($skip[$rel]){ Write-Host ('    [skip] ' + $rel + '  in-game LUI, mod.iwd delivers it'); return }; $dst=Join-Path $raw $rel; if(Test-Path -LiteralPath $dst){ Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [sync] ' + $rel); $n++ } }; if($n -eq 0){ Write-Host '    [ok] nothing in raw\ shadows this mod' }" 2>nul
 
 echo.
 echo [7/7] Reconciling Plutonium's loose scripts\ folder...
