@@ -64,6 +64,11 @@ init()
     qol_opt_dvar( "rapid_fire",            "0" );
     qol_opt_dvar( "night_mode",            "0" );
     qol_opt_dvar( "character",             "0" );
+    //  v1.99.68 - which eye effect Vulture Aid puts on zombies. See the long
+    //  note over zm_expanded.csc::zmqol_vulture_brighter_eyes(). Registered here
+    //  so it shows in console autocomplete; the CLIENT reads it, and both halves
+    //  run in one process on this platform.
+    qol_opt_dvar( "vulture_eye_fx",        "2" );
     qol_opt_dvar( "disable_player_quotes", "1" );
     qol_opt_dvar( "coop_pause",            "0" );
 

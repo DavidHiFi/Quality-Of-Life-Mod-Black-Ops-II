@@ -344,6 +344,24 @@ fx,misc/fx_zombie_powerup_vulture
 fx,misc/fx_zombie_eye_vulture
 
 // ----------------------------------------------------------------------------
+//  VULTURE AID - THE BRIGHTER ZOMBIE EYES, v1.99.68
+//
+//  🛑 THESE THREE ARE CANDIDATES FOR ONE CHOICE, NOT THREE FEATURES. The user
+//  asked for the zombie eyes to glow brighter while holding Vulture Aid. Stock
+//  already swaps in fx_zombie_eye_vulture, which is a DIFFERENT eye rather than
+//  a brighter one, and v1.99.65-67 proved (from the client's own log line) that
+//  drawing the map's normal eye effect twice is applied and invisible.
+//
+//  Brightness cannot be measured offline - OpenAssetTools can neither load nor
+//  dump FxEffectDef - so instead of guessing, the `vulture_eye_fx` dvar picks
+//  between them in game and ONE boot settles it. The loser gets deleted from
+//  this list once the user has chosen.
+// ----------------------------------------------------------------------------
+fx,misc/fx_zombie_eye_side_quest
+fx,maps/zombie/fx_zombie_eye_returned_orng
+fx,maps/zombie/fx_zombie_eye_returned_blue
+
+// ----------------------------------------------------------------------------
 //  VULTURE AID - the STINK HUD, and the checkerboard it caused
 //
 //  🛑 These three are NOT referenced by any GSC or CSC. They are named only

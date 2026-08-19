@@ -2597,7 +2597,7 @@ zmqol_wf_mark_for_vulture()
 	self endon( "death" );
 	level endon( "end_game" );
 
-	if ( !maps\mp\zombies\_zm_perk_vulture::zmqol_vulture_wunderfizz_marker_enabled() )
+	if ( !maps\mp\zombies\_zm_perk_vulture::zmqol_vulture_marker_enabled() )
 		return;
 
 	n_tries = 0;
@@ -2615,5 +2615,5 @@ zmqol_wf_mark_for_vulture()
 	}
 
 	wait 0.05;
-	self setclientfield( "zmqol_vulture_wunderfizz", 1 );
+	self setclientfield( "zmqol_vulture_marker", 1 );   //  1 = Wunderfizz, see zmqol_vulture_marker_code()
 }

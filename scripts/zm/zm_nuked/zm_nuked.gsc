@@ -409,6 +409,8 @@ bring_perk( machine, trigger, b_no_flight )
     //  v1.99.66 - names every machine that actually completes a landing, so a
     //  missing one can be identified from the log instead of from a screenshot.
     println( "[zm_qol] nuketown machine LANDED: " + machine.targetname + " at " + machine.origin );
+    //  v1.99.68 - landed: Vulture Aid may now mark it. See zmqol_vulture_marker_scan().
+    machine.zmqol_not_ready = undefined;
     machine notify( machine.turn_on_notify );
     level notify( machine.turn_on_notify );
     machine vibrate( vectorscale( ( 0, -1, 0 ), 100.0 ), 0.3, 0.4, 3 );
@@ -465,39 +467,75 @@ perks_from_the_sky()
 
     machine_triggers[0] = getent( "vending_revive", "target" );
     move_perk( machines[0], top_height, 5.0, 0.001 );
+    //  v1.99.68 - parked in the sky. _zm_perk_vulture::zmqol_vulture_marker_scan()
+    //  skips a machine carrying this flag, so Vulture Aid does not draw an icon in
+    //  the clouds; bring_perk() clears it as the machine lands.
+    machines[0].zmqol_not_ready = 1;
     machine_triggers[0] trigger_off();
     machines[1] = getent( "vending_doubletap", "targetname" );
     machine_triggers[1] = getent( "vending_doubletap", "target" );
     move_perk( machines[1], top_height, 5.0, 0.001 );
+    //  v1.99.68 - parked in the sky. _zm_perk_vulture::zmqol_vulture_marker_scan()
+    //  skips a machine carrying this flag, so Vulture Aid does not draw an icon in
+    //  the clouds; bring_perk() clears it as the machine lands.
+    machines[1].zmqol_not_ready = 1;
     machine_triggers[1] trigger_off();
     machines[2] = getent( "vending_sleight", "targetname" );
     machine_triggers[2] = getent( "vending_sleight", "target" );
     move_perk( machines[2], top_height, 5.0, 0.001 );
+    //  v1.99.68 - parked in the sky. _zm_perk_vulture::zmqol_vulture_marker_scan()
+    //  skips a machine carrying this flag, so Vulture Aid does not draw an icon in
+    //  the clouds; bring_perk() clears it as the machine lands.
+    machines[2].zmqol_not_ready = 1;
     machine_triggers[2] trigger_off();
     machines[3] = getent( "vending_jugg", "targetname" );
     machine_triggers[3] = getent( "vending_jugg", "target" );
     move_perk( machines[3], top_height, 5.0, 0.001 );
+    //  v1.99.68 - parked in the sky. _zm_perk_vulture::zmqol_vulture_marker_scan()
+    //  skips a machine carrying this flag, so Vulture Aid does not draw an icon in
+    //  the clouds; bring_perk() clears it as the machine lands.
+    machines[3].zmqol_not_ready = 1;
     machine_triggers[3] trigger_off();
     machine_triggers[4] = getent( "specialty_weapupgrade", "script_noteworthy" );
     machines[4] = getent( machine_triggers[4].target, "targetname" );
     move_perk( machines[4], top_height, 5.0, 0.001 );
+    //  v1.99.68 - parked in the sky. _zm_perk_vulture::zmqol_vulture_marker_scan()
+    //  skips a machine carrying this flag, so Vulture Aid does not draw an icon in
+    //  the clouds; bring_perk() clears it as the machine lands.
+    machines[4].zmqol_not_ready = 1;
     machine_triggers[4] trigger_off();
     // Added
     machines[5] = getent( "vending_marathon", "targetname" );
     machine_triggers[5] = getent( "vending_marathon", "target" );
     move_perk( machines[5], top_height, 5.0, 0.001 );
+    //  v1.99.68 - parked in the sky. _zm_perk_vulture::zmqol_vulture_marker_scan()
+    //  skips a machine carrying this flag, so Vulture Aid does not draw an icon in
+    //  the clouds; bring_perk() clears it as the machine lands.
+    machines[5].zmqol_not_ready = 1;
     machine_triggers[5] trigger_off();
     machines[6] = getent( "vending_additionalprimaryweapon", "targetname" );
     machine_triggers[6] = getent( "vending_additionalprimaryweapon", "target" );
     move_perk( machines[6], top_height, 5.0, 0.001 );
+    //  v1.99.68 - parked in the sky. _zm_perk_vulture::zmqol_vulture_marker_scan()
+    //  skips a machine carrying this flag, so Vulture Aid does not draw an icon in
+    //  the clouds; bring_perk() clears it as the machine lands.
+    machines[6].zmqol_not_ready = 1;
     machine_triggers[6] trigger_off();
     machines[7] = getent( "vending_deadshot_model", "targetname" );
     machine_triggers[7] = getent( "vending_deadshot", "target" );
     move_perk( machines[7], top_height, 5.0, 0.001 );
+    //  v1.99.68 - parked in the sky. _zm_perk_vulture::zmqol_vulture_marker_scan()
+    //  skips a machine carrying this flag, so Vulture Aid does not draw an icon in
+    //  the clouds; bring_perk() clears it as the machine lands.
+    machines[7].zmqol_not_ready = 1;
     machine_triggers[7] trigger_off();
     machines[8] = getent( "vending_divetonuke", "targetname" );
     machine_triggers[8] = getent( "vending_divetonuke", "target" );
     move_perk( machines[8], top_height, 5.0, 0.001 );
+    //  v1.99.68 - parked in the sky. _zm_perk_vulture::zmqol_vulture_marker_scan()
+    //  skips a machine carrying this flag, so Vulture Aid does not draw an icon in
+    //  the clouds; bring_perk() clears it as the machine lands.
+    machines[8].zmqol_not_ready = 1;
     machine_triggers[8] trigger_off();
     //  ========================================================================
     //  v1.99.63 - the LEVEL arrays become the one list from here on.

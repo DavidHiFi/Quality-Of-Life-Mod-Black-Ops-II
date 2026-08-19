@@ -104,12 +104,15 @@ init_vulture()
     if ( zmqol_vulture_has_scriptmover_field() )
         registerclientfield( "scriptmover", "vulture_perk_scriptmover", 12000, 4, "int" );
 
-    //  v1.99.67 - the Wunderfizz see-through marker. One bit, scriptmover set.
-    //  See zmqol_vulture_wunderfizz_marker_enabled() for the gate and the
+    //  v1.99.68 - the see-through machine markers. FOUR bits, scriptmover set:
+    //  one code per machine kind, so the client draws the right icon at the
+    //  entity the SERVER says is really there. Replaces the client-side struct
+    //  guessing entirely - see zmqol_vulture_marker_scan() below.
+    //  See zmqol_vulture_marker_enabled() for the gate and the
     //  measured budget. The machines themselves are flagged in
     //  scripts/zm/wunderfizz.gsc::wunderfizzSetup().
-    if ( zmqol_vulture_wunderfizz_marker_enabled() )
-        registerclientfield( "scriptmover", "zmqol_vulture_wunderfizz", 12000, 1, "int" );
+    if ( zmqol_vulture_marker_enabled() )
+        registerclientfield( "scriptmover", "zmqol_vulture_marker", 12000, 4, "int" );
 
     registerclientfield( "zbarrier", "vulture_perk_zbarrier", 12000, 1, "int" );
     registerclientfield( "toplayer", "sndVultureStink", 12000, 1, "int" );
@@ -122,6 +125,10 @@ init_vulture()
     maps\mp\zombies\_zm_spawner::add_cusom_zombie_spawn_logic( ::vulture_zombie_spawn_func );
     register_zombie_death_event_callback( ::zombies_drop_stink_on_death );
     level thread vulture_perk_watch_mystery_box();
+
+    //  v1.99.68 - the see-through machine markers. See the banner on the function.
+    if ( zmqol_vulture_marker_enabled() )
+        level thread zmqol_vulture_marker_scan();
     level thread vulture_perk_watch_fire_sale();
     level thread vulture_perk_watch_powerup_drops();
     level thread vulture_handle_solo_quick_revive();
@@ -250,7 +257,7 @@ zmqol_vulture_has_scriptmover_field()
 }
 
 // ============================================================================
-//  zmqol_vulture_wunderfizz_marker_enabled  -  gate for the Wunderfizz marker
+//  zmqol_vulture_marker_enabled  -  gate for the Wunderfizz marker
 //                                                                   (v1.99.67)
 // ----------------------------------------------------------------------------
 //  User, 2026-08-19: *"the wunderfizz machines still didn't have an icon for
@@ -279,11 +286,11 @@ zmqol_vulture_has_scriptmover_field()
 //  Buried is 25/32 stock and Origins is 32/32, which is exactly why neither of
 //  them is in scope here.
 //
-//  🛑 THE CLIENT TWIN IS zm_expanded.csc::zmqol_vulture_wunderfizz_marker_enabled()
+//  🛑 THE CLIENT TWIN IS zm_expanded.csc::zmqol_vulture_marker_enabled()
 //  AND IT MUST RETURN THE SAME ANSWER. If the two ever disagree the scriptmover
 //  set differs in width between server and client and everyone is dropped.
 // ============================================================================
-zmqol_vulture_wunderfizz_marker_enabled()
+zmqol_vulture_marker_enabled()
 {
     map = getdvar( "mapname" );
 
@@ -1412,6 +1419,29 @@ vulture_clientfield_toplayer_clear( str_field_name )
 
 vulture_perk_watch_mystery_box()
 {
+    //  ========================================================================
+    //  🛑 v1.99.68 - WAIT FOR THE BOX. THIS LOOP USED TO EXIT INSTANTLY.
+    //
+    //  User, 2026-08-19: *"the mystery box itself doesn't"* have a Vulture Aid
+    //  icon. Stock's body is one wait_network_frame() and then a `while` whose
+    //  condition tests level.chests - and this function is threaded from
+    //  init_vulture(), the perk's own init thread. On Buried the box happens to
+    //  exist by then. On a map where _zm_magicbox has not built level.chests
+    //  yet, the condition is false on its FIRST evaluation, the function returns,
+    //  and the box is never marked for the rest of the match - silently, because
+    //  nothing errors.
+    //
+    //  🌟 The fix waits for the thing the loop already depends on rather than
+    //  changing what the loop does. Everything below this block is stock.
+    //  ========================================================================
+    n_tries = 0;
+
+    while ( ( !isdefined( level.chests ) || level.chests.size == 0 || !isdefined( level.chest_index ) ) && n_tries < 1200 )
+    {
+        wait 0.05;
+        n_tries++;
+    }
+
     wait_network_frame();
 
     while ( isdefined( level.chests ) && level.chests.size > 0 && isdefined( level.chest_index ) )
@@ -1430,6 +1460,17 @@ vulture_perk_shows_mystery_box( b_show )
 
 vulture_perk_watch_fire_sale()
 {
+    //  v1.99.68 - same silent-exit as vulture_perk_watch_mystery_box() above:
+    //  the `while` tests level.chests on its first evaluation and this is an
+    //  init thread. Wait for the box before entering it.
+    n_tries = 0;
+
+    while ( ( !isdefined( level.chests ) || level.chests.size == 0 ) && n_tries < 1200 )
+    {
+        wait 0.05;
+        n_tries++;
+    }
+
     wait_network_frame();
 
     while ( isdefined( level.chests ) && level.chests.size > 0 )
@@ -1884,4 +1925,93 @@ zmqol_vulture_stink_audio_follow( player )
         self.origin = player.origin;
         wait 0.1;
     }
+}
+
+// ============================================================================
+//  zmqol_vulture_marker_scan  -  the server tells the client where the machines
+//                                really are                        (v1.99.68)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-19, screenshot: Speed Cola and the other Nuketown machines had
+//  NO Vulture Aid marker at all, while wall buys and the Wunderfizz did.
+//
+//  🛑 WHY THE OLD, CLIENT-ONLY ROUTE COULD NOT WORK HERE. zm_expanded.csc built
+//  its marker list from getstructarray( "zm_perk_machine", "targetname" ) and
+//  matched script_string against "<gametype>_perks_<location>". Nuketown does
+//  not use those structs at all: zm_nuked_perks::init_nuked_perks() DELETES
+//  every one of them and drops its machines onto randomly chosen
+//  zm_random_machine pads at runtime. Nothing in the map file says where a
+//  machine will end up, so no client-side derivation can ever find them - and
+//  the same is true of Die Rise's moving elevator perks.
+//
+//  🌟 THE SERVER ALREADY HOLDS THE ANSWER, AND STOCK PUBLISHES IT. Every perk
+//  machine on every map gets a use trigger with targetname "zombie_vending" and
+//  a direct entity reference to its own model: use_trigger.machine = perk_machine
+//  ( _zm_perks.gsc:2904 ), set inside perk_machine_spawn_init before the
+//  per-perk switch. So this needs no map knowledge, no struct matching and no
+//  per-map list - it asks the game which machines exist and marks each one.
+//
+//  📝 The client draws the marker at the entity's CURRENT origin whenever the
+//  player enables Vulture vision, so a machine that moves after being marked is
+//  still drawn in the right place next time the markers go up.
+//
+//  🛑 zmqol_not_ready IS NUKETOWN'S PARKED FLAG. perks_from_the_sky() lifts every
+//  machine 8000 units into the sky at map start and drops them later; marking one
+//  while it is up there would put a floating icon in the clouds. zm_nuked.gsc
+//  sets that flag while parked and clears it on landing. No other map defines it.
+//
+//  ⚠️ Cost: one pass every 2 seconds over about a dozen triggers, writing a
+//  clientfield only when the value actually changes.
+// ============================================================================
+zmqol_vulture_marker_scan()
+{
+    level endon( "end_game" );
+
+    for ( ;; )
+    {
+        a_trigs = getentarray( "zombie_vending", "targetname" );
+
+        for ( i = 0; i < a_trigs.size; i++ )
+        {
+            trig = a_trigs[i];
+
+            if ( !isdefined( trig ) || !isdefined( trig.machine ) )
+                continue;
+
+            if ( isdefined( trig.machine.zmqol_not_ready ) && trig.machine.zmqol_not_ready )
+                continue;
+
+            n_code = zmqol_vulture_marker_code( trig.script_noteworthy );
+
+            if ( isdefined( trig.machine.zmqol_marker_code ) && trig.machine.zmqol_marker_code == n_code )
+                continue;
+
+            trig.machine.zmqol_marker_code = n_code;
+            trig.machine setclientfield( "zmqol_vulture_marker", n_code );
+        }
+
+        wait 2;
+    }
+}
+
+//  🛑 THE CODES ARE A CONTRACT WITH zm_expanded.csc::zmqol_vulture_marker_fx().
+//  Change one side and the wrong icon appears on the wrong machine. 1 is the
+//  Wunderfizz, written by scripts/zm/wunderfizz.gsc rather than by the scan.
+zmqol_vulture_marker_code( str_perk )
+{
+    if ( !isdefined( str_perk ) )
+        return 10;
+
+    switch ( str_perk )
+    {
+        case "specialty_armorvest":               return 2;
+        case "specialty_rof":                     return 3;
+        case "specialty_quickrevive":             return 4;
+        case "specialty_fastreload":              return 5;
+        case "specialty_weapupgrade":             return 6;
+        case "specialty_longersprint":            return 7;
+        case "specialty_additionalprimaryweapon": return 8;
+        case "specialty_nomotionsensor":          return 9;
+    }
+
+    return 10;
 }

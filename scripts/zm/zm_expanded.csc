@@ -1278,9 +1278,9 @@ zmqol_init_vulture_trimmed()
 
 	//  v1.99.67 - the Wunderfizz see-through marker. Server twin and the
 	//  whole rationale: maps\mp\zombies\_zm_perk_vulture.gsc, function
-	//  zmqol_vulture_wunderfizz_marker_enabled(). The two gates must agree.
-	if ( zmqol_vulture_wunderfizz_marker_enabled() )
-		registerclientfield( "scriptmover", "zmqol_vulture_wunderfizz", 12000, 1, "int", ::zmqol_vulture_wunderfizz_cf, 0, 0 );
+	//  zmqol_vulture_marker_enabled(). The two gates must agree.
+	if ( zmqol_vulture_marker_enabled() )
+		registerclientfield( "scriptmover", "zmqol_vulture_marker", 12000, 4, "int", ::zmqol_vulture_marker_cf, 0, 0 );
 
 	registerclientfield( "zbarrier", "vulture_perk_zbarrier", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::vulture_vision_mystery_box, 0, 0 );
 	registerclientfield( "toplayer", "sndVultureStink", 12000, 1, "int", clientscripts\mp\zombies\_zm_perk_vulture::sndvulturestink );
@@ -1447,24 +1447,45 @@ zmqol_vulture_brighter_eyes()
 {
 	level endon( "end_game" );
 
-	n_tries = 0;
+	//  ========================================================================
+	//  🛑 v1.99.68 - THE PREVIOUS ATTEMPT IS PROVEN APPLIED AND PROVEN INVISIBLE.
+	//
+	//  v1.99.66 added a println here and the user's console_zm.log carries it:
+	//      [zm_qol] vulture eye glow override applied
+	//  and they still reported "kept giving myself and removing vultures aid and
+	//  the zombies eyes didn't change the amount of glow". So drawing the map's
+	//  own eye effect a second time is not a brighter eye - that theory is dead,
+	//  not unproven.
+	//
+	//  🛑 AND BRIGHTNESS CANNOT BE MEASURED OFFLINE. OpenAssetTools can neither
+	//  load nor dump FxEffectDef, so there is no way to compare two eye effects
+	//  in this workspace. Rather than ship the likeliest guess and spend another
+	//  boot per attempt, `vulture_eye_fx` puts every candidate behind one dvar
+	//  and one boot picks the winner. That is the standing instruction: ship a
+	//  probe that distinguishes the outcomes.
+	//
+	//      vulture_eye_fx 0   stock - fx_zombie_eye_vulture, no override
+	//      vulture_eye_fx 1   the map's own eye effect, drawn twice  (v1.99.65-67,
+	//                         known applied and known invisible - kept so the
+	//                         comparison is honest rather than remembered)
+	//      vulture_eye_fx 2   misc/fx_zombie_eye_side_quest      - Buried's
+	//                         side-quest eye, authored to be spotted across a map
+	//      vulture_eye_fx 3   maps/zombie/fx_zombie_eye_returned_orng   (Turned)
+	//      vulture_eye_fx 4   maps/zombie/fx_zombie_eye_returned_blue   (Turned)
+	//
+	//  DEFAULT IS 2. It is the one effect in the game whose whole job is to make
+	//  a zombie's eyes unmissable, which is the closest thing to evidence there
+	//  is - but it is a default, not a claim, and the dvar is why.
+	//
+	//  📝 Re-asserted on a loop, and re-read each pass, so the dvar can be
+	//  changed in game without restarting the map. Applies only to a client
+	//  holding the perk and is deleted with it: stock's _zombie_eye_glow_enable /
+	//  _disable own the fx, this only chooses which one they use.
+	//  ========================================================================
+	level._effect[ "zmqol_eye_sq" ]   = loadfx( "misc/fx_zombie_eye_side_quest" );
+	level._effect[ "zmqol_eye_orng" ] = loadfx( "maps/zombie/fx_zombie_eye_returned_orng" );
+	level._effect[ "zmqol_eye_blue" ] = loadfx( "maps/zombie/fx_zombie_eye_returned_blue" );
 
-	while ( !isDefined( level._override_eye_fx ) && !isDefined( level._effect[ "eye_glow" ] ) && n_tries < 200 )
-	{
-		wait 0.05;
-		n_tries++;
-	}
-
-	if ( isDefined( level._override_eye_fx ) )
-		n_fx = level._override_eye_fx;
-	else if ( isDefined( level._effect[ "eye_glow" ] ) )
-		n_fx = level._effect[ "eye_glow" ];
-	else
-		return;
-
-	//  vulture_vision_init() creates the struct this override lives on, and it
-	//  runs on player connect - later than this thread. Wait for it rather than
-	//  giving up, or the override would silently never be applied.
 	n_tries = 0;
 
 	while ( ( !isDefined( level.perk_vulture ) || !isDefined( level.perk_vulture.vulture_vision ) ) && n_tries < 1200 )
@@ -1476,26 +1497,28 @@ zmqol_vulture_brighter_eyes()
 	if ( !isDefined( level.perk_vulture ) || !isDefined( level.perk_vulture.vulture_vision ) )
 		return;
 
-	//  ========================================================================
-	//  🛑 v1.99.66 - WRITTEN FOREVER, NOT ONCE, AND IT REPORTS ITSELF.
-	//
-	//  v1.99.65 set this a single time and the user saw no change at all - not
-	//  a subtle change, none. The two ways that happens are "the write never
-	//  landed" and "the write landed and drawing the effect twice is invisible",
-	//  and one boot cannot tell them apart without a line in the log. So: the
-	//  value is re-asserted on a slow loop, which also survives anything that
-	//  rebuilds level.perk_vulture.vulture_vision after this point
-	//  (vulture_vision_init() runs on player connect, i.e. AFTER this), and the
-	//  first application prints.
-	//
-	//  📝 Every third of a second, one comparison and at most one assignment.
-	//  Nothing allocates and nothing iterates.
-	//  ========================================================================
 	b_said = 0;
 
 	for ( ;; )
 	{
-		if ( isDefined( level.perk_vulture ) && isDefined( level.perk_vulture.vulture_vision ) )
+		n_want = getdvarintdefault( "vulture_eye_fx", 2 );
+		n_fx = undefined;
+
+		if ( n_want == 1 )
+		{
+			if ( isDefined( level._override_eye_fx ) )
+				n_fx = level._override_eye_fx;
+			else if ( isDefined( level._effect[ "eye_glow" ] ) )
+				n_fx = level._effect[ "eye_glow" ];
+		}
+		else if ( n_want == 2 )
+			n_fx = level._effect[ "zmqol_eye_sq" ];
+		else if ( n_want == 3 )
+			n_fx = level._effect[ "zmqol_eye_orng" ];
+		else if ( n_want == 4 )
+			n_fx = level._effect[ "zmqol_eye_blue" ];
+
+		if ( isDefined( n_fx ) )
 		{
 			if ( !isDefined( level.perk_vulture.vulture_vision.actors_eye_glow_override ) ||
 			     level.perk_vulture.vulture_vision.actors_eye_glow_override != n_fx )
@@ -1505,9 +1528,15 @@ zmqol_vulture_brighter_eyes()
 				if ( !b_said )
 				{
 					b_said = 1;
-					println( "[zm_qol] vulture eye glow override applied" );
+					println( "[zm_qol] vulture eye fx = " + n_want );
 				}
 			}
+		}
+		else if ( isDefined( level.perk_vulture.vulture_vision.actors_eye_glow_override ) )
+		{
+			//  0, or a candidate this map does not have - fall back to stock's own
+			//  vulture eye rather than leaving a stale override in place.
+			level.perk_vulture.vulture_vision.actors_eye_glow_override = undefined;
 		}
 
 		wait 0.3;
@@ -1516,7 +1545,7 @@ zmqol_vulture_brighter_eyes()
 
 
 // ============================================================================
-//  zmqol_vulture_wunderfizz_marker_enabled  /  _cf   (CLIENT)      (v1.99.67)
+//  zmqol_vulture_marker_enabled  /  _cf   (CLIENT)      (v1.99.67)
 // ----------------------------------------------------------------------------
 //  🛑 THIS GATE MUST RETURN THE SAME ANSWER AS ITS SERVER TWIN in
 //  maps\mp\zombies\_zm_perk_vulture.gsc. If they disagree the scriptmover set is
@@ -1525,7 +1554,7 @@ zmqol_vulture_brighter_eyes()
 //  is Treyarch's and its client half is a compiled script this mod does not
 //  replace; Origins and TranZit never run the perk at all.
 // ============================================================================
-zmqol_vulture_wunderfizz_marker_enabled()
+zmqol_vulture_marker_enabled()
 {
 	map = getDvar( "mapname" );
 
@@ -1538,21 +1567,44 @@ zmqol_vulture_wunderfizz_marker_enabled()
 //  Records each Wunderfizz machine as it appears, and lights it immediately if
 //  this client is already holding the perk - the machines spawn at match start,
 //  long before anyone can buy Vulture Aid, but a late spawn must not be missed.
-zmqol_vulture_wunderfizz_cf( localclientnumber, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+//  Records every entity the server marks, with its code, and re-lights the set
+//  if one turns up while this client is already holding the perk. Machines are
+//  marked at map start, long before anyone can buy Vulture Aid, but Nuketown's
+//  are marked only as they land - which is exactly the late case this handles.
+zmqol_vulture_marker_cf( localclientnumber, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
 {
-	if ( !isDefined( level.zmqol_wf_ents ) )
-		level.zmqol_wf_ents = [];
-
-	if ( !newval )
-		return;
-
-	for ( i = 0; i < level.zmqol_wf_ents.size; i++ )
+	if ( !isDefined( level.zmqol_marker_ents ) )
 	{
-		if ( isDefined( level.zmqol_wf_ents[i] ) && level.zmqol_wf_ents[i] == self )
-			return;
+		level.zmqol_marker_ents = [];
+		level.zmqol_marker_codes = [];
 	}
 
-	level.zmqol_wf_ents[ level.zmqol_wf_ents.size ] = self;
+	n_found = -1;
+
+	for ( i = 0; i < level.zmqol_marker_ents.size; i++ )
+	{
+		if ( isDefined( level.zmqol_marker_ents[i] ) && level.zmqol_marker_ents[i] == self )
+		{
+			n_found = i;
+			break;
+		}
+	}
+
+	if ( n_found >= 0 )
+	{
+		if ( level.zmqol_marker_codes[ n_found ] == newval )
+			return;
+
+		level.zmqol_marker_codes[ n_found ] = newval;
+	}
+	else
+	{
+		if ( !newval )
+			return;
+
+		level.zmqol_marker_ents[ level.zmqol_marker_ents.size ] = self;
+		level.zmqol_marker_codes[ level.zmqol_marker_codes.size ] = newval;
+	}
 
 	//  Already holding the perk? Rebuild the marker set so this one joins it.
 	//  zmqol_vulture_machines_enable() clears the old set first, so this cannot
@@ -1567,6 +1619,78 @@ zmqol_vulture_wunderfizz_cf( localclientnumber, oldval, newval, bnewent, binitia
 		level.perk_vulture.fx_array[ localclientnumber ].player_ent zmqol_vulture_machines_enable( localclientnumber );
 	}
 }
+
+// ============================================================================
+//  zmqol_vulture_marker_fx / _perk / _height  -  the code contract    (v1.99.68)
+// ----------------------------------------------------------------------------
+//  🛑 THESE CODES MUST MATCH _zm_perk_vulture.gsc::zmqol_vulture_marker_code().
+//  The server sends a number; these three functions turn it back into an icon,
+//  a perk name for the "do I already own this" test, and a height offset.
+//
+//  🌟 THE WUNDERFIZZ ICON IS THE WALL-BUY QUESTION MARK, NOT THE MYSTERY BOX'S.
+//  User, 2026-08-19: *"should be the mystery box icon still but white and blue
+//  instead of yellow... to match the colours of the other vultures aid icons
+//  like the skull icon"*. fx_zm_vulture_glow_question is exactly that - it is
+//  the effect stock plays on WALL BUYS (loaded as vulture_perk_wallbuy_dynamic,
+//  _zm_perk_vulture.csc:34), so it is a question mark drawn in the same palette
+//  as the skulls the user is comparing against, and it is already loaded and
+//  already in mod_locations.zone. The yellow one they saw was
+//  fx_zm_vulture_glow_mystery_box, which is the box's own colour by design.
+// ============================================================================
+zmqol_vulture_marker_fx( n_code )
+{
+	switch ( n_code )
+	{
+		case 1:  return "vulture_perk_wallbuy_dynamic";
+		case 2:  return "vulture_perk_machine_glow_juggernog";
+		case 3:  return "vulture_perk_machine_glow_doubletap";
+		case 4:  return "vulture_perk_machine_glow_revive";
+		case 5:  return "vulture_perk_machine_glow_speed";
+		case 6:  return "vulture_perk_machine_glow_pack_a_punch";
+		case 7:  return "vulture_perk_machine_glow_marathon";
+		case 8:  return "vulture_perk_machine_glow_mule_kick";
+		case 9:  return "vulture_perk_machine_glow_vulture";
+	}
+
+	return "vulture_perk_wallbuy_dynamic";
+}
+
+zmqol_vulture_marker_perk( n_code )
+{
+	switch ( n_code )
+	{
+		case 2:  return "specialty_armorvest";
+		case 3:  return "specialty_rof";
+		case 4:  return "specialty_quickrevive";
+		case 5:  return "specialty_fastreload";
+		case 6:  return "specialty_weapupgrade";
+		case 7:  return "specialty_longersprint";
+		case 8:  return "specialty_additionalprimaryweapon";
+		case 9:  return "specialty_nomotionsensor";
+	}
+
+	//  1 (Wunderfizz) and 10 (any perk with no icon of its own) are never owned
+	//  in the hasperk sense, so they always show.
+	return "";
+}
+
+//  The marker is drawn at the entity origin, which for a machine model is its
+//  BASE. User, 2026-08-19: *"the icon on the wunderfizz machine ... is on the
+//  bottom of the machine, move it to the center/in the middle"*. The Wunderfizz
+//  bottle spawns at +55 (wunderfizz.gsc), so the machine is roughly that tall
+//  and +38 is its middle. Perk machine markers keep the base, which is where
+//  stock draws them on Buried.
+zmqol_vulture_marker_height( n_code )
+{
+	if ( n_code == 1 )
+		return 38;
+
+	return 0;
+}
+//  🛑 v1.99.68 - NO LONGER CALLED. The marker list comes from the server now,
+//  through the zmqol_vulture_marker clientfield - see zmqol_vulture_machines_enable().
+//  Kept only because the reasoning below documents exactly why the struct route
+//  cannot work off Buried, which is the whole justification for the clientfield.
 zmqol_vulture_machines_build()
 {
 	a_out = [];
@@ -1654,11 +1778,28 @@ zmqol_vulture_machine_should_show( localclientnumber, str_perk )
 	return !( self hasperk( localclientnumber, str_perk ) );
 }
 
+// ============================================================================
+//  zmqol_vulture_machines_enable  -  every marker, from the SERVER'S list
+//                                                                   (v1.99.68)
+// ----------------------------------------------------------------------------
+//  🛑 THE STRUCT ROUTE IS GONE, AND THE SCREENSHOT IS WHY. It built the list
+//  from getstructarray( "zm_perk_machine", "targetname" ) and matched
+//  script_string against "<gametype>_perks_<location>". Nuketown deletes every
+//  one of those structs (zm_nuked_perks::init_nuked_perks) and drops its
+//  machines onto random pads at runtime, so the match returned NOTHING and the
+//  user saw Speed Cola and friends with no icon at all. Die Rise's moving
+//  elevator perks are the same problem in a different costume.
+//
+//  🌟 The list now comes from the zmqol_vulture_marker clientfield, which
+//  _zm_perk_vulture.gsc::zmqol_vulture_marker_scan() writes on every machine
+//  the game actually has - found through use_trigger.machine, stock's own
+//  direct reference. No map knowledge, no gametype string, nothing to drift.
+//
+//  📝 Positions are read HERE, at enable time, not when the entity was marked -
+//  so a machine that moved after being marked is drawn where it now is.
+// ============================================================================
 zmqol_vulture_machines_enable( localclientnumber )
 {
-	if ( !isDefined( level.zmqol_vulture_machines ) )
-		level.zmqol_vulture_machines = zmqol_vulture_machines_build();
-
 	//  Never stack a second set - vulture_toggle can fire again on a new-entity
 	//  snapshot with the markers already up.
 	self zmqol_vulture_machines_disable( localclientnumber );
@@ -1666,57 +1807,41 @@ zmqol_vulture_machines_enable( localclientnumber )
 	a_ids = [];
 	a_perks = [];
 
-	for ( i = 0; i < level.zmqol_vulture_machines.size; i++ )
-	{
-		s_spot = level.zmqol_vulture_machines[i];
-		str_perk = s_spot.script_noteworthy;
+	if ( !isDefined( level.zmqol_marker_ents ) )
+		return;
 
-		if ( !( self zmqol_vulture_machine_should_show( localclientnumber, str_perk ) ) )
+	for ( i = 0; i < level.zmqol_marker_ents.size; i++ )
+	{
+		e_machine = level.zmqol_marker_ents[i];
+
+		if ( !isDefined( e_machine ) )
 			continue;
 
-		str_fx = zmqol_vulture_machine_fx( str_perk );
+		n_code = level.zmqol_marker_codes[i];
+
+		if ( !isDefined( n_code ) || n_code == 0 )
+			continue;
+
+		str_perk = zmqol_vulture_marker_perk( n_code );
+
+		if ( str_perk != "" && !( self zmqol_vulture_machine_should_show( localclientnumber, str_perk ) ) )
+			continue;
+
+		str_fx = zmqol_vulture_marker_fx( n_code );
 
 		if ( !isDefined( level._effect[ str_fx ] ) )
 			continue;
 
 		v_angles = ( 0, 0, 0 );
 
-		if ( isDefined( s_spot.angles ) )
-			v_angles = s_spot.angles;
+		if ( isDefined( e_machine.angles ) )
+			v_angles = e_machine.angles;
 
-		a_ids[ a_ids.size ] = playfx( localclientnumber, level._effect[ str_fx ], s_spot.origin, anglestoforward( v_angles ), anglestoup( v_angles ) );
+		v_origin = e_machine.origin + ( 0, 0, zmqol_vulture_marker_height( n_code ) );
+
+		a_ids[ a_ids.size ] = playfx( localclientnumber, level._effect[ str_fx ], v_origin, anglestoforward( v_angles ), anglestoup( v_angles ) );
 		a_perks[ a_perks.size ] = str_perk;
 	}
-
-	//  ========================================================================
-	//  v1.99.67 - THE WUNDERFIZZ MARKERS, folded into the same fx list.
-	//
-	//  They ride this function rather than getting one of their own so that the
-	//  existing disable path tears them down too - one list, one lifetime, and
-	//  no chance of a marker outliving the perk.
-	//
-	//  🌟 The effect is the mystery box's own, exactly as asked: stock loads
-	//  maps/zombie/fx_zm_vulture_glow_mystery_box as
-	//  "vulture_perk_mystery_box_glow" (_zm_perk_vulture.csc:43) and this file's
-	//  trimmed init loads the same name, so nothing new has to ship.
-	//
-	//  📝 The entities come from the zmqol_vulture_wunderfizz clientfield rather
-	//  than from a struct list, because unlike a perk machine a Wunderfizz is not
-	//  in the map file - the mod spawns it at runtime at coordinates that depend
-	//  on gametype and start location, so the client cannot re-derive it.
-	//  ========================================================================
-	if ( isDefined( level.zmqol_wf_ents ) && isDefined( level._effect[ "vulture_perk_mystery_box_glow" ] ) )
-	{
-		for ( i = 0; i < level.zmqol_wf_ents.size; i++ )
-		{
-			if ( !isDefined( level.zmqol_wf_ents[i] ) )
-				continue;
-
-			a_ids[ a_ids.size ] = playfx( localclientnumber, level._effect[ "vulture_perk_mystery_box_glow" ], level.zmqol_wf_ents[i].origin, anglestoforward( ( 0, 0, 0 ) ), anglestoup( ( 0, 0, 0 ) ) );
-			a_perks[ a_perks.size ] = "zmqol_wunderfizz";
-		}
-	}
-
 
 	if ( !isDefined( level.zmqol_vulture_fx ) )
 		level.zmqol_vulture_fx = [];
