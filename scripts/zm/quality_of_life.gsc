@@ -13980,7 +13980,7 @@ zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc )
 
     b_perk = attacker hasperk( "specialty_deadshot" );
     b_bullet = meansofdeath == "MOD_PISTOL_BULLET" || meansofdeath == "MOD_RIFLE_BULLET";
-    b_head = mapsmpzombies_zm_utility::is_headshot( weapon, shitloc, meansofdeath );
+    b_head = maps\mp\zombies\_zm_utility::is_headshot( weapon, shitloc, meansofdeath );
 
     // ====================================================================
     //  🔬 v1.99.75 PROBE - PRINT ONLY, NO BEHAVIOUR CHANGE.
@@ -14010,7 +14010,7 @@ zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc )
     //  The KSG is the exception Reimagined carves out - it fires a slug.
     if ( isdefined( weaponclass( weapon ) ) && issubstr( weaponclass( weapon ), "spread" ) )
     {
-        if ( mapsmpzombies_zm_weapons::get_base_weapon_name( weapon, 1 ) != "ksg_zm" )
+        if ( maps\mp\zombies\_zm_weapons::get_base_weapon_name( weapon, 1 ) != "ksg_zm" )
             return damage;
     }
 

@@ -8270,3 +8270,41 @@ live in every Zombies session and there is no dimension mismatch.
 
 🛑 **The probe file must be deleted either way before any release** — left in, it forces a wrong
 button icon on every player.
+
+## Item 34, part 2 — WHY BY-NAME DID NOTHING, and the fix (v1.99.79, 2026-08-19)
+
+v1.99.77 shipped 118 `.iwi` by name into `mod.iwd\images\`. User booted it: *"none of the textures
+worked"*. That report is correct and the cause is now measured.
+
+**T6 has two loose-image paths.** By NAME (`images\<name>.iwi`) supplies pixels only for images that
+are in **no** `.ipak` — which is why the mod's own invented images (the Vulture markers, its camos)
+have always worked that way. Stock textures stream from the `.ipak` archives, indexed by a 32-bit
+**name hash**, so overriding one needs a file named `<decimal name-hash>.iwi`.
+
+**End-to-end proof:** `1111625965.iwi`, a file from the user's own installed texture pack, is hex
+`424210ED` = the name hash of `playlist_single_ctf`, and that hash is present in a real ipak index.
+
+**The measurement:** parsing every `.ipak` in `zone\all` gives 32,200 unique name hashes.
+**119 of the 121** pack files are in that set. `gamefonts_pc_720` is in none (so it ships by name);
+`hud_tact_insert_32` is not in the name database at all (ships by name as a fallback).
+
+ipak format, for the record: header magic `KAPI`, `u32` version `0x00050000`, `u32` file size,
+`u32` section count; 16-byte sections `{type, offset, size, item_count}` (1 = index, 2 = data);
+16-byte index entries `{data_hash, name_hash, offset, physical_size}`. Name→hash table:
+`H:\Claude\T6-iPak-Unpacker\iPak_Utils\image_names.csv`.
+
+**v1.99.79 therefore ships:** 119 files as `<decimal hash>.iwi`, 2 by name, and by-name copies of
+the 20 that `mod.ff` declares (61 MB) because those also resolve through the mod's own asset
+record. 380 image entries, `mod.iwd` = 416 MB, hash-verified into Plutonium. **Unbooted.**
+
+🛑 **Correction to checkpoint 42:** *"mod.ff bakes pixel data for 208 images"* is **wrong**. A
+fastfile stores no image pixels. `Unlinker --include-assets image` prints
+`ERROR: Could not find data for image X` and then `Dumped image X` — the error is the fastfile, the
+dump came from a loose `.iwi` on the Unlinker's search path (byte sizes match the pack files
+exactly, +128 for the DDS header). Nothing is un-overridable for that reason.
+
+📝 Also fixed this round, and unrelated to textures: **v1.99.78** repaired two load-time unresolved
+externals in `quality_of_life.gsc` — `maps\mp\zombies\_zm_utility::is_headshot` and
+`maps\mp\zombies\_zm_weapons::get_base_weapon_name` had been written with their backslashes
+stripped (`mapsmpzombies_zm_utility::...`) in the v1.99.75 BETTER DEADSHOT probe. That killed every
+map at load and is why the user could not start a game.

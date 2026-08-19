@@ -553,9 +553,32 @@ through an 8px header).
 🌟 **The lookup order is now MEASURED, not assumed** — `console_zm.log`'s `Current search path:`
 block prints it in priority order: `mod.iwd` is **rank 1**, `storage\t6\` (which is how
 `storage\t6\images\` resolves) is **rank 4**. So the mod's copies beat a player's own pack, and
-nothing the mod can ship ranks below it. The earlier history: v1.57.7 dropped a 2 GB pack for "no
-visible result" — that verdict was reached without this evidence and should not be treated as
-proof that mod-shipped `.iwi` do not work.
+nothing the mod can ship ranks below it.
+
+### 🛑 v1.99.77 shipped them BY NAME and nothing changed. The reason, measured at v1.99.79
+
+**A loose `.iwi` named after the image only supplies pixels for images that are in no `.ipak`.**
+Stock textures stream out of the `.ipak` archives, which are indexed by a 32-bit **name hash**, so
+a replacement must be named `<decimal name-hash>.iwi`. That is why real BO2 texture packs ship
+files called `1111625965.iwi` — that one is hex `424210ED`, the name hash of `playlist_single_ctf`,
+and the hash is in a real ipak index. End-to-end proof of the convention.
+
+Parsing every `.ipak` in `zone\all` (magic `KAPI`; 16-byte sections `{type, offset, size, count}`,
+type 1 = index; 16-byte entries `{data_hash, name_hash, offset, physical_size}`) yields **32,200**
+unique image name hashes. **119 of the 121 pack files are in that set** — only `gamefonts_pc_720`
+is in no ipak, and `hud_tact_insert_32` is absent from the name database. Name→hash comes from
+`H:\Claude\T6-iPak-Unpacker\iPak_Utils\image_names.csv`.
+
+So **v1.99.79 ships 119 of them as `<decimal hash>.iwi`**, the 2 unhashable ones by name, and keeps
+by-name copies of the 20 that `mod.ff` declares (61 MB) because those also resolve through the
+mod's own asset record. `mod.iwd` is 416 MB.
+
+🛑 **And a correction that matters: a fastfile stores NO image pixels.**
+`Unlinker --include-assets image` prints `ERROR: Could not find data for image X` and then
+`Dumped image X` — the error is the fastfile, the dump came from a loose `.iwi` on the Unlinker's
+search path. Checkpoint 42 read that as *"mod.ff bakes pixel data for 208 images"*; it does not,
+and no image is un-overridable for that reason. The v1.57.7 verdict ("2 GB pack, no visible
+result") was the by-name mistake, not proof that mod-shipped `.iwi` cannot work.
 
 v1.93.0 removed two perk icons the mod still shipped — `specialty_vulture_zombies.iwi` and
 `specialty_tombstone_zombies.iwi` — because `mod.iwd\images\` beats `storage\t6\images\` and they
