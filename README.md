@@ -61,6 +61,11 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   below the crate stack that marks it, against 0.5–4 for the other nine, so a machine landing there
   is half in the rock. Measured out of the map's own entity list, not eyeballed. It is a stock map
   fault — stock only fills five pads at random, this mod fills nine, so it turns up far more often.
+- **Nuketown: `MACHINE DROPS` in the pre-game lobby.** Nuketown makes you wait until round 26 for
+  the last of its nine air-dropped machines. Set it to `ALL ON ROUND 1` and every perk machine and
+  the Pack-a-Punch are airlifted in as the match starts, one after another, with the full stock
+  arrival — the quad, the alarm, the landing quake. `STOCK` (the default) leaves the round schedule
+  exactly as it was. The row only appears on Nuketown, which is the only map that drops machines.
 - **Nuketown, Buried, Origins, TranZit survival: the scoreboard emblem now matches your team.**
   Zombies hardcodes the scoreboard to the CDC emblem for every player on every map, so playing as
   CIA showed a CDC badge — in stock too, whenever its random roll picked CIA.
@@ -127,6 +132,7 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 - `.pay <player> <n>` send points (it costs you) · `.bring` pull everyone to you · `.killall`
 - `.shield` the map's own buildable shield · `.staff <fire/ice/lightning/wind>` on Origins
 - `.movespeed` 1.5× movement
+- `.machines` drop every Nuketown machine still in the air, whatever `MACHINE DROPS` was set to
 
 Every command works with `.`, `!` or `/`. `.help` prints the full, self-updating list in game.
 

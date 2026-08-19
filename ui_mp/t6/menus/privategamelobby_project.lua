@@ -333,6 +333,44 @@ CoD.PrivateGameLobby.Dvars[2].values[10] = 9
 CoD.PrivateGameLobby.Dvars[2].values[11] = 10
 CoD.PrivateGameLobby.Dvars[2].values[12] = 11
 CoD.PrivateGameLobby.Dvars[2].values[13] = 12
+
+-- ===========================================================================
+--  MACHINE DROPS  -  Nuketown survival only, v1.99.63, user request 2026-08-19
+-- ===========================================================================
+--  *"the option lets you pick whether all machines drop on round 1, or if they
+--  retain their stock behaviour... a lot of peoples' critiques in this Zombies
+--  map is how annoying they find the fact that you have to progress through so
+--  many waves/rounds in order to have access to all the typical map features"*.
+--
+--  🌟 THE FILTERS ARE THE ONES ALREADY BUILT FOR THE CHARACTER ROWS. `maps`
+--  is Treyarch's own (the TranZit-only HELLHOUNDS row uses it); `modeGroups`
+--  was added in v1.99.58 because ui_gameType cannot separate classic from
+--  survival. Together they pin this row to Nuketown survival and nowhere else.
+--
+--  📝 That pinning is total, not just tidy: Nuketown appears in
+--  selectmaplistzombie.lua's Locations table and in NO other list - it is not
+--  a classic map and it is not in GriefLocations - so "Nuketown survival" is
+--  every game of Nuketown there is. The dvar can never leak into a mode where
+--  the row is hidden.
+--
+--  🛑 THE DVAR NAME IS FROZEN. It is what the console takes and what ends up in
+--  the player's archived config; renaming the visible label is free, renaming
+--  `nuked_all_machines` silently resets everyone's saved choice.
+CoD.PrivateGameLobby.DvarDefaults["nuked_all_machines"] = 0
+CoD.PrivateGameLobby.Dvars[3] = {}
+CoD.PrivateGameLobby.Dvars[3].id = "nuked_all_machines"
+CoD.PrivateGameLobby.Dvars[3].name = "MACHINE DROPS"
+CoD.PrivateGameLobby.Dvars[3].hintText = "STOCK spreads the perk machines and Pack-a-Punch out over rounds 3 to 26. ALL ON ROUND 1 airlifts every one of them in as soon as the match starts."
+CoD.PrivateGameLobby.Dvars[3].labels = {}
+CoD.PrivateGameLobby.Dvars[3].labels[1] = "STOCK"
+CoD.PrivateGameLobby.Dvars[3].labels[2] = "ALL ON ROUND 1"
+CoD.PrivateGameLobby.Dvars[3].values = {}
+CoD.PrivateGameLobby.Dvars[3].values[1] = 0
+CoD.PrivateGameLobby.Dvars[3].values[2] = 1
+CoD.PrivateGameLobby.Dvars[3].maps = {}
+CoD.PrivateGameLobby.Dvars[3].maps[1] = "zm_nuked"
+CoD.PrivateGameLobby.Dvars[3].modeGroups = {}
+CoD.PrivateGameLobby.Dvars[3].modeGroups[1] = "zsurvival"
 CoD.PrivateGameLobby.ButtonPrompt_TeamPrev = function (f1_arg0, ClientInstance)
 	if Engine.PartyHostIsReadyToStart() == true then
 		return 

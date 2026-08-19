@@ -431,6 +431,18 @@ perks_from_the_sky()
     machine_triggers[8] = getent( "vending_divetonuke", "target" );
     move_perk( machines[8], top_height, 5.0, 0.001 );
     machine_triggers[8] trigger_off();
+    //  ========================================================================
+    //  v1.99.63 - the LEVEL arrays become the one list from here on.
+    //
+    //  Nothing below reads the two locals again, deliberately: that way the
+    //  behaviour never depends on whether a GSC array assignment aliases or
+    //  copies, which is not something this project has measured.
+    //  zmqol_nuked_bring_machine() owns every removal from now on.
+    //  ========================================================================
+    level.zmqol_nuked_machines = machines;
+    level.zmqol_nuked_machine_triggers = machine_triggers;
+    level.zmqol_nuked_dropping = 0;
+
     flag_wait( "initial_blackscreen_passed" );
     wait( randomfloatrange( 5.0, 15.0 ) );
     players = get_players();
@@ -438,44 +450,63 @@ perks_from_the_sky()
     if ( players.size == 1 )
     {
         wait 4.0;
-        index = 0;
-        bring_perk( machines[index], machine_triggers[index] );
-        arrayremoveindex( machines, index );
-        arrayremoveindex( machine_triggers, index );
+        //  Index 0 is Quick Revive and solo gets it first. Stock's rule, kept.
+        zmqol_nuked_bring_machine( 0 );
+    }
+
+    //  MACHINE DROPS = ALL ON ROUND 1 (pre-game lobby, Nuketown survival only).
+    //  Read HERE rather than at init, so the lobby's write has certainly landed.
+    if ( getdvarintdefault( "nuked_all_machines", 0 ) )
+    {
+        while ( level.zmqol_nuked_machines.size > 0 )
+            zmqol_nuked_bring_machine( -1 );
+
+        return;
     }
 
     wait_for_round_range( 3, 5 );
     wait( randomintrange( 30, 60 ) );
-    bring_random_perk( machines, machine_triggers );
+    zmqol_nuked_bring_machine( -1 );
     wait_for_round_range( 6, 8 );
     wait( randomintrange( 30, 60 ) );
-    bring_random_perk( machines, machine_triggers );
+    zmqol_nuked_bring_machine( -1 );
     wait_for_round_range( 9, 11 );
     wait( randomintrange( 60, 120 ) );
-    bring_random_perk( machines, machine_triggers );
+    zmqol_nuked_bring_machine( -1 );
     wait_for_round_range( 12, 14 );
     wait( randomintrange( 60, 120 ) );
-    bring_random_perk( machines, machine_triggers );
+    zmqol_nuked_bring_machine( -1 );
     wait_for_round_range( 15, 17 );
     wait( randomintrange( 60, 120 ) );
-    bring_random_perk( machines, machine_triggers );
+    zmqol_nuked_bring_machine( -1 );
     wait_for_round_range( 18, 20 );
     wait( randomintrange( 60, 120 ) );
-    bring_random_perk( machines, machine_triggers );
+    zmqol_nuked_bring_machine( -1 );
     wait_for_round_range( 21, 23 );
     wait( randomintrange( 60, 120 ) );
-    bring_random_perk( machines, machine_triggers );
+    zmqol_nuked_bring_machine( -1 );
     wait_for_round_range( 24, 26 );
     wait( randomintrange( 60, 120 ) );
-    bring_random_perk( machines, machine_triggers );
+    zmqol_nuked_bring_machine( -1 );
     wait_for_round_range( 24, 26 );
     wait( randomintrange( 60, 120 ) );
-    bring_random_perk( machines, machine_triggers );
+    zmqol_nuked_bring_machine( -1 );
 }
 
 init()
 {
     added_weapons();
+
+    //  v1.99.63 - the ".machines" / `machines 1` dev command. The pointer is
+    //  installed HERE, in the map's own script, for the same reason the boss
+    //  spawners are: the root script may not name anything map-specific, and it
+    //  dispatches through level.zmqol_drop_all_machines_func instead.
+    level.zmqol_drop_all_machines_func = ::zmqol_nuked_drop_all_machines;
+
+    //  Seeded only when unset, so the pre-game lobby's MACHINE DROPS choice
+    //  survives. Read in perks_from_the_sky().
+    if ( getdvar( "nuked_all_machines" ) == "" )
+        setdvar( "nuked_all_machines", "0" );
 }
 
 added_weapons()
@@ -560,4 +591,110 @@ added_weapons()
         add_zombie_weapon( "ak74u_extclip_zm", "ak74u_extclip_upgraded_zm", &"ZOMBIE_WEAPON_AK74U", 1200, "smg", "", undefined, 1 );
         add_shared_ammo_weapon( "ak74u_extclip_zm", "ak74u_zm" );
     }
+}
+// ============================================================================
+//  MACHINE DROPS  -  the lobby option and the ".machines" dev command
+//                                                                   (v1.99.63)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-19: *"add an option here in the pre game menu for nuketown
+//  survival ONLY, the option lets you pick whether all machines drop on round
+//  1, or if they retain their stock behaviour... also add this as a console
+//  command so you can make all the machines drop mid-game in nuketown zombies
+//  if you wanted to, regardless of what option was set in the pre-game lobby
+//  menu, for dev testing purposes mainly."*
+//
+//  🌟 NOTHING ABOUT THE DROP ITSELF CHANGES. bring_perk() is untouched, so the
+//  quad flies its path, the alarm and incoming loop play, the crate blocker is
+//  deleted, the landing quake and the zombie gib still happen, the trigger is
+//  turned on and the perk lights come up. All this does is decide WHEN the
+//  existing sequence is asked to run, and how many times.
+//
+//  🛑 WHY A LEVEL-OWNED LIST AND A MUTEX, RATHER THAN THE LOCAL ARRAYS.
+//  Two things can now ask for a drop: the schedule inside perks_from_the_sky()
+//  and a ".machines" thread started from chat or the console. They must not
+//  overlap, because a drop is a single shared vehicle - level.perk_arrival_vehicle
+//  - and two bring_perk() calls entering in the same frame would both clear
+//  flag_waitopen( "perk_vehicle_bringing_in_perk" ) before either set it, and
+//  fly two machines on one path.
+//
+//  🌟 THE MUTEX IS SOUND BECAUSE GSC IS COOPERATIVE. Between the `while` test
+//  below exiting and `level.zmqol_nuked_dropping = 1` there is no wait, so no
+//  other thread can run in between. The same reasoning is why the entry is
+//  removed from the list BEFORE the flight rather than after: no second caller
+//  can ever pick a machine that is already in the air.
+//
+//  📝 The command works whatever the lobby row said, on purpose - that was the
+//  request. With MACHINE DROPS on ALL ON ROUND 1 there is simply nothing left
+//  for it to do, and it says so.
+// ============================================================================
+zmqol_nuked_bring_machine( n_index )
+{
+    if ( !isdefined( level.zmqol_nuked_machines ) )
+        return 0;
+
+    //  One drop at a time - see the note above.
+    while ( isdefined( level.zmqol_nuked_dropping ) && level.zmqol_nuked_dropping )
+        wait 0.05;
+
+    if ( level.zmqol_nuked_machines.size <= 0 )
+        return 0;
+
+    if ( !isdefined( n_index ) || n_index < 0 || n_index >= level.zmqol_nuked_machines.size )
+        n_index = randomintrange( 0, level.zmqol_nuked_machines.size );
+
+    level.zmqol_nuked_dropping = 1;
+
+    machine = level.zmqol_nuked_machines[ n_index ];
+    trigger = level.zmqol_nuked_machine_triggers[ n_index ];
+
+    a_machines = [];
+    a_triggers = [];
+
+    for ( i = 0; i < level.zmqol_nuked_machines.size; i++ )
+    {
+        if ( i == n_index )
+            continue;
+
+        a_machines[ a_machines.size ] = level.zmqol_nuked_machines[i];
+        a_triggers[ a_triggers.size ] = level.zmqol_nuked_machine_triggers[i];
+    }
+
+    level.zmqol_nuked_machines = a_machines;
+    level.zmqol_nuked_machine_triggers = a_triggers;
+
+    if ( !isdefined( machine ) || !isdefined( trigger ) )
+    {
+        //  A machine this map never placed. Dropped from the list above, so the
+        //  schedule simply moves on instead of stalling on it.
+        level.zmqol_nuked_dropping = 0;
+        return 0;
+    }
+
+    bring_perk( machine, trigger );
+    level.zmqol_nuked_dropping = 0;
+    return 1;
+}
+
+//  Installed on level in init() and called from the root script's ".machines"
+//  branch. Returns how many machines were still in the air, or 0.
+zmqol_nuked_drop_all_machines()
+{
+    if ( !isdefined( level.zmqol_nuked_machines ) )
+        return 0;
+
+    n_left = level.zmqol_nuked_machines.size;
+
+    if ( n_left <= 0 )
+        return 0;
+
+    level thread zmqol_nuked_drop_all_thread();
+    return n_left;
+}
+
+zmqol_nuked_drop_all_thread()
+{
+    level endon( "end_game" );
+
+    while ( isdefined( level.zmqol_nuked_machines ) && level.zmqol_nuked_machines.size > 0 )
+        zmqol_nuked_bring_machine( -1 );
 }

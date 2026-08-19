@@ -4079,6 +4079,8 @@ zmqol_console_command_names()
     //  v1.99.57 - the console/bind twin of .bloodmoney, per the mod's standing
     //  rule that every chat command is also a bindable console command.
     a[a.size] = "bloodmoney";
+    //  v1.99.63 - the console/bind twin of .machines (Nuketown only).
+    a[a.size] = "machines";     a[a.size] = "dropmachines";
 
     return a;
 }
@@ -4464,6 +4466,32 @@ zmqol_dev_command_listener()
                 n_amount = int( tokens[1] );
 
             player zmqol_boss_spawn_request( cmd, n_amount );
+        }
+        else if ( cmd == "machines" || cmd == "dropmachines" )
+        {
+            //  User, 2026-08-19: drop every remaining Nuketown perk machine and
+            //  the Pack-a-Punch on demand, "regardless of what option was set in
+            //  the pre-game lobby menu, for dev testing purposes mainly."
+            //
+            //  🛑 SAME RULE AS THE BOSS COMMANDS ABOVE - this branch may not name
+            //  maps\mp\zm_nuked_perks or anything else Nuketown-only. Such a
+            //  reference resolves at SCRIPT LOAD, and this file loads on every
+            //  map, so it would be an Unresolved external everywhere else and a
+            //  runtime level.script guard would not help (AI_CONTEXT rule 2).
+            //  scripts\zm\zm_nuked\zm_nuked.gsc installs the pointer in its
+            //  init(); on any other map it is simply undefined.
+            if ( !isdefined( level.zmqol_drop_all_machines_func ) )
+            {
+                player iprintln( "^1[zm_qol] ^7.machines ^1is Nuketown only" );
+                continue;
+            }
+
+            n_dropped = level [[ level.zmqol_drop_all_machines_func ]]();
+
+            if ( isdefined( n_dropped ) && n_dropped > 0 )
+                player iprintln( "^2[zm_qol] dropping the last ^7" + n_dropped + "^2 machine(s)" );
+            else
+                player iprintln( "^3[zm_qol] every machine is already down" );
         }
         else if ( cmd == "velocity" || cmd == "vel" || cmd == "speed" )
         {
@@ -5715,6 +5743,7 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.velocity ^7on/off ^8(also .vel/.speed)";
     a_lines[a_lines.size] = "^3.give <weapon> [pap] ^7every added gun ^8(.give list)";
     a_lines[a_lines.size] = "^3.brutus^7/^3.panzer^7/^3.jumpingjacks ^7(amount) ^8- Mob / Origins / Die Rise";
+    a_lines[a_lines.size] = "^3.machines ^7drop every remaining machine ^8- Nuketown";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
     a_lines[a_lines.size] = "^3.pack ^7/ ^3.unpack ^7Pack-a-Punch the held weapon";
     a_lines[a_lines.size] = "^3.giveperks^7/^3.removeperks ^7  ^3.nozmspawns ^7spawns   ^3.hud ^7on/off";
