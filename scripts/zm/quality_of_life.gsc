@@ -9856,41 +9856,61 @@ zmqol_register_announcer_vox()
             maps\mp\zombies\_zm_audio_announcer::createvox( "deathmachine", "qol_powerup_death_machine" );
 
             //  ================================================================
-            //  🌟 DIAGNOSTIC ONLY (v1.99.70) - no behaviour change.
+            //  🌟 v1.99.84 - SOLVED, AND THE v1.99.70 PROBE IS RETIRED.
             //
-            //  User, 2026-08-19: every STOCK power-up announced correctly and
-            //  only Blood Money and Zombie Blood were silent. That rules out the
-            //  whole announcer path - _zm_audio_announcer::init(), leaderdialog,
-            //  allowzmbannouncer, pers["team"] - because those are shared, and
-            //  it rules out the createvox keys, which match the power-up names
-            //  exactly ("bonus_points_player", "zombie_blood").
+            //  The probe answered its question: stock 1, qol 1 - the alias
+            //  resolves, so the bank and the payload were never the fault. The
+            //  real cause was measured out of the game files afterwards:
             //
-            //  What is left is the alias lookup, and it splits three ways. The
-            //  rows are in the deployed bank - verified with
-            //  `Unlinker --include-assets soundbank -o dump mod.ff`, all six
-            //  vox_zmba_qol_* rows present in mod.all.aliases.csv - but that
-            //  proves the ROW shipped, not that the engine can resolve it or
-            //  that the FLAC payload is reachable. Those cannot be separated
-            //  offline: the dumper recovered 0 of 2363 payloads on this machine,
-            //  so its "could not find data" warnings prove nothing either way.
+            //  🛑 THE ANNOUNCER ALIAS CARRIES A PREFIX AND NUKETOWN CHANGES IT.
+            //  _zm_audio_announcer.gsc:358 builds the alias as
+            //      game["zmbdialog"]["prefix"] + "_" + game["zmbdialog"][dialog]
+            //  and _zm_utility::sndswitchannouncervox() rewrites that prefix:
+            //  "sam" -> "vox_zmba_sam", "richtofen" -> "vox_zmba".
             //
-            //  soundexists() is the engine's own answer, and it is what stock's
-            //  get_number_variants() (_zm_spawner.gsc:1689-1696) uses. Reading
-            //  it here separates:
-            //      stock 1, qol 1  -> the alias resolves; the payload or its
-            //                         bus/stream routing is the fault
-            //      stock 1, qol 0  -> the engine cannot see a MOD bank alias by
-            //                         name; the ported lines need a different
-            //                         route entirely
-            //      stock 0         -> soundexists() is not usable as evidence
-            //                         here, discard this probe
+            //  Only ONE map calls it: zm_nuked.gsc:172 threads
+            //  sndswitchannouncervox( "sam" ) at map init, and switches back
+            //  only in switch_announcer_to_richtofen(), which is
+            //  flag_wait( "moon_transmission_over" ) - the easter egg. So on
+            //  Nuketown, for the whole of a normal match, the alias the engine
+            //  asks for is vox_zmba_sam_qol_powerup_zombie_blood, which this
+            //  mod never shipped. A missing alias is SILENT, never an error,
+            //  which is exactly what the user reported - on Nuketown.
+            //
+            //  🌟 Confirmed against the shipped banks, not inferred: dumping
+            //  en_zm_nuked.ff gives 8 vox_zmba_powerup_*_0 rows AND 8
+            //  vox_zmba_sam_powerup_*_0 rows - Treyarch ships every Nuketown
+            //  announcer line twice, once per voice - while en_zm_transit,
+            //  en_zm_highrise, en_zm_prison, en_zm_buried and en_zm_tomb ship
+            //  no vox_zmba_sam_* row at all. Nuketown is the only map that
+            //  needs the second name, and the only map where this was broken.
+            //
+            //  FIX: soundbank\mod.all.aliases.additions.csv now carries
+            //  vox_zmba_sam_qol_powerup_zombie_blood and _blood_money (both the
+            //  bare and the _0 form, matching the existing rows - Mob of the
+            //  Dead uses bare names, every other map uses _0), pointing at the
+            //  SAME payloads. That is voice-correct rather than a patch: both
+            //  recordings were dumped from Origins, whose announcer is Samantha,
+            //  so under the "sam" prefix they are the right voice.
+            //
+            //  🛑 THE DEATH MACHINE IS DELIBERATELY NOT GIVEN A "sam" ALIAS, and
+            //  it therefore stays silent on Nuketown before the easter egg.
+            //  Its payload is Die Rise s zmb_vox_ann_death_machine
+            //  (devraw\english\sound\vox\scripted\zmb\announcer\death_machine),
+            //  and Die Rise s announcer is Richtofen. No Samantha Death Machine
+            //  line exists anywhere in the game - Nuketown s sam set is 8 rows
+            //  and has none. So the only options are Richtofen s voice while
+            //  Samantha is announcing, or nothing, and picking the mismatch
+            //  silently is the kind of compromise this project does not ship.
+            //  It is written up in QUEUE.md for the user to decide.
+            //
+            //  The print below survives as the one-line confirmation: it names
+            //  the live prefix and the exact alias the engine will ask for.
             //  ================================================================
-            println( "[zm_qol] vox probe: stock_maxammo_0=" + soundexists( "vox_zmba_powerup_maxammo_0" ) +
-                     " qol_zblood=" + soundexists( "vox_zmba_qol_powerup_zombie_blood" ) +
-                     " qol_zblood_0=" + soundexists( "vox_zmba_qol_powerup_zombie_blood_0" ) +
-                     " qol_bmoney=" + soundexists( "vox_zmba_qol_powerup_blood_money" ) +
-                     " qol_bmoney_0=" + soundexists( "vox_zmba_qol_powerup_blood_money_0" ) +
-                     " qol_dmachine_0=" + soundexists( "vox_zmba_qol_powerup_death_machine_0" ) );
+            println( "[zm_qol] vox: prefix=" + game[ "zmbdialog" ][ "prefix" ] +
+                     "  zblood_alias=" + game[ "zmbdialog" ][ "prefix" ] + "_qol_powerup_zombie_blood" +
+                     "  exists=" + soundexists( game[ "zmbdialog" ][ "prefix" ] + "_qol_powerup_zombie_blood" ) +
+                     "  bmoney_exists=" + soundexists( game[ "zmbdialog" ][ "prefix" ] + "_qol_powerup_blood_money" ) );
 
             return;
         }
