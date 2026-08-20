@@ -12,24 +12,30 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 
 **The easy way — run the installer.** From **v1.99.96 onward** the release zip contains
 **`Install Quality Of Life.bat`** — the currently published release predates it, so that one is a
-manual install. Double-click the .bat and answer six plain yes/no questions. It needs no
-administrator rights, leaves nothing running in the background, and **never touches a single game
-file** — everything it writes lives under `%LOCALAPPDATA%\Plutonium`.
+manual install. Double-click it and you get a small menu: move with the **arrow keys**, choose with
+**ENTER**, quit with **Q**. Nothing needs administrator rights, nothing is left running afterwards,
+and **no game file is ever touched** — everything it writes lives under `%LOCALAPPDATA%\Plutonium`.
 
 It can:
 
-- install or update the mod, and remove files left behind by an older version;
-- check GitHub for a newer release and install that instead (it will not put an *older* release over
-  a newer build without asking twice);
-- install the optional **HD texture pack** into your Plutonium `images\` folder — *this overwrites
-  any custom textures you already have there*, and it says so before it does anything;
-- install the optional **custom sound pack** into your Plutonium `zone\` folder — *this replaces any
-  custom sounds you already have there*, same warning;
-- install **ReShade** with the mod's BO2 preset already applied. Press **Home** in game to open it.
-  Any `ReShade.ini` you already had is kept as `ReShade.ini.backup`.
+- **install or update the mod** — and it asks whether to *keep your menu settings* (so all your
+  switches and binds survive the update) or do a completely fresh install;
+- **check GitHub for a newer release** and install that instead — it will not put an *older* release
+  over a newer build without warning you first;
+- **install the HD texture pack** into your Plutonium `images\` folder, offering to **back up your
+  current textures first** so you can put them back later;
+- **install the custom sound pack** into your Plutonium `zone\` folder, with the same backup offer;
+- **install ReShade** with the mod's BO2 preset already applied — press **Home** in game to open it;
+- **remove any of those again, one at a time.** Removal only deletes the files the installer itself
+  put there, and offers to restore your backup — your own textures, sounds and shaders are never
+  touched.
 
-Your saved settings are never touched by any of this — Plutonium keeps them in
+Your saved settings are safe from all of it unless you ask for a full wipe: Plutonium keeps them in
 `storage\t6\players\mods\zm_qol\`, not in the mod folder.
+
+**On Linux** (Plutonium under Wine, Proton, Lutris or Bottles) use the **`Linux Install`** folder in
+the same download — `bash "install-quality-of-life.sh"` does everything the Windows one does, and
+finds your Wine prefix on its own. Its `README.txt` covers the one extra step ReShade needs there.
 
 **By hand, if you prefer:**
 

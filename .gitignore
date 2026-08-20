@@ -81,3 +81,10 @@ images/*.iwi
 # banks for their zone folder. Far past any sane git limit - they belong in a
 # release asset, never in the tree.
 Optionals/
+
+# The installer writes its own run log next to itself.
+installer/installer.log
+installer/Linux Install/installer.log
+
+# A 1.1 GB zip of Optionals\ - never belongs in git (GitHub rejects >100 MB files).
+Optionals.zip
