@@ -1527,7 +1527,30 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	T(QolPatchesButtons, LocalClientIndex, "DOUBLE TAP 1.0",      "double_tap_1",        "Fire rate only - no second bullet per shot, as in Double Tap 1.0.")
 	T(QolPatchesButtons, LocalClientIndex, "NO BARRIER ATTACKS",  "no_barrier_attacks",  "Zombies cannot reach through boarded windows.")
 
-	return QolPatchesContainer                                      -- 7 total
+	QolPatchesButtons:addSpacer(CoD.CoD9Button.Height / 2)
+
+	-- ========================================================================
+	--  v1.99.96 - THE TWO DIE RISE ROWS. User request 2026-08-20, from
+	--  BO2-Remix's Die Rise feature list: *"all 4 of these options implement
+	--  them into my mod"*.
+	--
+	--  SLIQUIFIER PRE-NERF is the row v1.99.93 refused to ship, and it ships now
+	--  because a correct implementation turned up - Remix's - where the legacy
+	--  mod's two lines did the opposite of the label. It carries all three of
+	--  the listed behaviours as ONE row, because Remix ships them as one set and
+	--  the queue item the user already approved was a single "SLIQUIFIER
+	--  PRE-NERF" switch. Splitting it into three is a one-line change if they
+	--  want the granularity.
+	--
+	--  Both rows are DIE RISE ONLY and both default OFF. They are shown on every
+	--  map rather than hidden, the same as the mod's other map-specific rows -
+	--  the tab is a settings list, not a context menu, and a row that appears
+	--  and vanishes with the map reads as a bug.
+	-- ========================================================================
+	T(QolPatchesButtons, LocalClientIndex, "SLIQUIFIER PRE-NERF", "sliquifier_prenerf",  "Die Rise. Sliquifier kills to round 255, keeps chaining when put away, and stops leaving extra goo.")
+	T(QolPatchesButtons, LocalClientIndex, "SEMTEX WALL BUY",     "semtex_wallbuy",      "Die Rise. Adds a Semtex wall buy. Takes effect from the next map start.")
+
+	return QolPatchesContainer                                      -- 9 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)

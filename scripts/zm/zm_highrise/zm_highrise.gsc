@@ -10,6 +10,13 @@ main()
     replaceFunc( maps\mp\zm_highrise::custom_vending_precaching, ::custom_vending_precaching );
     replaceFunc( maps\mp\zm_highrise_elevators::init_elevator_perks, ::init_elevator_perks );
 
+    //  v1.99.96 - SLIQUIFIER PRE-NERF, row 3. Installed unconditionally because
+    //  replaceFunc cannot be conditional; the override is stock plus one line and
+    //  the row is read by the death callback, not here. maps\mp\zombies\_zm_weap_slipgun
+    //  ships in zm_highrise_patch.ff and NOWHERE else, so this reference is legal
+    //  only from this file - a root script would fail to load on every other map.
+    replaceFunc( maps\mp\zombies\_zm_weap_slipgun::explode_to_near_zombies, ::zmqol_explode_to_near_zombies );
+
     // --- custom survival start locations: adds Shopping Mall, Dragon Rooftop, Sweatshop ---
 
     zmqol_register_survival_clientfields();
@@ -72,6 +79,25 @@ init()
     //  qualified reference to it from a root file crashes every other map at load.
     level.zmqol_boss_name = "jumpingjacks";
     level.zmqol_boss_spawn_func = ::zmqol_spawn_jumpingjacks;
+
+    //  ========================================================================
+    //  v1.99.96 - DIE RISE WEAPONS. See the big banner at the bottom of this
+    //  file for what each of these does and what it was checked against.
+    //
+    //  precachemodel HERE, not in the wall-buy thread. init() is inside the
+    //  precache window - added_weapons() above it calls include_weapon, which is
+    //  the same window - whereas the wall buy itself has to wait for the
+    //  blackscreen. One model, already resident in zm_highrise.ff, so this costs
+    //  nothing when the row is off.
+    //  ========================================================================
+    precachemodel( "t6_wpn_grenade_semtex_world" );
+
+    //  Appended AFTER stock's own slipgun death callback ( _zm_weap_slipgun.gsc:49 ),
+    //  so stock keeps first refusal and ours only sees corpses it declined.
+    maps\mp\zombies\_zm_spawner::register_zombie_death_animscript_callback( ::zmqol_slipgun_death_response );
+
+    level thread zmqol_slipgun_prenerf_watch();
+    level thread zmqol_semtex_wallbuy();
 }
 
 // ============================================================================
@@ -572,4 +598,373 @@ move_marathon_origins()
 
 		trig.origin += anglestoup(trig.machine.angles) * 96;
 	}
+}
+// ============================================================================
+// ============================================================================
+//  DIE RISE WEAPONS  -  SLIQUIFIER PRE-NERF + SEMTEX WALL BUY      (v1.99.96)
+//
+//  User, 2026-08-20, after hunting online for a pre-patch Die Rise fastfile and
+//  finding something better - BO2-Remix, whose source is already in the
+//  workspace and whose feature list has, under Die Rise / Weapons:
+//      "Semtex wallbuy added by b23r"
+//      "Sliquifier kills till round 255"
+//      "Sliquifier continues to chain while put away"
+//      "Sliquifier no longer drops extra goo"
+//  *"all 4 of these options implement them into my mod ... get that done"*
+//
+//  THIS UNBLOCKS THE SLIQUIFIER ROW THAT WAS HELD BACK IN v1.99.93. That row was
+//  refused because the only reference then available - the "legacy" mod - sets
+//  slipgun_reslip_rate = 0 and slipgun_max_kill_round = undefined, and both lines
+//  do the OPPOSITE of the label on this build ( see the note over the patches
+//  create_dvar block in quality_of_life.gsc ). Remix's version is a different
+//  implementation and it is correct, which is why the row ships now: it sets
+//  max_kill_round to 255 rather than undefined, and it treats reslip = 0 as the
+//  FEATURE ( "no longer drops extra goo" ) rather than as a buff.
+//
+//  Everything below was checked against the shipped stock script before being
+//  written, per the standing rule - Remix was the lead, not the authority:
+//
+//  1. KILLS TILL 255.  _zm_weap_slipgun.gsc:42 sets slipgun_max_kill_round to
+//     100, and :65 turns it into level.slipgun_damage exactly once, via
+//     _zm::ai_zombie_health( that round ). So the number that matters at runtime
+//     is level.slipgun_damage, and setting the zombie_var alone after init would
+//     do NOTHING. Both are written here. ai_zombie_health( 255 ) saturates
+//     ( :3605 returns old_health the moment the +10% wraps ), so it returns the
+//     largest health the curve ever reaches - the goo one-shots for good.
+//
+//  2. NO EXTRA GOO.  :741 and :745 gate every re-slip pool on
+//     slipgun_reslip_max_spots ( stock 8 ) and on
+//     `slipgun_reslip_rate > 0 && randomint( rate ) == 0` ( stock 6 ). Zeroing
+//     both closes that branch and nothing else: the pool the BOLT itself lays
+//     down comes from slip_bolt -> add_slippery_spot ( :645 ) and is untouched,
+//     so the weapon still slicks the floor where you shot it. Only the extra
+//     pools that spawn under chained corpses stop.
+//
+//  3. CHAINS WHILE PUT AWAY.  Stock registers ONE zombie-death animscript
+//     callback for the slipgun ( :49 ), and it returns false unless
+//     self.damageweapon is one of four slipgun names ( :802-809, :812 ). The
+//     chain applies its damage as `dodamage( ..., "slip_goo_zm" )` ( :738 ), so
+//     when that weapon name survives on the corpse the chain continues by
+//     itself - and when it does not, the chain stops dead. Remix's fix does not
+//     argue with damageweapon at all: it MARKS each zombie the chain lights up,
+//     and registers a SECOND death callback that fires on the mark plus the
+//     damage MOD, which is set from the `mod` argument and is reliable.
+//     check_zombie_death_animscript_callbacks ( _zm_spawner.gsc:1840 ) walks the
+//     array in registration order and stops at the first true, so stock's runs
+//     first and ours is a pure fallback - it can only ADD kills stock dropped.
+//
+//  4. SEMTEX WALL BUY.  Die Rise already has everything it needs and none of it
+//     had to be shipped:
+//       - zm_highrise.gsc:848 `add_zombie_weapon( "sticky_grenade_zm", ...,
+//         &"ZOMBIE_WEAPON_STICKY_GRENADE", 250, "grenade", "", 250 )` - the
+//         weapon, its hint string and its 250 cost are all registered already,
+//         and :870 `include_weapon( "sticky_grenade_zm", 0 )` keeps it OUT of
+//         the box, so this wall buy is the only way to get it on the map.
+//       - _zm.gsc:1227 loads level._effect["sticky_grenade_zm_fx"] on every map
+//         that does not clear level._uses_sticky_grenades. Die Rise does not.
+//       - _zm_weapons.gsc:1975 weapon_spawn_think has an explicit
+//         `weapontype( ... ) == "grenade"` branch, so a grenade wall buy is a
+//         stock-supported path, not a stretch.
+//
+//  ONE DELIBERATE DEPARTURE FROM REMIX, AND IT IS THE COMPLETENESS AUDIT.
+//  Remix draws this wall buy with `t6_wpn_claymore_world` - a CLAYMORE on the
+//  wall where a semtex should be. Measured with Unlinker over the real
+//  fastfiles: `t6_wpn_grenade_semtex_world` IS in zm_highrise.ff, and it is the
+//  only model on the map that follows the t6_wpn_*_world convention every other
+//  wall buy uses. ( The name Remix's own commented-out Buried line reaches for,
+//  t6_wpn_grenade_sticky_grenade_world, exists in NO zombies fastfile at all -
+//  that line would have failed. ) So this ships the real semtex model.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+//  zmqol_slipgun_prenerf_watch  -  rows 1 and 2, live and reversible.
+//
+//  The OFF position restores the values THE GAME SHIPPED WITH, cached before
+//  anything is written, rather than numbers this file invented. Stock sets
+//  level.slipgun_damage from its own thread after a wait ( :60-66 ), so the
+//  cache waits for it to exist instead of assuming the blackscreen was enough.
+// ----------------------------------------------------------------------------
+zmqol_slipgun_prenerf_watch()
+{
+    level endon( "end_game" );
+
+    flag_wait( "initial_blackscreen_passed" );
+
+    while ( !isdefined( level.slipgun_damage ) )
+        wait 0.05;
+
+    n_damage_stock     = level.slipgun_damage;
+    n_kill_round_stock = level.zombie_vars[ "slipgun_max_kill_round" ];
+    n_rate_stock       = level.zombie_vars[ "slipgun_reslip_rate" ];
+    n_spots_stock      = level.zombie_vars[ "slipgun_reslip_max_spots" ];
+
+    b_last = -1;
+
+    for ( ;; )
+    {
+        b_on = getdvarintdefault( "sliquifier_prenerf", 0 ) != 0;
+
+        if ( b_on != b_last )
+        {
+            b_last = b_on;
+
+            if ( b_on )
+            {
+                level.zombie_vars[ "slipgun_max_kill_round" ]   = 255;
+                level.slipgun_damage = maps\mp\zombies\_zm::ai_zombie_health( 255 );
+                level.zombie_vars[ "slipgun_reslip_rate" ]      = 0;
+                level.zombie_vars[ "slipgun_reslip_max_spots" ] = 0;
+            }
+            else
+            {
+                level.zombie_vars[ "slipgun_max_kill_round" ]   = n_kill_round_stock;
+                level.slipgun_damage                            = n_damage_stock;
+                level.zombie_vars[ "slipgun_reslip_rate" ]      = n_rate_stock;
+                level.zombie_vars[ "slipgun_reslip_max_spots" ] = n_spots_stock;
+            }
+        }
+
+        wait 0.5;
+    }
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_explode_to_near_zombies  -  replaceFunc'd in main().
+//
+//  BYTE-FOR-BYTE STOCK ( _zm_weap_slipgun.gsc:683-757 ) PLUS ONE LINE. It is
+//  installed unconditionally, so with the row OFF it has to behave exactly like
+//  the function it replaced. The added line only writes a flag nothing else in
+//  the 2,093-file dump reads, and the death callback that reads it checks the
+//  dvar itself - so OFF is stock.
+//
+//  Stock's re-slip guard is `( !isdefined( enemy.slick_count ) ||
+//  enemy.slick_count == 0 )`. Remix wrote `isDefined( ... ) && ... == 0`, which
+//  is the opposite for an undefined count. That is invisible in Remix because it
+//  zeroes the reslip rate anyway, but this mod's rows are independent, so stock's
+//  condition is what ships here.
+// ----------------------------------------------------------------------------
+zmqol_explode_to_near_zombies( player, origin, radius, chain_depth )
+{
+    if ( level.zombie_vars[ "slipgun_max_kill_chain_depth" ] > 0 && chain_depth > level.zombie_vars[ "slipgun_max_kill_chain_depth" ] )
+        return;
+
+    enemies = get_round_enemy_array();
+    enemies = get_array_of_closest( origin, enemies );
+    minchainwait = level.zombie_vars[ "slipgun_chain_wait_min" ];
+    maxchainwait = level.zombie_vars[ "slipgun_chain_wait_max" ];
+    rsquared = radius * radius;
+    tag = "J_Head";
+    marked_zombies = [];
+
+    if ( isdefined( enemies ) && enemies.size )
+    {
+        index = 0;
+        enemy = enemies[ index ];
+
+        while ( distancesquared( enemy.origin, origin ) < rsquared )
+        {
+            if ( isalive( enemy ) && !is_true( enemy.guts_explosion ) && !is_true( enemy.nuked ) && !isdefined( enemy.slipgun_sizzle ) )
+            {
+                trace = bullettrace( origin + vectorscale( ( 0, 0, 1 ), 50.0 ), enemy.origin + vectorscale( ( 0, 0, 1 ), 50.0 ), 0, undefined, 1 );
+
+                if ( isdefined( trace[ "fraction" ] ) && trace[ "fraction" ] == 1 )
+                {
+                    enemy.slipgun_sizzle = playfxontag( level._effect[ "slipgun_simmer" ], enemy, tag );
+
+                    //  THE ONE ADDED LINE. See row 3 in the banner above.
+                    enemy.slipgun_marked = 1;
+
+                    marked_zombies[ marked_zombies.size ] = enemy;
+                }
+            }
+
+            index++;
+
+            if ( index >= enemies.size )
+                break;
+
+            enemy = enemies[ index ];
+        }
+    }
+
+    if ( isdefined( marked_zombies ) && marked_zombies.size )
+    {
+        foreach ( enemy in marked_zombies )
+        {
+            if ( isalive( enemy ) && !is_true( enemy.guts_explosion ) && !is_true( enemy.nuked ) )
+            {
+                wait( randomfloatrange( minchainwait, maxchainwait ) );
+
+                if ( isalive( enemy ) && !is_true( enemy.guts_explosion ) && !is_true( enemy.nuked ) )
+                {
+                    if ( !isdefined( enemy.goo_chain_depth ) )
+                        enemy.goo_chain_depth = chain_depth;
+
+                    if ( enemy.health > 0 )
+                    {
+                        if ( player maps\mp\zombies\_zm_powerups::is_insta_kill_active() )
+                            enemy.health = 1;
+
+                        enemy dodamage( level.slipgun_damage, origin, player, player, "none", level.slipgun_damage_mod, 0, "slip_goo_zm" );
+                    }
+
+                    if ( level.slippery_spot_count < level.zombie_vars[ "slipgun_reslip_max_spots" ] )
+                    {
+                        if ( ( !isdefined( enemy.slick_count ) || enemy.slick_count == 0 ) && enemy.health <= 0 )
+                        {
+                            if ( level.zombie_vars[ "slipgun_reslip_rate" ] > 0 && randomint( level.zombie_vars[ "slipgun_reslip_rate" ] ) == 0 )
+                            {
+                                startpos = origin;
+                                duration = 24;
+                                thread maps\mp\zombies\_zm_weap_slipgun::add_slippery_spot( enemy.origin, duration, startpos );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_slipgun_death_response  -  row 3, the fallback death callback.
+//
+//  Registered AFTER stock's, so stock's runs first and this only sees corpses
+//  stock's returned false on. Gated on the dvar, so OFF is stock.
+// ----------------------------------------------------------------------------
+zmqol_slipgun_death_response()
+{
+    if ( !getdvarintdefault( "sliquifier_prenerf", 0 ) )
+        return false;
+
+    if ( !is_true( self.slipgun_marked ) )
+        return false;
+
+    if ( !isdefined( self.damagemod ) || self.damagemod != "MOD_PROJECTILE_SPLASH" )
+        return false;
+
+    level maps\mp\zombies\_zm_spawner::zombie_death_points( self.origin, self.damagemod, self.damagelocation, self.attacker, self );
+    self maps\mp\zombies\_zm_weap_slipgun::explode_into_goo( self.attacker, 0 );
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_semtex_wallbuy  -  row 4.
+//
+//  READ ONCE, AT MAP START, ON PURPOSE. A wall buy is a static unitrigger and a
+//  chalk fx; there is no clean way to take one back down mid-match, so this is
+//  not a live toggle. Turning the row off applies from the next map.
+//
+//  Angle, position and the "weapon_upgrade" targetname are Remix's, which is the
+//  tested placement; the MODEL is not - see the banner.
+// ----------------------------------------------------------------------------
+zmqol_semtex_wallbuy()
+{
+    level endon( "end_game" );
+
+    //  THE DVAR IS READ AFTER THE FLAG, NOT BEFORE IT, AND THAT ORDER MATTERS.
+    //  create_dvar() in quality_of_life.gsc only writes the default when the
+    //  dvar is unset, and the order in which the root script's init() and this
+    //  map script's init() run is not guaranteed. Reading here, one blackscreen
+    //  later, means the registration has certainly happened - so a first-ever
+    //  boot with the row switched on cannot silently read 0.
+    flag_wait( "initial_blackscreen_passed" );
+
+    if ( !getdvarintdefault( "semtex_wallbuy", 0 ) )
+        return;
+
+    zmqol_spawn_wallbuy_weapon( ( 0, 270, 0 ), ( 2119, 1826, 3115 ), "sticky_grenade_zm_fx", "sticky_grenade_zm", "t6_wpn_grenade_semtex_world" );
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_spawn_wallbuy_weapon  -  a script-placed wall buy.
+//
+//  Adapted from BO2-Remix's spawn_wallbuy_weapon: the melee-weapon and claymore
+//  branches are dropped ( neither can be reached from here ), and the bounds are
+//  measured off a throwaway script_model exactly as the original does, because
+//  the trigger box has to match the model that is actually drawn.
+//
+//  Every helper it calls is stock: get_weapon_cost / get_weapon_hint /
+//  get_weapon_display_name / wall_weapon_update_prompt / weapon_spawn_think all
+//  come from maps\mp\zombies\_zm_weapons, which this file already includes, and
+//  the two unitrigger calls are reached qualified.
+// ----------------------------------------------------------------------------
+zmqol_spawn_wallbuy_weapon( weapon_angles, weapon_coordinates, chalk_fx, weapon_name, weapon_model )
+{
+    tempmodel = spawn( "script_model", ( 0, 0, 0 ) );
+    tempmodel.origin = weapon_coordinates;
+    tempmodel.angles = weapon_angles;
+    tempmodel setmodel( weapon_model );
+    tempmodel useweaponhidetags( weapon_name );
+
+    absmins = tempmodel getabsmins();
+    absmaxs = tempmodel getabsmaxs();
+    bounds  = absmaxs - absmins;
+
+    stub = spawnstruct();
+    stub.origin = weapon_coordinates;
+    stub.angles = weapon_angles;
+    stub.script_length = bounds[ 0 ] * 0.25;
+    stub.script_width  = bounds[ 1 ];
+    stub.script_height = bounds[ 2 ];
+    stub.origin -= anglestoright( stub.angles ) * ( stub.script_length * 0.4 );
+    stub.target     = weapon_name;
+    stub.targetname = "weapon_upgrade";
+    stub.cursor_hint = "HINT_NOICON";
+    stub.cost = get_weapon_cost( weapon_name );
+
+    if ( !is_true( level.monolingustic_prompt_format ) )
+    {
+        stub.hint_string = get_weapon_hint( weapon_name );
+        stub.hint_parm1  = stub.cost;
+    }
+    else
+    {
+        stub.hint_parm1 = get_weapon_display_name( weapon_name );
+
+        if ( !isdefined( stub.hint_parm1 ) || stub.hint_parm1 == "" || stub.hint_parm1 == "none" )
+            stub.hint_parm1 = "missing weapon name " + weapon_name;
+
+        stub.hint_parm2 = stub.cost;
+        stub.hint_string = &"ZOMBIE_WEAPONCOSTONLY";
+    }
+
+    stub.weapon_upgrade = weapon_name;
+    stub.zombie_weapon_upgrade = weapon_name;
+    stub.script_unitrigger_type = "unitrigger_box_use";
+    stub.require_look_at  = 1;
+    stub.require_look_from = 0;
+    stub.prompt_and_visibility_func = ::wall_weapon_update_prompt;
+
+    maps\mp\zombies\_zm_unitrigger::unitrigger_force_per_player_triggers( stub, 1 );
+    maps\mp\zombies\_zm_unitrigger::register_static_unitrigger( stub, ::weapon_spawn_think );
+
+    tempmodel delete();
+
+    level thread zmqol_play_chalk_fx( chalk_fx, weapon_coordinates, weapon_angles );
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_play_chalk_fx  -  the wall chalk.
+//
+//  Remix's shape: spawn it, trigger it, and respawn it whenever someone else
+//  connects so a late joiner sees it too. spawnfx + triggerfx is stock's own
+//  pattern for a script-placed looping effect ( maps\mp\_fx.gsc:248-256 ).
+// ----------------------------------------------------------------------------
+zmqol_play_chalk_fx( effect, origin, angles )
+{
+    level endon( "end_game" );
+
+    if ( !isdefined( level._effect[ effect ] ) )
+        return;
+
+    for ( ;; )
+    {
+        fx = spawnfx( level._effect[ effect ], origin, anglestoforward( angles ), anglestoup( angles ) );
+        triggerfx( fx );
+
+        level waittill( "connected", player );
+
+        fx delete();
+    }
 }

@@ -75,3 +75,9 @@ mod.iwd
 # mod.iwd. It will build fine and play fine, just with stock-resolution textures
 # until the pack folder above is copied back into images\.
 images/*.iwi
+
+# 1.9 GB of optional payloads the INSTALLER ships, not the mod: the upscaled
+# texture pack for the player's Plutonium images folder and the custom sound
+# banks for their zone folder. Far past any sane git limit - they belong in a
+# release asset, never in the tree.
+Optionals/

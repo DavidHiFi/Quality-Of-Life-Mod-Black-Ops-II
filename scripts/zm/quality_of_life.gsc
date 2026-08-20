@@ -9238,6 +9238,35 @@ perks()
     create_dvar( "instakill_rounds",   0 );
     create_dvar( "double_tap_1",       0 );
     create_dvar( "no_barrier_attacks", 0 );
+
+    //  ========================================================================
+    //  v1.99.96 - THE TWO DIE RISE ROWS. The SLIQUIFIER row that was held back
+    //  above now SHIPS, and the reason is a better source, not a change of mind:
+    //  the user found BO2-Remix's Die Rise feature list, and its source - already
+    //  in the workspace - implements the same three behaviours correctly where
+    //  the "legacy" mod's two lines did the opposite of their label. It sets
+    //  slipgun_max_kill_round to 255 instead of undefined, it rewrites
+    //  level.slipgun_damage ( which is the value the game actually reads, and
+    //  which the zombie_var alone cannot change after init ), and it treats
+    //  reslip = 0 as the FEATURE "no longer drops extra goo" rather than as a
+    //  buff. All three were re-checked against the shipped stock script before
+    //  being written - the working, the evidence and the one place this mod
+    //  deliberately departs from Remix are all in the banner at the bottom of
+    //  scripts\zm\zm_highrise\zm_highrise.gsc.
+    //
+    //  BOTH ROWS DO NOTHING OFF DIE RISE and that is by construction, not by a
+    //  guard: every line that implements them lives in the map's own script,
+    //  because maps\mp\zombies\_zm_weap_slipgun ships in zm_highrise_patch.ff
+    //  and a qualified reference to it from a root file is an Unresolved
+    //  external that kills every OTHER map at load ( AI_CONTEXT rule 2 ).
+    //
+    //  semtex_wallbuy is read ONCE, at map start. A wall buy is a static
+    //  unitrigger plus a chalk fx and there is no clean way to take one back
+    //  down mid-match, so switching it off applies from the next map.
+    //  ========================================================================
+    create_dvar( "sliquifier_prenerf", 0 );
+    create_dvar( "semtex_wallbuy",     0 );
+
     level thread zmqol_patches_watch();
     level thread zmqol_solo_zombie_limit();
 
