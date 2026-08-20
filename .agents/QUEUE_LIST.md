@@ -6,10 +6,20 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 (2026-08-16) for a plain list with no other differentiation.
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **86** · mod version **1.99.90**
+- SYNCED TO: checkpoint **89** · mod version **1.99.93**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
+- 🛑 **BUILT, AWAITING THE USER'S BOOT: v1.99.93** — the PATCHES tab (BACKSPEED + ANIMATED CAMO moved
+  off GAME, plus REMOVE ROUND CAP / 24 ZOMBIE SOLO CAP / INSTAKILL ROUNDS / DOUBLE TAP 1.0 / NO
+  BARRIER ATTACKS), and SET POINTS + TELEPORT on CHEATS. **TWO ROWS THE USER ASKED FOR WERE HELD
+  BACK AND ARE THEIR CALL:** *SLIQUIFIER PRE-NERF* — the legacy mod's `slipgun_reslip_rate = 0` is
+  read through a `> 0` guard in the shipped script (`_zm_weap_slipgun.gsc:745`), so it means NEVER
+  re-slip, and its `slipgun_max_kill_round = undefined` makes the goo weaker, not stronger; no
+  pre-patch copy of that script exists in the workspace to port instead. *RECOIL PRE-NERF* —
+  `sv_patch_zm_weapons` does not exist on this build (absent from the 2,764-dvar boot dump, from
+  t6zm.exe, from Plutonium's bootstrapper and from dvar_descriptions.json), so the switch would be
+  dead. Both can be built as **reconstructions** if the user wants that instead of a port.
 - ✅ **v1.99.72 ACCEPTED BY THE USER 2026-08-19** - all Vulture Aid marker icons; see the Vulture Aid entry in *Closed*.
 - **BUILT, AWAITING THE USER’S BOOT: v1.99.81** - a `>level.ipak_read,zm_qol_hd` probe in `mod.zone` (a deliberately missing ipak, so the engine logs every directory it will accept an ipak from) plus ONE pack texture (Speed Cola, 4096²) in the player's global `images\` folder with the rank-2 duplicate parked. Those two answer the last unmeasured question in item 34. See checkpoint 84 §4. 🛑 **The v1.99.79 `<decimal ipak name-hash>` theory is DISPROVEN** - checkpoint 84 §2. `mod.iwd` still carries its 119 dead hash-named files (416 MB), awaiting the user's OK to delete.
 - **HISTORIC: v1.99.80** - the texture pack shipped as **119 `<decimal ipak name-hash>.iwi`** files plus 2 by name (item 34); booted, did nothing. 🛑 **v1.99.78 fixed a LOAD-TIME CRASH** - `is_headshot` / `get_base_weapon_name` had lost their backslashes in the v1.99.75 BETTER DEADSHOT probe, so no map could start. The v1.99.76 search-order probe was **deleted in v1.99.80**: its target `xenonbutton_a` is itself an ipak image, so a by-name file could never have overridden it and the probe could not answer anything.

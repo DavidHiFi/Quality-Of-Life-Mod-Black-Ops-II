@@ -76,7 +76,7 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   CIA showed a CDC badge — in stock too, whenever its random roll picked CIA.
 
 **HUD and menus**
-- **GAME / HUD / CHEATS tabs** in the pause menu: Options → Settings. 37 toggles, so you never
+- **GAME / PATCHES / HUD / CHEATS tabs** in the pause menu: Options → Settings. 45 rows, so you never
   have to type a chat command.
 - **Three new rows on the zombies pause menu itself**: **RESTART GAME** (stock's own confirm
   popup and `fast_restart`, re-connected — Plutonium's UI had dropped the button), **INSTANT
@@ -120,11 +120,27 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   killed at the same instant, instead of staggering them 0.1–0.7 s apart while a survivor swings at
   you. Same zombies, same 400 points; off is exact vanilla.
   **New in v1.99.48 — confirmed in game.**
-- **Backspeed patch** (GAME-tab switch, on by default) — PC BO2 moves you backwards and sideways
+- **Backspeed patch** (PATCHES-tab switch, on by default) — PC BO2 moves you backwards and sideways
   slower than the console ports do; this matches the console speeds, replacing 0.7× back / 0.8×
   strafe / 0.667× sprint-strafe with full speed. The mod has always forced this; v1.99.51 makes it a
   switch you can throw mid-match, and off restores the exact stock PC values.
   **New in v1.99.51 — confirmed in game.**
+- **PATCHES tab** — a tab of its own for restorations of pre-patch Black Ops II. The BACKSPEED and
+  ANIMATED CAMO switches moved here off the GAME tab, joined by five new ones: **REMOVE ROUND CAP**
+  (on by default — the mod's round counter has never had stock's 255 clamp, so off is what puts the
+  cap back), **24 ZOMBIE SOLO CAP**, **INSTAKILL ROUNDS** (zombie health wraps at round 163 again,
+  so one bullet kills), **DOUBLE TAP 1.0** (fire rate only, no second bullet) and **NO BARRIER
+  ATTACKS**. Every one is live and reversible mid-match, and off is exactly what the game does now.
+  Two more that were asked for are **deliberately not here** — the Sliquifier and weapon-recoil
+  pre-nerfs — because on this build the switches for them provably do nothing or the opposite of
+  their label; the reasoning is in the source next to the tab.
+  **New in v1.99.93 — deployed, not yet confirmed in game.**
+- **SET POINTS and TELEPORT on the CHEATS tab** — set your points to 1000 / 5000 / 10000 / 100000 /
+  1000000, or back down again (it *sets*, so a lower pick takes points away), and jump to a landmark
+  on the map: the diner, the farm, Nacht, the power station, the church, any of the six Origins
+  generators, the tank, and so on. The destinations are the Strat Tester's own, position and
+  facing. Classic games only — those places are outside a survival or grief arena.
+  **New in v1.99.93 — deployed, not yet confirmed in game.**
 - **The Awful Lawton** (Pack-a-Punched crossbow) — its explosive bolts draw zombies to where they
   stick, like a monkey bomb, as in BO1. Upgraded only; the box crossbow is unchanged.
   **New in v1.99.39 — confirmed in game.**

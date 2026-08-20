@@ -1394,7 +1394,7 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- Removing the last row left a TRAILING spacer, which is the same layout
 	-- fault as two spacers touching. It went with the row.
 
-	return QolContainer                              -- 12 rows + 1 spacer = 12.5
+	return QolContainer                              -- 11 rows + 1 spacer = 11.5
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
@@ -1470,20 +1470,37 @@ end
 --  moving a row between tabs must never rename one. Same rule as the v1.99.52
 --  BACKSPEED PATCH relabel.
 --
---  🌟 THE SIX NEW ROWS ARE A PORT OF THE USER'S OWN REFERENCE, not a design.
+--  🌟 THE FIVE NEW ROWS ARE A PORT OF THE USER'S OWN REFERENCE, not a design.
 --  H:\Claude\legacy-decompiled.gsc - the "legacy" pre-patch mod they supplied -
 --  is four replaceFuncs and an init, and every row below is one line of it:
 --      round cap        stock round_think clamps `if (255 < round) round = 255`
 --      24 solo zombies  level.zombie_total = 23 while solo past round 5
 --      instakill 163    ai_calculate_health capped at ai_zombie_health( 155 )
 --      double tap 1.0   setdvar perk_weapRateEnhanced 0
---      sliquifier       zombie_vars slipgun_reslip_rate 0 / max_kill_round undef
---      recoil           setdvar sv_patch_zm_weapons 0
 --      barrier attacks  should_attack_player_thru_boards returns false
 --  See the block above zmqol_patches_watch() in quality_of_life.gsc for what
 --  each one does and how it is applied without a replaceFunc where possible.
 --
---  📝 ALL SIX DEFAULT OFF except REMOVE ROUND CAP, which defaults ON because the
+--  🛑 TWO OF THE SEVEN THE USER ASKED FOR ARE NOT HERE, AND THE REASON IS NOT
+--  EFFORT - each is provably wrong on this build, so shipping the row would ship
+--  a switch that does nothing or the opposite of its label:
+--
+--    SLIQUIFIER PRE-NERF. Legacy sets slipgun_reslip_rate = 0, but the shipped
+--      script reads it as `if ( level.zombie_vars["slipgun_reslip_rate"] > 0 &&
+--      randomint( ... ) == 0 )` ( _zm_weap_slipgun.gsc:745 ), so 0 means NEVER
+--      re-slip, not always. Its other line, slipgun_max_kill_round = undefined,
+--      feeds ai_zombie_health( undefined ) at :65 and leaves the goo WEAKER.
+--      No pre-patch copy of that script exists in the workspace to port instead
+--      - BO2-Raw-files' base decompile carries the same 6 / 100 values as the
+--      patch fastfile does.
+--
+--    RECOIL PRE-NERF. `sv_patch_zm_weapons` does not exist on this build: it is
+--      absent from the boot dvar dump (2,764 dvars, alphabetical, with sv_paused
+--      and sv_playlistFetchInterval either side of where it would sit), from
+--      t6zm.exe's string table, from Plutonium's bootstrapper, and from
+--      dvar_descriptions.json. setdvar would create a dvar nothing reads.
+--
+--  📝 ALL FIVE DEFAULT OFF except REMOVE ROUND CAP, which defaults ON because the
 --  cap is ALREADY absent from this mod's round_think() and has been since the
 --  Cold War round HUD shipped - so ON is what the mod already does, and OFF is
 --  the row that changes something (it puts stock's clamp back). A new switch
@@ -1503,16 +1520,14 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 
 	QolPatchesButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
-	-- The legacy / pre-patch restorations.                            7 rows
+	-- The legacy / pre-patch restorations.                            5 rows
 	T(QolPatchesButtons, LocalClientIndex, "REMOVE ROUND CAP",    "remove_round_cap",    "Rounds carry on past 255. Off puts the stock cap back.")
-	T(QolPatchesButtons, LocalClientIndex, "24 ZOMBIE SOLO CAP",  "solo_zombie_limit",   "Solo rounds past 5 spawn 24 zombies, as before the patch.")
-	T(QolPatchesButtons, LocalClientIndex, "INSTAKILL ROUNDS",    "instakill_rounds",    "Zombie health caps at round 155, so 163+ one-hits you.")
-	T(QolPatchesButtons, LocalClientIndex, "DOUBLE TAP 1.0",      "double_tap_1",        "Double Tap only raises fire rate, with no damage bonus.")
-	T(QolPatchesButtons, LocalClientIndex, "SLIQUIFIER PRE-NERF", "sliquifier_prepatch", "Die Rise Sliquifier chains again, with no kill cap.")
-	T(QolPatchesButtons, LocalClientIndex, "RECOIL PRE-NERF",     "recoil_prepatch",     "Undoes Treyarch's zombies weapon recoil patch.")
+	T(QolPatchesButtons, LocalClientIndex, "24 ZOMBIE SOLO CAP",  "solo_zombie_limit",   "Solo rounds past 5 stop growing the horde, as before the patch.")
+	T(QolPatchesButtons, LocalClientIndex, "INSTAKILL ROUNDS",    "instakill_rounds",    "Zombie health wraps at round 163, so one bullet kills again.")
+	T(QolPatchesButtons, LocalClientIndex, "DOUBLE TAP 1.0",      "double_tap_1",        "Fire rate only - no second bullet per shot, as in Double Tap 1.0.")
 	T(QolPatchesButtons, LocalClientIndex, "NO BARRIER ATTACKS",  "no_barrier_attacks",  "Zombies cannot reach through boarded windows.")
 
-	return QolPatchesContainer                                      -- 9 total
+	return QolPatchesContainer                                      -- 7 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)

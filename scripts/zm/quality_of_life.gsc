@@ -103,6 +103,13 @@ main()
     //  after either entry point would have registered.
     replaceFunc( maps\mp\zombies\_zm_powerups::nuke_powerup, ::zmqol_nuke_powerup );
 
+    // --- INSTAKILL ROUNDS  (v1.99.93, PATCHES tab) ---
+    //  ONE function with TWO branches: with the row OFF it is byte-exact stock
+    //  (_zm.gsc:3572, which saturates on overflow), with it ON it is the legacy
+    //  mod's cap at round 155's health. See the banner over
+    //  zmqol_ai_calculate_health() for the measured difference between them.
+    replaceFunc( maps\mp\zombies\_zm::ai_calculate_health, ::zmqol_ai_calculate_health );
+
     perks();
     zmqol_enable_fire_sale();
 
@@ -1129,6 +1136,24 @@ round_think( restart )
         else
             level.zombie_move_speed = level.round_number * level.zombie_vars["zombie_move_speed_multiplier"];
         level.round_number++;
+
+        //  ====================================================================
+        //  REMOVE ROUND CAP  (v1.99.93, PATCHES tab row `remove_round_cap`)
+        //
+        //  🌟 THE CAP IS ALREADY GONE HERE AND THAT IS WHY THE ROW DEFAULTS ON.
+        //  Stock's round_think() clamps with `if ( 255 < level.round_number )
+        //  level.round_number = 255;` ( _zm.gsc:3516 ). This copy - which the
+        //  mod installs for the Cold War round HUD - never carried that clamp,
+        //  so ON is exactly what the mod has always done and OFF is the switch
+        //  that changes something: it puts stock's clamp back.
+        //
+        //  📝 Stock's two setroundsplayed() calls are missing from this copy as
+        //  well and are deliberately NOT restored here - that is a separate
+        //  stat call, not the cap, and adding it under this row would be a
+        //  second change hiding inside one switch.
+        //  ====================================================================
+        if ( !getdvarintdefault( "remove_round_cap", 1 ) && level.round_number > 255 )
+            level.round_number = 255;
         matchutctime = getutc();
         players = get_players();
         foreach ( player in players )
@@ -6547,6 +6572,8 @@ zmqol_fly_key_bind()
     self thread zmqol_toggle_dvar_watch();        // v1.94.0 - god/ghost/infinite_ammo/infinite_sprint
     self thread zmqol_velocity_dvar_watch();
     self thread zmqol_boss_spawn_dvar_watch();
+    self thread zmqol_set_points_watch();          // v1.99.93 - CHEATS > SET POINTS
+    self thread zmqol_teleport_watch();            // v1.99.93 - CHEATS > TELEPORT
 }
 
 // ============================================================================
@@ -8330,9 +8357,12 @@ zmqol_goto_round( n_target, e_player )
     if ( n_target < 1 )
         n_target = 1;
 
-    //  round_think() clamps to 255 itself (_zm.gsc:3516); matching that here
-    //  keeps the announced number honest.
-    if ( n_target > 255 )
+    //  v1.99.93 - the clamp now follows the PATCHES tab's REMOVE ROUND CAP row.
+    //  Stock's round_think() clamps to 255 (_zm.gsc:3516) and this mod's copy
+    //  does so only when that row is off, so matching it here keeps the two
+    //  halves of the same switch honest: with the cap restored, `.round 300`
+    //  announces and lands on 255; with it removed, the jump is not truncated.
+    if ( !getdvarintdefault( "remove_round_cap", 1 ) && n_target > 255 )
         n_target = 255;
 
     n_from = level.round_number;
@@ -9173,6 +9203,48 @@ perks()
     //  and cannot reach - it is measured, and it is narrower than the label.
     create_dvar( "aim_assist", 1 );
     level thread zmqol_aim_assist_watch();
+
+    //  ========================================================================
+    //  THE PATCHES TAB  (v1.99.93, user request 2026-08-20)
+    //
+    //  Five of the seven rows the user asked for. The two that are absent are
+    //  absent on purpose and the reason is recorded here rather than left to be
+    //  rediscovered:
+    //
+    //    SLIQUIFIER PRE-NERF - the legacy mod sets
+    //      level.zombie_vars["slipgun_reslip_rate"] = 0, but the SHIPPED script
+    //      guards that read with `if ( level.zombie_vars["slipgun_reslip_rate"]
+    //      > 0 && randomint( ... ) == 0 )` ( _zm_weap_slipgun.gsc:745, and :779
+    //      of the zm_highrise_patch decompile ), so 0 does not mean "always
+    //      re-slip", it means NEVER re-slip. Its other line,
+    //      slipgun_max_kill_round = undefined, is read by
+    //      ai_zombie_health( undefined ) at :65 - which cannot loop and leaves
+    //      the goo WEAKER, not stronger. Both lines do the opposite of the row's
+    //      label on this build, and no pre-patch copy of that script exists in
+    //      the workspace to port instead: BO2-Raw-files' base decompile carries
+    //      the same 6 / 100 values as the patch fastfile.
+    //
+    //    RECOIL PRE-NERF - `sv_patch_zm_weapons` DOES NOT EXIST on this build.
+    //      It is absent from the boot dvar dump (2,764 dvars, alphabetical, and
+    //      sv_paused / sv_playlistFetchInterval sit either side of where it
+    //      would be), from t6zm.exe's string table, from Plutonium's
+    //      bootstrapper and from dvar_descriptions.json. setdvar would create a
+    //      user dvar that nothing reads - a dead switch.
+    //
+    //  Both are held for the user's decision rather than shipped broken.
+    //  ========================================================================
+    create_dvar( "remove_round_cap",   1 );   // ON: the mod already has no cap
+    create_dvar( "solo_zombie_limit",  0 );
+    create_dvar( "instakill_rounds",   0 );
+    create_dvar( "double_tap_1",       0 );
+    create_dvar( "no_barrier_attacks", 0 );
+    level thread zmqol_patches_watch();
+    level thread zmqol_solo_zombie_limit();
+
+    //  CHEATS tab. set_points HOLDS its value (0 is a real setting) and teleport
+    //  is an action that writes itself back to 0 - see each watcher for why.
+    create_dvar( "set_points", 0 );
+    create_dvar( "teleport",   0 );
 
     //  v1.99.39 - user request 2026-08-17. The Pack-a-Punched crossbow's bolts
     //  draw zombies to them like a monkey bomb. See zmqol_awful_lawton_watch().
@@ -14671,4 +14743,452 @@ zmqol_wallbuy_variant_push_live()
     }
 
     return n;
+}
+
+// ============================================================================
+//  THE PATCHES TAB + SET POINTS + TELEPORT                          (v1.99.93)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-20, three requests in two messages:
+//
+//    1. *"add a new tab after the GAME tab called PATCHES, this will contain all
+//       Patch toggles like backspeed patch ... add the REMOVE ROUND CAP toggle
+//       ... 24 Zombies Round Limit on solo play, Instakill rounds start on round
+//       163, Double-tap reverted to 1.0 toggle, Sliquifier pre-patch/pre-nerf by
+//       treyarch, Weapon recoil pre-patched/pre-nerf, No zombies attacking
+//       through barriers."*
+//    2. *"set points ... start at 0 (none) and then go to 1000, 5000, 10000,
+//       100000, 1000000. And the reason it's "set" points instead of "give"
+//       points is so if you wanna revert it ... you can just go back and set it
+//       to a lower number and have that amount of points."*
+//    3. *"add the teleport menu from the strat tester to my cheats tab."*
+//
+//  🌟 EVERY MECHANISM BELOW IS PORTED FROM A SOURCE THE USER SUPPLIED AND THEN
+//  CHECKED AGAINST THE SHIPPED SCRIPT, NOT TAKEN ON TRUST. That check is what
+//  removed two of the seven patch rows - see the note in init() - and what
+//  turned two others into live, reversible level-variable writes instead of the
+//  replaceFuncs the legacy mod uses.
+//
+//  📝 The dvars are read, never trusted to exist: every read is
+//  getdvarintdefault( name, <the shipping default> ), so a console `reset` or a
+//  missing registration can only fall back to current behaviour.
+// ============================================================================
+
+// ============================================================================
+//  zmqol_ai_calculate_health  -  INSTAKILL ROUNDS
+//
+//  replaceFunc'd in main(). OFF is byte-exact stock; ON is legacy's version.
+//  The two differ in KIND, not degree, and this is the measured difference:
+//
+//    stock ( _zm.gsc:3572 ) SATURATES. From round 10 it grows the health by
+//    +10% a round, and the moment that addition wraps past 2^31 it restores
+//    old_health and RETURNS - so from round 163 on every round carries the same
+//    enormous health and zombies never get easier.
+//
+//    legacy has no saturation check at all, so the wrap is allowed to happen and
+//    lands NEGATIVE; it then resets a negative result to zombie_health_start
+//    ( 150 ) and clamps anything above ai_zombie_health( 155 ) down to that.
+//    Simulated over the stock numbers ( start 150, +100 a round to 9, +10% from
+//    10 - _zm.gsc:860-862 ):
+//
+//        round 155   1,044,606,723   <- the cap
+//        round 156-162   clamped to that same figure
+//        round 163   the addition wraps to -2,055,760,018, which is < 0, so the
+//                    health resets to 150 and one bullet kills again
+//
+//  That is the round-163 "instakill rounds" the row is named for, and it is why
+//  the ON branch has to SKIP the saturation check rather than add a clamp on top
+//  of it: with stock's early return in place the wrap can never happen at all.
+//
+//  🛑 ai_zombie_health() lives in _zm.gsc, so it is called qualified - this is a
+//  root script and _zm* is globally resolvable ( AI_CONTEXT rule 2 ).
+// ============================================================================
+zmqol_ai_calculate_health( round_number )
+{
+    b_instakill = getdvarintdefault( "instakill_rounds", 0 );
+
+    level.zombie_health = level.zombie_vars["zombie_health_start"];
+
+    for ( i = 2; i <= round_number; i++ )
+    {
+        if ( i >= 10 )
+        {
+            old_health = level.zombie_health;
+            level.zombie_health = level.zombie_health + int( level.zombie_health * level.zombie_vars["zombie_health_increase_multiplier"] );
+
+            //  Stock's saturation. Skipped only while the row is on.
+            if ( !b_instakill && level.zombie_health < old_health )
+            {
+                level.zombie_health = old_health;
+                return;
+            }
+        }
+        else
+            level.zombie_health = int( level.zombie_health + level.zombie_vars["zombie_health_increase"] );
+    }
+
+    if ( !b_instakill )
+        return;
+
+    if ( level.zombie_health < 0 )
+        level.zombie_health = level.zombie_vars["zombie_health_start"];
+
+    n_cap = maps\mp\zombies\_zm::ai_zombie_health( 155 );
+
+    if ( level.zombie_health > n_cap )
+        level.zombie_health = n_cap;
+}
+
+// ============================================================================
+//  zmqol_patches_watch  -  DOUBLE TAP 1.0 and NO BARRIER ATTACKS, live
+//
+//  Both are applied ON CHANGE ONLY and both are reversible, because the OFF
+//  position has to be the value the game shipped with rather than a number this
+//  file invented. The stock value of each is CACHED ONCE, before anything is
+//  written, and restored verbatim.
+//
+//  🌟 DOUBLE TAP 1.0 = perk_weapRateEnhanced 0, verified twice over: the boot
+//  dvar dump in console_zm.log carries `perk_weapRateEnhanced "1"` (so the dvar
+//  is real on this build and 1 is its stock value), and BO2-Reimagined - the
+//  designated reference - sets exactly this dvar to 0 and documents the result
+//  in its own README under Double Tap: *"Removed shooting 2 bullets for every
+//  shot"*. Double Tap 2.0's extra damage IS that second bullet, so with it off
+//  the perk is the 1.0 version: fire rate only.
+//
+//  🌟 NO BARRIER ATTACKS NEEDS NO replaceFunc, and that is not a shortcut - it
+//  is the smaller change. The legacy mod replaces
+//  _zm_spawner::should_attack_player_thru_boards with `return false`, but
+//  level.attack_player_thru_boards_range is read in exactly two places in the
+//  whole 2,093-file dump and both are inside that same function's file:
+//  :833 builds self.player_targets from the players within that range, and :878
+//  squares the same value for the damage pass over that array. With the range at
+//  0 the array is always empty, so the function's `attack` flag stays 0 and it
+//  returns false by itself - the reach-through animation and its damage both
+//  stop. Only _zm_spawner.gsc:68-69 ever writes the variable ( 109.8 ), so
+//  nothing else fights over it and the restore is exact.
+// ============================================================================
+zmqol_patches_watch()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    level endon( "end_game" );
+
+    //  After the blackscreen, so _zm_spawner::init() has certainly run and the
+    //  cached barrier range below is the real stock value, not undefined.
+    flag_wait( "initial_blackscreen_passed" );
+
+    n_dt_stock = getdvarintdefault( "perk_weapRateEnhanced", 1 );
+
+    n_barrier_stock = 109.8;
+
+    if ( isdefined( level.attack_player_thru_boards_range ) )
+        n_barrier_stock = level.attack_player_thru_boards_range;
+
+    b_dt_last = -1;
+    b_barrier_last = -1;
+
+    for ( ;; )
+    {
+        b_dt = getdvarintdefault( "double_tap_1", 0 ) != 0;
+
+        if ( b_dt != b_dt_last )
+        {
+            b_dt_last = b_dt;
+
+            if ( b_dt )
+            {
+                setdvar( "perk_weapRateEnhanced", 0 );
+                println( "[zm_qol] DOUBLE TAP 1.0 on  - perk_weapRateEnhanced 0" );
+            }
+            else
+            {
+                setdvar( "perk_weapRateEnhanced", n_dt_stock );
+                println( "[zm_qol] DOUBLE TAP 1.0 off - perk_weapRateEnhanced " + n_dt_stock );
+            }
+        }
+
+        b_barrier = getdvarintdefault( "no_barrier_attacks", 0 ) != 0;
+
+        if ( b_barrier != b_barrier_last )
+        {
+            b_barrier_last = b_barrier;
+
+            if ( b_barrier )
+            {
+                level.attack_player_thru_boards_range = 0;
+                println( "[zm_qol] NO BARRIER ATTACKS on  - reach-through range 0" );
+            }
+            else
+            {
+                level.attack_player_thru_boards_range = n_barrier_stock;
+                println( "[zm_qol] NO BARRIER ATTACKS off - reach-through range " + n_barrier_stock );
+            }
+        }
+
+        wait 0.5;
+    }
+}
+
+// ============================================================================
+//  zmqol_solo_zombie_limit  -  24 ZOMBIE SOLO CAP
+//
+//  A straight port of legacy's zombie_total() thread: while the row is on, solo,
+//  and past round 5, the round's remaining spawn count is pinned to 23 at
+//  start_of_round.
+//
+//  🌟 WHY THAT IS THE PRE-PATCH SHAPE. Stock re-derives the round's total in
+//  round_spawning ( _zm.gsc:2928-2949 ) from zombie_max_ai ( 24 ) plus a
+//  per-player term that GROWS with the round: solo round 6 is already 27 and
+//  solo round 20 is 60. Pinning the counter back to a couple of dozen is what
+//  makes late solo rounds short again.
+//
+//  📝 Re-applied every round on purpose: stock writes level.zombie_total afresh
+//  at the start of each round, so a one-shot write would last exactly one round.
+//
+//  🛑 IT IS NOT A CAP ON ZOMBIES ALIVE. level.zombie_ai_limit ( 24, _zm.gsc:114 )
+//  already governs how many can be alive at once; this is the number still to
+//  SPAWN, which is what decides how long the round lasts.
+// ============================================================================
+zmqol_solo_zombie_limit()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    level endon( "end_game" );
+
+    for ( ;; )
+    {
+        level waittill( "start_of_round" );
+
+        if ( !getdvarintdefault( "solo_zombie_limit", 0 ) )
+            continue;
+
+        if ( level.round_number > 5 && get_players().size == 1 )
+            level.zombie_total = 23;
+    }
+}
+
+// ============================================================================
+//  zmqol_set_points_watch  -  CHEATS > SET POINTS
+//
+//  🛑 IT IS NOT AN ACTION ROW, AND THAT IS THE WHOLE REQUEST. CHANGE ROUND and
+//  KILL HORDE write themselves back to 0 as soon as they fire; this one HOLDS
+//  its value, because 0 ("NONE") is a real setting and the user wants to step
+//  back DOWN the list to take points away. So it is applied on CHANGE only, and
+//  the last applied value is seeded from the dvar on the first pass - otherwise
+//  every spawn would re-apply whatever the row happens to be sitting on.
+//
+//  🛑 THE SCORE IS WRITTEN DIRECTLY, AND THAT IS DELIBERATE. The obvious route
+//  is _zm_score::add_to_player_score / minus_to_player_score, but
+//  minus_to_player_score ends with `level notify( "spent_points", self, points )`
+//  ( _zm_score.gsc:341 ) and Origins listens to it: zm_tomb_challenges.gsc:49
+//  counts every point "spent" towards the Rituals of the Ancients points
+//  challenge, whose reward is a free Double Tap. Stepping this row from 1000000
+//  down to 1000 would hand that challenge over instantly. Stock itself assigns
+//  the field directly in exactly this situation - player_downed_score_loss does
+//  `self.score = points;` at _zm_score.gsc:303-308 - so this is stock's own
+//  route, not a way around one.
+//
+//  📝 score_total is raised by the same delta when the row goes UP, which is
+//  what add_to_player_score would have done ( :322-323 ); it is deliberately not
+//  lowered again, because stock's minus path never touches it either.
+//
+//  📝 In co-op this reads one server dvar, so it sets everyone's points - the
+//  same shape as the god / ghost / infinite ammo rows that already ship.
+// ============================================================================
+zmqol_set_points_watch()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    n_last = getdvarintdefault( "set_points", 0 );
+
+    for ( ;; )
+    {
+        n_want = getdvarintdefault( "set_points", 0 );
+
+        if ( n_want != n_last )
+        {
+            n_last = n_want;
+
+            //  🛑 self.score is guarded, not assumed: this thread starts at CONNECT
+            //  and stock only fills the field in on spawn, so a row moved during
+            //  the pre-game blackscreen would otherwise subtract from undefined -
+            //  a runtime error, and Plutonium kills the thread for it in silence.
+            if ( isdefined( self.score ) && ( !isdefined( level.intermission ) || !level.intermission ) )
+            {
+                n_delta = n_want - self.score;
+
+                self.score = n_want;
+                self.pers["score"] = self.score;
+
+                if ( n_delta > 0 && isdefined( self.score_total ) )
+                    self.score_total = self.score_total + n_delta;
+
+                self iprintln( "^2[zm_qol] ^7points set to ^2" + n_want );
+            }
+        }
+
+        wait 0.25;
+    }
+}
+
+// ============================================================================
+//  zmqol_teleport_watch / zmqol_teleport_dest  -  CHEATS > TELEPORT
+//
+//  🌟 THE DESTINATIONS ARE THE STRAT TESTER'S OWN, copied value for value out of
+//  H:\Claude\Strat-Tester-BO2\scripts\zm\strattester\commands.gsc::tpcase() -
+//  position AND angles, so each one lands facing the way it does there. Nothing
+//  is invented: Nuketown has no list in that file, so it gets no row in the menu
+//  and no case here.
+//
+//  🛑 THE INDEX ORDER MUST MATCH THE LUI LIST EXACTLY. The menu row's values are
+//  indices into the switch below, and the two lists are written to be read side
+//  by side - ui\t6\menus\optionssettings.lua, CreateQolCheatsTab, ZmTele. The
+//  TranZit order in particular is NOT the Strat Tester's own order.
+//
+//  🛑 CLASSIC ONLY, AND THIS IS THE TRAP THAT WOULD OTHERWISE HAVE BITTEN. These
+//  are classic-layout coordinates; in a survival or grief game the same map is a
+//  small carved-out arena and every one of them is outside it. The test is
+//  ui_gametype == "zclassic" and NOT `ui_zm_mapstartlocation != "transit"`,
+//  because Bus Depot is zstandard AT location transit - the exact false negative
+//  that cost this mod a perk on every TranZit survival in v1.83.0 ( see the long
+//  note over the Vulture gate ). ui_gametype is safe to read here for the same
+//  reason it is safe there.
+//
+//  📝 An ACTION row: the dvar is written back to 0 before the teleport, so the
+//  row snaps to OFF and the same destination can be picked twice in a row.
+// ============================================================================
+zmqol_teleport_watch()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    for ( ;; )
+    {
+        n_want = getdvarintdefault( "teleport", 0 );
+
+        if ( n_want > 0 )
+        {
+            setdvar( "teleport", "0" );
+
+            if ( getdvar( "ui_gametype" ) != "zclassic" )
+                self iprintln( "^3[zm_qol] teleport is classic-only ^7- these landmarks sit outside a survival or grief arena" );
+            else
+            {
+                a_dest = zmqol_teleport_dest( n_want );
+
+                if ( !isdefined( a_dest ) )
+                    self iprintln( "^3[zm_qol] teleport: ^7no destination " + n_want + " on this map" );
+                else
+                {
+                    self setorigin( a_dest["pos"] );
+                    self setplayerangles( a_dest["ang"] );
+                    println( "[zm_qol] teleport -> " + level.script + " #" + n_want );
+                }
+            }
+        }
+
+        wait 0.25;
+    }
+}
+
+zmqol_teleport_dest( n )
+{
+    a = [];
+
+    if ( level.script == "zm_transit" )
+    {
+        switch ( n )
+        {
+            case 1: a["pos"] = ( -5012, -6694, -60 );  a["ang"] = ( 0, -127, 0 ); break;   // DINER
+            case 2: a["pos"] = ( 6908, -5750, -62 );   a["ang"] = ( 0, 173, 0 );  break;   // FARM
+            case 3: a["pos"] = ( 1152, -717, -55 );    a["ang"] = ( 0, 45, 0 );   break;   // TOWN
+            case 4: a["pos"] = ( -7384, 4693, -63 );   a["ang"] = ( 0, 18, 0 );   break;   // BUS DEPOT
+            case 5: a["pos"] = ( -11814, -1903, 228 ); a["ang"] = ( 0, -60, 0 );  break;   // TUNNEL
+            case 6: a["pos"] = ( 13840, -261, -188 );  a["ang"] = ( 0, -108, 0 ); break;   // NACHT
+            case 7: a["pos"] = ( 12195, 8266, -751 );  a["ang"] = ( 0, -90, 0 );  break;   // POWER STATION
+            case 8: a["pos"] = ( 11200, 7745, -564 );  a["ang"] = ( 0, -108, 0 ); break;   // AK74U
+            case 9: a["pos"] = ( 10600, 8272, -400 );  a["ang"] = ( 0, -108, 0 ); break;   // WAREHOUSE
+            default: return undefined;
+        }
+
+        return a;
+    }
+
+    if ( level.script == "zm_prison" )
+    {
+        switch ( n )
+        {
+            case 1: a["pos"] = ( 3309, 9329, 1336 );   a["ang"] = ( 0, 131, 0 ); break;    // CAFETERIA
+            case 2: a["pos"] = ( -1771, 5401, -71 );   a["ang"] = ( 0, 0, 0 );   break;    // CAGE
+            case 3: a["pos"] = ( -1042, 9489, 1350 );  a["ang"] = ( 0, -43, 0 ); break;    // WARDEN'S OFFICE
+            case 4: a["pos"] = ( 25, 8762, 1128 );     a["ang"] = ( 0, 0, 0 );   break;    // DOUBLE TAP
+            default: return undefined;
+        }
+
+        return a;
+    }
+
+    if ( level.script == "zm_highrise" )
+    {
+        switch ( n )
+        {
+            case 1: a["pos"] = ( 3805, 1920, 2197 );   a["ang"] = ( 0, -161, 0 ); break;   // SHAFT
+            case 2: a["pos"] = ( 2159, 1161, 3070 );   a["ang"] = ( 0, 135, 0 );  break;   // TRAMPLESTEAM
+            default: return undefined;
+        }
+
+        return a;
+    }
+
+    if ( level.script == "zm_buried" )
+    {
+        switch ( n )
+        {
+            case 1: a["pos"] = ( 553, -1214, 56 );     a["ang"] = ( 0, -50, 0 ); break;    // SALOON
+            case 2: a["pos"] = ( -660, 1030, 8 );      a["ang"] = ( 0, -90, 0 ); break;    // JUGGERNOG
+            case 3: a["pos"] = ( -483, 293, 423 );     a["ang"] = ( 0, -40, 0 ); break;    // TUNNEL
+            default: return undefined;
+        }
+
+        return a;
+    }
+
+    if ( level.script == "zm_tomb" )
+    {
+        switch ( n )
+        {
+            case 1: a["pos"] = ( 1878, -1358, 150 );   a["ang"] = ( 0, 140, 0 );  break;   // CHURCH
+            case 2: a["pos"] = ( 10335, -7902, -411 ); a["ang"] = ( 0, 140, 0 );  break;   // CRAZY PLACE
+            case 3: a["pos"] = ( 2340, 4978, -303 );   a["ang"] = ( 0, -132, 0 ); break;   // GENERATOR 1
+            case 4: a["pos"] = ( 469, 4788, -285 );    a["ang"] = ( 0, -134, 0 ); break;   // GENERATOR 2
+            case 5: a["pos"] = ( 740, 2123, -125 );    a["ang"] = ( 0, 135, 0 );  break;   // GENERATOR 3
+            case 6: a["pos"] = ( 2337, -170, 140 );    a["ang"] = ( 0, 90, 0 );   break;   // GENERATOR 4
+            case 7: a["pos"] = ( -2830, -21, 238 );    a["ang"] = ( 0, 40, 0 );   break;   // GENERATOR 5
+            case 8: a["pos"] = ( 732, -3923, 300 );    a["ang"] = ( 0, 50, 0 );   break;   // GENERATOR 6
+            case 9:
+                //  📝 level.vh_tank is a level VARIABLE, not a function
+                //  reference, so reading it from this root script is safe - it
+                //  is not the AI_CONTEXT rule-2 load-time trap. Guarded anyway:
+                //  before the tank exists there is nothing to ride.
+                if ( !isdefined( level.vh_tank ) )
+                    return undefined;
+
+                a["pos"] = level.vh_tank.origin + ( 0, 0, 50 );
+                a["ang"] = level.vh_tank.angles;
+                break;                                                                    // TANK
+            default: return undefined;
+        }
+
+        return a;
+    }
+
+    return undefined;
 }
