@@ -6,10 +6,19 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 (2026-08-16) for a plain list with no other differentiation.
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **89** · mod version **1.99.93**
+- SYNCED TO: checkpoint **90** · mod version **1.99.95**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
+- 🛑 **WAITING ON THE USER: a pre-patch `zm_highrise_patch.ff`** — the SLIQUIFIER PRE-NERF row is
+  blocked on it and on nothing else. Die Rise's gameplay scripts ship in **that one file** (the base
+  `zm_highrise.ff` holds 37 aitype client scripts and no gameplay GSC), and Steam keeps it at the
+  final TU, so the launch Sliquifier script exists nowhere on this machine or in the workspace. Any
+  early-2013 copy of that file - a console DLC dump, a pre-2013 PC backup - and the port is exact.
+  The user said 2026-08-20 they will look for one. Until then: no row, no reconstruction.
+- ✅ **RECOIL PRE-NERF IS DONE AND IS NOT A TOGGLE (v1.99.95)** - the mod already shipped launch
+  weapon defs for 12 of the 16 patched defs; the DSR 50 and Five-Seven were added to finish the set.
+  Measured by diffing `<map>.ff` against `<map>_patch.ff` field by field. See checkpoint 90.
 - 🛑 **BUILT, AWAITING THE USER'S BOOT: v1.99.93** — the PATCHES tab (BACKSPEED + ANIMATED CAMO moved
   off GAME, plus REMOVE ROUND CAP / 24 ZOMBIE SOLO CAP / INSTAKILL ROUNDS / DOUBLE TAP 1.0 / NO
   BARRIER ATTACKS), and SET POINTS + TELEPORT on CHEATS. **TWO ROWS THE USER ASKED FOR WERE HELD
