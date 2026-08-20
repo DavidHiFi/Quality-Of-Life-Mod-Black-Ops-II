@@ -594,9 +594,11 @@ act_update() {
   local tmp="${TMPDIR:-/tmp}/zm_qol_installer"; mkdir -p "$tmp"
   fetch "$url" "$tmp/mod.zip" || { say "Download failed." "$RD"; pause_key; return; }
   rm -rf "$tmp/unpack"; unpack "$tmp/mod.zip" "$tmp/unpack"
-  local src="$tmp/unpack"
-  [ -f "$tmp/unpack/$MODID/mod.json" ] && src="$tmp/unpack/$MODID"
-  [ -f "$src/mod.json" ] || { say "That download did not contain the mod." "$RD"; pause_key; return; }
+  # The release zip is a whole package now, so mod.json sits several folders
+  # deep. Find it wherever it is rather than guessing at a layout.
+  local found; found="$(find "$tmp/unpack" -type f -name mod.json | head -1)"
+  [ -n "$found" ] || { say "That download did not contain the mod." "$RD"; pause_key; return; }
+  local src; src="$(dirname "$found")"
   mkdir -p "$MODDIR"
   local f
   for f in "${MOD_FILES[@]}"; do

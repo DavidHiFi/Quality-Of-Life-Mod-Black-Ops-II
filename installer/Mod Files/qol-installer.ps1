@@ -782,9 +782,12 @@ function Act-CheckUpdate {
     New-Item -ItemType Directory -Force -Path $out | Out-Null
     Say 'Unpacking ...' $C.Text
     Expand-Archive -LiteralPath $zip -DestinationPath $out -Force
-    $srcDir = $out
-    if (Test-Path (Join-Path $out "$MODID\mod.json")) { $srcDir = Join-Path $out $MODID }
-    if (-not (Test-Path (Join-Path $srcDir 'mod.json'))) { Say 'That download did not contain the mod.' $C.Bad; Pause-Key; return }
+    # The release zip is a whole package now, so mod.json sits several folders
+    # deep (Quality Of Life Mod T6 ZM x.y.z\Mod Files\zm_qol\). Find it wherever
+    # it is rather than guessing at a layout.
+    $found = Get-ChildItem -LiteralPath $out -Recurse -File -Filter 'mod.json' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $found) { Say 'That download did not contain the mod.' $C.Bad; Pause-Key; return }
+    $srcDir = $found.DirectoryName
 
     foreach ($f in $MODFILES) {
         if (-not (Test-Path (Join-Path $srcDir $f))) { Say "Incomplete download - missing $f" $C.Bad; Pause-Key; return }

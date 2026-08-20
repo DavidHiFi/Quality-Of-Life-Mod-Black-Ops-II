@@ -1,0 +1,10 @@
+﻿14:54:33  info   --- installer started (dryrun=False) ---
+14:54:33  info   Asking GitHub ...
+14:54:34  info   Downloading Quality.Of.Life.Mod.T6.ZM.2.0.0.zip (146 MB) ...
+14:54:49  info   Unpacking ...
+14:54:53  info   mod.ff
+14:54:53  info   mod.iwd
+14:54:53  info   mod.json
+14:54:53  info   mod.all.sabl
+14:54:53  info   mod.all.sabs
+14:54:53  info   ✅  v2.0.0 installed. Your settings were kept.
