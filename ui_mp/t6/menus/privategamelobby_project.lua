@@ -300,7 +300,26 @@ CoD.PrivateGameLobby.Dvars[1].values[2] = 1
 --  📝 12 is Black Ops II's real perk count and the highest fixed choice here.
 --  A map that somehow offers more is still reachable through MAP MAX; the
 --  server clamps a chosen number DOWN to what the map has, never up.
-CoD.PrivateGameLobby.DvarDefaults["perk_limit"] = 0
+--  🌟 v1.99.94 - THE DEFAULT HERE IS 4, NOT 0, AND THAT IS THE RED CROSS. User,
+--  2026-08-20: *"Make it so that MAP MAX option for perk limit in the pre-game
+--  menu lobby screen also has an x to the left of it as this isn't stock/default
+--  behaviour and is modified from the vanilla state of the perks limit."*
+--
+--  🛑 THIS TABLE NEVER WRITES A DVAR - it is COSMETIC ONLY, and that is measured,
+--  not assumed. `CoD.PrivateGameLobby.DvarDefaults` is read in exactly one place
+--  in the whole of Plutonium's raw LUI: dvarleftrightselector.lua:6, inside
+--  DvarSelectorSetDvarFunc, purely to decide `showStarIcon( value ~= default )`.
+--  The dvar itself is created by quality_of_life.gsc:683 with `create_dvar(
+--  "perk_limit", 0 )` and read at :3251 with getdvarintdefault( "perk_limit", 0 ),
+--  so MAP MAX remains the shipping behaviour and nothing about the match changes.
+--
+--  🌟 WHY 4. Stock BO2's limit is `level.perk_purchase_limit = 4`
+--  ( _zm_perks.gsc:23 ) on every map - Origins' dig easter egg raises it per
+--  player afterwards ( zm_tomb_dig.gsc:619-633 ), it does not change the base.
+--  So 4 is the one choice on this row that IS vanilla: pick it and the cross
+--  clears, and every other choice - MAP MAX included - is marked as modified,
+--  which is exactly what the row does for CHARACTER and MACHINE DROPS.
+CoD.PrivateGameLobby.DvarDefaults["perk_limit"] = 4
 CoD.PrivateGameLobby.Dvars[2] = {}
 CoD.PrivateGameLobby.Dvars[2].id = "perk_limit"
 CoD.PrivateGameLobby.Dvars[2].name = "PERK LIMIT"
