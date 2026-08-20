@@ -674,6 +674,13 @@ move_marathon_origins()
 //  wall buy uses. ( The name Remix's own commented-out Buried line reaches for,
 //  t6_wpn_grenade_sticky_grenade_world, exists in NO zombies fastfile at all -
 //  that line would have failed. ) So this ships the real semtex model.
+//  CONFIRMED A SECOND WAY, from the weapon def itself: stock's own wall-buy
+//  placer ( _zm_weapons.gsc:1025 ) picks its model with
+//  `getweaponmodel( weapon )`, which returns the def's worldModel field. The
+//  shipped def for sticky_grenade_zm ( T6-Data-Archive ZM/Weapons/WEAPONS )
+//  has worldModel = t6_wpn_grenade_semtex_world - byte-for-byte the literal
+//  below. The literal is kept because precachemodel() needs a name at init
+//  anyway, and it is now the game's own answer, not a choice.
 // ============================================================================
 
 // ----------------------------------------------------------------------------

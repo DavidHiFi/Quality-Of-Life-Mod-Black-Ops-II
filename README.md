@@ -76,7 +76,7 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   CIA showed a CDC badge — in stock too, whenever its random roll picked CIA.
 
 **HUD and menus**
-- **GAME / PATCHES / HUD / CHEATS tabs** in the pause menu: Options → Settings. 45 rows, so you never
+- **GAME / PATCHES / HUD / CHEATS tabs** in the pause menu: Options → Settings. 47 rows, so you never
   have to type a chat command.
 - **Three new rows on the zombies pause menu itself**: **RESTART GAME** (stock's own confirm
   popup and `fast_restart`, re-connected — Plutonium's UI had dropped the button), **INSTANT
@@ -131,9 +131,10 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   cap back), **24 ZOMBIE SOLO CAP**, **INSTAKILL ROUNDS** (zombie health wraps at round 163 again,
   so one bullet kills), **DOUBLE TAP 1.0** (fire rate only, no second bullet) and **NO BARRIER
   ATTACKS**. Every one is live and reversible mid-match, and off is exactly what the game does now.
-  Two more that were asked for are **deliberately not here** — the Sliquifier and weapon-recoil
-  pre-nerfs — because on this build the switches for them provably do nothing or the opposite of
-  their label; the reasoning is in the source next to the tab.
+  Two more that were asked for at the same time are handled elsewhere: the **Sliquifier pre-nerf**
+  now has its own switch further down (a correct implementation turned up in v1.99.96 — the legacy
+  one did the opposite of its label), and the weapon-recoil pre-nerf has no switch at all because
+  recoil lives in the weapon file, which nothing can change mid-match.
   **New in v1.99.93 — deployed, not yet confirmed in game.**
 - **SET POINTS and TELEPORT on the CHEATS tab** — set your points to 1000 / 5000 / 10000 / 100000 /
   1000000, or back down again (it *sets*, so a lower pick takes points away), and jump to a landmark
@@ -151,6 +152,18 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   and there cannot be one: recoil lives in the weapon file, and nothing in the game can change a
   weapon file while a match is running.
   **New in v1.99.95 — deployed, not yet confirmed in game.**
+- **Die Rise: SLIQUIFIER PRE-NERF and SEMTEX WALL BUY** (two PATCHES-tab switches, both off by
+  default, both Die Rise only). The Sliquifier one restores the three things the patch took away, as
+  one switch: it **kills to round 255** instead of stopping at 100, it **keeps chaining while you have
+  another gun out**, and it **stops dropping extra goo** under every chained corpse (the pool where
+  your own bolt lands still appears, as it always did). It is live and reversible mid-match, and off
+  restores the values the game itself set, cached before anything is written. The Semtex one adds the
+  **Semtex wall buy** the map was built for — 250 points, and it is the only source of Semtex on Die
+  Rise because the game already keeps that grenade out of the box. It is placed at map start, so it
+  appears from the next map load. Ported from BO2-Remix, with one deliberate difference: Remix draws
+  that wall buy with a **claymore** model; this uses the real semtex world model, which is the model
+  the weapon's own file names.
+  **New in v1.99.96 — deployed, not yet confirmed in game.**
 - **The Awful Lawton** (Pack-a-Punched crossbow) — its explosive bolts draw zombies to where they
   stick, like a monkey bomb, as in BO1. Upgraded only; the box crossbow is unchanged.
   **New in v1.99.39 — confirmed in game.**
