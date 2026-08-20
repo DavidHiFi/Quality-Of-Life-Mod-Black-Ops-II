@@ -8695,3 +8695,103 @@ all, in which case the row says *"takes effect from the next map start"*, as SEM
 
 The mod already has `zm_transit`, `zm_highrise` and `zm_buried` per-map scripts, so no new file is
 needed and AI_CONTEXT rule 2 is satisfied by construction.
+
+---
+
+## Item 35 — CLARIFIED by the user, 2026-08-20
+
+> *"By on I mean exactly that, so having the Perma-Perks set to enabled in the GAME tab in the
+> settings for my mod would enable all perma perks, and disabled would use stock/base game perma
+> perks with normal progression, simple on or off for that."*
+
+So the switch is **not** an on/off for the feature — it is an on/off for *earning* them:
+
+| row | behaviour |
+|---|---|
+| **ENABLED** | every perma-perk the map has is **active immediately**, no challenge progress needed |
+| **DISABLED** | stock. The perma-perks work exactly as the base game does, earned through their own challenges |
+
+DISABLED is therefore vanilla and must be the default. Scope is unchanged and already measured: 13
+persistent upgrades on TranZit and Die Rise, 14 on Buried (it alone has Perma-PhD), nothing on Mob,
+Origins or Nuketown, and all of it inside `is_classic()`.
+
+📝 **Still to measure before building:** granting one is not the same as setting its `level` flag —
+`_zm_pers_upgrades` tracks per-player stat progress, so "on" has to reach whatever the system reads
+when it decides a player has earned an upgrade. Read `_zm_pers_upgrades.gsc` and
+`_zm_pers_upgrades_system.gsc` and find that read; do not assume the level flags are enough.
+
+---
+
+## THE INSTALLER — BUILT 2026-08-20, awaiting the user's own test
+
+Queued at checkpoint 92 §5 item 5, then **brought forward at the user's explicit request** (they had
+just emptied their Plutonium `images\` folder and deleted the three `zone\` sound files and asked
+where the install script was). It had never been started; that was said plainly rather than dressed
+up.
+
+**`installer\Install Quality Of Life.bat`** — one file, no admin, nothing left running afterwards,
+six plain yes/no questions:
+
+1. check GitHub for a newer release (downloads and installs it — and **refuses to downgrade**
+   without an explicit extra yes)
+2. install / update the mod
+3. clean install (remove the old mod files first)
+4. HD texture pack → the player's `storage\t6\images\`, with the overwrite warning
+5. custom sound pack → the player's `storage\t6\zone\`, with the replace warning
+6. ReShade → `Plutonium\bin\`, BO2.ini applied as the default preset
+
+**`installer\reshade\`** — 19 files, 17 MB, and every one of them is needed:
+- `dxgi.dll` — ReShade 6.7.3 32-bit, the **standard** build. Byte-identical to the `ReShade32.dll`
+  in the user's own vault and to the copy running in their `bin` today.
+- `BO2.ini` — a byte copy of the preset they actually play with; not edited, so the look is theirs.
+- `ReShade.ini` — written fresh: search paths, `PresetPath=.\BO2.ini`, overlay on HOME. None of the
+  personal paths (`G:\ReShade\Plutonium`), window layout or other games' presets.
+- 13 shader files + 4 textures — resolved from BO2.ini's six enabled techniques by walking every
+  `#include` transitively. The full library is 857 files / 128 MB; ReShade compiles **all** of them
+  at startup, so the trim is also a faster load.
+
+**Everything dropped was proven inert, not assumed to be:** the eight `.addon32` files are skipped
+by this build — `ReShade.log1` says *"Skipped loading add-on ... because this build of ReShade has
+only limited add-on functionality"* for every one. The other games' presets (BO1, WaW, MW3) and the
+three 2,200-line launcher scripts are not needed either.
+
+**Why there is no background watcher any more.** The original script kept a watchdog alive to
+restore files Plutonium might delete from `bin`. Measured: the `dxgi.dll` in that folder is dated
+**28 Feb 2026** and the Plutonium launcher and bootstrapper next to it are dated **7 Aug 2026** — so
+ReShade survived a Plutonium update untouched, and a one-shot copy is enough. The log agrees: 285
+"bin already up to date" against 123 full seeds, and no mid-session restores.
+
+### How it was verified before hand-off
+
+Every path was exercised against a **fake Plutonium tree** (`LOCALAPPDATA` redirected), so nothing on
+the real install was touched:
+
+- mod install — five files land, version reads back as 1.99.96
+- **leftover removal** — a planted `deathmachine_zm.all.sabl` is removed
+- 🛑 **logs survive** — a planted `games_mp.log` and `console_zm.log.003` are still there afterwards.
+  This one is a fix, not a pass: the first version emptied the whole folder, and the game writes its
+  logs into the mod folder. Per-mod settings were checked too and live somewhere else entirely
+  (`storage\t6\players\mods\zm_qol\plutonium_zm.cfg`), so they were never at risk.
+- texture pack — 1,018 files / 1.21 GB copied
+- sound pack — the 3 files copied
+- ReShade — 21 files in `bin`, `PresetPath=.\BO2.ini`, and an existing `ReShade.ini` preserved as
+  `ReShade.ini.backup` with its contents intact
+- update check — read v1.99.89 from the API, compared it against the installed version, said *"your
+  copy is NEWER"*, and on an older install downloaded the 154 MB zip, unpacked it and installed it
+- missing-payload path — says plainly that the pack is not published rather than failing
+
+Four real defects were found and fixed this way: LF line endings breaking `call :label`, a
+PowerShell one-liner whose `\"` escapes could not survive a `FOR /F` command line, `^|` reaching
+PowerShell literally, and an update check that would have happily installed an **older** release
+over a newer build.
+
+### 🛑 Not done, and it is the user's call
+
+The optional payloads are **1.21 GB of textures and 0.63 GB of sounds**. They cannot go in the mod
+zip. The installer already downloads them from the latest GitHub release, looking for assets named
+**`zm_qol-textures.zip`** and **`zm_qol-sounds.zip`** — those are not published yet, so today the
+packs only install when the folders are next to the script. Publishing them, or shipping a "full"
+zip instead, is a release decision, not a code change.
+
+📝 Licence note, stated once and left with the user: the package would redistribute ReShade (BSD-3)
+and third-party shader packs, each with its own licence.

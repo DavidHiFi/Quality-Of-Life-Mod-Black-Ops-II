@@ -10,6 +10,29 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 
 ## Install
 
+**The easy way — run the installer.** From **v1.99.96 onward** the release zip contains
+**`Install Quality Of Life.bat`** — the currently published release predates it, so that one is a
+manual install. Double-click the .bat and answer six plain yes/no questions. It needs no
+administrator rights, leaves nothing running in the background, and **never touches a single game
+file** — everything it writes lives under `%LOCALAPPDATA%\Plutonium`.
+
+It can:
+
+- install or update the mod, and remove files left behind by an older version;
+- check GitHub for a newer release and install that instead (it will not put an *older* release over
+  a newer build without asking twice);
+- install the optional **HD texture pack** into your Plutonium `images\` folder — *this overwrites
+  any custom textures you already have there*, and it says so before it does anything;
+- install the optional **custom sound pack** into your Plutonium `zone\` folder — *this replaces any
+  custom sounds you already have there*, same warning;
+- install **ReShade** with the mod's BO2 preset already applied. Press **Home** in game to open it.
+  Any `ReShade.ini` you already had is kept as `ReShade.ini.backup`.
+
+Your saved settings are never touched by any of this — Plutonium keeps them in
+`storage\t6\players\mods\zm_qol\`, not in the mod folder.
+
+**By hand, if you prefer:**
+
 1. Download the latest **[release](https://github.com/DavidHiFi/zm_qol/releases/latest)** zip.
 2. Extract it into `%LOCALAPPDATA%\Plutonium\storage\t6\mods\zm_qol\`
    (Linux/Wine: the same path inside your Plutonium prefix). All five files go in that folder.

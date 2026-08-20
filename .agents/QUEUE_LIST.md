@@ -10,6 +10,17 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
+- 🛑 **BUILT, AWAITING THE USER'S OWN TEST: THE INSTALLER** (`installer\Install Quality Of Life.bat`).
+  Brought forward 2026-08-20 at the user's explicit request, ahead of the queue, because they had
+  emptied their Plutonium `images\` folder and deleted the three `zone\` sound files. One .bat, no
+  admin, nothing left running: update check, mod install, clean install, texture pack, sound pack,
+  ReShade with the BO2 preset. Verified end to end against a **fake Plutonium tree** so the real
+  install was never touched. 🛑 **Their `games_mp.log` would have been deleted by the first version** —
+  the game writes its logs into the mod folder; the prune is now limited to the five mod extensions.
+  🛑 **STILL THE USER'S CALL:** the texture (1.21 GB) and sound (0.63 GB) packs are too big for the
+  mod zip. The installer downloads them from the latest release as `zm_qol-textures.zip` /
+  `zm_qol-sounds.zip`, which **are not published yet** — until they are, those two options only work
+  when the folders sit next to the script. Full write-up in `QUEUE.md`.
 - 🛑 **BUILT, AWAITING THE USER'S BOOT: v1.99.96 — THE DIE RISE WEAPONS BLOCK.** The user found
   BO2-Remix's Die Rise feature list 2026-08-20 and asked for all four of its *Weapons* entries:
   *Semtex wallbuy / Sliquifier kills till round 255 / Sliquifier continues to chain while put away /
@@ -219,13 +230,14 @@ user: which map, and roughly how far the barriers were.
     cash_back, insta_kill, jugg, carpenter, box_weapon, sniper, pistol_points, perk_lose,
     double_points, nube — and **Buried sets the same 13 plus `pers_upgrade_flopper`** (Perma-PhD),
     which is exactly the Buried-only case the user named. All three are wrapped in `is_classic()`,
-    so survival and grief never had them. 📝 **Two things to settle with the user before building:**
-    whether ON means *stock behaviour* (earn them through the challenges, which is the reading
-    taken here) or *granted immediately*, and what the default is. 📝 **The open technical question**
-    is where the OFF write lands: the flags are read by `_zm_pers_upgrades` at init, so clearing
-    them from the mod's per-map script has to happen before that read — to be measured against
-    `_zm_pers_upgrades.gsc` / `_zm_pers_upgrades_system.gsc`, not assumed. Three per-map scripts
-    already exist in the mod (`zm_transit`, `zm_highrise`, `zm_buried`), so no new file is needed.
+    so survival and grief never had them. ✅ **SETTLED by the user, 2026-08-20:** ENABLED means every
+    perma-perk the map has is **active immediately, with no challenge progress needed**; DISABLED is
+    stock, earned normally. DISABLED is therefore vanilla and is the default. 📝 **The open technical
+    question** is what "active immediately" has to write: `_zm_pers_upgrades` tracks per-player stat
+    progress, so setting the `level.pers_upgrade_*` flags is almost certainly not enough on its own.
+    Find the read that decides a player has earned one, in `_zm_pers_upgrades.gsc` /
+    `_zm_pers_upgrades_system.gsc` — measure it, do not assume. Three per-map scripts already exist
+    in the mod (`zm_transit`, `zm_highrise`, `zm_buried`), so no new file is needed.
 
 <!-- /LIST -->
 ---
