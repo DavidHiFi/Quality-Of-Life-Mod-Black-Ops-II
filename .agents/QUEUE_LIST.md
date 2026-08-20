@@ -6,7 +6,7 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 (2026-08-16) for a plain list with no other differentiation.
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **90** · mod version **1.99.95**
+- SYNCED TO: checkpoint **91** · mod version **1.99.95**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
