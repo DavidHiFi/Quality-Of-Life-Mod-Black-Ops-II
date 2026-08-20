@@ -72,7 +72,7 @@ It finds your Wine prefix on its own, and does everything the Windows version do
 | 🔎 **Update check** | Pulls the newest release from GitHub. Won't put an older release over a newer build without asking twice. |
 | 🖼️ **HD texture pack** | Optional. Backs up your current textures first if you want. |
 | 🔊 **Custom sound pack** | Optional. Same backup offer. |
-| 🌈 **ReShade** | Optional, with the mod's BO2 preset ready to go. **Home** opens it in game. |
+| 🌈 **ReShade** | Optional, with the mod's BO2 preset and overlay theme ready to go. **End** opens it in game. |
 | 🧹 **Remove any of it** | One piece at a time. Only deletes what the installer put there, and offers your backup back. |
 
 The texture and sound packs are separate downloads on the [release page](https://github.com/DavidHiFi/zm_qol/releases/latest) because of their size — the installer fetches whichever you say yes to.

@@ -387,6 +387,53 @@ act_pack() {
   pause_key
 }
 
+keep_ini_value() {
+  # Read one key from the live ReShade.ini, falling back to the .backup, and
+  # echo it only if it is non-empty and not the shipped placeholder. Lets a
+  # user who already had ReShade keep their own screenshot folder and font
+  # while still picking up this mod's overlay theme and key binds.
+  local key="$1" f v
+  for f in "$BINDIR/ReShade.ini" "$BINDIR/ReShade.ini.backup"; do
+    [ -f "$f" ] || continue
+    v="$(sed -n "s|^${key}=||p" "$f" | head -n 1)"
+    if [ -n "$v" ] && [ "$v" != '.\reshade-screenshots' ]; then printf '%s' "$v"; return 0; fi
+  done
+  return 0
+}
+
+set_ini_value() {
+  local key="$1" val="$2" ini="$BINDIR/ReShade.ini" tmp
+  [ -f "$ini" ] || return 0
+  [ "$DRYRUN" -eq 0 ] || return 0
+  tmp="$ini.tmp$$"
+  awk -v k="$key" -v v="$val" 'index($0, k "=")==1 { print k "=" v; next } { print }' "$ini" > "$tmp" && mv -f "$tmp" "$ini"
+}
+
+set_reshade_font() {
+  # The shipped ReShade.ini leaves Font= and EditorFont= EMPTY on purpose: the
+  # font it was authored with (JetBrains Mono Nerd Font) is a separate
+  # third-party download and is not redistributed here. Fill the two lines in
+  # only if the file is genuinely there, and write a WINDOWS path, because it
+  # is Wine's ReShade that reads it. Not found is not a failure - ReShade uses
+  # its own built-in font and every other part of the look is already set.
+  local ini="$BINDIR/ReShade.ini"
+  [ -f "$ini" ] || return 0
+  local name="JetBrainsMonoNerdFont-Regular.ttf"
+  local dc="${PLUTO%%/drive_c/*}/drive_c"
+  local win=""
+  if [ -f "$dc/windows/Fonts/$name" ]; then
+    win="C:\\windows\\Fonts\\$name"
+  fi
+  if [ -z "$win" ]; then
+    say "Font not in the prefix - ReShade will use its own. Everything else is set." "$DIM"
+    return 0
+  fi
+  if [ "$DRYRUN" -ne 0 ]; then say "Would point the UI font at $win" "$DIM"; return 0; fi
+  local tmp="$ini.tmp$$"
+  sed -e "s|^Font=$|Font=$win|" -e "s|^EditorFont=$|EditorFont=$win|" "$ini" > "$tmp" && mv -f "$tmp" "$ini"
+  say "UI font found and set." "$DIM"
+}
+
 act_reshade() {
   local src
   src="$(find_payload reshade)" || {
@@ -400,7 +447,7 @@ act_reshade() {
   MENU_SECTIONS=("" "")
   menu "ReShade" \
     "ReShade adds a sharpening / colour pass on top of the game, with this" \
-    "mod's own BO2 preset already applied. Press HOME in game to open it." "" \
+    "mod's own BO2 preset already applied. Press END in game to open it." "" \
     "~Goes to:  $BINDIR" "" \
     "!⚠️   ON LINUX THIS NEEDS ONE EXTRA STEP" \
     "~     Wine has to be told to load dxgi.dll. After installing, launch" \
@@ -411,15 +458,26 @@ act_reshade() {
   case "$MENU_RESULT" in ""|back) return ;; esac
 
   header "ReShade"
+  local keep_shots keep_font
+  keep_shots="$(keep_ini_value SavePath)"
+  keep_font="$(keep_ini_value Font)"
   local f
+  # NEVER overwrite a .backup that already exists - installing twice used to
+  # copy the config THIS INSTALLER wrote over the only copy of the original.
   for f in ReShade.ini BO2.ini; do
     if [ -f "$BINDIR/$f" ]; then
-      [ "$DRYRUN" -eq 0 ] && cp -f "$BINDIR/$f" "$BINDIR/$f.backup"
-      say "Your $f was saved as $f.backup" "$DIM"
+      if [ -f "$BINDIR/$f.backup" ]; then
+        say "Your original $f.backup is already saved - left untouched." "$DIM"
+      else
+        [ "$DRYRUN" -eq 0 ] && cp -f "$BINDIR/$f" "$BINDIR/$f.backup"
+        say "Your $f was saved as $f.backup" "$DIM"
+      fi
     fi
   done
   if copy_tree "$src" "$BINDIR"; then
     write_manifest reshade "$src"
+    if [ -n "$keep_shots" ]; then set_ini_value SavePath "$keep_shots"; say "Kept your screenshot folder: $keep_shots" "$DIM"; fi
+    if [ -n "$keep_font" ]; then set_ini_value Font "$keep_font"; set_ini_value EditorFont "$keep_font"; say "Kept your overlay font." "$DIM"; else set_reshade_font; fi
     printf '\n'
     say "✅  ReShade installed." "$GN"
     say "Remember the WINEDLLOVERRIDES line above, or it will not load." "$YE"

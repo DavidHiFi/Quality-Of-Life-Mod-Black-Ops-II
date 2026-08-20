@@ -537,6 +537,79 @@ function Act-InstallSounds {
     Pause-Key
 }
 
+# ---------------------------------------------------------------------------
+#  The shipped ReShade.ini is the author's own config with two font lines left
+#  EMPTY on purpose. The font it names (JetBrains Mono Nerd Font) is a separate
+#  third-party download and is not redistributed here, so the path cannot be
+#  hard-coded - it differs per machine and on most machines does not exist.
+#
+#  So: look for it, and only write the two lines if the file is really there.
+#  Not found is not a failure - ReShade falls back to its own built-in font and
+#  every other part of the look (the colours, the 12px rounding, the key binds)
+#  is already in the file. Nothing else in the config depends on this.
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+#  Read one key out of a ReShade .ini, first from the live file and then from
+#  the .backup, and return it only if it is non-empty. Used to carry a user's
+#  own machine-specific values across an install instead of stomping them.
+#  🛑 SavePath is the one that matters: the shipped file says
+#  ".\reshade-screenshots" because a hard-coded drive letter is meaningless on
+#  anyone else's PC - but somebody who already had ReShade pointed their
+#  screenshots somewhere deliberately, and this mod has no business moving them.
+#  (AddonPath and IntermediateCachePath are deliberately NOT carried: measured
+#  on the author's own config, both held exactly ReShade's own defaults - the
+#  module folder and %TEMP%\ReShade - just written out in full.)
+# ---------------------------------------------------------------------------
+function Get-IniValue {
+    param([string] $Key)
+    foreach ($f in @((Join-Path $BINDIR 'ReShade.ini'), (Join-Path $BINDIR 'ReShade.ini.backup'))) {
+        if (-not (Test-Path -LiteralPath $f)) { continue }
+        foreach ($l in [System.IO.File]::ReadAllLines($f)) {
+            if ($l -like "$Key=*") {
+                $v = $l.Substring($Key.Length + 1)
+                if ($v -and $v.Trim() -ne '' -and $v -ne '.\reshade-screenshots') { return $v }
+            }
+        }
+    }
+    return $null
+}
+
+function Set-ReShadeValue {
+    param([string] $Key, [string] $Value)
+    $ini = Join-Path $BINDIR 'ReShade.ini'
+    if (-not (Test-Path -LiteralPath $ini) -or $DryRun) { return }
+    $lines = [System.IO.File]::ReadAllLines($ini)
+    for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -like "$Key=*") { $lines[$i] = "$Key=$Value" } }
+    [System.IO.File]::WriteAllLines($ini, $lines, (New-Object System.Text.UTF8Encoding($false)))
+}
+
+function Set-ReShadeFont {
+    param([string] $PayloadDir)
+    $ini = Join-Path $BINDIR 'ReShade.ini'
+    if (-not (Test-Path -LiteralPath $ini)) { return }
+    $name = 'JetBrainsMonoNerdFont-Regular.ttf'
+    $candidates = @(
+        (Join-Path $PayloadDir "fonts\$name"),
+        (Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts\$name"),
+        (Join-Path $env:WINDIR "Fonts\$name")
+    )
+    $font = $null
+    foreach ($c in $candidates) { if ($c -and (Test-Path -LiteralPath $c)) { $font = (Resolve-Path -LiteralPath $c).Path; break } }
+    if (-not $font) {
+        Say "Font not on this PC - ReShade will use its own. Everything else is set." $C.Dim
+        return
+    }
+    if ($DryRun) { Say "Would point the UI font at $font" $C.Dim; return }
+    $lines = [System.IO.File]::ReadAllLines($ini)
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -eq 'Font=')       { $lines[$i] = "Font=$font" }
+        if ($lines[$i] -eq 'EditorFont=') { $lines[$i] = "EditorFont=$font" }
+    }
+    [System.IO.File]::WriteAllLines($ini, $lines, (New-Object System.Text.UTF8Encoding($false)))
+    Say "UI font found and set." $C.Dim
+    Write-Log "reshade font: $font"
+}
+
 function Act-InstallReShade {
     param([int] $Pick = -1)
     $src = Find-Payload 'reshade'
@@ -547,7 +620,11 @@ function Act-InstallReShade {
     }
     $intro = @(
         "ReShade adds a sharpening / colour pass on top of the game, with this",
-        "mod's own BO2 preset already applied. Press HOME in game to open it.",
+        "mod's own BO2 preset already applied. Press END in game to open it.",
+        '',
+        "~It also sets up the overlay the way the mod uses it: the dark blue",
+        "~theme, rounded corners, and the extra keys - Ctrl+Shift+O for the FPS",
+        "~counter, Ctrl+Shift+PgUp / PgDn to step through presets.",
         '',
         "~Goes to:  $BINDIR",
         "~Nothing is left running in the background.",
@@ -564,16 +641,31 @@ function Act-InstallReShade {
 
     Draw-Header 'ReShade'
     Write-Log 'action: install reshade'
+    # Remember the values that belong to THIS PC before the copy replaces them.
+    $keepShots = Get-IniValue 'SavePath'
+    $keepFont  = Get-IniValue 'Font'
+
+    # 🛑 NEVER overwrite a .backup that already exists. Installing twice used to
+    #    copy the config THIS INSTALLER wrote over the top of the .backup, which
+    #    destroyed the only copy of the user's original settings. The first
+    #    backup is the real one; a later run must leave it alone.
     foreach ($f in @('ReShade.ini','BO2.ini')) {
         $p = Join-Path $BINDIR $f
         if (Test-Path $p) {
-            if (-not $DryRun) { Copy-Item -LiteralPath $p -Destination "$p.backup" -Force }
-            Say "Your $f was saved as $f.backup" $C.Dim
+            if (Test-Path "$p.backup") {
+                Say "Your original $f.backup is already saved - left untouched." $C.Dim
+            } else {
+                if (-not $DryRun) { Copy-Item -LiteralPath $p -Destination "$p.backup" -Force }
+                Say "Your $f was saved as $f.backup" $C.Dim
+            }
         }
     }
     if (Copy-Payload $src $BINDIR 'reshade') {
+        if ($keepShots) { Set-ReShadeValue 'SavePath' $keepShots; Say "Kept your screenshot folder: $keepShots" $C.Dim }
+        if ($keepFont)  { Set-ReShadeValue 'Font' $keepFont; Set-ReShadeValue 'EditorFont' $keepFont; Say "Kept your overlay font." $C.Dim }
+        else            { Set-ReShadeFont $src }
         Write-Host ''
-        Say "✅  ReShade installed. Press HOME in game to open it." $C.Good
+        Say "✅  ReShade installed. Press END in game to open it." $C.Good
     }
     Pause-Key
 }
