@@ -6,11 +6,18 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 (2026-08-16) for a plain list with no other differentiation.
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **92** · mod version **1.99.96**
+- SYNCED TO: checkpoint **93** · mod version **2.0.0**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- 🛑 **BUILT, AWAITING THE USER'S OWN TEST: THE INSTALLER** (`installer\Install Quality Of Life.bat`).
+- ✅ **v2.0.0 RELEASED 2026-08-20 — the installer package.** The user's call on the version number:
+  *"this is a big deal for a release/version for the mod, the full mod package with all the options
+  on a user friendly script."* One arrow-key menu (Windows `.bat` → PowerShell, plus a Linux `.sh`),
+  install/remove each part separately, backups of the player's own textures and sounds before
+  overwriting, and an update that keeps their menu settings. Package layout and the full evidence
+  are in `checkpoint_93.md`. 🌟 **`^3` in `mod.json` is a COLOUR CODE** — `"^32.0.0"` is `^3` + the
+  version, exactly as `"name"` carries `^5`.
+- ✅ **SHIPPED IN v2.0.0: THE INSTALLER** (`Windows Install.bat`, plus `Linux Install\install-quality-of-life.sh`).
   Brought forward 2026-08-20 at the user's explicit request, ahead of the queue, because they had
   emptied their Plutonium `images\` folder and deleted the three `zone\` sound files. One .bat, no
   admin, nothing left running: update check, mod install, clean install, texture pack, sound pack,

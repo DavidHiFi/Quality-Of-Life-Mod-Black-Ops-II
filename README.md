@@ -10,9 +10,8 @@ quality-of-life fixes — all toggleable from an in-game options menu.
 
 ## Install
 
-**The easy way — run the installer.** From **v1.99.96 onward** the release zip contains
-**`Install Quality Of Life.bat`** — the currently published release predates it, so that one is a
-manual install. Double-click it and you get a small menu: move with the **arrow keys**, choose with
+**The easy way — run the installer.** From **v2.0.0** the release is a complete package: unzip it and
+double-click **`Windows Install.bat`**. You get a menu — move with the **arrow keys**, choose with
 **ENTER**, quit with **Q**. Nothing needs administrator rights, nothing is left running afterwards,
 and **no game file is ever touched** — everything it writes lives under `%LOCALAPPDATA%\Plutonium`.
 
@@ -40,9 +39,24 @@ finds your Wine prefix on its own. Its `README.txt` covers the one extra step Re
 **By hand, if you prefer:**
 
 1. Download the latest **[release](https://github.com/DavidHiFi/zm_qol/releases/latest)** zip.
-2. Extract it into `%LOCALAPPDATA%\Plutonium\storage\t6\mods\zm_qol\`
-   (Linux/Wine: the same path inside your Plutonium prefix). All five files go in that folder.
+2. Copy the `zm_qol` folder from inside **`Mod Files`** into
+   `%LOCALAPPDATA%\Plutonium\storage\t6\mods\` (Linux/Wine: the same path inside your Plutonium
+   prefix). All five files go in that one folder.
 3. Launch Plutonium T6 → **Zombies → Mods → `Quality Of Life`**.
+
+**What is in the download**
+
+```
+Quality Of Life Mod T6 ZM 2.0.0\
+   Windows Install.bat      <- double-click this
+   README.txt
+   Linux Install\           <- the same installer for Wine / Proton
+   Mod Files\               <- the mod, ReShade, and the installer itself
+```
+
+The optional **HD texture pack** and **custom sound pack** are separate downloads on the same
+release page (`zm_qol-textures.zip`, `zm_qol-sounds.zip`) because of their size — the installer
+fetches whichever you say yes to, or picks them up if you have already downloaded them next to it.
 
 > Cloning the repo does **not** give you a playable mod — `mod.iwd` is not tracked in git.
 > Use the release.

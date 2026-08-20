@@ -210,7 +210,7 @@ function Pause-Key {
 
 # -------------------------------------------------------------- discovery ----
 function Find-ModSource {
-    foreach ($p in @((Join-Path $HERE $MODID), $HERE, (Split-Path -Parent $HERE))) {
+    foreach ($p in @((Join-Path $HERE $MODID), $HERE, (Split-Path -Parent $HERE), (Split-Path -Parent (Split-Path -Parent $HERE)))) {
         if ($p -and (Test-Path (Join-Path $p 'mod.json'))) { return (Resolve-Path $p).Path }
     }
     return $null
@@ -219,12 +219,15 @@ function Find-ModSource {
 function Find-Payload {
     param([string] $Name)
     $parent = Split-Path -Parent $HERE
+    $gran   = Split-Path -Parent $parent
     $cand = @(
+        (Join-Path $HERE       $Name),
         (Join-Path $HERE       "Optional\$Name"),
         (Join-Path $HERE       "Optionals\$Name"),
-        (Join-Path $HERE       $Name),
         (Join-Path $parent     "Optional\$Name"),
-        (Join-Path $parent     "Optionals\$Name")
+        (Join-Path $parent     "Optionals\$Name"),
+        (Join-Path $gran       "Optional\$Name"),
+        (Join-Path $gran       "Optionals\$Name")
     )
     foreach ($p in $cand) {
         if (Test-Path $p) {
@@ -243,8 +246,11 @@ function Get-ModVersion {
         $raw = Get-Content -LiteralPath $JsonPath -Raw
         $m = [regex]::Match($raw, '"version"\s*:\s*"([^"]+)"')
         if (-not $m.Success) { return $null }
-        $v = $m.Groups[1].Value.TrimStart('^')
-        if ($v -match '^31\.') { $v = $v.Substring(1) }
+        # Plutonium colour-codes these strings: "name" starts ^5, "version"
+        # starts ^3. Strip the caret AND the colour digit it carries - not just
+        # the caret, and never by special-casing one version number.
+        $v = $m.Groups[1].Value
+        if ($v -match '^\^\d') { $v = $v.Substring(2) }
         return $v
     } catch { return $null }
 }

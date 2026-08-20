@@ -124,7 +124,7 @@ BACKUPS="$STATE/backups"
 # ------------------------------------------------------------------- helpers -
 find_mod_source() {
   local p
-  for p in "$PKG/$MODID" "$PKG" "$HERE" "$PKG/.." "$PKG/../$MODID"; do
+  for p in "$PKG/Mod Files/$MODID" "$PKG/Mod Files" "$PKG/$MODID" "$PKG" "$HERE" "$PKG/.." "$PKG/../$MODID"; do
     [ -f "$p/mod.json" ] && { printf '%s\n' "$p"; return 0; }
   done
   return 1
@@ -132,7 +132,7 @@ find_mod_source() {
 
 find_payload() {
   local name="$1" p
-  for p in "$PKG/Optional/$name" "$PKG/Optionals/$name" "$PKG/$name" "$HERE/$name" "$PKG/../Optional/$name" "$PKG/../Optionals/$name"; do
+  for p in "$PKG/Mod Files/$name" "$PKG/Optional/$name" "$PKG/Optionals/$name" "$PKG/$name" "$HERE/$name" "$PKG/../Optional/$name" "$PKG/../Optionals/$name" "$PKG/../../Optional/$name" "$PKG/../../Optionals/$name"; do
     if [ -d "$p" ] && [ -n "$(ls -A "$p" 2>/dev/null)" ]; then printf '%s\n' "$p"; return 0; fi
   done
   return 1
@@ -144,8 +144,9 @@ mod_version() {
   local v
   v="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$f" | head -1)"
   [ -z "$v" ] && return 1
-  v="${v#^}"
-  case "$v" in 31.*) v="${v#3}" ;; esac
+  # Plutonium colour-codes these strings ("name" is ^5, "version" is ^3), so
+  # strip the caret AND the colour digit, never a specific version number.
+  case "$v" in ^[0-9]*) v="${v:2}" ;; esac
   printf '%s\n' "$v"
 }
 
