@@ -88,3 +88,32 @@ installer/Linux Install/installer.log
 
 # A 1.1 GB zip of Optionals\ - never belongs in git (GitHub rejects >100 MB files).
 Optionals.zip
+
+# ============================================================================
+#  Development notes and agent state — moved OUT of this folder 2026-08-20 at
+#  the user's request, to keep the repo to the mod's own source. They now live
+#  in the sibling folder  "Projects Sources\zm_qol - dev\"  and are NOT public:
+#      .agents\            checkpoints + QUEUE.md / QUEUE_LIST.md
+#      CLAUDE.md           working practice for this project
+#      AI_CONTEXT.md       GSC/T6 primer
+#      MOD_CATALOGUE.md    every change the mod makes
+#      STOCK_REFERENCE.md  vanilla BO2 behaviour reference
+#      ERROR_CATALOGUE.md  every error class hit, and its pre-flight check
+#      parsed\             gsc-tool parse output (build artifact)
+#      crashlogs\          logs pulled off the game
+#  🛑 NOTHING in the build reads any of them — verified by grep over every
+#  .bat/.ps1/.sh/.zone/.json/.gsc/.csc/.lua before the move: the only hits were
+#  GSC *comments* citing them by name. Re-adding them here would republish
+#  private notes, so they are ignored as well as gone.
+# ============================================================================
+.agents/
+CLAUDE.md
+AI_CONTEXT.md
+MOD_CATALOGUE.md
+STOCK_REFERENCE.md
+ERROR_CATALOGUE.md
+parsed/
+
+# The installer's own run log — it records local paths and the user's install
+# history. It is written next to qol-installer.ps1, which lives in Mod Files\.
+installer/Mod Files/installer.log

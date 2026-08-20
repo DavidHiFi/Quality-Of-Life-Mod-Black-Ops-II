@@ -14,7 +14,9 @@ REM ============================================================================
 setlocal
 
 set "SRC=%LOCALAPPDATA%\Plutonium\storage\t6\main\console_zm.log"
-set "DSTDIR=%~dp0crashlogs"
+REM  Crash logs are DEV data, not mod source, so they go to the sibling dev
+REM  folder and stay out of the repo (moved there 2026-08-20).
+set "DSTDIR=%~dp0..\zm_qol - dev\crashlogs"
 
 if not exist "%SRC%" (
     echo.
