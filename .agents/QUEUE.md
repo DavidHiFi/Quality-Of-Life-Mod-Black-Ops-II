@@ -8617,3 +8617,31 @@ look at that camo in game. If it still renders, the other 63 can follow in one g
 📝 The second half of the request — *"a cycle between them and the mod's own"* — cannot be a menu
 row for the same reason. Which `.iwi` wins is decided when the file system is searched, so the
 choice is an install-time one, not a runtime one.
+
+---
+
+## v1.99.96 — the Die Rise weapons block is BUILT (2026-08-20)
+
+All four of the BO2-Remix *Weapons* entries the user asked for on 2026-08-20 shipped in one build,
+as two PATCHES rows, both Die Rise only and both off by default:
+
+- **SLIQUIFIER PRE-NERF** (`sliquifier_prenerf`) — kills to round 255 (stock caps the damage curve at
+  round 100), keeps chaining while the gun is put away, and stops dropping extra goo under chained
+  corpses. Live and reversible mid-match; off restores the values the game itself set, cached before
+  anything is written.
+- **SEMTEX WALL BUY** (`semtex_wallbuy`) — 250 points, placed at map start, so it appears from the
+  next map load. It is the only source of Semtex on Die Rise: `zm_highrise.gsc:870`
+  `include_weapon( "sticky_grenade_zm", 0 )` already keeps it out of the box.
+
+Full evidence in `checkpoint_92.md` §4. The one thing left open by that checkpoint — whether to take
+the wall-buy model from `getweaponmodel()` instead of the literal — was settled by reading the
+shipped weapon def: `sticky_grenade_zm`'s `worldModel` field **is** `t6_wpn_grenade_semtex_world`,
+so the two are identical and the literal stays (it is also what `precachemodel()` needs at init).
+Remix draws this wall buy with `t6_wpn_claymore_world`, a claymore; this ships the real semtex.
+
+🛑 **Residual risk for the first boot:** the origin `( 2119, 1826, 3115 )` and angles `( 0, 270, 0 )`
+are Remix's, tuned against the claymore model. The semtex has a different pivot, so **check it sits
+flat on the wall.** A wrong angle is a numeric tweak, not a rethink.
+
+✅ This closes the long-standing *"waiting on a pre-patch `zm_highrise_patch.ff`"* blocker. The answer
+was never a pre-patch fastfile; it was a correct implementation, and Remix had one.

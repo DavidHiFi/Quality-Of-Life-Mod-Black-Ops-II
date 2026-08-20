@@ -6,17 +6,23 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 (2026-08-16) for a plain list with no other differentiation.
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **92** · mod version **1.99.95**
+- SYNCED TO: checkpoint **92** · mod version **1.99.96**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
-- 🛑 **IN FLIGHT, WRITTEN BUT NOT BUILT: THE DIE RISE WEAPONS BLOCK (checkpoint 92).** The user found
+- 🛑 **BUILT, AWAITING THE USER'S BOOT: v1.99.96 — THE DIE RISE WEAPONS BLOCK.** The user found
   BO2-Remix's Die Rise feature list 2026-08-20 and asked for all four of its *Weapons* entries:
   *Semtex wallbuy / Sliquifier kills till round 255 / Sliquifier continues to chain while put away /
-  Sliquifier no longer drops extra goo*. Three source files are edited and validated on disk;
-  `mod.json` is **still 1.99.95** and `build.bat` has **not** run. Resume at
-  `.agents\checkpoint_92.md` §3. 🌟 **This retires the SLIQUIFIER PRE-NERF blocker below** — the
-  answer was never a pre-patch fastfile, it was a correct implementation, and Remix has one.
+  Sliquifier no longer drops extra goo*. **All four shipped**, as two PATCHES rows (SLIQUIFIER
+  PRE-NERF carries the three Sliquifier behaviours as one switch; SEMTEX WALL BUY is the fourth),
+  both Die Rise only, both off by default. Built, deployed and verified inside the deployed
+  `mod.iwd`; **not yet booted.** Evidence and the pre-mortem are in `.agents\checkpoint_92.md` §4.
+  🛑 **The one thing to look at on the first Die Rise boot: does the semtex sit FLAT on the wall?**
+  The position and angles are Remix's, tuned against a claymore model, and the semtex has a
+  different pivot — a wrong angle there is a numeric tweak, not a rethink.
+  ✅ **This retires the SLIQUIFIER PRE-NERF blocker** — the answer was never a pre-patch fastfile, it
+  was a correct implementation, and Remix had one. The old "waiting on a pre-patch
+  `zm_highrise_patch.ff`" entry is therefore closed; nothing is waiting on the user for it.
 - 🛑 **QUEUED FROM THE SAME MESSAGE, NOT STARTED** (full detail in checkpoint 92 §5): claymore wall
   buys on **Farm / Bus Depot / Town**; Remix's **NO POWER game mode** (🛑 the name `no_power` is
   already taken by a zm_qol CHEATS row meaning nearly the opposite — needs a different dvar, the
@@ -28,25 +34,20 @@ rest, and move it to *Closed* at the bottom of this file — never lose it, just
   The payloads are in `zm_qol\Optionals\` (1.9 GB, gitignored). 🌟 **The installer is the resolution
   of item 34** — the texture pack goes in the PLAYER's images folder, which is what every failed
   in-mod attempt was working around.
-- 🛑 **WAITING ON THE USER: a pre-patch `zm_highrise_patch.ff`** — the SLIQUIFIER PRE-NERF row is
-  blocked on it and on nothing else. Die Rise's gameplay scripts ship in **that one file** (the base
-  `zm_highrise.ff` holds 37 aitype client scripts and no gameplay GSC), and Steam keeps it at the
-  final TU, so the launch Sliquifier script exists nowhere on this machine or in the workspace. Any
-  early-2013 copy of that file - a console DLC dump, a pre-2013 PC backup - and the port is exact.
-  The user said 2026-08-20 they will look for one. Until then: no row, no reconstruction.
 - ✅ **RECOIL PRE-NERF IS DONE AND IS NOT A TOGGLE (v1.99.95)** - the mod already shipped launch
   weapon defs for 12 of the 16 patched defs; the DSR 50 and Five-Seven were added to finish the set.
   Measured by diffing `<map>.ff` against `<map>_patch.ff` field by field. See checkpoint 90.
 - 🛑 **BUILT, AWAITING THE USER'S BOOT: v1.99.93** — the PATCHES tab (BACKSPEED + ANIMATED CAMO moved
   off GAME, plus REMOVE ROUND CAP / 24 ZOMBIE SOLO CAP / INSTAKILL ROUNDS / DOUBLE TAP 1.0 / NO
-  BARRIER ATTACKS), and SET POINTS + TELEPORT on CHEATS. **TWO ROWS THE USER ASKED FOR WERE HELD
-  BACK AND ARE THEIR CALL:** *SLIQUIFIER PRE-NERF* — the legacy mod's `slipgun_reslip_rate = 0` is
-  read through a `> 0` guard in the shipped script (`_zm_weap_slipgun.gsc:745`), so it means NEVER
-  re-slip, and its `slipgun_max_kill_round = undefined` makes the goo weaker, not stronger; no
-  pre-patch copy of that script exists in the workspace to port instead. *RECOIL PRE-NERF* —
-  `sv_patch_zm_weapons` does not exist on this build (absent from the 2,764-dvar boot dump, from
-  t6zm.exe, from Plutonium's bootstrapper and from dvar_descriptions.json), so the switch would be
-  dead. Both can be built as **reconstructions** if the user wants that instead of a port.
+  BARRIER ATTACKS), and SET POINTS + TELEPORT on CHEATS. Two rows were held back at the time and
+  **both have since been resolved**: *SLIQUIFIER PRE-NERF* **shipped in v1.99.96** off Remix's
+  correct implementation (the legacy mod's `slipgun_reslip_rate = 0` is read through a `> 0` guard
+  at `_zm_weap_slipgun.gsc:745`, so it meant NEVER re-slip, and its
+  `slipgun_max_kill_round = undefined` made the goo weaker — that is why it was refused, and the
+  refusal was right). *RECOIL PRE-NERF* shipped in v1.99.95 as launch weapon defs, **not** as a
+  toggle: `sv_patch_zm_weapons` does not exist on this build (absent from the 2,764-dvar boot dump,
+  from t6zm.exe, from Plutonium's bootstrapper and from dvar_descriptions.json), so a switch would
+  have been dead.
 - ✅ **v1.99.72 ACCEPTED BY THE USER 2026-08-19** - all Vulture Aid marker icons; see the Vulture Aid entry in *Closed*.
 - **BUILT, AWAITING THE USER’S BOOT: v1.99.81** - a `>level.ipak_read,zm_qol_hd` probe in `mod.zone` (a deliberately missing ipak, so the engine logs every directory it will accept an ipak from) plus ONE pack texture (Speed Cola, 4096²) in the player's global `images\` folder with the rank-2 duplicate parked. Those two answer the last unmeasured question in item 34. See checkpoint 84 §4. 🛑 **The v1.99.79 `<decimal ipak name-hash>` theory is DISPROVEN** - checkpoint 84 §2. `mod.iwd` still carries its 119 dead hash-named files (416 MB), awaiting the user's OK to delete.
 - **HISTORIC: v1.99.80** - the texture pack shipped as **119 `<decimal ipak name-hash>.iwi`** files plus 2 by name (item 34); booted, did nothing. 🛑 **v1.99.78 fixed a LOAD-TIME CRASH** - `is_headshot` / `get_base_weapon_name` had lost their backslashes in the v1.99.75 BETTER DEADSHOT probe, so no map could start. The v1.99.76 search-order probe was **deleted in v1.99.80**: its target `xenonbutton_a` is itself an ipak image, so a by-name file could never have overridden it and the probe could not answer anything.
