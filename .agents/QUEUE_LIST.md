@@ -6,10 +6,28 @@ on. Everything not struck through is still open. Nothing else is marked, on purp
 (2026-08-16) for a plain list with no other differentiation.
 When the user says an item is **resolved and can come off the list**, delete its line, renumber the
 rest, and move it to *Closed* at the bottom of this file — never lose it, just stop printing it.
-- SYNCED TO: checkpoint **91** · mod version **1.99.95**
+- SYNCED TO: checkpoint **92** · mod version **1.99.95**
 - LAST VERIFIED: 2026-08-18 — **twenty-one items were removed across two passes this day** and the
   list renumbered twice, 29 → 19 → 8. Both passes are recorded in full at the bottom with old
   numbers, per-item detail and the old→new maps. Nothing was lost; the list stops printing them.
+- 🛑 **IN FLIGHT, WRITTEN BUT NOT BUILT: THE DIE RISE WEAPONS BLOCK (checkpoint 92).** The user found
+  BO2-Remix's Die Rise feature list 2026-08-20 and asked for all four of its *Weapons* entries:
+  *Semtex wallbuy / Sliquifier kills till round 255 / Sliquifier continues to chain while put away /
+  Sliquifier no longer drops extra goo*. Three source files are edited and validated on disk;
+  `mod.json` is **still 1.99.95** and `build.bat` has **not** run. Resume at
+  `.agents\checkpoint_92.md` §3. 🌟 **This retires the SLIQUIFIER PRE-NERF blocker below** — the
+  answer was never a pre-patch fastfile, it was a correct implementation, and Remix has one.
+- 🛑 **QUEUED FROM THE SAME MESSAGE, NOT STARTED** (full detail in checkpoint 92 §5): claymore wall
+  buys on **Farm / Bus Depot / Town**; Remix's **NO POWER game mode** (🛑 the name `no_power` is
+  already taken by a zm_qol CHEATS row meaning nearly the opposite — needs a different dvar, the
+  user's call); **`anim_pap_camo_mob` / `_buried` / `_origins`** as three PATCHES rows (🛑 a single
+  `anim_pap_camo` row already covers all three); **`disable_player_quotes`** at the bottom of SOUNDS;
+  and 🌟 **THE INSTALLER `.bat`** — base mod + optional texture pack into the player's Plutonium
+  `images\`, optional custom sounds into their `zone\`, optional ReShade reworked to not run in the
+  background with `BO2.ini` applied, clean uninstall of old versions, and a GitHub update check.
+  The payloads are in `zm_qol\Optionals\` (1.9 GB, gitignored). 🌟 **The installer is the resolution
+  of item 34** — the texture pack goes in the PLAYER's images folder, which is what every failed
+  in-mod attempt was working around.
 - 🛑 **WAITING ON THE USER: a pre-patch `zm_highrise_patch.ff`** — the SLIQUIFIER PRE-NERF row is
   blocked on it and on nothing else. Die Rise's gameplay scripts ship in **that one file** (the base
   `zm_highrise.ff` holds 37 aitype client scripts and no gameplay GSC), and Steam keeps it at the
