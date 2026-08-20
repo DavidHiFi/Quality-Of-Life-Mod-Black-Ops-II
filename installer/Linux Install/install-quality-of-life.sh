@@ -41,6 +41,7 @@ while [ $# -gt 0 ]; do
     --dry-run) DRYRUN=1 ;;
     --root)    ROOT_OVERRIDE="${2:-}"; shift ;;
     --action)  ACTION="${2:-}"; HEADLESS=1; shift ;;
+    --kind)    CHOICE_KIND="${2:-}"; shift ;;
     --choice)  CHOICE="${2:-0}"; shift ;;
     *)         [[ "$1" =~ ^[0-9]+$ ]] && CHOICE="$1" ;;
   esac
@@ -119,7 +120,8 @@ ZONEDIR="$T6/zone"
 CFGDIR="$T6/players/mods/$MODID"
 BINDIR="$PLUTO/bin"
 STATE="$T6/_zm_qol_installer"
-BACKUPS="$STATE/backups"
+BACKUPS="$T6/backups"
+OLDBACKUPS="$STATE/backups"
 
 # ------------------------------------------------------------------- helpers -
 find_mod_source() {
@@ -200,34 +202,199 @@ remove_by_manifest() {
   return 0
 }
 
-backup_folder() {
-  local kind="$1" src="$2"
-  local dst="$BACKUPS/$kind"
-  local n; n="$(dir_files "$src")"
-  if [ "$n" -eq 0 ]; then say "Nothing to back up - that folder is empty." "$DIM"; return 0; fi
-  if [ -d "$dst" ]; then
-    say "A backup already exists - keeping it, it is the older one." "$DIM"
-    return 0
-  fi
-  say "Backing up $n file(s), $(human "$(dir_bytes "$src")") ..."
-  [ "$DRYRUN" -eq 1 ] && { say "(dry run - not copied)" "$DIM"; return 0; }
-  mkdir -p "$dst"
-  copy_tree "$src" "$dst" || { say "Backup FAILED - stopping, nothing was changed." "$RD"; return 1; }
-  say "Backup saved." "$GN"
-  return 0
+# ------------------------------------------------------------------ backups --
+# Four things can be backed up, each into its own subfolder of
+# storage/t6/backups/. A "part" is one folder, or a named handful of loose
+# files; a thing can be made of more than one part - the mod is its files plus
+# the saved menu settings, ReShade is three loose files plus its shader library.
+# Each part goes into its own named subfolder so a restore knows exactly where
+# to put it back and a human can read the tree.
+#
+# reshade deliberately does NOT back up the whole bin folder: that is
+# Plutonium's own program directory, and the only things in it this installer
+# ever writes are the three files and the one folder named here.
+backup_parts() {
+  case "$1" in
+    images)  printf '%s\n' "images|folder|$IMGDIR" ;;
+    zone)    printf '%s\n' "zone|folder|$ZONEDIR" ;;
+    reshade) printf '%s\n' "bin|files|$BINDIR|ReShade.ini BO2.ini dxgi.dll" \
+                           "reshade-shaders|folder|$BINDIR/reshade-shaders" ;;
+    mod)     printf '%s\n' "files|folder|$MODDIR" \
+                           "settings|folder|$CFGDIR" ;;
+  esac
+}
+backup_kinds() { printf '%s\n' images zone reshade mod; }
+backup_title() {
+  case "$1" in
+    images)  printf 'your textures' ;;
+    zone)    printf 'your sounds' ;;
+    reshade) printf 'your ReShade setup' ;;
+    mod)     printf 'the mod' ;;
+  esac
+}
+backup_label() {
+  case "$1" in
+    images)  printf 'My textures' ;;
+    zone)    printf 'My sounds' ;;
+    reshade) printf 'My ReShade setup' ;;
+    mod)     printf 'The mod + my settings' ;;
+  esac
 }
 
-restore_folder() {
-  local kind="$1" dst="$2"
-  local src="$BACKUPS/$kind"
-  [ -d "$src" ] || { say "There is no backup to restore." "$YE"; return 1; }
-  say "Restoring your original files ..."
-  copy_tree "$src" "$dst" || { say "Restore FAILED." "$RD"; return 1; }
-  say "Your original files are back." "$GN"
-  return 0
+# How many of the player's own files exist right now for this thing.
+source_files() {
+  local kind="$1" line sub type path items n=0 f
+  while IFS='|' read -r sub type path items; do
+    [ -n "$path" ] || continue
+    if [ "$type" = folder ]; then
+      [ -d "$path" ] && n=$(( n + $(dir_files "$path") ))
+    else
+      for f in $items; do [ -f "$path/$f" ] && n=$(( n + 1 )); done
+    fi
+  done <<EOF
+$(backup_parts "$kind")
+EOF
+  printf '%s' "$n"
 }
 
 has_backup() { [ -d "$BACKUPS/$1" ]; }
+backup_files() { [ -d "$BACKUPS/$1" ] && dir_files "$BACKUPS/$1" || printf '0'; }
+backup_when()  { [ -d "$BACKUPS/$1" ] && date -r "$BACKUPS/$1" '+%d %b %Y, %H:%M' 2>/dev/null || printf 'never'; }
+
+# $2 = "replace" to overwrite an existing backup. Without it the OLDER backup
+# is kept - it is the one taken before this installer first touched anything.
+backup_thing() {
+  local kind="$1" replace="${2:-}" sub type path items f dst to n
+  n="$(source_files "$kind")"
+  dst="$BACKUPS/$kind"
+  if [ "$n" -eq 0 ]; then say "Nothing to back up - there are no files of yours there yet." "$DIM"; return 0; fi
+  if [ -d "$dst" ] && [ "$replace" != replace ]; then
+    say "A backup already exists from $(backup_when "$kind") - keeping it." "$DIM"
+    say "That is the older one, so it is the one worth keeping." "$DIM"
+    return 0
+  fi
+  say "Backing up $(backup_title "$kind") - $n file(s) ..."
+  [ "$DRYRUN" -eq 1 ] && { say "(dry run - nothing copied)" "$DIM"; return 0; }
+  [ -d "$dst" ] && rm -rf "$dst"
+  mkdir -p "$dst"
+  while IFS='|' read -r sub type path items; do
+    [ -n "$path" ] || continue
+    to="$dst/$sub"
+    if [ "$type" = folder ]; then
+      [ -d "$path" ] || continue
+      [ "$(dir_files "$path")" -eq 0 ] && continue
+      mkdir -p "$to"
+      copy_tree "$path" "$to" || { say "Backup FAILED - nothing was changed." "$RD"; return 1; }
+    else
+      mkdir -p "$to"
+      for f in $items; do [ -f "$path/$f" ] && cp -f "$path/$f" "$to/$f"; done
+    fi
+  done <<EOF
+$(backup_parts "$kind")
+EOF
+  say "Backup saved to  $dst" "$GN"
+  return 0
+}
+
+# Adds the player's own files back over whatever is there; it does not wipe the
+# destination first, so anything they added since is left alone.
+restore_thing() {
+  local kind="$1" sub type path items f from did=0
+  [ -d "$BACKUPS/$kind" ] || { say "There is no backup of $(backup_title "$kind") to restore." "$YE"; return 1; }
+  say "Putting $(backup_title "$kind") back ..."
+  [ "$DRYRUN" -eq 1 ] && { say "(dry run - nothing copied)" "$DIM"; return 0; }
+  while IFS='|' read -r sub type path items; do
+    [ -n "$path" ] || continue
+    from="$BACKUPS/$kind/$sub"
+    [ -d "$from" ] || continue
+    if [ "$type" = folder ]; then
+      mkdir -p "$path"
+      copy_tree "$from" "$path" || { say "Restore FAILED." "$RD"; return 1; }
+    else
+      mkdir -p "$path"
+      for f in $items; do [ -f "$from/$f" ] && cp -f "$from/$f" "$path/$f"; done
+    fi
+    did=$(( did + 1 ))
+  done <<EOF
+$(backup_parts "$kind")
+EOF
+  [ "$did" -eq 0 ] && { say "That backup is empty - nothing to put back." "$YE"; return 1; }
+  say "Your own files are back." "$GN"
+  return 0
+}
+
+# Backups used to live in _zm_qol_installer/backups. Move any across, once.
+move_old_backups() {
+  [ -d "$OLDBACKUPS" ] || return 0
+  [ "$DRYRUN" -eq 0 ] || return 0
+  local d
+  mkdir -p "$BACKUPS"
+  for d in "$OLDBACKUPS"/*; do
+    [ -d "$d" ] || continue
+    [ -e "$BACKUPS/$(basename "$d")" ] && continue
+    mv "$d" "$BACKUPS/" 2>/dev/null || true
+  done
+  rmdir "$OLDBACKUPS" 2>/dev/null || true
+}
+
+act_backup_one() {
+  local kind="$1" title label n
+  while true; do
+    title="$(backup_title "$kind")"
+    n="$(source_files "$kind")"
+    MENU_KEYS=(); MENU_LABELS=(); MENU_STATUS=(); MENU_SECTIONS=()
+    if has_backup "$kind"; then
+      MENU_KEYS+=(replace); MENU_LABELS+=("Back up again, replacing that one"); MENU_STATUS+=("overwrites the backup"); MENU_SECTIONS+=("")
+      MENU_KEYS+=(restore); MENU_LABELS+=("Put my backup back");                MENU_STATUS+=("backup found");          MENU_SECTIONS+=("")
+      MENU_KEYS+=(delete);  MENU_LABELS+=("Delete this backup");                MENU_STATUS+=("");                      MENU_SECTIONS+=("")
+    else
+      MENU_KEYS+=(make);    MENU_LABELS+=("Back it up now");                    MENU_STATUS+=("$n file(s) here");       MENU_SECTIONS+=("")
+    fi
+    MENU_KEYS+=(back); MENU_LABELS+=("Back"); MENU_STATUS+=(""); MENU_SECTIONS+=("")
+
+    menu "Backup - $title" \
+      "A backup of $title, kept separately from the mod so this" \
+      "installer can never be the reason you lose them." "" \
+      "~Backup goes to:  $BACKUPS/$kind" \
+      "~On this PC now:  $n file(s)" \
+      "~Backed up:       $(backup_when "$kind")"
+    case "$MENU_RESULT" in ""|back) return ;; esac
+
+    header "Backup - $title"
+    case "$MENU_RESULT" in
+      make)    backup_thing "$kind" ;;
+      replace) backup_thing "$kind" replace ;;
+      restore) restore_thing "$kind" ;;
+      delete)
+        if [ "$DRYRUN" -eq 1 ]; then say "(dry run - not deleted)" "$DIM"
+        elif [ -d "$BACKUPS/$kind" ]; then rm -rf "$BACKUPS/$kind"; say "Backup deleted. The files on your PC are untouched." "$GN"
+        else say "There was no backup to delete." "$DIM"; fi ;;
+    esac
+    pause_key
+  done
+}
+
+act_backups() {
+  local k st
+  while true; do
+    MENU_KEYS=(); MENU_LABELS=(); MENU_STATUS=(); MENU_SECTIONS=()
+    for k in $(backup_kinds); do
+      if has_backup "$k"; then st="$(backup_when "$k") · $(backup_files "$k") files"
+      else st="no backup · $(source_files "$k") files here"; fi
+      MENU_KEYS+=("$k"); MENU_LABELS+=("$(backup_label "$k")"); MENU_STATUS+=("$st"); MENU_SECTIONS+=("")
+    done
+    MENU_KEYS+=(back); MENU_LABELS+=("Back"); MENU_STATUS+=(""); MENU_SECTIONS+=("")
+    menu "Backups" \
+      "Back up your own textures, sounds, ReShade or mod folder before this" \
+      "installer writes over them - and put them back whenever you like." "" \
+      "~Everything is kept in:  $BACKUPS" \
+      "~One plain folder per thing. Nothing in there is ever deleted by an" \
+      "~install or an update - only by you, on the screen for that thing."
+    case "$MENU_RESULT" in ""|back) return ;; esac
+    act_backup_one "$MENU_RESULT"
+  done
+}
+
 
 # --------------------------------------------------------------------- menu --
 # MENU_LABELS / MENU_STATUS / MENU_KEYS / MENU_SECTIONS are filled by the caller.
@@ -376,7 +543,7 @@ act_pack() {
   case "$MENU_RESULT" in ""|back) return ;; esac
 
   header "$pretty"
-  if [ "$MENU_RESULT" = "backup" ]; then backup_folder "$kind" "$dest" || { pause_key; return; }; fi
+  if [ "$MENU_RESULT" = "backup" ]; then backup_thing "$kind" || { pause_key; return; }; fi
   say "Copying $(dir_files "$src") file(s), $(human "$(dir_bytes "$src")") ..."
   if copy_tree "$src" "$dest"; then
     write_manifest "$kind" "$src"
@@ -502,7 +669,7 @@ act_remove_pack() {
 
   header "Remove the $pretty"
   remove_by_manifest "$kind" "$dest" || true
-  [ "$MENU_RESULT" = "restore" ] && restore_folder "$kind" "$dest"
+  [ "$MENU_RESULT" = "restore" ] && restore_thing "$kind"
   printf '\n'; say "✅  Done." "$GN"
   pause_key
 }
@@ -699,13 +866,20 @@ main_menu() {
     if [ -f "$ZONEDIR/${SOUND_FILES[0]}" ]; then sndst="installed"; else sndst="not installed"; fi
     if [ -f "$BINDIR/dxgi.dll" ]; then rshst="installed"; else rshst="not installed"; fi
 
-    MENU_KEYS=(mod images sounds reshade rimages rsounds rreshade rmod update details quit)
+    local nbk=0 bk
+    for bk in $(backup_kinds); do has_backup "$bk" && nbk=$(( nbk + 1 )); done
+    local bkst="nothing backed up yet"
+    [ "$nbk" -gt 0 ] && bkst="$nbk of 4 backed up"
+
+    MENU_KEYS=(mod images sounds reshade rimages rsounds rreshade rmod backups update details quit)
     MENU_LABELS=("The mod" "HD texture pack" "Custom sounds" "ReShade + BO2 preset" \
                  "Remove the HD textures" "Remove the custom sounds" "Remove ReShade" "Remove the mod" \
+                 "Back up / restore my own files" \
                  "Check for a newer version" "Details and log" "Quit")
-    MENU_STATUS=("$modst" "$imgst" "$sndst" "$rshst" "" "" "" "" "" "" "")
+    MENU_STATUS=("$modst" "$imgst" "$sndst" "$rshst" "" "" "" "" "$bkst" "" "" "")
     MENU_SECTIONS=("INSTALL" "INSTALL" "INSTALL" "INSTALL" \
                    "REMOVE" "REMOVE" "REMOVE" "REMOVE" \
+                   "BACKUP" \
                    "MORE" "MORE" "MORE")
 
     local intro=()
@@ -726,6 +900,7 @@ main_menu() {
       rsounds)  act_remove_pack zone   "custom sounds" "$ZONEDIR" ;;
       rreshade) act_remove_reshade ;;
       rmod)     act_remove_mod ;;
+      backups)  act_backups ;;
       update)   act_update ;;
       details)  act_details ;;
     esac
@@ -733,6 +908,7 @@ main_menu() {
 }
 
 log "--- installer started (dryrun=$DRYRUN) ---"
+move_old_backups
 
 if [ -n "$ACTION" ]; then
   case "$ACTION" in
@@ -744,6 +920,9 @@ if [ -n "$ACTION" ]; then
     rsounds)  act_remove_pack zone   "custom sounds" "$ZONEDIR" ;;
     rreshade) act_remove_reshade ;;
     rmod)     act_remove_mod ;;
+    backups)  act_backups ;;
+    backup)   backup_thing "${CHOICE_KIND:-images}" ;;
+    restore)  restore_thing "${CHOICE_KIND:-images}" ;;
     update)   act_update ;;
     details)  act_details ;;
     *) echo "unknown action: $ACTION" ;;

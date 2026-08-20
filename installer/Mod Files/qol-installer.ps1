@@ -12,6 +12,7 @@
     -DryRun              print what would happen, write nothing
     -Action <name>       run one action headlessly (no menu)
     -Choice <n>          which option that action should take (0 = first)
+    -Extra <kind>        images | zone | reshade | mod, for -Action backup/restore
     -Root <path>         pretend Plutonium lives here
 ================================================================================
 #>
@@ -21,6 +22,7 @@ param(
     [switch] $DryRun,
     [string] $Action,
     [int]    $Choice = 0,
+    [string] $Extra,
     [string] $Root
 )
 
@@ -44,7 +46,12 @@ $ZONEDIR  = Join-Path $T6 'zone'
 $CFGDIR   = Join-Path $T6 "players\mods\$MODID"
 $BINDIR   = Join-Path $PLUTO 'bin'
 $STATE    = Join-Path $T6 '_zm_qol_installer'
-$BACKUPS  = Join-Path $STATE 'backups'
+# Backups sit in plain sight at storage\t6\backups\<thing>\, not buried in the
+# installer's own state folder, because they are the PLAYER'S files - their
+# textures, their sounds, their ReShade - and they must be findable and
+# copyable by hand without this script.
+$BACKUPS    = Join-Path $T6 'backups'
+$OLDBACKUPS = Join-Path $STATE 'backups'
 $LOGFILE  = Join-Path $HERE 'installer.log'
 
 $script:Log = New-Object System.Collections.Generic.List[string]
@@ -98,10 +105,61 @@ function Draw-Rule {
     Write-Host '   ────────────────────────────────────────────────────────────────────' -ForegroundColor $C.Frame
 }
 
+# ---------------------------------------------------------------------------
+#  One menu row. Padded out to the window width so that repainting it in place
+#  cannot leave the tail of a longer previous line behind.
+# ---------------------------------------------------------------------------
+function Write-MenuRow {
+    param($Item, [bool] $Selected)
+    $marker = '     '
+    if ($Selected) { $marker = '   ❯ ' }
+    $label  = $Item.Label.PadRight(38)
+    $status = ''
+    if ($Item.Status) { $status = [string]$Item.Status }
+    $colour = $C.Text
+    if ($Item.Disabled) { $colour = $C.Off }
+    if ($Selected)      { $colour = $C.Pick }
+    $sc = $C.Dim
+    if ($Item.StatusColour) { $sc = $Item.StatusColour }
+    $w = 100
+    try { $w = [Console]::BufferWidth } catch { }
+    # 🛑 A row must never wrap. A wrapped row is two rows, which slides every
+    # row under it down by one and makes in-place repainting draw over the
+    # wrong lines - the stray text that used to jump around the window. On a
+    # narrow console the status is cut short instead.
+    $room = ($w - 1) - $marker.Length - $label.Length
+    if ($room -lt 0) { $room = 0 }
+    if ($status.Length -gt $room) {
+        if ($room -ge 1) { $status = $status.Substring(0, $room - 1) + '…' } else { $status = '' }
+    }
+    $used = $marker.Length + $label.Length + $status.Length
+    $pad = ''
+    if (($w - 1) -gt $used) { $pad = ' ' * (($w - 1) - $used) }
+    Write-Host $marker -ForegroundColor $C.Title -NoNewline
+    Write-Host $label  -ForegroundColor $colour  -NoNewline
+    Write-Host $status -ForegroundColor $sc      -NoNewline
+    Write-Host $pad
+}
+
 <#
   One menu, driven by the arrow keys.
   Items: @{ Label; Status; StatusColour; Section; Key; Disabled }
   Returns the chosen item, or $null if the user backed out.
+
+  🛑 THE FLICKER. This used to call Draw-Header - and therefore Clear-Host - on
+  every single keypress, so moving one row down blanked and repainted the whole
+  screen. In Windows Terminal that reads as a hard flash, and the repaint racing
+  the redraw is what threw stray part-drawn lines across the window.
+
+  Now the frame is drawn ONCE. Each arrow key only rewrites the block of item
+  rows, in place, via SetCursorPosition - nothing else on screen is touched and
+  there is no clear at all, so there is nothing left to flicker. The cursor is
+  hidden while the menu is up, because parking it mid-frame after a repaint is
+  the other thing that was visibly jumping around.
+
+  It falls back to the old full-redraw path whenever in-place drawing cannot be
+  trusted: no real console, input redirected, or a frame taller than the window
+  (where the buffer scrolls and every remembered row number goes stale).
 #>
 function Show-Menu {
     param(
@@ -116,15 +174,61 @@ function Show-Menu {
     if ($pickable.Count -eq 0) { return $null }
     $cur = $pickable[0]
 
+    # How tall is the item block? One row each, plus a blank + a heading for
+    # every section break. Needed both to size the frame and to know whether
+    # in-place repainting is safe.
+    $sections = 0
+    $seen = $null
+    foreach ($it in $Items) { if ($it.Section -and $it.Section -ne $seen) { $sections++; $seen = $it.Section } }
+    # Exact line count, plus one spare row. It has to be exact: a generous
+    # guess makes a frame that would have fitted look too tall, which silently
+    # drops the menu back to the flickering full-redraw path.
+    #   6 = header block   1 = blank after the intro, only when there is one
+    #   3 = blank + rule + footer
+    $introLines = $Intro.Count
+    if ($introLines -gt 0) { $introLines++ }
+    $frameHeight = 6 + $introLines + $Items.Count + ($sections * 2) + 3 + 1
+
+    $fast = $false
+    if (-not $script:Headless -and -not $script:NoKeys) {
+        try { if ($frameHeight -lt [Console]::WindowHeight) { $fast = $true } } catch { $fast = $false }
+    }
+
+    $cursorWas = $true
+    try { $cursorWas = [Console]::CursorVisible } catch { }
+    if ($fast) { try { [Console]::CursorVisible = $false } catch { } }
+
+    try {
+    $painted = $false
+    $itemTop = 0
+    $drawnW = 0
+    $drawnH = 0
     while ($true) {
-        Draw-Header $Sub
-        foreach ($line in $Intro) {
-            if ($line -eq '') { Write-Host '' }
-            elseif ($line.StartsWith('!')) { Write-Host ('   ' + $line.Substring(1)) -ForegroundColor $C.Warn }
-            elseif ($line.StartsWith('~')) { Write-Host ('   ' + $line.Substring(1)) -ForegroundColor $C.Dim }
-            else { Write-Host ('   ' + $line) -ForegroundColor $C.Text }
+        # A resize invalidates every remembered row and column, so start over.
+        try {
+            if ($painted -and ([Console]::WindowWidth -ne $drawnW -or [Console]::WindowHeight -ne $drawnH)) {
+                $painted = $false
+                $fast = ($frameHeight -lt [Console]::WindowHeight) -and -not $script:NoKeys -and -not $script:Headless
+            }
+        } catch { }
+
+        $repaintOnly = ($fast -and $painted)
+        if ($repaintOnly) {
+            try { [Console]::SetCursorPosition(0, $itemTop) }
+            catch { $repaintOnly = $false; $painted = $false; $fast = $false }
         }
-        if ($Intro.Count -gt 0) { Write-Host '' }
+
+        if (-not $repaintOnly) {
+            Draw-Header $Sub
+            foreach ($line in $Intro) {
+                if ($line -eq '') { Write-Host '' }
+                elseif ($line.StartsWith('!')) { Write-Host ('   ' + $line.Substring(1)) -ForegroundColor $C.Warn }
+                elseif ($line.StartsWith('~')) { Write-Host ('   ' + $line.Substring(1)) -ForegroundColor $C.Dim }
+                else { Write-Host ('   ' + $line) -ForegroundColor $C.Text }
+            }
+            if ($Intro.Count -gt 0) { Write-Host '' }
+            try { $itemTop = [Console]::CursorTop } catch { $itemTop = 0; $fast = $false }
+        }
 
         $lastSection = $null
         for ($i = 0; $i -lt $Items.Count; $i++) {
@@ -134,44 +238,35 @@ function Show-Menu {
                 Write-Host ('   ' + $it.Section) -ForegroundColor $C.Dim
                 $lastSection = $it.Section
             }
-            $sel = ($i -eq $cur)
-            $marker = '     '
-            if ($sel) { $marker = '   ❯ ' }
-            $label = $it.Label
-            $colour = $C.Text
-            if ($it.Disabled) { $colour = $C.Off }
-            if ($sel) { $colour = $C.Pick }
-
-            Write-Host $marker -ForegroundColor $C.Title -NoNewline
-            Write-Host ($label.PadRight(38)) -ForegroundColor $colour -NoNewline
-            if ($it.Status) {
-                $sc = $C.Dim
-                if ($it.StatusColour) { $sc = $it.StatusColour }
-                Write-Host $it.Status -ForegroundColor $sc
-            } else { Write-Host '' }
+            Write-MenuRow $it ($i -eq $cur)
         }
 
-        Write-Host ''
-        Draw-Rule
+        if (-not $repaintOnly) {
+            Write-Host ''
+            Draw-Rule
 
-        # Arrow keys need a real console. If this is running somewhere that has
-        # its input redirected, fall back to typing the number instead of
-        # falling over.
-        if ($script:NoKeys) {
-            Write-Host '   Type the number of what you want, then ENTER. 0 to go back.' -ForegroundColor $C.Dim
-            $typed = Read-Host '   Number'
-            if ($typed -eq '0' -or $typed -eq '') { return $null }
-            $n = 0
-            if ([int]::TryParse($typed, [ref]$n)) {
-                $n = $n - 1
-                if ($n -ge 0 -and $n -lt $pickable.Count) { return $Items[$pickable[$n]] }
+            # Arrow keys need a real console. If this is running somewhere that
+            # has its input redirected, fall back to typing the number instead
+            # of falling over.
+            if ($script:NoKeys) {
+                Write-Host '   Type the number of what you want, then ENTER. 0 to go back.' -ForegroundColor $C.Dim
+                $typed = Read-Host '   Number'
+                if ($typed -eq '0' -or $typed -eq '') { return $null }
+                $n = 0
+                if ([int]::TryParse($typed, [ref]$n)) {
+                    $n = $n - 1
+                    if ($n -ge 0 -and $n -lt $pickable.Count) { return $Items[$pickable[$n]] }
+                }
+                continue
             }
-            continue
+
+            Write-Host $Footer -ForegroundColor $C.Dim
+            $painted = $true
+            try { $drawnW = [Console]::WindowWidth; $drawnH = [Console]::WindowHeight } catch { }
         }
 
-        Write-Host $Footer -ForegroundColor $C.Dim
         try { $key = [Console]::ReadKey($true) }
-        catch { $script:NoKeys = $true; continue }
+        catch { $script:NoKeys = $true; $fast = $false; $painted = $false; continue }
         switch ($key.Key) {
             'UpArrow' {
                 $p = [array]::IndexOf($pickable, $cur)
@@ -196,6 +291,8 @@ function Show-Menu {
             }
         }
     }
+    }
+    finally { try { [Console]::CursorVisible = $cursorWas } catch { } }
 }
 
 function Pause-Key {
@@ -278,42 +375,163 @@ function Format-Size {
 }
 
 # ------------------------------------------------------------------ backups --
-function Backup-Folder {
-    param([string] $Kind, [string] $Source)
-    $dest = Join-Path $BACKUPS $Kind
-    $files = @(Get-ChildItem -LiteralPath $Source -File -Recurse -ErrorAction SilentlyContinue)
-    if ($files.Count -eq 0) {
-        Say "Nothing to back up - that folder is empty." $C.Dim
-        return $true
-    }
-    if (Test-Path $dest) {
-        Say "A backup already exists from $(( Get-Item $dest ).LastWriteTime.ToString('d MMM yyyy')) - keeping it." $C.Dim
-        Say "That is the older one, so it is the one worth keeping." $C.Dim
-        return $true
-    }
-    $size = ($files | Measure-Object Length -Sum).Sum
-    Say ("Backing up {0} file(s), {1} ..." -f $files.Count, (Format-Size $size)) $C.Text
-    if ($DryRun) { Say "   (dry run - not copied)" $C.Dim; return $true }
-    New-Item -ItemType Directory -Force -Path $dest | Out-Null
-    $r = robocopy $Source $dest /E /NFL /NDL /NJH /NJS /NP
-    if ($LASTEXITCODE -ge 8) { Say "Backup FAILED - stopping, nothing was changed." $C.Bad; return $false }
-    Say "Backup saved." $C.Good
-    return $true
+#  Four things can be backed up, each into its own subfolder of
+#  storage\t6\backups\. A "part" is one folder, or a named handful of loose
+#  files, and a thing can be made of more than one part - the mod is its files
+#  plus your saved menu settings, ReShade is three loose files plus its shader
+#  library. Each part lands in its own named subfolder so a restore knows
+#  exactly where to put it back and a human can read the tree.
+#
+#  🛑 reshade deliberately does NOT back up the whole bin folder. That folder is
+#  Plutonium's own program directory; the only things in it this installer ever
+#  writes are the three files and the one folder listed here, so they are the
+#  only things it has any business copying or putting back.
+$BACKUPSETS = [ordered]@{
+    images  = @{ Title = 'your textures';      Parts = @( @{ Sub='images';          Path=$IMGDIR;  Type='folder' } ) }
+    zone    = @{ Title = 'your sounds';        Parts = @( @{ Sub='zone';            Path=$ZONEDIR; Type='folder' } ) }
+    reshade = @{ Title = 'your ReShade setup'; Parts = @(
+                    @{ Sub='bin';             Path=$BINDIR; Type='files'; Items=@('ReShade.ini','BO2.ini','dxgi.dll') },
+                    @{ Sub='reshade-shaders'; Path=(Join-Path $BINDIR 'reshade-shaders'); Type='folder' } ) }
+    mod     = @{ Title = 'the mod';            Parts = @(
+                    @{ Sub='files';           Path=$MODDIR; Type='folder' },
+                    @{ Sub='settings';        Path=$CFGDIR; Type='folder' } ) }
 }
 
-function Restore-Folder {
-    param([string] $Kind, [string] $Dest)
-    $src = Join-Path $BACKUPS $Kind
-    if (-not (Test-Path $src)) { Say "There is no backup to restore." $C.Warn; return $false }
-    Say "Restoring your original files ..." $C.Text
-    if ($DryRun) { Say "   (dry run - not copied)" $C.Dim; return $true }
-    $r = robocopy $src $Dest /E /NFL /NDL /NJH /NJS /NP
-    if ($LASTEXITCODE -ge 8) { Say "Restore FAILED." $C.Bad; return $false }
-    Say "Your original files are back." $C.Good
-    return $true
+function Get-BackupPart {
+    param($Part)
+    if ($Part.Type -eq 'folder') {
+        return @(Get-ChildItem -LiteralPath $Part.Path -File -Recurse -ErrorAction SilentlyContinue)
+    }
+    $found = @()
+    foreach ($n in $Part.Items) {
+        $p = Join-Path $Part.Path $n
+        if (Test-Path -LiteralPath $p) { $found += (Get-Item -LiteralPath $p) }
+    }
+    return $found
+}
+
+function Measure-BackupSource {
+    param([string] $Kind)
+    $n = 0; $b = [long]0
+    foreach ($part in $BACKUPSETS[$Kind].Parts) {
+        foreach ($f in (Get-BackupPart $part)) { $n++; $b += $f.Length }
+    }
+    return @{ Count = $n; Bytes = $b }
 }
 
 function Has-Backup { param([string] $Kind) return (Test-Path (Join-Path $BACKUPS $Kind)) }
+
+function Get-BackupInfo {
+    param([string] $Kind)
+    $dir = Join-Path $BACKUPS $Kind
+    if (-not (Test-Path $dir)) { return $null }
+    $files = @(Get-ChildItem -LiteralPath $dir -File -Recurse -ErrorAction SilentlyContinue)
+    $when = (Get-Item $dir).LastWriteTime
+    $b = [long]0
+    foreach ($f in $files) { $b += $f.Length }
+    return @{ Count = $files.Count; Bytes = $b; When = $when }
+}
+
+function Copy-Tree {
+    param([string] $From, [string] $To)
+    if (-not (Test-Path $To)) { New-Item -ItemType Directory -Force -Path $To | Out-Null }
+    $null = robocopy $From $To /E /NFL /NDL /NJH /NJS /NP
+    # robocopy: 0-7 are success codes, 8 and up are real failures.
+    return ($LASTEXITCODE -lt 8)
+}
+
+<#
+  Back up one thing. Returns $false only on a real copy failure - "nothing
+  there to back up" and "you already have one" are both fine outcomes.
+  $Replace overwrites an existing backup; without it the OLDER backup is kept,
+  because the older one is the one taken before this installer first touched
+  anything, and that is the one worth having.
+#>
+function Backup-Thing {
+    param([string] $Kind, [switch] $Replace)
+    $set  = $BACKUPSETS[$Kind]
+    $dest = Join-Path $BACKUPS $Kind
+    $have = Measure-BackupSource $Kind
+    if ($have.Count -eq 0) {
+        Say "Nothing to back up - there are no files of yours there yet." $C.Dim
+        return $true
+    }
+    if ((Test-Path $dest) -and -not $Replace) {
+        $old = Get-BackupInfo $Kind
+        Say ("A backup already exists from {0} - keeping it." -f $old.When.ToString('d MMM yyyy HH:mm')) $C.Dim
+        Say "That is the older one, so it is the one worth keeping." $C.Dim
+        return $true
+    }
+    Say ("Backing up {0} - {1} file(s), {2} ..." -f $set.Title, $have.Count, (Format-Size $have.Bytes)) $C.Text
+    if ($DryRun) { Say "(dry run - nothing copied)" $C.Dim; return $true }
+    if ((Test-Path $dest) -and $Replace) { Remove-Item -LiteralPath $dest -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $dest | Out-Null
+    foreach ($part in $set.Parts) {
+        $files = Get-BackupPart $part
+        if ($files.Count -eq 0) { continue }
+        $to = Join-Path $dest $part.Sub
+        if ($part.Type -eq 'folder') {
+            if (-not (Copy-Tree $part.Path $to)) { Say "Backup FAILED - nothing was changed." $C.Bad; return $false }
+        } else {
+            New-Item -ItemType Directory -Force -Path $to | Out-Null
+            foreach ($f in $files) { Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $to $f.Name) -Force }
+        }
+    }
+    Say ("Backup saved to  {0}" -f $dest) $C.Good
+    Write-Log "backup: $Kind -> $dest"
+    return $true
+}
+
+<#
+  Put one backup back where it came from. Adds files over what is there; it
+  does not wipe the destination first, so anything the player added since is
+  left alone and only their own originals come back on top.
+#>
+function Restore-Thing {
+    param([string] $Kind)
+    $set = $BACKUPSETS[$Kind]
+    $dir = Join-Path $BACKUPS $Kind
+    if (-not (Test-Path $dir)) { Say "There is no backup of $($set.Title) to restore." $C.Warn; return $false }
+    Say ("Putting {0} back ..." -f $set.Title) $C.Text
+    if ($DryRun) { Say "(dry run - nothing copied)" $C.Dim; return $true }
+    $did = 0
+    foreach ($part in $set.Parts) {
+        $from = Join-Path $dir $part.Sub
+        if (-not (Test-Path $from)) { continue }
+        if ($part.Type -eq 'folder') {
+            if (-not (Copy-Tree $from $part.Path)) { Say "Restore FAILED." $C.Bad; return $false }
+        } else {
+            if (-not (Test-Path $part.Path)) { New-Item -ItemType Directory -Force -Path $part.Path | Out-Null }
+            foreach ($f in (Get-ChildItem -LiteralPath $from -File)) {
+                Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $part.Path $f.Name) -Force
+            }
+        }
+        $did++
+    }
+    if ($did -eq 0) { Say "That backup is empty - nothing to put back." $C.Warn; return $false }
+    Say "Your own files are back." $C.Good
+    Write-Log "restore: $Kind"
+    return $true
+}
+
+# Backups used to live in _zm_qol_installer\backups. Move any across, once, so
+# nobody loses one to the new layout.
+function Move-OldBackups {
+    if (-not (Test-Path $OLDBACKUPS)) { return }
+    if ($DryRun) { return }
+    try {
+        New-Item -ItemType Directory -Force -Path $BACKUPS | Out-Null
+        foreach ($d in (Get-ChildItem -LiteralPath $OLDBACKUPS -Directory -ErrorAction SilentlyContinue)) {
+            $to = Join-Path $BACKUPS $d.Name
+            if (Test-Path $to) { continue }
+            Move-Item -LiteralPath $d.FullName -Destination $to -Force
+            Write-Log "moved old backup: $($d.Name)"
+        }
+        if (@(Get-ChildItem -LiteralPath $OLDBACKUPS -Force -ErrorAction SilentlyContinue).Count -eq 0) {
+            Remove-Item -LiteralPath $OLDBACKUPS -Force -Recurse
+        }
+    } catch { Write-Log "could not move old backups: $_" 'warn' }
+}
 
 # ------------------------------------------------------------------ copying --
 function Copy-Payload {
@@ -385,6 +603,14 @@ function Get-Status {
     else { $s.ReShade = 'not installed'; $s.ReShadeOn = $false }
 
     $s.Settings = (Test-Path $CFGDIR)
+
+    $n = 0
+    foreach ($k in $BACKUPSETS.Keys) { if (Has-Backup $k) { $n++ } }
+    if ($n -eq 0) { $s.Backups = 'nothing backed up yet'; $s.BackupsColour = $C.Dim }
+    else {
+        $word = 'things'; if ($n -eq 1) { $word = 'thing' }
+        $s.Backups = "$n of $($BACKUPSETS.Count) $word backed up"; $s.BackupsColour = $C.Good
+    }
     return $s
 }
 
@@ -495,7 +721,7 @@ function Act-InstallImages {
 
     Draw-Header 'HD texture pack'
     Write-Log "action: install images ($($sel.Key))"
-    if ($sel.Key -eq 'backup') { if (-not (Backup-Folder 'images' $IMGDIR)) { Pause-Key; return } }
+    if ($sel.Key -eq 'backup') { if (-not (Backup-Thing 'images')) { Pause-Key; return } }
     if (Copy-Payload $src $IMGDIR 'images') { Write-Host ''; Say "✅  Texture pack installed." $C.Good }
     Pause-Key
 }
@@ -532,7 +758,7 @@ function Act-InstallSounds {
 
     Draw-Header 'Custom sounds'
     Write-Log "action: install sounds ($($sel.Key))"
-    if ($sel.Key -eq 'backup') { if (-not (Backup-Folder 'zone' $ZONEDIR)) { Pause-Key; return } }
+    if ($sel.Key -eq 'backup') { if (-not (Backup-Thing 'zone')) { Pause-Key; return } }
     if (Copy-Payload $src $ZONEDIR 'zone') { Write-Host ''; Say "✅  Custom sounds installed." $C.Good }
     Pause-Key
 }
@@ -687,7 +913,7 @@ function Act-RemoveImages {
     Draw-Header 'Remove the HD textures'
     Write-Log "action: remove images ($($sel.Key))"
     $did = Remove-ByManifest 'images' $IMGDIR
-    if ($sel.Key -eq 'restore') { [void](Restore-Folder 'images' $IMGDIR) }
+    if ($sel.Key -eq 'restore') { [void](Restore-Thing 'images') }
     Write-Host ''
     if ($did) { Say "✅  Done." $C.Good } else { Say "Nothing to do." $C.Dim }
     Pause-Key
@@ -710,7 +936,7 @@ function Act-RemoveSounds {
     Draw-Header 'Remove the custom sounds'
     Write-Log "action: remove sounds ($($sel.Key))"
     $did = Remove-ByManifest 'zone' $ZONEDIR
-    if ($sel.Key -eq 'restore') { [void](Restore-Folder 'zone' $ZONEDIR) }
+    if ($sel.Key -eq 'restore') { [void](Restore-Thing 'zone') }
     Write-Host ''
     if ($did) { Say "✅  Done." $C.Good } else { Say "Nothing to do." $C.Dim }
     Pause-Key
@@ -778,6 +1004,104 @@ function Act-RemoveMod {
 }
 
 # ------------------------------------------------------------------ updates --
+# ---------------------------------------------------------------------------
+#  Backups. One screen listing the four things, and one screen per thing with
+#  back up / put back / delete. Nothing here is destructive without a second
+#  choice on the per-thing screen.
+# ---------------------------------------------------------------------------
+function Get-BackupStatus {
+    param([string] $Kind)
+    $b = Get-BackupInfo $Kind
+    if ($b -and $b.Count -gt 0) {
+        return @{ Text = ("{0} · {1} · {2}" -f $b.When.ToString('d MMM yyyy'), $b.Count, (Format-Size $b.Bytes)); Colour = $C.Good }
+    }
+    $have = Measure-BackupSource $Kind
+    if ($have.Count -eq 0) { return @{ Text = 'nothing there to back up'; Colour = $C.Off } }
+    return @{ Text = ("no backup · {0} files, {1}" -f $have.Count, (Format-Size $have.Bytes)); Colour = $C.Dim }
+}
+
+function Act-BackupOne {
+    param([string] $Kind, [int] $Pick = -1)
+    while ($true) {
+        $set  = $BACKUPSETS[$Kind]
+        $b    = Get-BackupInfo $Kind
+        $have = Measure-BackupSource $Kind
+
+        $intro = @("A backup of $($set.Title), kept separately from the mod so this")
+        $intro += "installer can never be the reason you lose them."
+        $intro += ''
+        $intro += "~Backup goes to:  $(Join-Path $BACKUPS $Kind)"
+        $intro += "~On this PC now:   $($have.Count) file(s), $(Format-Size $have.Bytes)"
+        if ($b -and $b.Count -gt 0) {
+            $intro += "~Backed up:        $($b.When.ToString('d MMM yyyy, HH:mm')) - $($b.Count) file(s), $(Format-Size $b.Bytes)"
+        } else {
+            $intro += "~Backed up:        never"
+        }
+
+        $items = @()
+        if ($b -and $b.Count -gt 0) {
+            $items += @{ Key='replace'; Label='Back up again, replacing that one'; Status='overwrites the backup'; StatusColour=$C.Warn }
+            $items += @{ Key='restore'; Label='Put my backup back';                Status='backup found';          StatusColour=$C.Good }
+            $items += @{ Key='delete';  Label='Delete this backup' }
+        } else {
+            $d = @{ Key='make'; Label='Back it up now' }
+            if ($have.Count -eq 0) { $d.Status = 'nothing there yet'; $d.StatusColour = $C.Off; $d.Disabled = $true }
+            $items += $d
+        }
+        $items += @{ Key='back'; Label='Back' }
+
+        if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu "Backup - $($set.Title)" $items -Intro $intro }
+        if (-not $sel -or $sel.Key -eq 'back') { return }
+
+        Draw-Header "Backup - $($set.Title)"
+        Write-Log "action: backup $Kind ($($sel.Key))"
+        switch ($sel.Key) {
+            'make'    { [void](Backup-Thing $Kind) }
+            'replace' { [void](Backup-Thing $Kind -Replace) }
+            'restore' { [void](Restore-Thing $Kind) }
+            'delete'  {
+                $dir = Join-Path $BACKUPS $Kind
+                if ($DryRun) { Say "(dry run - not deleted)" $C.Dim }
+                elseif (Test-Path $dir) { Remove-Item -LiteralPath $dir -Recurse -Force; Say "Backup deleted. The files on your PC are untouched." $C.Good }
+                else { Say "There was no backup to delete." $C.Dim }
+            }
+        }
+        Pause-Key
+        if ($Pick -ge 0) { return }
+    }
+}
+
+function Act-Backups {
+    param([int] $Pick = -1)
+    while ($true) {
+        $intro = @(
+            'Back up your own textures, sounds, ReShade or mod folder before this',
+            'installer writes over them - and put them back whenever you like.',
+            '',
+            "~Everything is kept in:  $BACKUPS",
+            "~One plain folder per thing. Nothing in there is ever deleted by an",
+            "~install or an update - only by you, on the screen for that thing."
+        )
+        $items = @()
+        foreach ($k in $BACKUPSETS.Keys) {
+            $st = Get-BackupStatus $k
+            $label = switch ($k) {
+                'images'  { 'My textures' }
+                'zone'    { 'My sounds' }
+                'reshade' { 'My ReShade setup' }
+                'mod'     { 'The mod + my settings' }
+            }
+            $items += @{ Key=$k; Label=$label; Status=$st.Text; StatusColour=$st.Colour }
+        }
+        $items += @{ Key='back'; Label='Back' }
+
+        if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'Backups' $items -Intro $intro }
+        if (-not $sel -or $sel.Key -eq 'back') { return }
+        Act-BackupOne $sel.Key
+        if ($Pick -ge 0) { return }
+    }
+}
+
 function Get-Release {
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -959,6 +1283,8 @@ function Main-Menu {
             @{ Key='rreshade';Section='REMOVE';   Label='Remove ReShade' },
             @{ Key='rmod';    Section='REMOVE';   Label='Remove the mod' },
 
+            @{ Key='backups'; Section='BACKUP';   Label='Back up / restore my own files'; Status=$st.Backups; StatusColour=$st.BackupsColour },
+
             @{ Key='update';  Section='MORE';     Label='Check for a newer version' },
             @{ Key='details'; Section='MORE';     Label='Details and log' },
             @{ Key='quit';    Section='MORE';     Label='Quit' }
@@ -976,6 +1302,7 @@ function Main-Menu {
             'rsounds'  { Act-RemoveSounds }
             'rreshade' { Act-RemoveReShade }
             'rmod'     { Act-RemoveMod }
+            'backups'  { Act-Backups }
             'update'   { Act-CheckUpdate }
             'details'  { Act-Details }
         }
@@ -983,6 +1310,7 @@ function Main-Menu {
 }
 
 Write-Log "--- installer started (dryrun=$DryRun) ---"
+Move-OldBackups
 
 if ($Action) {
     switch ($Action) {
@@ -994,6 +1322,9 @@ if ($Action) {
         'rsounds'  { Act-RemoveSounds   -Pick $Choice }
         'rreshade' { Act-RemoveReShade  -Pick $Choice }
         'rmod'     { Act-RemoveMod      -Pick $Choice }
+        'backups'  { Act-Backups        -Pick $Choice }
+        'backup'   { [void](Backup-Thing $Extra) }
+        'restore'  { [void](Restore-Thing $Extra) }
         'update'   { Act-CheckUpdate    -Pick $Choice }
         'details'  { Act-Details }
         default    { Write-Host "unknown action: $Action" }
