@@ -738,6 +738,12 @@ api_latest() {
   else wget -qO- --header='User-Agent: zm_qol-installer' "$url" 2>/dev/null; fi
 }
 
+api_releases() {
+  local url="https://api.github.com/repos/$REPO/releases?per_page=30"
+  if command -v curl >/dev/null 2>&1; then curl -fsSL -H 'User-Agent: zm_qol-installer' "$url" 2>/dev/null
+  else wget -qO- --header='User-Agent: zm_qol-installer' "$url" 2>/dev/null; fi
+}
+
 # asset url by exact name, without needing jq
 asset_url() {
   local json="$1" name="$2"
@@ -766,10 +772,17 @@ download_pack() {
     *) return 1 ;;
   esac
   have_net || return 1
-  local json; json="$(api_latest)" || return 1
-  [ -z "$json" ] && return 1
-  local url; url="$(asset_url "$json" "$asset")"
-  [ -z "$url" ] && return 1
+  # Look in the latest release, then fall back to the recent ones. The texture
+  # and sound packs are 524 MB and 641 MB, so they stay attached to the release
+  # they were built for instead of being re-uploaded on every patch.
+  local json url
+  json="$(api_latest)" || true
+  [ -n "$json" ] && url="$(asset_url "$json" "$asset")"
+  if [ -z "${url:-}" ]; then
+    json="$(api_releases)" || true
+    [ -n "$json" ] && url="$(asset_url "$json" "$asset")"
+  fi
+  [ -z "${url:-}" ] && return 1
   [ "$DRYRUN" -eq 1 ] && return 1
   local tmp="${TMPDIR:-/tmp}/zm_qol_installer"
   mkdir -p "$tmp"

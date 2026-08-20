@@ -1109,11 +1109,36 @@ function Get-Release {
     } catch { return $null }
 }
 
+<#
+  Find one release asset by name.
+
+  🛑 It must NOT look only at the latest release. The texture pack is 524 MB
+  and the sound pack 641 MB; re-uploading both on every patch release is not
+  something anyone will keep doing, so they stay attached to the release they
+  were built for. Look in the latest release first, then walk back through the
+  recent ones and take the newest copy that exists.
+#>
+function Find-ReleaseAsset {
+    param([string] $AssetName)
+    $rel = Get-Release
+    if ($rel) {
+        $a = $rel.assets | Where-Object { $_.name -eq $AssetName } | Select-Object -First 1
+        if ($a) { return $a }
+    }
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $all = Invoke-RestMethod "https://api.github.com/repos/$REPO/releases?per_page=30" -Headers @{ 'User-Agent' = 'zm_qol-installer' }
+    } catch { return $null }
+    foreach ($r in $all) {
+        $a = $r.assets | Where-Object { $_.name -eq $AssetName } | Select-Object -First 1
+        if ($a) { Write-Log "found $AssetName on release $($r.tag_name)"; return $a }
+    }
+    return $null
+}
+
 function Get-RemotePayload {
     param([string] $AssetName, [string] $FolderName)
-    $rel = Get-Release
-    if (-not $rel) { return $null }
-    $asset = $rel.assets | Where-Object { $_.name -eq $AssetName } | Select-Object -First 1
+    $asset = Find-ReleaseAsset $AssetName
     if (-not $asset) { return $null }
 
     Draw-Header 'Downloading'
