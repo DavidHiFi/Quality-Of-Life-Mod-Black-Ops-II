@@ -8645,3 +8645,53 @@ flat on the wall.** A wrong angle is a numeric tweak, not a rethink.
 
 ✅ This closes the long-standing *"waiting on a pre-patch `zm_highrise_patch.ff`"* blocker. The answer
 was never a pre-patch fastfile; it was a correct implementation, and Remix had one.
+
+---
+
+## Item 35 — PERMA-PERKS toggle on the GAME tab (user, 2026-08-20)
+
+**The request, verbatim:** *"Add an option in the GAME tab for my mod to enable or disable
+Perma-Perks for the maps that have them in the base game, like perma phd perma jug etc. just one
+simple on off switch for all the maps that have them, on just turns on all available perma perks on
+maps that have them, so don't add perma perks that aren't meant to be on other maps, like perma phd
+for instance is a buried only perma perk. That's it."*
+
+**Queued, not started** — the Die Rise weapons block (v1.99.96) is deployed and unbooted.
+
+### What the base game actually has — measured, not assumed
+
+`init_persistent_abilities()` exists in exactly **three** map scripts in the stock dump and nowhere
+else. Mob of the Dead, Origins and Nuketown have no persistent upgrades at all.
+
+| map | script | flags set |
+|---|---|---|
+| TranZit | `zm_transit.gsc:452` | 13 |
+| Die Rise | `zm_highrise.gsc:501` | 13 |
+| Buried | `zm_buried.gsc:411` | **14** |
+
+The 13 shared by all three: `boards`, `revive`, `multi_kill_headshots`, `cash_back`, `insta_kill`,
+`jugg`, `carpenter`, `box_weapon`, `sniper`, `pistol_points`, `perk_lose`, `double_points`, `nube`.
+Buried adds **`pers_upgrade_flopper`** — Perma-PhD — and it is the only map that does, which is
+precisely the Buried-only case the user called out. All three blocks sit inside `if ( is_classic() )`,
+so survival and grief never had them and the switch must not change that.
+
+### Open questions, to settle with the user before building
+
+1. **What ON means.** Stock behaviour — the perma-perks exist and are earned through their
+   challenges — or granted outright at spawn? The request reads as the first (*"on just turns on all
+   available perma perks on maps that have them"* = the maps behave as the base game does), and that
+   is also the reading that keeps the switch a restoration rather than a cheat. Confirm before
+   building.
+2. **The default.** Almost certainly ON, i.e. vanilla, so OFF is the only thing that changes
+   anything.
+
+### The one technical thing to measure first
+
+The `level.pers_upgrade_*` flags are consumed by `maps\mp\zombies\_zm_pers_upgrades` during init, so
+an OFF write has to land **before** that read — clearing them from the mod's per-map script is only
+correct if the ordering allows it. Read `_zm_pers_upgrades.gsc` and `_zm_pers_upgrades_system.gsc`
+and find where the flags are consumed; do not assume. A live mid-match toggle may not be possible at
+all, in which case the row says *"takes effect from the next map start"*, as SEMTEX WALL BUY does.
+
+The mod already has `zm_transit`, `zm_highrise` and `zm_buried` per-map scripts, so no new file is
+needed and AI_CONTEXT rule 2 is satisfied by construction.

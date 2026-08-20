@@ -209,6 +209,24 @@ user: which map, and roughly how far the barriers were.
     the request is impossible as stated; the user's own **A** glyph = the images folder wins and all
     121 can ship in `mod.iwd`. 🛑 **THE PROBE MUST BE DELETED EITHER WAY BEFORE ANY RELEASE.**
 
+35. **PERMA-PERKS toggle on the GAME tab** (user, 2026-08-20) — one on/off switch covering every
+    persistent upgrade the base game already gives a map, and nothing more: *"don't add perma perks
+    that aren't meant to be on other maps, like perma phd for instance is a buried only perma
+    perk."* Measured from the stock dump before queuing, so the scope is known: only **three maps**
+    have any — `init_persistent_abilities()` exists in `zm_transit.gsc:452`, `zm_highrise.gsc:501`
+    and `zm_buried.gsc:411` and nowhere else (Mob, Origins and Nuketown have none). TranZit and Die
+    Rise set **13** `level.pers_upgrade_*` flags each — boards, revive, multi_kill_headshots,
+    cash_back, insta_kill, jugg, carpenter, box_weapon, sniper, pistol_points, perk_lose,
+    double_points, nube — and **Buried sets the same 13 plus `pers_upgrade_flopper`** (Perma-PhD),
+    which is exactly the Buried-only case the user named. All three are wrapped in `is_classic()`,
+    so survival and grief never had them. 📝 **Two things to settle with the user before building:**
+    whether ON means *stock behaviour* (earn them through the challenges, which is the reading
+    taken here) or *granted immediately*, and what the default is. 📝 **The open technical question**
+    is where the OFF write lands: the flags are read by `_zm_pers_upgrades` at init, so clearing
+    them from the mod's per-map script has to happen before that read — to be measured against
+    `_zm_pers_upgrades.gsc` / `_zm_pers_upgrades_system.gsc`, not assumed. Three per-map scripts
+    already exist in the mod (`zm_transit`, `zm_highrise`, `zm_buried`), so no new file is needed.
+
 <!-- /LIST -->
 ---
 ## Closed — off the list, kept for the record
