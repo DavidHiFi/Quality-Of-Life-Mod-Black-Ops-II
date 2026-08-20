@@ -1167,7 +1167,12 @@ CoD.OptionsSettings.QolNoArchive = {
 	-- would fire on map load. They are per-match actions, never preferences.
 	set_round = true,
 	kill_horde = true,
-	end_round = true
+	end_round = true,
+	-- v1.99.93 - the two new CHEATS rows. set_points holds its value in a match
+	-- BY DESIGN (see the row), but an archived 1000000 would hand out a million
+	-- points on the next launch, and an archived teleport would fire on map load.
+	set_points = true,
+	teleport = true
 }
 
 CoD.OptionsSettings.QolArchive = function (DvarName)
@@ -1325,7 +1330,9 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- DVAR is still move_speed, deliberately: it is already archived in the
 	-- player's config from v1.99.51 and it is the name the console takes.
 	-- Renaming it would reset the saved setting. Same call as whoswho_knife.
-	T(QolButtons, LocalClientIndex, "BACKSPEED PATCH",    "move_speed",           "Matches the console sideways and backwards movement speeds.")
+	-- 🛑 v1.99.93 - BACKSPEED PATCH and ANIMATED CAMO PATCH MOVED TO THE NEW
+	-- PATCHES TAB, dvars unchanged (move_speed / anim_pap_camo). Do not re-add
+	-- them here; see CoD.OptionsSettings.CreateQolPatchesTab.
 
 	-- v1.99.61, user request 2026-08-18. ON by default - the +100 for proning
 	-- at a perk machine is behaviour the mod has always had, so the switch
@@ -1351,7 +1358,6 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- already in your hands keeps the camo it was given - stock caches the
 	-- weapon options per weapon and the options are baked into the carried
 	-- weapon. See get_pack_a_punch_weapon_options() in quality_of_life.gsc.
-	T(QolButtons, LocalClientIndex, "ANIMATED CAMO PATCH", "anim_pap_camo",      "Animated Pack-a-Punch camo on Mob, Buried and Origins.")
 
 	-- v1.99.83, queue item 30. OFF by default, and that is not a typo: the box
 	-- with NO limits is what this mod has always shipped, so DISABLED is the
@@ -1447,6 +1453,68 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	return QolHudContainer                                          -- 15 total
 end
 
+-- ============================================================================
+--  v1.99.93 - THE PATCHES TAB. User request, 2026-08-20.
+--
+--  *"add a new tab after the GAME tab called PATCHES, this will contain all
+--  Patch toggles like backspeed patch, and inside the new patches menu along
+--  with the other existing patches that were transitioned from the game menu to
+--  this new one, add the REMOVE ROUND CAP toggle ... also add these toggles to
+--  the patches menu: 24 Zombies Round Limit on solo play, Instakill rounds start
+--  on round 163, Double-tap reverted to 1.0 toggle, Sliquifier pre-patch/pre-
+--  nerf by treyarch, Weapon recoil pre-patched/pre-nerf, No zombies attacking
+--  through barriers."*
+--
+--  🛑 THE TWO MOVED ROWS KEEP THEIR DVARS. move_speed and anim_pap_camo are
+--  already archived in players' configs and are the names the console takes;
+--  moving a row between tabs must never rename one. Same rule as the v1.99.52
+--  BACKSPEED PATCH relabel.
+--
+--  🌟 THE SIX NEW ROWS ARE A PORT OF THE USER'S OWN REFERENCE, not a design.
+--  H:\Claude\legacy-decompiled.gsc - the "legacy" pre-patch mod they supplied -
+--  is four replaceFuncs and an init, and every row below is one line of it:
+--      round cap        stock round_think clamps `if (255 < round) round = 255`
+--      24 solo zombies  level.zombie_total = 23 while solo past round 5
+--      instakill 163    ai_calculate_health capped at ai_zombie_health( 155 )
+--      double tap 1.0   setdvar perk_weapRateEnhanced 0
+--      sliquifier       zombie_vars slipgun_reslip_rate 0 / max_kill_round undef
+--      recoil           setdvar sv_patch_zm_weapons 0
+--      barrier attacks  should_attack_player_thru_boards returns false
+--  See the block above zmqol_patches_watch() in quality_of_life.gsc for what
+--  each one does and how it is applied without a replaceFunc where possible.
+--
+--  📝 ALL SIX DEFAULT OFF except REMOVE ROUND CAP, which defaults ON because the
+--  cap is ALREADY absent from this mod's round_think() and has been since the
+--  Cold War round HUD shipped - so ON is what the mod already does, and OFF is
+--  the row that changes something (it puts stock's clamp back). A new switch
+--  must never change existing behaviour until it is thrown.
+-- ============================================================================
+CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIndex)
+	local QolPatchesContainer = LUI.UIContainer.new()
+	local QolPatchesButtons = CoD.Options.CreateButtonList()
+	QolPatchesTab.buttonList = QolPatchesButtons
+	QolPatchesContainer:addElement(QolPatchesButtons)
+
+	local T = CoD.OptionsSettings.QolToggle
+
+	-- Moved here from the GAME tab, dvars unchanged.                  2 rows
+	T(QolPatchesButtons, LocalClientIndex, "BACKSPEED PATCH",     "move_speed",          "Matches the console sideways and backwards movement speeds.")
+	T(QolPatchesButtons, LocalClientIndex, "ANIMATED CAMO PATCH", "anim_pap_camo",       "Animated Pack-a-Punch camo on Mob, Buried and Origins.")
+
+	QolPatchesButtons:addSpacer(CoD.CoD9Button.Height / 2)
+
+	-- The legacy / pre-patch restorations.                            7 rows
+	T(QolPatchesButtons, LocalClientIndex, "REMOVE ROUND CAP",    "remove_round_cap",    "Rounds carry on past 255. Off puts the stock cap back.")
+	T(QolPatchesButtons, LocalClientIndex, "24 ZOMBIE SOLO CAP",  "solo_zombie_limit",   "Solo rounds past 5 spawn 24 zombies, as before the patch.")
+	T(QolPatchesButtons, LocalClientIndex, "INSTAKILL ROUNDS",    "instakill_rounds",    "Zombie health caps at round 155, so 163+ one-hits you.")
+	T(QolPatchesButtons, LocalClientIndex, "DOUBLE TAP 1.0",      "double_tap_1",        "Double Tap only raises fire rate, with no damage bonus.")
+	T(QolPatchesButtons, LocalClientIndex, "SLIQUIFIER PRE-NERF", "sliquifier_prepatch", "Die Rise Sliquifier chains again, with no kill cap.")
+	T(QolPatchesButtons, LocalClientIndex, "RECOIL PRE-NERF",     "recoil_prepatch",     "Undoes Treyarch's zombies weapon recoil patch.")
+	T(QolPatchesButtons, LocalClientIndex, "NO BARRIER ATTACKS",  "no_barrier_attacks",  "Zombies cannot reach through boarded windows.")
+
+	return QolPatchesContainer                                      -- 9 total
+end
+
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)
 	local QolCheatsContainer = LUI.UIContainer.new()
 	local QolCheatsButtons = CoD.Options.CreateButtonList()
@@ -1495,7 +1563,78 @@ CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientInde
 	T(QolCheatsButtons, LocalClientIndex, "KILL HORDE",      "kill_horde",     "Kill every zombie on the map. Bosses are left alone.")
 	T(QolCheatsButtons, LocalClientIndex, "END ROUND",       "end_round",      "Finish this round now.")
 
-	return QolCheatsContainer                                      -- 10 total
+	-- ========================================================================
+	--  v1.99.93 - SET POINTS. User request, 2026-08-20:
+	--  *"works similar the round change option you can set it to certain
+	--  amounts, so like for the Set Points it'd start at 0 (none) and then go to
+	--  1000 points, 5000 points, 10000 points, 100000 points, 1000000 points.
+	--  And the reason it's "set" points instead of "give" points is so if you
+	--  wanna revert it, say you switch it to one hundred thousand points, you
+	--  can just go back and set it to a lower number and have that amount."*
+	--
+	--  🛑 IT IS NOT AN ACTION ROW, AND THAT IS THE WHOLE REQUEST. CHANGE ROUND /
+	--  KILL HORDE / END ROUND write themselves back to 0 the instant they fire;
+	--  this one must HOLD its value, because 0 is a real setting here (set me to
+	--  zero points) and because the user wants to step back down the list. So
+	--  GSC applies it on CHANGE only - zmqol_set_points_watch() remembers what it
+	--  last applied and does nothing until the row moves.
+	--
+	--  🛑 IN QolNoArchive, like every other CHEATS row: an archived
+	--  set_points 1000000 would hand out a million points on the next launch
+	--  before the player had touched anything.
+	-- ========================================================================
+	CoD.OptionsSettings.QolChoice(QolCheatsButtons, LocalClientIndex, "SET POINTS", "set_points",
+		"Sets your points to this amount. Pick a lower one to go back down.", {
+			{ "NONE", 0 }, { "1000", 1000 }, { "5000", 5000 }, { "10000", 10000 },
+			{ "100000", 100000 }, { "1000000", 1000000 }
+		})
+
+	-- ========================================================================
+	--  v1.99.93 - TELEPORT, ported from the Strat Tester. User request,
+	--  2026-08-20: *"add the teleport menu from the strat tester to my cheats
+	--  tab in my mod."*
+	--
+	--  🌟 THE DESTINATIONS ARE THE STRAT TESTER'S OWN, copied value for value out
+	--  of H:\Claude\Strat-Tester-BO2\scripts\zm\strattester\commands.gsc::tpcase()
+	--  - position AND angles - so each one lands facing the way it does there.
+	--  Nothing is invented: a map that has no list in that file (Nuketown) gets
+	--  no row at all rather than a made-up destination.
+	--
+	--  🛑 THE LIST IS BUILT PER MAP, HERE, because the row has to name real
+	--  places. `mapname` is set by the time the in-game pause menu is built -
+	--  this is the same UIExpression.DvarString call QolArchive already uses.
+	--  The VALUES are indices into the matching list in
+	--  quality_of_life.gsc::zmqol_teleport_dest(), and the two lists must stay in
+	--  the same order. They are written next to each other for that reason.
+	--
+	--  📝 It is an ACTION row: GSC teleports and writes the dvar back to 0, so it
+	--  snaps to OFF and the same destination can be picked twice in a row.
+	-- ========================================================================
+	local ZmMap = UIExpression.DvarString(nil, "mapname")
+	local ZmTele = nil
+
+	if ZmMap == "zm_transit" then
+		ZmTele = { { "OFF", 0 }, { "DINER", 1 }, { "FARM", 2 }, { "TOWN", 3 }, { "BUS DEPOT", 4 },
+			{ "TUNNEL", 5 }, { "NACHT", 6 }, { "POWER STATION", 7 }, { "AK74U", 8 }, { "WAREHOUSE", 9 } }
+	elseif ZmMap == "zm_prison" then
+		ZmTele = { { "OFF", 0 }, { "CAFETERIA", 1 }, { "CAGE", 2 }, { "WARDEN'S OFFICE", 3 }, { "DOUBLE TAP", 4 } }
+	elseif ZmMap == "zm_highrise" then
+		ZmTele = { { "OFF", 0 }, { "SHAFT", 1 }, { "TRAMPLESTEAM", 2 } }
+	elseif ZmMap == "zm_buried" then
+		ZmTele = { { "OFF", 0 }, { "SALOON", 1 }, { "JUGGERNOG", 2 }, { "TUNNEL", 3 } }
+	elseif ZmMap == "zm_tomb" then
+		ZmTele = { { "OFF", 0 }, { "CHURCH", 1 }, { "CRAZY PLACE", 2 }, { "GENERATOR 1", 3 },
+			{ "GENERATOR 2", 4 }, { "GENERATOR 3", 5 }, { "GENERATOR 4", 6 }, { "GENERATOR 5", 7 },
+			{ "GENERATOR 6", 8 }, { "TANK", 9 } }
+	end
+
+	if ZmTele ~= nil then
+		CoD.OptionsSettings.QolChoice(QolCheatsButtons, LocalClientIndex, "TELEPORT", "teleport",
+			"Jump to a landmark on this map. Returns to OFF once it fires.", ZmTele)
+	end
+
+
+	return QolCheatsContainer                                      -- 12 total
 end
 
 LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
@@ -1621,6 +1760,8 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	-- is how this renders as "QUALITY OF LIFE" with no new localize entry;
 	-- Plutonium's own line for FOV SENSITIVITY relies on the same behaviour.
 	SettingsTabs:addTab(LocalClientIndex, "GAME", CoD.OptionsSettings.CreateQolTab)
+	-- v1.99.93 - PATCHES, directly after GAME as asked.
+	SettingsTabs:addTab(LocalClientIndex, "PATCHES", CoD.OptionsSettings.CreateQolPatchesTab)
 	-- v1.95.1 - the visuals and HUD half, named "HUD" at the user's request
 	-- (2026-08-14), with the first tab renamed back to "GAME". Split so neither
 	-- tab overflows - see the note above CreateQolTab.
