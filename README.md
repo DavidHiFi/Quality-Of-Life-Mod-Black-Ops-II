@@ -141,6 +141,16 @@ quality-of-life fixes — all toggleable from an in-game options menu.
   generators, the tank, and so on. The destinations are the Strat Tester's own, position and
   facing. Classic games only — those places are outside a survival or grief arena.
   **New in v1.99.93 — deployed, not yet confirmed in game.**
+- **Launch-day weapon recoil** — Treyarch patched eight guns' recoil and hip/ADS spread after Black
+  Ops II shipped, and the mod carries the **original** values for every one of them, base and
+  Pack-a-Punched: the HAMR, the RPD, the DSR 50, the Barrett M82, the Five-Seven, and the three the
+  game files call `type95`, `tar21` and `xm8`. The difference is big — the HAMR's sight recentres at
+  1575 instead of 550, so it settles back about three times faster. Twelve of the sixteen have
+  quietly shipped this way since the mod began; **v1.99.95 finishes the set** by adding the DSR 50
+  and the Five-Seven, lifted straight out of the pre-patch fastfiles. There is no switch for this
+  and there cannot be one: recoil lives in the weapon file, and nothing in the game can change a
+  weapon file while a match is running.
+  **New in v1.99.95 — deployed, not yet confirmed in game.**
 - **The Awful Lawton** (Pack-a-Punched crossbow) — its explosive bolts draw zombies to where they
   stick, like a monkey bomb, as in BO1. Upgraded only; the box crossbow is unchanged.
   **New in v1.99.39 — confirmed in game.**
