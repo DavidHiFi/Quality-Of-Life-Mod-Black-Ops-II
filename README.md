@@ -100,10 +100,10 @@ All five mod files go in that one folder.
 
 ## ✨ What you get
 
-Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 47 rows, no chat commands required.
+Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 46 rows, no chat commands required.
 
 > [!NOTE]
-> **Shipped in 2.0.0 but not play-tested yet:** the Die Rise Sliquifier and Semtex rows, the five new PATCHES rows, SET POINTS / TELEPORT, the DSR 50 and Five-Seven recoil, and the Winter's Howl firing effects. They are in the build; they have not had a boot yet.
+> **Shipped in 2.0.0 but not play-tested yet:** the Die Rise Sliquifier row and the Semtex wall buy, the five new PATCHES rows, SET POINTS / TELEPORT, the DSR 50 and Five-Seven recoil, and the Winter's Howl firing effects. They are in the build; they have not had a boot yet.
 
 <br>
 
@@ -132,7 +132,7 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 
 - **Diner as a Survival location** on TranZit — its own Pack-a-Punch, wall buys, Semtex, buildable shield, teddy bears and secret song.
 - **Nuketown:** the sunken perk-drop pad is fixed, and **`MACHINE DROPS → ALL ON ROUND 1`** airlifts every machine in at match start instead of making you wait until round 26.
-- **Die Rise:** the **Sliquifier pre-nerf** and the **Semtex wall buy** the map was built for.
+- **Die Rise:** the **Sliquifier pre-nerf** (a PATCHES switch) and the **Semtex wall buy**, which is always on.
 - **Scoreboard emblem** finally matches the team you are actually playing as.
 
 ### 🖥️ HUD & menus

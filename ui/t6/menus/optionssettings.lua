@@ -1542,15 +1542,23 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	--  PRE-NERF" switch. Splitting it into three is a one-line change if they
 	--  want the granularity.
 	--
-	--  Both rows are DIE RISE ONLY and both default OFF. They are shown on every
-	--  map rather than hidden, the same as the mod's other map-specific rows -
-	--  the tab is a settings list, not a context menu, and a row that appears
-	--  and vanishes with the map reads as a bug.
+	--  The row is DIE RISE ONLY and defaults OFF. It is shown on every map rather
+	--  than hidden, the same as the mod's other map-specific rows - the tab is a
+	--  settings list, not a context menu, and a row that appears and vanishes
+	--  with the map reads as a bug.
+	--
+	--  🛑 v2.0.2 - "SEMTEX WALL BUY" WAS HERE AND IS GONE. User, 2026-08-20,
+	--  screenshot `gxxTTWxkHW.jpg`: *"this semtex wall buy should just be apart
+	--  of the mod not an option you can toggle on or off, so get rid of that
+	--  option and just keep the added wallbuys i told you to add earlier."*
+	--  The wall buy itself stays and is now unconditional; only the switch went.
+	--  Its `semtex_wallbuy` dvar is retired with it (create_dvar removed from
+	--  quality_of_life.gsc, the read removed from zm_highrise.gsc), so nothing
+	--  is left reading a dvar no menu writes.
 	-- ========================================================================
 	T(QolPatchesButtons, LocalClientIndex, "SLIQUIFIER PRE-NERF", "sliquifier_prenerf",  "Die Rise. Sliquifier kills to round 255, keeps chaining when put away, and stops leaving extra goo.")
-	T(QolPatchesButtons, LocalClientIndex, "SEMTEX WALL BUY",     "semtex_wallbuy",      "Die Rise. Adds a Semtex wall buy. Takes effect from the next map start.")
 
-	return QolPatchesContainer                                      -- 9 total
+	return QolPatchesContainer                                      -- 8 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)
@@ -1787,7 +1795,34 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	-- the arrows draw on top of the labels (v1.93.0/v1.95.0). Too wide only
 	-- pushes the arrows a little further out, which nobody has ever reported.
 	-- CHEATS's width is the one estimated quantity here, so the margin absorbs it.
-	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, 800)
+	--
+	-- 🌟 v2.0.2 - 800 -> 900, BECAUSE THE EIGHTH TAB (PATCHES) LANDED IN v1.99.93
+	-- AND THIS NUMBER WAS NOT RE-DERIVED WITH IT. User, 2026-08-20, screenshot
+	-- `peENVCHd5W.jpg`: *"since you added the patches menu to the settings, the
+	-- arrows are now colliding with the menu options"* - the left arrow sits on
+	-- the "A" of GRAPHICS and the right arrow inside CHEATS. Exactly the v1.95.0
+	-- bug again, from exactly the same cause.
+	--
+	-- 🌟 NOTHING IS ESTIMATED THIS TIME. Both CHEATS and PATCHES now exist on
+	-- screen, so the whole strip was measured off the user's 2560x1440 shot
+	-- `gxxTTWxkHW.jpg` by scanning the tab band (y 210-245) for lit columns.
+	-- 2560 px = 1280 LUI units, so 2 px per unit:
+	--     GRAPHICS   457..598 px      ADVANCED  701..848
+	--     SOUND      954..1048        VOICE CHAT 1152..1315
+	--     GAME      1421..1496        PATCHES   1599..1728
+	--     HUD       1833..1887        CHEATS    1993..2101
+	-- Strip = 457..2101 px = 1644 px = 822 units, centred on 1279 px (= 639.5
+	-- units, i.e. screen centre, which is the check that the scan is sound).
+	--
+	-- The same scan finds the two arrows at 496..512 px and 2037..2063 px - and
+	-- 800 units puts the container edges at 480 px and 2080 px. That is the
+	-- collision, measured rather than inferred: the container is 822 units of
+	-- labels inside an 800-unit box, so both arrows are drawn INSIDE the text.
+	--
+	-- Stock leaves ~34 units of margin per side, so the minimum is 822 + 68 =
+	-- 890. 900 leaves 39 units (78 px) per side - 5 units more than stock's, and
+	-- still biased wide for the reason above.
+	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, 900)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_GRAPHICS_CAPS", CoD.OptionsSettings.CreateGraphicsTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_ADVANCED_CAPS", CoD.OptionsSettings.CreateAdvancedTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_SOUND_CAPS", CoD.OptionsSettings.CreateSoundTab)

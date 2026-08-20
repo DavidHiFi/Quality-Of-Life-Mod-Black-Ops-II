@@ -858,9 +858,18 @@ zmqol_slipgun_death_response()
 // ----------------------------------------------------------------------------
 //  zmqol_semtex_wallbuy  -  row 4.
 //
-//  READ ONCE, AT MAP START, ON PURPOSE. A wall buy is a static unitrigger and a
-//  chalk fx; there is no clean way to take one back down mid-match, so this is
-//  not a live toggle. Turning the row off applies from the next map.
+//  🛑 v2.0.2 - NOT A TOGGLE ANY MORE. User, 2026-08-20: *"this semtex wall buy
+//  should just be apart of the mod not an option you can toggle on or off, so
+//  get rid of that option and just keep the added wallbuys i told you to add
+//  earlier."*  The `semtex_wallbuy` dvar, its create_dvar() in
+//  quality_of_life.gsc and its PATCHES row in optionssettings.lua are all gone;
+//  the wall buy itself is unchanged and now always spawns.
+//
+//  The flag_wait below STAYS. It was there so the dvar read could not race the
+//  root script's create_dvar(), but it is load-bearing for a second reason as
+//  well: zmqol_spawn_wallbuy_weapon() registers a static unitrigger and plays
+//  the chalk fx, and both want the map fully up. Removing it would be an
+//  unrelated change riding on this one.
 //
 //  Angle, position and the "weapon_upgrade" targetname are Remix's, which is the
 //  tested placement; the MODEL is not - see the banner.
@@ -869,16 +878,7 @@ zmqol_semtex_wallbuy()
 {
     level endon( "end_game" );
 
-    //  THE DVAR IS READ AFTER THE FLAG, NOT BEFORE IT, AND THAT ORDER MATTERS.
-    //  create_dvar() in quality_of_life.gsc only writes the default when the
-    //  dvar is unset, and the order in which the root script's init() and this
-    //  map script's init() run is not guaranteed. Reading here, one blackscreen
-    //  later, means the registration has certainly happened - so a first-ever
-    //  boot with the row switched on cannot silently read 0.
     flag_wait( "initial_blackscreen_passed" );
-
-    if ( !getdvarintdefault( "semtex_wallbuy", 0 ) )
-        return;
 
     zmqol_spawn_wallbuy_weapon( ( 0, 270, 0 ), ( 2119, 1826, 3115 ), "sticky_grenade_zm_fx", "sticky_grenade_zm", "t6_wpn_grenade_semtex_world" );
 }

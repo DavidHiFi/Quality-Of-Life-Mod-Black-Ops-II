@@ -1639,10 +1639,120 @@ wunderfizzSetup(origin, angles, model)
 	//  below is true on the same frame and every existing line keeps working -
 	//  the constructor arguments are identical (origin, spawnflags, radius,
 	//  height) and nothing else about the trigger changes.
+	//
 	// ========================================================================
-	trig = spawn("trigger_radius_use", origin, 1, 50, 50);
+	//  🛑 v2.0.2 - THE PARAGRAPH ABOVE IS KEPT AS THE RECORD OF A WRONG CALL,
+	//  AND THE CHANGE IT DESCRIBES IS REVERTED.
+	//
+	//  User, 2026-08-20, screenshot `W78l9IHfqM.jpg` (stood at the machine, no
+	//  prompt on screen): *"right now i cant even interact with the wunderfizz
+	//  machine at all there's no tooltip that shows up when i approach it. Just
+	//  simply keep the original working state of the wunderfizz machine
+	//  purchasing and picking up perks from it but make it so you dont have to
+	//  hold down the interact, just press it instead."*
+	//
+	//  v1.99.91 changed exactly one functional line - this classname - and the
+	//  machine stopped responding entirely. `git show 5f4afc6 -- wunderfizz.gsc`
+	//  confirms nothing else in the file changed but hint TEXT, so the classname
+	//  is the whole regression and there is nothing else to look at.
+	//
+	//  🛑 WHY IT WAS WRONG, measured against the stock dump rather than argued:
+	//    - EVERY stock trigger_radius_use is spawned with spawnflags 0. Grepped
+	//      the whole ZM dump: `spawn( "trigger_radius_use", ..., 0, r, h )` in
+	//      _zm_buildables, _zm_weapons, zm_buried, zm_tomb, _zm_ai_*. Not one
+	//      passes 1. This call kept the 1 it had inherited from the proximity
+	//      trigger it used to be.
+	//    - Stock's OWN Der Wunderfizz does not use a spawned trigger at all. It
+	//      builds a per-player unitrigger and places it OFF the machine:
+	//          maps\mp\zombies\_zm_perk_random.gsc:43
+	//          machine.unitrigger_stub.origin = machine.origin
+	//                                         + anglestoright( machine.angles ) * 22.5
+	//      A use trigger sitting at the machine's own origin - which is what
+	//      this line spawns - is inside the machine's collision.
+	//  Either one is enough to explain a prompt that never appears, and neither
+	//  can be settled offline. The proximity trigger is PROVEN to work: it is
+	//  what shipped for the whole life of this feature.
+	//
+	//  🌟 SO THE PRESS-vs-HOLD FIX MOVES OFF THE TRIGGER AND ONTO THE INPUT,
+	//  which is where the actual defect always was. v1.99.91's own diagnosis of
+	//  the bottle grab is the correct one and it applies here too: nothing ever
+	//  required a HOLD in the engine sense, it required the use key to still be
+	//  DOWN at the moment of a poll, and the buy loop polls once every 0.1s. A
+	//  tap is shorter than that about half the time. zmqol_wf_use_tapped() below
+	//  latches the press itself off notifyonplayercommand( "+activate" ), so a
+	//  tap of any length is caught no matter when the poll lands.
+	// ========================================================================
+	trig = spawn("trigger_radius", origin, 1, 50, 50);
 	trig SetCursorHint("HINT_NOICON");
 	wunderfizzMachine thread wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle);
+}
+
+// ============================================================================
+//  THE USE-PRESS LATCH  -  v2.0.2
+//
+//  This is the whole of "press instead of hold". It changes no trigger, no
+//  prompt and no purchase rule; it only changes HOW the buy loop asks whether
+//  the player pressed use.
+//
+//  `player UseButtonPressed()` is a LEVEL check - true only while the key is
+//  physically down. Both places that read it sit in loops that sample every
+//  0.05s (bottle grab) or 0.1s (purchase), so a short tap falls between two
+//  samples and is silently lost. Holding the key guaranteed a sample landed
+//  inside it, which is exactly the behaviour the user asked to be rid of.
+//
+//  notifyonplayercommand() turns the key's own PRESS EDGE into a GSC notify, so
+//  nothing can fall between samples. "+activate" is confirmed present in the
+//  authoritative command list ( Black Ops 2 Grand Resources\T6-Data-Archive-main\
+//  MPZM\Script\User Input\NOTIFYONPLAYERCOMMAND_NOTIFIES.txt, line 95 ) and the
+//  same mechanism is already load-bearing in this mod for `.fly`
+//  ( quality_of_life.gsc:6409-6416 ).
+//
+//  🛑 THE WINDOW IS SHORT AND THE LATCH IS CONSUMED ON READ. A press is only
+//  honoured for 300 ms and only once, so a use press aimed at something else -
+//  a door, a revive - cannot still be sitting there when the player wanders
+//  into the machine's 50-unit trigger a moment later.
+// ============================================================================
+zmqol_wf_use_latch()
+{
+	self endon( "disconnect" );
+
+	self notifyonplayercommand( "zmqol_wf_use", "+activate" );
+
+	for( ;; )
+	{
+		self waittill( "zmqol_wf_use" );
+		self.zmqol_wf_use_time = gettime();
+	}
+}
+
+//  Registered lazily, the first time a player touches any Wunderfizz trigger.
+//  Doing it here rather than on connect keeps the whole feature inside this file
+//  - no new callback, nothing to unregister, and nothing runs for a player who
+//  never walks up to a machine.
+zmqol_wf_use_watch()
+{
+	if( isdefined( self.zmqol_wf_use_registered ) )
+		return;
+
+	self.zmqol_wf_use_registered = 1;
+	self thread zmqol_wf_use_latch();
+}
+
+//  True if the use key is down right now, OR was tapped within the last 300 ms.
+zmqol_wf_use_tapped()
+{
+	if( self UseButtonPressed() )
+		return true;
+
+	if( isdefined( self.zmqol_wf_use_time ) && ( gettime() - self.zmqol_wf_use_time ) < 300 )
+	{
+		//  Consume it. Without this one press would buy a perk AND immediately
+		//  take the bottle out of the machine seven lines later.
+		self.zmqol_wf_use_time = undefined;
+		return true;
+	}
+
+	return false;
 }
 
 wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
@@ -1838,7 +1948,8 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 
 				trig SetHintString("Press ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
 				trig waittill("trigger", player);
-				if(player UseButtonPressed() && player.score >= cost && player.isDrinkingPerk == 0)
+				player zmqol_wf_use_watch();
+				if(player zmqol_wf_use_tapped() && player.score >= cost && player.isDrinkingPerk == 0)
 				{
 					if(player.num_perks < level.perk_purchase_limit)
 					{
@@ -2017,7 +2128,7 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 										n_fx_beat = 0;
 										while(time > 0)
 										{
-											if(player UseButtonPressed() && distance(player.origin, trig.origin) < 65)
+											if(player zmqol_wf_use_tapped() && distance(player.origin, trig.origin) < 65)
 											{
 												player thread givePerk(perklist[j]);
 												break;

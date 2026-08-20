@@ -9254,18 +9254,21 @@ perks()
     //  deliberately departs from Remix are all in the banner at the bottom of
     //  scripts\zm\zm_highrise\zm_highrise.gsc.
     //
-    //  BOTH ROWS DO NOTHING OFF DIE RISE and that is by construction, not by a
-    //  guard: every line that implements them lives in the map's own script,
+    //  THE ROW DOES NOTHING OFF DIE RISE and that is by construction, not by a
+    //  guard: every line that implements it lives in the map's own script,
     //  because maps\mp\zombies\_zm_weap_slipgun ships in zm_highrise_patch.ff
     //  and a qualified reference to it from a root file is an Unresolved
     //  external that kills every OTHER map at load ( AI_CONTEXT rule 2 ).
     //
-    //  semtex_wallbuy is read ONCE, at map start. A wall buy is a static
-    //  unitrigger plus a chalk fx and there is no clean way to take one back
-    //  down mid-match, so switching it off applies from the next map.
+    //  🛑 v2.0.2 - `create_dvar( "semtex_wallbuy", 0 )` WAS HERE AND IS GONE.
+    //  User, 2026-08-20: *"this semtex wall buy should just be apart of the mod
+    //  not an option you can toggle on or off."*  The Die Rise Semtex wall buy
+    //  is unconditional now, so there is no dvar and no PATCHES row for it. The
+    //  read in scripts\zm\zm_highrise\zm_highrise.gsc went with it - a dvar that
+    //  no menu writes and no script reads is exactly the kind of leftover that
+    //  turns into a false lead later.
     //  ========================================================================
     create_dvar( "sliquifier_prenerf", 0 );
-    create_dvar( "semtex_wallbuy",     0 );
 
     level thread zmqol_patches_watch();
     level thread zmqol_solo_zombie_limit();
