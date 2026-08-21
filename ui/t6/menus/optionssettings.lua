@@ -1515,16 +1515,16 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	local T = CoD.OptionsSettings.QolToggle
 
 	-- Moved here from the GAME tab, dvars unchanged.                  2 rows
-	T(QolPatchesButtons, LocalClientIndex, "BACKSPEED PATCH",     "move_speed",          "Matches the console sideways and backwards movement speeds.")
+	T(QolPatchesButtons, LocalClientIndex, "BACKSPEED PATCH",     "move_speed",          "Walk backwards and sideways at full speed.")
 	T(QolPatchesButtons, LocalClientIndex, "ANIMATED CAMO PATCH", "anim_pap_camo",       "Animated Pack-a-Punch camo on Mob, Buried and Origins.")
 
 	QolPatchesButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
 	-- The legacy / pre-patch restorations.                            5 rows
 	T(QolPatchesButtons, LocalClientIndex, "REMOVE ROUND CAP",    "remove_round_cap",    "Rounds carry on past 255. Off puts the stock cap back.")
-	T(QolPatchesButtons, LocalClientIndex, "24 ZOMBIE SOLO CAP",  "solo_zombie_limit",   "Solo rounds past 5 stop growing the horde, as before the patch.")
-	T(QolPatchesButtons, LocalClientIndex, "INSTAKILL ROUNDS",    "instakill_rounds",    "Zombie health wraps at round 163, so one bullet kills again.")
-	T(QolPatchesButtons, LocalClientIndex, "DOUBLE TAP 1.0",      "double_tap_1",        "Fire rate only - no second bullet per shot, as in Double Tap 1.0.")
+	T(QolPatchesButtons, LocalClientIndex, "24 ZOMBIE SOLO CAP",  "solo_zombie_limit",   "Solo rounds past 5 stop growing the horde, like World at War.")
+	T(QolPatchesButtons, LocalClientIndex, "INSTAKILL ROUNDS",    "instakill_rounds",    "Zombie health overflows at round 163 and resets, so one shot kills. Like Black Ops 1.")
+	T(QolPatchesButtons, LocalClientIndex, "DOUBLE TAP 1.0",      "double_tap_1",        "Double Tap only makes you shoot faster, like World at War and Black Ops 1. No extra damage.")
 	T(QolPatchesButtons, LocalClientIndex, "NO BARRIER ATTACKS",  "no_barrier_attacks",  "Zombies cannot reach through boarded windows.")
 
 	QolPatchesButtons:addSpacer(CoD.CoD9Button.Height / 2)
@@ -1556,7 +1556,7 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	--  quality_of_life.gsc, the read removed from zm_highrise.gsc), so nothing
 	--  is left reading a dvar no menu writes.
 	-- ========================================================================
-	T(QolPatchesButtons, LocalClientIndex, "SLIQUIFIER PRE-NERF", "sliquifier_prenerf",  "Die Rise. Sliquifier kills to round 255, keeps chaining when put away, and stops leaving extra goo.")
+	T(QolPatchesButtons, LocalClientIndex, "SLIQUIFIER PRE-NERF", "sliquifier_prenerf",  "Die Rise. Sliquifier kills to round 255, chains while put away, and leaves no extra goo.")
 
 	return QolPatchesContainer                                      -- 8 total
 end
