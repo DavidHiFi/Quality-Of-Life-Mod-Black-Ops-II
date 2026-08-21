@@ -269,6 +269,10 @@ init()
     //  dropped, and the four dvars in that config that do not exist.
     qol_opt_dvar( "graphics_boost", "0" );
 
+    //  v2.0.8 - ROUND COUNTER LEFT (HUD tab). 0 = top right, the Cold War
+    //  placement the mod has always shipped, so nobody's HUD moves on update.
+    qol_opt_dvar( "hud_round_left", "0" );
+
     level thread qol_opt_graphics_boost();
     level thread qol_opt_coop_pause();
     level thread qol_opt_round_clock();
@@ -1575,6 +1579,33 @@ qol_opt_hud_watcher()
             }
         }
 
+        // ====================================================================
+        //  v2.0.8 - ROUND COUNTER LEFT, applied live.
+        //
+        //  The round counter re-anchors itself every round (round_hud() calls
+        //  the same helper on its fly-back), but the two timers are created
+        //  ONCE, so without this a mid-game flip would leave them behind on the
+        //  other side of the screen. Written only when the row CHANGES.
+        //
+        //  🛑 level.zmqol_roundcounter is a SERVER hudelem shared by everyone,
+        //  so it is moved once at level scope rather than once per player -
+        //  writing it inside this per-player loop would still be correct but
+        //  would do it N times for no reason. It is guarded because the default
+        //  branch of round_hud() destroys and re-creates it every round.
+        // ====================================================================
+        b_round_left = getdvarintdefault( "hud_round_left", 0 ) != 0;
+
+        if ( !isdefined( self.qol_round_left_last ) || self.qol_round_left_last != b_round_left )
+        {
+            self.qol_round_left_last = b_round_left;
+
+            zmqol_hud_round_anchor( self.qol_hud_timer );
+            zmqol_hud_round_anchor( self.qol_hud_roundtimer );
+
+            if ( isdefined( level.zmqol_roundcounter ) )
+                zmqol_hud_round_anchor( level.zmqol_roundcounter );
+        }
+
         self qol_opt_show( self.qol_hud_timer, b_master && ( b_all || getdvarintdefault( "hud_timer", 1 ) ) );
 
         // ====================================================================
@@ -1859,9 +1890,10 @@ qol_opt_round_timer_hud( b_on )
         self.qol_hud_roundtimer = self createfontstring( "hudsmall", 1.2 );
         self.qol_hud_roundtimer.alignx = "center";
         self.qol_hud_roundtimer.aligny = "top";
-        self.qol_hud_roundtimer.horzalign = "right";
         self.qol_hud_roundtimer.vertalign = "user_top";
-        self.qol_hud_roundtimer.x = 25;     // == timer.x == round_hud()'s x
+        //  v2.0.8 - side comes from the shared anchor so this stays glued to the
+        //  round counter when ROUND COUNTER LEFT is thrown. y is untouched.
+        zmqol_hud_round_anchor( self.qol_hud_roundtimer );
         self.qol_hud_roundtimer.y = 94;     // == timer.y (80) + one 14-unit row
         //  v1.95.3 - dull navy blue, same value as the game timer above, user
         //  2026-08-14. Set at creation for the same reason: the watcher no-ops on
@@ -1902,4 +1934,50 @@ zmqol_minimal()
     //  scopes function names per file, so each file that needs the gate carries
     //  its own two-line copy rather than reaching across with a qualified call.
     return getdvarintdefault( "zmqol_minimal", 0 );
+}
+
+// ============================================================================
+//  zmqol_hud_round_anchor  -  ROUND COUNTER LEFT                     (v2.0.8)
+//
+//  User, 2026-08-21: *"my mod has the round counter at the top right of the
+//  screen like cold war zombies ... it'd be cool to have an option in the hud
+//  tab ... to be able to have it on the top left (same vertical y coords, just
+//  on the top left instead of top right, same as bo4 zombies)."*
+//
+//  🌟 THE MIRROR IS DERIVED FROM TWO SHIPPED ELEMENTS, NOT GUESSED. T6 hudelem
+//  x is measured from the SAFE-AREA edge named by horzalign, and it grows
+//  OUTWARD from that edge into the margin. Both directions are already in this
+//  file with working values:
+//        round_hud()   horzalign "right", x = +25   (top right, 25 into the margin)
+//        healthbar     horzalign "left",  x = -45   (bottom left, 45 into the margin)
+//  So the exact mirror of the round counter's +25 on the right is -25 on the
+//  left, and it lands the same distance in from the screen edge.
+//
+//  🛑 THE WHOLE STACK MOVES, NOT JUST THE NUMBER. timer() and
+//  qol_options.gsc::qol_opt_round_timer_hud() are calibrated to sit directly
+//  under the round counter and both carried its x = 25 verbatim - the comment
+//  above timer() says so and warns that changing one without the other splits
+//  the stack. All three now read this one anchor. Only the SIDE changes; every
+//  y is untouched, which is exactly what the user asked for.
+//
+//  📝 Twin of quality_of_life.gsc::zmqol_hud_round_anchor(). Same shape as
+//  zmqol_minimal(), which is duplicated across these two root scripts for the
+//  same reason - neither file references the other, and adding a cross-file
+//  call would be a new load-order dependency for six lines.
+// ============================================================================
+zmqol_hud_round_anchor( elem )
+{
+    if ( !isdefined( elem ) )
+        return;
+
+    if ( getdvarintdefault( "hud_round_left", 0 ) )
+    {
+        elem.horzalign = "left";
+        elem.x = -25;
+    }
+    else
+    {
+        elem.horzalign = "right";
+        elem.x = 25;
+    }
 }

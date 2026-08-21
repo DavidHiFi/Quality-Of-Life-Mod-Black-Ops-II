@@ -991,9 +991,8 @@ round_hud()
             roundcounter setvalue( level.round_number );
             break;
     }
-    roundcounter.horzalign = "right";
     roundcounter.vertalign = "top";
-    roundcounter.x = 25;
+    zmqol_hud_round_anchor( roundcounter );   // v2.0.8 - HUD tab: ROUND COUNTER LEFT
     roundcounter.y = -10;
     roundcounter.alpha = 0;
     roundcounter.color = ( 1, 1, 0.25 );
@@ -1056,8 +1055,7 @@ round_hud()
         wait 2.5;
         roundcounter scaleovertime( 0.3, 50, 50 );
         roundcounter moveovertime( 0.3 );
-        roundcounter.horzalign = "right";
-        roundcounter.x = 25;
+        zmqol_hud_round_anchor( roundcounter );   // v2.0.8 - twin of the resting anchor above
         roundcounter.hidewheninmenu = 1;
         level waittill( "between_round_over" );
     }
@@ -1603,7 +1601,6 @@ timer()
     timer = newclienthudelem( self );
     timer.alignx = "center";        // == round_hud()'s measured alignment
     timer.aligny = "top";
-    timer.horzalign = "right";      // == round_hud()
     timer.vertalign = "user_top";
     //  x = 25 is round_hud()'s own x, copied verbatim, so this text is centred on
     //  the round number whatever the safe area is doing.
@@ -1620,7 +1617,10 @@ timer()
     //  🛑 qol_options.gsc::qol_opt_round_timer_hud() CARRIES THE SAME anchor and
     //  x, at y = 94 (one 14-unit row lower). Change one without the other and the
     //  stack splits.
-    timer.x = 25;
+    //  v2.0.8 - horzalign and x now come from the shared anchor, so the whole
+    //  stack (round counter + both timers) moves as one when ROUND COUNTER LEFT
+    //  is thrown. The y below is untouched; only the side changes.
+    zmqol_hud_round_anchor( timer );
     timer.y = 80;
     timer.fontscale = 1.4;
     //  v1.95.3 - dull navy blue, user 2026-08-14: *"just make them a sort of dull
@@ -15389,4 +15389,50 @@ zmqol_teleport_dest( n )
     }
 
     return undefined;
+}
+
+// ============================================================================
+//  zmqol_hud_round_anchor  -  ROUND COUNTER LEFT                     (v2.0.8)
+//
+//  User, 2026-08-21: *"my mod has the round counter at the top right of the
+//  screen like cold war zombies ... it'd be cool to have an option in the hud
+//  tab ... to be able to have it on the top left (same vertical y coords, just
+//  on the top left instead of top right, same as bo4 zombies)."*
+//
+//  🌟 THE MIRROR IS DERIVED FROM TWO SHIPPED ELEMENTS, NOT GUESSED. T6 hudelem
+//  x is measured from the SAFE-AREA edge named by horzalign, and it grows
+//  OUTWARD from that edge into the margin. Both directions are already in this
+//  file with working values:
+//        round_hud()   horzalign "right", x = +25   (top right, 25 into the margin)
+//        healthbar     horzalign "left",  x = -45   (bottom left, 45 into the margin)
+//  So the exact mirror of the round counter's +25 on the right is -25 on the
+//  left, and it lands the same distance in from the screen edge.
+//
+//  🛑 THE WHOLE STACK MOVES, NOT JUST THE NUMBER. timer() and
+//  qol_options.gsc::qol_opt_round_timer_hud() are calibrated to sit directly
+//  under the round counter and both carried its x = 25 verbatim - the comment
+//  above timer() says so and warns that changing one without the other splits
+//  the stack. All three now read this one anchor. Only the SIDE changes; every
+//  y is untouched, which is exactly what the user asked for.
+//
+//  📝 Twin of qol_options.gsc::zmqol_hud_round_anchor(). Same shape as
+//  zmqol_minimal(), which is duplicated across these two root scripts for the
+//  same reason - neither file references the other, and adding a cross-file
+//  call would be a new load-order dependency for six lines.
+// ============================================================================
+zmqol_hud_round_anchor( elem )
+{
+    if ( !isdefined( elem ) )
+        return;
+
+    if ( getdvarintdefault( "hud_round_left", 0 ) )
+    {
+        elem.horzalign = "left";
+        elem.x = -25;
+    }
+    else
+    {
+        elem.horzalign = "right";
+        elem.x = 25;
+    }
 }

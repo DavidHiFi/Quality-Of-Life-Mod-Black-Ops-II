@@ -1044,16 +1044,79 @@ function Act-RemoveMod {
 
     Draw-Header 'Remove the mod'
     Write-Log "action: remove mod ($($sel.Key))"
+
+    # -----------------------------------------------------------------------
+    #  v2.0.8 - THE MOD NOW ACTUALLY DISAPPEARS FROM THE MODS MENU.
+    #
+    #  User, 2026-08-21: *"when you choose to keep settings for the mod when
+    #  uninstalling, because it doesn't fully remove the mods' folder ... it
+    #  causes the mod to still show up in-game in the mods options, just without
+    #  any functionality."*
+    #
+    #  🛑 THE CAUSE IS NOT THE SETTINGS, AND THAT MATTERS FOR THE FIX.
+    #  Settings live in  storage\t6\players\mods\zm_qol  ($CFGDIR) - a different
+    #  tree entirely, which Plutonium never scans for the Mods list. What was
+    #  actually keeping  storage\t6\mods\zm_qol  ($MODDIR) alive is that THE GAME
+    #  WRITES ITS LOGS INTO IT: a real install of this folder holds
+    #  console_zm.log, console_zm.log.000-.003 and games_mp.log next to the five
+    #  mod files. The removal loop only ever deleted the five mod extensions - on
+    #  purpose, because an earlier version deleted the user's games_mp.log - so
+    #  the folder always survived, and Plutonium lists any folder under mods\.
+    #  Wiping the settings would not have fixed it either way.
+    #
+    #  So: keep the logs (they are the only record of past sessions and nothing
+    #  else can recreate them), move them out of the way, then remove the folder.
+    # -----------------------------------------------------------------------
     if (Test-Path $MODDIR) {
         $old = @(Get-ChildItem -LiteralPath $MODDIR -File | Where-Object { $_.Extension -in @('.ff','.iwd','.json','.sabl','.sabs') })
         foreach ($o in $old) { if (-not $DryRun) { Remove-Item -LiteralPath $o.FullName -Force -ErrorAction SilentlyContinue } }
         Say "Removed $($old.Count) mod file(s)." $C.Text
+
+        $left = @(Get-ChildItem -LiteralPath $MODDIR -Force -ErrorAction SilentlyContinue)
+        if ($left.Count -gt 0) {
+            $logdest = Join-Path $BACKUPS 'zm_qol-logs'
+            if (-not $DryRun) {
+                if (-not (Test-Path $logdest)) { New-Item -ItemType Directory -Force -Path $logdest | Out-Null }
+                foreach ($f in $left) {
+                    try { Move-Item -LiteralPath $f.FullName -Destination (Join-Path $logdest $f.Name) -Force -ErrorAction Stop }
+                    catch { }
+                }
+            }
+            Say ("Moved {0} leftover file(s) - your game logs - to:" -f $left.Count) $C.Text
+            Say "   $logdest" $C.Dim
+        }
+
+        $still = @(Get-ChildItem -LiteralPath $MODDIR -Force -ErrorAction SilentlyContinue)
+        if ($DryRun) {
+            Say "would remove the now-empty mod folder" $C.Dim
+        } elseif ($still.Count -eq 0) {
+            try { Remove-Item -LiteralPath $MODDIR -Force -ErrorAction Stop; Say "The mod folder is gone - it will not show in the Mods menu any more." $C.Good }
+            catch { Say "Could not remove the mod folder - is Plutonium running?" $C.Warn }
+        } else {
+            # Something of the player's own is in there. Never delete that.
+            Say "Left the folder in place - it still holds $($still.Count) file(s) that are not mine." $C.Warn
+            Say "The mod may still appear in the Mods menu until that folder is empty." $C.Dim
+        }
     } else { Say "It was not installed." $C.Dim }
+
+    # -----------------------------------------------------------------------
+    #  The settings half of the same request: *"maybe move the settings to backup
+    #  or something ... but you can import your settings from the previous
+    #  install."*  The backup system already has a 'mod' set whose second part IS
+    #  $CFGDIR, so KEEP now means "copied into storage\t6\backups\mod\settings\",
+    #  and Backups -> the mod -> put back is the import. Nothing new invented.
+    # -----------------------------------------------------------------------
     if ($sel.Key -eq 'wipe' -and (Test-Path $CFGDIR)) {
         if (-not $DryRun) { Remove-Item -LiteralPath $CFGDIR -Recurse -Force -ErrorAction SilentlyContinue }
         Say "Your saved menu settings were wiped." $C.Warn
     } elseif (Test-Path $CFGDIR) {
-        Say "Your saved menu settings were kept." $C.Good
+        Write-Host ''
+        if (Backup-Thing 'mod' -Replace) {
+            Say "Your settings were copied to the backups, then left where they are." $C.Good
+            Say "To import them after a reinstall: Backups -> the mod -> put back." $C.Dim
+        } else {
+            Say "Your saved menu settings were kept where they are." $C.Good
+        }
     }
     Write-Host ''
     Say "✅  Done." $C.Good

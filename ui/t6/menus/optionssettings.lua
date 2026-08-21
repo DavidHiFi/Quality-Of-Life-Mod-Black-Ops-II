@@ -1415,6 +1415,7 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	T(QolHudButtons, LocalClientIndex, "POWER-UP TIMERS",   "hud_powerup_timers", "Seconds left under each power-up icon.")
 	T(QolHudButtons, LocalClientIndex, "GAME TIMER",        "hud_timer",      "Time since the match started.")
 	T(QolHudButtons, LocalClientIndex, "ROUND TIMER",       "hud_round_timer","Time since this round started.")
+	T(QolHudButtons, LocalClientIndex, "ROUND COUNTER LEFT","hud_round_left", "Round number and timers in the top LEFT, like BO4. Off is top right, like Cold War.")
 	T(QolHudButtons, LocalClientIndex, "HEALTH BAR",        "hud_health_bar", "Your health bar, bottom left.")
 	-- v1.99.1, user request 2026-08-16. Belongs in HUD despite HUD being the
 	-- longest tab: it draws a progress bar and a text line on the HUD, so the

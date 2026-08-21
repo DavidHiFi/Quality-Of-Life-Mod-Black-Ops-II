@@ -75,7 +75,7 @@ It finds your Wine prefix on its own, and does everything the Windows version do
 | 🔊 **Custom sound pack** | Optional. Same backup offer. |
 | 🌈 **ReShade** | Optional, with the mod's BO2 preset and overlay theme ready to go. **End** opens it in game. |
 | 💾 **Backups** | Back up your **own** textures, sounds, ReShade setup or mod folder — each on its own — and put them back any time. Kept as plain folders in `storage\t6\backups\`. |
-| 🧹 **Remove any of it** | One piece at a time. Only deletes what the installer put there, and offers your backup back. |
+| 🧹 **Remove any of it** | One piece at a time, and the mod folder really goes, so it stops showing in the Mods menu. Your game logs are moved to the backups, never deleted. Only deletes what the installer put there, and offers your backup back. |
 
 The texture and sound packs are separate downloads on the [release page](https://github.com/DavidHiFi/zm_qol/releases/latest) because of their size — the installer fetches whichever you say yes to.
 
@@ -101,7 +101,7 @@ All five mod files go in that one folder.
 
 ## ✨ What you get
 
-Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 48 rows, no chat commands required.
+Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 49 rows, no chat commands required.
 
 > [!NOTE]
 > **Shipped in 2.0.0 but not play-tested yet:** the Die Rise Sliquifier row and the Semtex wall buy, the five new PATCHES rows, SET POINTS / TELEPORT, the DSR 50 and Five-Seven recoil, and the Winter's Howl firing effects. They are in the build; they have not had a boot yet.
@@ -139,7 +139,7 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 ### 🖥️ HUD & menus
 
 - **Hitmarkers** with 8 selectable sound packs (Cold War, MW 2019, BO4, Overwatch, Apex, 8-bit, MW Classic, BO7) plus crit and squad-downed alerts.
-- Round summary, timers, health bar, bleedout bar, zombies remaining, zone names, **compass**, velocity meter, Cold-War round HUD, perk pop-ups, **power-up timers**.
+- Round summary, timers, health bar, bleedout bar, zombies remaining, zone names, **compass**, velocity meter, Cold-War round HUD (top right, or **top left like BO4** with one switch), perk pop-ups, **power-up timers**.
 - **RESTART GAME**, **INSTANT EXIT** and **QUIT TO DESKTOP** on the pause menu.
 - **Night Mode**, **Fog** and **Higher Draw Distance** on the game's own ADVANCED tab — plus a **DISABLED** step for Depth Of Field that base BO2 never gave you.
 - **Instant match start** — no lobby countdown. Classic intro cutscenes play again.
