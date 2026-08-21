@@ -569,7 +569,64 @@ setupWunderfizz()
     else if(level.script == "zm_nuked")
     {
     	zmqol_wf_add((-649,281,-56), (0,162,0), zmqol_wf_machine_model());
-    	zmqol_wf_add((-915,286,-56), (0,66,0), zmqol_wf_machine_model());
+    	//  ====================================================================
+    	//  🛑 MOVED 45 UNITS -Y IN v2.0.4, from (-915, 286, -56).  User,
+    	//  2026-08-21: *"move that specific wunderfizz a bit over to the left so
+    	//  it doesn't block and trap zombies in the small corner/space off to the
+    	//  right ... move it off to the left."*
+    	//
+    	//  🌟 THE BLOCKAGE IS TWO MANTLE LANES, NOT ONE, AND IT IS MEASURED.
+    	//  `Unlinker --include-assets mapents` on zm_nuked.ff finds a matched
+    	//  pair of zm_mantle_over_40 lanes crossing this wall:
+    	//        lane 1  near (-924.023, 297.616, -26) -> far (-895.293, 376.550)
+    	//        lane 2  far  (-859.137, 382.464, -26) -> near (-887.867, 303.530)
+    	//  The machine model (qolwf_vending_diesel_magic, GLB accessor min/max:
+    	//  74 wide x 56 deep x 108 tall, so half-extents 37 lateral / 28 forward)
+    	//  at yaw 66 has right = (0.914,-0.407) and forward = (0.407,0.914). At
+    	//  the OLD origin both near nodes fall INSIDE that box:
+    	//        node        lateral    forward   (limits 37 / 28)
+    	//        lane 1      -13.0        6.9     <- effectively inside the model
+    	//        lane 2       17.7       27.1     <- 0.9 units inside the front face
+    	//  So a zombie using either lane lands against the machine. That pocket
+    	//  between the machine and the wall is the "small corner/space off to the
+    	//  right" - it is on the +Y side, which is the machine's right from where
+    	//  the user was standing (screenshot 5, x -843 y 207 yaw 159: the machine
+    	//  sits at bearing 132 deg, i.e. 27 deg to their right).
+    	//
+    	//  🌟 WHY -Y, AND WHY ONLY 45 UNITS.  The earlier reading of this bug
+    	//  called for 65-70 units, but that was for a LATERAL move, where the
+    	//  half-extent is 37. Retreating along -forward only has to beat the 28
+    	//  half-depth, and the two nodes already sit at forward +6.9 and +27.1:
+    	//        lane 1 clears at d > 23.0   ( 6.9 + 0.914d > 28 )
+    	//        lane 2 clears at d >  1.0   (27.1 + 0.914d > 28 )
+    	//  45 units gives lane 1 twenty units of body clearance and lane 2 forty.
+    	//  Moving BACKWARDS is what makes this the small nudge the user asked for.
+    	//
+    	//  🛑 -X IS NOT AVAILABLE, so "left" can only be spent on its -Y part.
+    	//  A wall-mounted dest_electronic_outlet01 sits at (-968.697, 240.302, -1),
+    	//  and the machine's box already reaches x = -960.2. There are about 8
+    	//  units of slack to the west; any real -X component drives it into that
+    	//  wall. Pure -Y is the only direction that is both "left" from the user's
+    	//  viewpoint and physically free.
+    	//
+    	//  Clearances at the NEW origin (-915, 241, -56), all from the same dump:
+    	//        lane 1 near node        48.1 forward   (limit 28)
+    	//        lane 2 near node        68.2 forward   (limit 28)
+    	//        pathnode (-864,240,-24) 47.0 lateral   (limit 37)
+    	//        wall outlet (-968.7,..) 48.8 lateral   (limit 37)
+    	//  Nothing else of any class is within 45 units. Angles are UNCHANGED, so
+    	//  the machine still faces the way it always did and stock's unitrigger
+    	//  offset ( origin + anglestoright * 22.5, _zm_perk_random.gsc:43 ) rides
+    	//  along with it.
+    	//
+    	//  📝 RESIDUAL RISK, STATED: mapents carries no brush geometry, so the
+    	//  floor at (-915, 241) is inferred, not proven. The evidence for it is
+    	//  that the old spot 45 units away is floor, and the ground pathnodes
+    	//  (-864, 240, -24) and (-920, 144, 0) bracket the area. If the machine
+    	//  ends up clipped or floating, the fix is a further -Y step, not a
+    	//  rethink - the direction is settled.
+    	//  ====================================================================
+    	zmqol_wf_add((-915,241,-56), (0,66,0), zmqol_wf_machine_model());
     	zmqol_wf_add((716,21,-57), (0,192,0), zmqol_wf_machine_model());
     }
     else if(level.script == "zm_prison")
