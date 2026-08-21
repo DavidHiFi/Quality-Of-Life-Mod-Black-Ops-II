@@ -94,6 +94,10 @@ main()
     //     get_pack_a_punch_weapon_options() below) ---
     replacefunc( maps\mp\zombies\_zm_weapons::get_pack_a_punch_weapon_options, ::get_pack_a_punch_weapon_options );
 
+    // --- NETWORK FRAME PATCH (v2.0.6) - both copies, see zmqol_wait_network_frame() ---
+    replaceFunc( maps\mp\zombies\_zm_utility::wait_network_frame,  ::zmqol_wait_network_frame );
+    replaceFunc( maps\mp\animscripts\zm_utility::wait_network_frame, ::zmqol_wait_network_frame );
+
     // --- zm_wallbuy_fills_clip ---
     replaceFunc( maps\mp\zombies\_zm_weapons::ammo_give, ::new_ammo_give );
 
@@ -9239,6 +9243,7 @@ perks()
     create_dvar( "instakill_rounds",   0 );
     create_dvar( "double_tap_1",       0 );
     create_dvar( "no_barrier_attacks", 0 );
+    create_dvar( "network_frame_patch", 0 );   // v2.0.6 - see zmqol_wait_network_frame()
 
     //  ========================================================================
     //  v1.99.96 - THE TWO DIE RISE ROWS. The SLIQUIFIER row that was held back
@@ -9552,6 +9557,87 @@ zmqol_bm_should_drop()
 //  (so the box must have moved at least once) and while level.disable_firesale_drop
 //  is set. All three still apply; the row is ANDed on top.
 // ============================================================================
+// ============================================================================
+//  zmqol_wait_network_frame  -  NETWORK FRAME PATCH                 (v2.0.6)
+//
+//  User, 2026-08-21: *"add 'NETWORK FRAME PATCH' as a toggleable option, because
+//  that's another patch similar to the BACKSPEED PATCH ... the network frame
+//  patch will match the console one ... like the B2OP script for example."*
+//
+//  🌟 WHAT A NETWORK FRAME IS, AND WHAT CONSOLE'S IS. wait_network_frame() is
+//  the pacing primitive the whole zombies script layer waits on - spawns,
+//  teleports, buildables, dog rounds. Stock ships two IDENTICAL copies,
+//  maps\mp\zombies\_zm_utility and maps\mp\animscripts\zm_utility, and both read:
+//
+//        if ( numremoteclients() ) { ...wait for a snapshot ack... }
+//        else                      wait 0.1;
+//
+//  The console figures are not guessed - T6-B2OP-PATCH, the community patch used
+//  for world-record games, carries them as constants and a live checker:
+//        b2op.gsc:18  #define NET_FRAME_SOLO 100
+//        b2op.gsc:19  #define NET_FRAME_COOP  50
+//  and evaluate_network_frame() (:2084) times a real frame and prints GOOD only
+//  when solo measures 100 ms and coop measures 50 ms.
+//
+//  🌟 THE FIX IS ONE ADDED BRANCH, TAKEN FROM B2OP's fixed_wait_network_frame()
+//  ( b2op.gsc:1412 ): in a ONE-PLAYER game, always wait the flat 100 ms and never
+//  take the snapshot path. Stock only reaches its own 100 ms branch when
+//  numremoteclients() is 0, and on Plutonium a solo game does not always look
+//  like one - the same "every game looks online private" behaviour that already
+//  breaks stock's solo detection elsewhere in this mod. When that happens, solo
+//  paces off snapshot acknowledgement instead of the console's fixed frame.
+//
+//  🛑 OFF IS BYTE-EXACT STOCK, and that is why this is a replaceFunc that reads a
+//  dvar rather than a replaceFunc applied conditionally. replaceFunc cannot be
+//  undone for the session, so a conditional install could not be a live toggle;
+//  reading the dvar inside the function makes the row flip on the very next
+//  frame either way. With the row OFF the body below IS stock's body, copied
+//  from the dump character for character.
+//
+//  🌟 IT CANNOT MAKE A CORRECT BUILD WORSE, and that is the safety argument.
+//  The two functions differ in exactly one case: a 1-player game where
+//  numremoteclients() is non-zero. On a build where that cannot happen, ON and
+//  OFF are the same function. Coop is untouched in both.
+//
+//  🛑 STATED PLAINLY: B2OP DISABLES THIS ON MODERN PLUTONIUM. Its install is
+//  `if (!is_plutonium_version(VER_3K))` with `#define VER_3K 3042` (b2op.gsc:16,
+//  :141), i.e. it only patches builds OLDER than r3042 - so on r5344 B2OP does
+//  not apply it, which is evidence that Plutonium fixed the underlying behaviour.
+//  This ships anyway because the user asked for the row, and it ships **OFF by
+//  default** so nothing changes until it is thrown. If the build is already
+//  correct the row is a no-op; if it is not, it restores the console frame.
+//
+//  📝 BO2-Remix also overrides this ( src\scripts\zm\remix\_utility.gsc:9,
+//  installed at Remix2.gsc:67 ) with a flat `wait 0.05` on EVERY game. That is
+//  the COOP figure applied to solo as well, so by B2OP's own checker it would
+//  read BAD in solo. B2OP's shape is the one ported here, deliberately.
+//
+//  🛑 BOTH COPIES ARE REPLACED. Replacing only _zm_utility's would leave the
+//  animscripts copy on stock timing and the two halves of the game would pace
+//  differently. maps\mp\animscripts\* resolves from a root script - proven, not
+//  assumed: this file already calls maps\mp\animscripts\zm_death::flame_death_fx()
+//  at :882 and ships on every map.
+// ============================================================================
+zmqol_wait_network_frame()
+{
+    if ( getdvarintdefault( "network_frame_patch", 0 ) && isdefined( level.players ) && level.players.size == 1 )
+    {
+        wait 0.1;
+        return;
+    }
+
+    //  ---- stock, from the dump, unchanged ----
+    if ( numremoteclients() )
+    {
+        snapshot_ids = getsnapshotindexarray();
+
+        for ( acked = undefined; !isdefined( acked ); acked = snapshotacknowledged( snapshot_ids ) )
+            level waittill( "snapacknowledged" );
+    }
+    else
+        wait 0.1;
+}
+
 zmqol_fs_should_drop()
 {
     if ( !zmqol_custom_powerups_enabled() )

@@ -255,6 +255,13 @@ init()
     //  qol_opt_move_speed() for the values and where they came from.
     qol_opt_dvar( "move_speed", "1" );
 
+    //  v2.0.6 - NETWORK FRAME PATCH, user request. OFF by default: with it off
+    //  quality_of_life::zmqol_wait_network_frame() is byte-exact stock, so the
+    //  row changes nothing until it is thrown. See the header above that
+    //  function for the console figures and why B2OP disables its own copy on
+    //  modern Plutonium.
+    qol_opt_dvar( "network_frame_patch", "0" );
+
     level thread qol_opt_coop_pause();
     level thread qol_opt_round_clock();
     level thread qol_opt_no_power();

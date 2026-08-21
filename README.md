@@ -101,7 +101,7 @@ All five mod files go in that one folder.
 
 ## ✨ What you get
 
-Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 46 rows, no chat commands required.
+Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 47 rows, no chat commands required.
 
 > [!NOTE]
 > **Shipped in 2.0.0 but not play-tested yet:** the Die Rise Sliquifier row and the Semtex wall buy, the five new PATCHES rows, SET POINTS / TELEPORT, the DSR 50 and Five-Seven recoil, and the Winter's Howl firing effects. They are in the build; they have not had a boot yet.
@@ -146,7 +146,7 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 
 ### 🧰 Quality of life
 
-Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-round fix · animated camos · **prone at a perk machine for +100 points** · full backwards and sideways movement speed · **remove round cap**, **24-zombie solo cap**, **instakill rounds**, **Double Tap 1.0**, **no barrier attacks** on the PATCHES tab · **SET POINTS** and **TELEPORT** on the CHEATS tab · **your settings are remembered** between sessions.
+Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-round fix · animated camos · **prone at a perk machine for +100 points** · full backwards and sideways movement speed · **network frame patch** · **remove round cap**, **24-zombie solo cap**, **instakill rounds**, **Double Tap 1.0**, **no barrier attacks** on the PATCHES tab · **SET POINTS** and **TELEPORT** on the CHEATS tab · **your settings are remembered** between sessions.
 
 <br>
 
@@ -201,9 +201,60 @@ installer\       the release package
 
 ## 🙏 Credits
 
-**DavidHiFi & Synarxis**
+**Made by DavidHiFi & Synarxis.**
 
-With thanks to **sehteria** (T6-ZM-Expanded), **SadSlothXL** (Death Machine), **Jbleezy** ([BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) — the reference for the Survival locations), the **BO2-Remix** authors, and everyone whose scripts are bundled here.
+Everything below is a source this mod actually uses, with what it was used for. If something of
+yours belongs here and is missing, please open an issue and it gets added.
+
+### 🧬 What this mod grew out of
+
+| Who | What |
+|---|---|
+| **sehteria** — *T6-ZM-Expanded* | The mod this one started from. Most of the original root scripts now merged into `quality_of_life.gsc` came from here: BO4 Max Ammo, Instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers and counters, the area notifier, the Cold War round HUD, secret song survival. |
+| **SadSlothXL** | The **Death Machine** power-up — the drop, the weapon swap and its sounds. |
+
+### 🔀 Ported or adapted from other mods
+
+| Who | What |
+|---|---|
+| **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | The **custom Survival locations** and the extra **gamemodes**. Treyarch left the data for these in the game files and never shipped them; Reimagined is the implementation that works, and Diner is a port of its work. It is this project's designated primary reference. |
+| **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The **Die Rise weapons block**: the Sliquifier pre-nerf behaviours (kills to round 255, keeps chaining while put away, no extra goo) and the **Semtex wall buy** — its position and angles are Remix's, value for value. |
+| **5and5** — [BO2 Strat Tester](https://github.com/5and5/BO2-StratTester) | Every destination in the **TELEPORT** row on the CHEATS tab, copied coordinate for coordinate out of its `commands.gsc`. |
+| **B2ORG** — [T6-B2OP-PATCH](https://github.com/B2ORG/T6-B2OP-PATCH)<br><sub>built with **Astrox** and **NoMoleMan**</sub> | The reference for most of the **PATCHES** tab. The **NETWORK FRAME PATCH** is its `fixed_wait_network_frame()` shape and its measured console figures (solo 100 ms, coop 50 ms); the backspeed values, the 24-zombie solo cap, instakill rounds, Double Tap 1.0 and no barrier attacks were all checked against it; and this mod's coordinates readout is modelled on its HUD. Used as a reference and re-derived against the shipped game scripts, never copied wholesale. |
+
+### 📚 Reference data and dumps
+
+| What | Used for |
+|---|---|
+| **T6-Data-Archive** | Per-map clientfield dumps — which made this mod's bit budgets something to measure instead of guess — and the authoritative `notifyonplayercommand` list behind the chat commands. |
+| **The stock GSC dumps and BO2 raw files** | Treyarch's own scripts, read constantly so this mod matches vanilla behaviour instead of reinventing it. |
+
+### 🧰 Built with
+
+| What | Used for |
+|---|---|
+| [**Plutonium**](https://plutonium.pw) | The platform the whole mod runs on. |
+| **OpenAssetTools** *(v0.32.0)* | Linking `mod.ff`, and reading the stock game's fastfiles — models, map entities, sound banks, images. |
+| **gsc-tool** by **xensik** | Parse-checking every `.gsc` and `.csc` before a build. |
+
+### 🌈 Bundled with the optional ReShade install
+
+The installer's ReShade option ships these as they were released. All credit for them is theirs.
+
+| Who | What |
+|---|---|
+| **crosire** | [ReShade](https://reshade.me) itself. |
+| **Barbatos Bachiko** | BarbatosShaders — the sharpening and PHDR passes. |
+| **Alex Tuduran** | FGFX. |
+| **Marot Satil** and the **GShade** project, and **Ioxa** | GShadeShaders, including Clarity2. |
+| **Lord of Lunacy** | InsaneShaders. |
+| **prod80** | The PD80 / Prod80 shader and LUT packs. |
+| **NVIDIA** | The NIS sharpening algorithm one of the Barbatos shaders is built on. |
+
+### 🎮 The game itself
+
+Every model, texture, sound, animation and script this mod builds on belongs to **Treyarch** and
+**Activision**. A legitimate copy of Black Ops II is required to run any of it.
 
 <br>
 
