@@ -888,16 +888,35 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 	T(AdvancedTabButtonList, LocalClientIndex, "FOG",                 "fog_enabled","World fog. Off shows the map edge.")
 	T(AdvancedTabButtonList, LocalClientIndex, "HIGHER DRAW DISTANCE","lod_fix",    "Stops foreground textures popping in and out at high FOV.")
 
-	-- 🛑 v1.99.54 - THIS WAS TWO CONSECUTIVE SPACERS AND ONE OF THEM IS GONE,
-	-- and the spacer that used to sit before STREAMER MODE is gone as well.
-	-- Both were spent buying room for the three rows above. The measured box for
-	-- a settings tab is 515 units = 17.1 row-pitches, ~16.3 once the hint line is
-	-- allowed for (see the arithmetic in CreateSoundTab), but the PROVEN ceiling
-	-- is lower: at 15.5 pitches the SOUND tab's hint line touched the ESC prompt
-	-- and the user reported it (v1.99.33), and dropping one spacer to 15.0 left
-	-- ~27 px of clear air. This tab is now 14 rows + 2 half-spacers = exactly
-	-- 15.0. Do not add a row here without taking one away.
-	AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
+	-- ========================================================================
+	--  v2.1.2 - GRAPHICS BOOST MOVED HERE FROM THE PATCHES TAB. User request,
+	--  2026-08-21: *"put the graphics boost option in the advanced tab"*.
+	--
+	--  It belongs with this group and not with the patches: every dvar it writes
+	--  is an image-quality setting (r_aaSamples, r_texFilter*, r_picmip*, r_ssao,
+	--  sm_*, r_bloomHiQuality, r_lodScale*) - see qol_opt_graphics_boost() in
+	--  scripts\zm\qol_options.gsc. Three of the rows it now sits under
+	--  (ANTI-ALIASING, TEXTURE QUALITY, AMBIENT OCCLUSION) are the very dvars it
+	--  overrides, so this is also where a player would look for it.
+	--
+	--  🛑 BOTH HALF-SPACERS ARE GONE AND THAT IS WHAT PAYS FOR THIS ROW. This tab
+	--  was 14 rows + 2 half-spacers = exactly 15.0 pitches, the proven ceiling
+	--  (see the note that used to sit here, and CreateSoundTab). 15 rows + 1.0 of
+	--  spacer is 16.0, which is precisely the fault the user reported on the HUD
+	--  tab in this same message - measured off their screenshot: rows run on a
+	--  50 px pitch from y=234, the hint line draws one full pitch below the last
+	--  row, and the ESC prompt is anchored at y=1036 regardless. 16.0 pitches put
+	--  the hint at y=1034, on top of it. 15 rows + no spacers is 15.0 again.
+	--
+	--  🛑 ITS DESCRIPTION WAS SHORTENED, AND NOT FOR TIDINESS. The old text was
+	--  100 characters and WRAPPED TO TWO LINES - measured on the user's PATCHES
+	--  screenshot, line 1 spanning x=346..1538 and line 2 sitting 46 px below it.
+	--  A two-line hint needs the tab at 14.5 pitches or less, because the second
+	--  line lands at y=1030 on a 15.0 tab and hits the ESC prompt. One line at
+	--  15.0 clears it by 24 px. Keep this string under ~95 characters.
+	CoD.OptionsSettings.QolToggle(AdvancedTabButtonList, LocalClientIndex, "GRAPHICS BOOST", "graphics_boost", "Sharper textures, shadows, SSAO and 16x anti-aliasing. Needs a good GPU and a restart.")
+	-- ========================================================================
+
 	CoD.Options.Button_AddChoices_YesOrNo(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_SYNC_EVERY_FRAME_CAPS"), "r_vsync", Engine.Localize("PLATFORM_VSYNC_DESC")))
 	local MaxFpsChoices = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_MAX_FPS_CAPS"), "com_maxfps", Engine.Localize("PLATFORM_MAX_FPS_DESC"))
 	CoD.OptionsSettings.Button_AddChoices_MaxFPS(MaxFpsChoices)
@@ -908,8 +927,7 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 	CoD.OptionsSettings.Button_AddChoices_DrawFPS(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_DRAW_FPS_CAPS"), "cg_drawFPS", Engine.Localize("PLATFORM_DRAW_FPS_DESC")))
 	
 	CoD.OptionsSettings.Button_AddChoices_StreamerMode(AdvancedTabButtonList:addHardwareProfileLeftRightSelector("STREAMER MODE", "cl_enableStreamerMode", "Hides important networking and player information"))
-	AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
-	
+
 	local SafeAreaButton = AdvancedTabButtonList:addButton(Engine.Localize("MENU_SAFE_AREA_ADJUSTMENT_CAPS"), Engine.Localize("Edit the HUD safearea."))
 	SafeAreaButton:setActionEventName("open_safe_area")
 	
@@ -1221,7 +1239,8 @@ end
 --  past both ends of its container, over the tab strip above and the ESC
 --  prompt below. That is the whole of the reported "scuffed-ness".
 --
---  The three tabs below are 9.5, 15 and 7 pitches.
+--  The mod's own tabs, as of v2.1.2: GAME 13.5, HUD 14.0, PATCHES 11.0,
+--  CHEATS 7. The stock tabs this file also builds: ADVANCED 15.0 (full).
 --  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTEST TAB IT HONESTLY BELONGS IN.
 --
 --  🌟 v1.99.61 - THE CEILING IS 15.0 PITCHES, NOT 14.5, AND IT IS MEASURED.
@@ -1230,8 +1249,23 @@ end
 --  measurement pass in v1.99.33: SOUND ships at 14 rows + 2 half spacers =
 --  15.0 pitches and leaves ~27 px of clear air under the hint line, against the
 --  22 px that separates two ordinary rows. 15.5 is where the user actually
---  reported a collision with the ESC prompt. HUD is now 15 rows = 15.0, the
---  same total as SOUND. Do not go past it without re-measuring.
+--  reported a collision with the ESC prompt. Do not go past 15.0 without
+--  re-measuring.
+--
+--  🌟 v2.1.2 - 15.0 IS NOW CONFIRMED FROM THE OTHER SIDE, AND THE RULE HAS A
+--  FORMULA. The HUD tab reached 16.0 pitches in v2.0.8 and the user reported
+--  the hint line drawing on top of the ESC prompt. Their screenshot gives
+--  rows on a 50 px pitch from y=234, the hint one full pitch under the last
+--  row, and the ESC prompt fixed at y=1036:
+--
+--      hint_top(px) = 234 + pitches * 50        one line is 28 px tall
+--      a second hint line sits 46 px below the first
+--
+--  So 15.0 -> 984 (clears by 24 px), 15.5 -> 1009 (touches, the v1.99.33
+--  report), 16.0 -> 1034 (overlaps, the v2.0.8 report). A tab whose longest
+--  description WRAPS needs 14.5 or less. Descriptions wrap past roughly 95
+--  characters - measured off the same shot, where a 100-character hint spanned
+--  x=346..1538 and spilled its last word onto a second line.
 --
 -- ============================================================================
 --  🌟 v1.96.0 - THREE TABS: GAME / HUD / CHEATS, SORTED BY WHAT EACH ROW DOES.
@@ -1384,6 +1418,23 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- at load, not per drop.
 	T(QolButtons, LocalClientIndex, "CUSTOM POWER-UPS",   "custom_powerups",    "The mod's extra drops. Off leaves the stock power-ups only.")
 
+	-- ========================================================================
+	--  v2.1.2 - THE TWO MATCH-START FLASH ROWS MOVED HERE FROM THE HUD TAB.
+	--
+	--  Not a change of heart about where they belong - a row budget. ROUND
+	--  COUNTER LEFT took HUD to 16 rows and its hint line landed on the ESC
+	--  prompt; the full measurement is in CreateQolHudTab. The user picked these
+	--  two to move, and this is the tab with the room: 11 rows + 1 half-spacer
+	--  was 11.5 pitches, and 13.5 is still well inside the proven 15.0.
+	--
+	--  🛑 BOTH DVARS ARE UNCHANGED - intro_credits and flash_help. Moving a row
+	--  between tabs never renames its dvar, exactly as renaming a label never
+	--  does: the name is archived in every player's config and it is what the
+	--  console takes.
+	-- ========================================================================
+	T(QolButtons, LocalClientIndex, "FLASH CREDITS",      "intro_credits",      "Mod name and credits flashed at match start.")
+	T(QolButtons, LocalClientIndex, "FLASH HELP",         "flash_help",         "Flashes how to open the chat command list at match start.")
+
 	-- 🛑 v1.99.61 - INTRO CREDITS IS GONE FROM THIS TAB. It moved to HUD and was
 	-- renamed FLASH CREDITS (user, 2026-08-18: *"it should be under the HUD tab
 	-- as it's a heads-up display element"*). Its DVAR is still intro_credits -
@@ -1404,8 +1455,9 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	QolHudContainer:addElement(QolHudButtons)
 
 	local T = CoD.OptionsSettings.QolToggle
+	local C = CoD.OptionsSettings.QolChoice
 
-	-- HUD elements, and nothing else.                                15 rows
+	-- HUD elements, and nothing else.                                14 rows
 	T(QolHudButtons, LocalClientIndex, "HUD",               "hud_master",     "Master switch for the whole HUD.")
 	T(QolHudButtons, LocalClientIndex, "HITMARKERS",        "hitmarkers",     "Hit and kill markers on your crosshair.")
 	T(QolHudButtons, LocalClientIndex, "ROUND SUMMARY",     "round_summary",  "Stats pop-up after each round.")
@@ -1415,7 +1467,21 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	T(QolHudButtons, LocalClientIndex, "POWER-UP TIMERS",   "hud_powerup_timers", "Seconds left under each power-up icon.")
 	T(QolHudButtons, LocalClientIndex, "GAME TIMER",        "hud_timer",      "Time since the match started.")
 	T(QolHudButtons, LocalClientIndex, "ROUND TIMER",       "hud_round_timer","Time since this round started.")
-	T(QolHudButtons, LocalClientIndex, "ROUND COUNTER LEFT","hud_round_left", "Round number and timers in the top LEFT, like BO4. Off is top right, like Cold War.")
+	-- 🌟 v2.1.2 - WAS THE TOGGLE "ROUND COUNTER LEFT". User request, 2026-08-21:
+	-- *"rename that to ROUND COUNTER POSITION and make it 2 cycleable options
+	-- LEFT, or RIGHT"*. RIGHT is listed first because it is value 0, the stock
+	-- side and the shipped default, so the row reads the same way round as every
+	-- DISABLED/ENABLED row in this file.
+	-- 🛑 THE DVAR IS STILL hud_round_left. Same call as whoswho_knife, move_speed
+	-- and lod_fix: the label changed, the name in the player's config did not.
+	-- The GSC reads it as a plain 0/1 in three places
+	-- (quality_of_life.gsc:15428, qol_options.gsc:1595 and :1972), and RIGHT=0 /
+	-- LEFT=1 is exactly what the old toggle wrote, so nobody's saved setting
+	-- changes meaning.
+	C(QolHudButtons, LocalClientIndex, "ROUND COUNTER POSITION","hud_round_left", "Which corner the round number and both timers sit in.", {
+		{ "RIGHT", 0 },
+		{ "LEFT",  1 }
+	})
 	T(QolHudButtons, LocalClientIndex, "HEALTH BAR",        "hud_health_bar", "Your health bar, bottom left.")
 	-- v1.99.1, user request 2026-08-16. Belongs in HUD despite HUD being the
 	-- longest tab: it draws a progress bar and a text line on the HUD, so the
@@ -1447,11 +1513,37 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	--  more than the 22 px between two ordinary rows. In game there is a further
 	--  50 px because SYSTEM TEST is absent there. See the long measurement note
 	--  in CreateSoundTab.
+	--
+	--  🛑 v2.1.2 - BOTH FLASH ROWS ARE GONE FROM THIS TAB. They are built in
+	--  CreateQolTab (the GAME tab) now, and the two dvars are untouched.
+	--
+	--  ROUND COUNTER LEFT (v2.0.8) had taken this tab to 16 rows and the user
+	--  reported the result: *"the description for the currently selected option
+	--  ... and where it says ESC back it being overlapped/bugged"*. That is
+	--  measured, not inferred - scanning their 2000x1125 screenshot for text
+	--  bands in the label column gives rows on a 50 px pitch from y=234, so:
+	--
+	--      FLASH HELP, the 16th row         984 - 1013 px
+	--      hint line                       1035 - 1061 px
+	--      ESC Back                        1036 - 1061 px   (same band)
+	--
+	--  The hint line always draws ONE FULL ROW-PITCH below the last row, and the
+	--  ESC prompt is anchored to the menu at y=1036 whatever the list does, so
+	--  hint_top = 234 + pitches * 50. 15.0 pitches puts it at 984 and clears the
+	--  prompt by 24 px; 16.0 puts it at 1034 and lands on top of it. Confirmed
+	--  against the PATCHES tab in the same set of screenshots (12.0 pitches ->
+	--  hint at 788, exactly as the formula says). There were no spacers left on
+	--  this tab to spend, so a row had to leave.
+	--
+	--  The user chose the two FLASH rows (2026-08-21) over moving ROUND SUMMARY
+	--  or splitting HUD in two. They are match-start announcements rather than
+	--  persistent HUD elements, they go together, and moving both leaves this tab
+	--  at 14.0 with a full row of headroom for the next HUD option.
+	--  📝 This does reverse v1.99.61's move of INTRO CREDITS into HUD; the user
+	--  was told that explicitly before choosing.
 	-- ========================================================================
-	T(QolHudButtons, LocalClientIndex, "FLASH CREDITS",     "intro_credits",  "Mod name and credits flashed at match start.")
-	T(QolHudButtons, LocalClientIndex, "FLASH HELP",        "flash_help",     "Flashes how to open the chat command list at match start.")
 
-	return QolHudContainer                                          -- 15 total
+	return QolHudContainer                                          -- 14 total
 end
 
 -- ============================================================================
@@ -1518,7 +1610,11 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	-- Moved here from the GAME tab, dvars unchanged.                  2 rows
 	T(QolPatchesButtons, LocalClientIndex, "BACKSPEED PATCH",     "move_speed",          "Walk backwards and sideways at full speed.")
 	T(QolPatchesButtons, LocalClientIndex, "NETWORK FRAME PATCH", "network_frame_patch", "Solo runs on the console's fixed 100ms network frame instead of PC timing.")
-	T(QolPatchesButtons, LocalClientIndex, "GRAPHICS BOOST",      "graphics_boost",      "16x anti-aliasing, 16x sharper textures, shadows and SSAO. Needs a good GPU. Restart the game for the anti-aliasing.")
+	-- 🛑 v2.1.2 - GRAPHICS BOOST IS NOT HERE ANY MORE. It moved to the stock
+	-- ADVANCED tab at the user's request, 2026-08-21, where the dvars it
+	-- overwrites already live. Its dvar is unchanged (graphics_boost) and so is
+	-- its behaviour; see the note in CreateAdvancedTab. This tab is now 10 rows
+	-- + 2 half-spacers = 11.0 pitches.
 	T(QolPatchesButtons, LocalClientIndex, "ANIMATED CAMO PATCH", "anim_pap_camo",       "Animated Pack-a-Punch camo on Mob, Buried and Origins.")
 
 	QolPatchesButtons:addSpacer(CoD.CoD9Button.Height / 2)
