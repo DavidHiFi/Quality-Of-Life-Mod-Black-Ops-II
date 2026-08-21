@@ -101,7 +101,7 @@ All five mod files go in that one folder.
 
 ## ✨ What you get
 
-Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 47 rows, no chat commands required.
+Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 48 rows, no chat commands required.
 
 > [!NOTE]
 > **Shipped in 2.0.0 but not play-tested yet:** the Die Rise Sliquifier row and the Semtex wall buy, the five new PATCHES rows, SET POINTS / TELEPORT, the DSR 50 and Five-Seven recoil, and the Winter's Howl firing effects. They are in the build; they have not had a boot yet.
@@ -146,7 +146,7 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 
 ### 🧰 Quality of life
 
-Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-round fix · animated camos · **prone at a perk machine for +100 points** · full backwards and sideways movement speed · **network frame patch** · **remove round cap**, **24-zombie solo cap**, **instakill rounds**, **Double Tap 1.0**, **no barrier attacks** on the PATCHES tab · **SET POINTS** and **TELEPORT** on the CHEATS tab · **your settings are remembered** between sessions.
+Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-round fix · animated camos · **prone at a perk machine for +100 points** · full backwards and sideways movement speed · **network frame patch** · **graphics boost** · **remove round cap**, **24-zombie solo cap**, **instakill rounds**, **Double Tap 1.0**, **no barrier attacks** on the PATCHES tab · **SET POINTS** and **TELEPORT** on the CHEATS tab · **your settings are remembered** between sessions.
 
 <br>
 

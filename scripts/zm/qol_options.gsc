@@ -262,6 +262,14 @@ init()
     //  modern Plutonium.
     qol_opt_dvar( "network_frame_patch", "0" );
 
+    //  v2.0.7 - GRAPHICS BOOST, user request (REZ's "Vanilla+" config). OFF by
+    //  default: REZ's own documentation targets modern dedicated GPUs with
+    //  1.5-2 GB of VRAM headroom, so it must not be forced on everyone who
+    //  updates. See qol_opt_graphics_boost() for what was taken, what was
+    //  dropped, and the four dvars in that config that do not exist.
+    qol_opt_dvar( "graphics_boost", "0" );
+
+    level thread qol_opt_graphics_boost();
     level thread qol_opt_coop_pause();
     level thread qol_opt_round_clock();
     level thread qol_opt_no_power();
@@ -500,6 +508,171 @@ qol_opt_move_speed()
     }
 }
 
+
+// ============================================================================
+//  qol_opt_graphics_boost  -  GRAPHICS BOOST                        (v2.0.7)
+//
+//  User, 2026-08-21, pointing at "T6-BO2 Vanilla+ by REZ": *"what I mainly want
+//  you to include is the cfg optimizations ... so the game has the best
+//  graphical fidelity possible, best anti-aliasing that you can achieve better
+//  than using the games' txaa x4 and fxaa with the best sharpness or whatever,
+//  and best optimization for performance in general."*
+//
+//  🛑 REZ's plutonium_zm.cfg WAS NOT APPLIED WHOLESALE, AND IT MUST NOT BE. It
+//  is a complete 230-line config, not a list of optimisations: it also carries
+//  cg_fov 110, the aim_turnrate_* curve, every HUD element size,
+//  snd_speakerConfiguration "5.1 No Center 3D", and the display block
+//  ( r_mode "1920x1080", r_fullscreen, r_monitor, r_aspectRatio, r_customMode,
+//  r_resolution ). Shipping those would silently overwrite the player's own
+//  resolution, monitor, audio layout and field of view. Only the rendering
+//  dvars were taken, and every one below is verified to EXIST in t6zm.exe's
+//  string table before being written.
+//
+//  🛑 FOUR OF REZ's DVARS DO NOT EXIST IN THIS GAME. Checked against both
+//  t6zm.exe's string table and Plutonium's dvar_descriptions.json, neither of
+//  which contains:
+//        r_aaalpha            <- REZ's claimed "Alpha-to-Coverage (A2C)"
+//        com_busyWait         <- part of the "smoothness" claim
+//        r_fog_settings
+//        r_skinnedCacheScale
+//  setdvar on any of them creates a user dvar nothing reads - a dead switch -
+//  so all four are dropped. The A2C anti-aliasing feature in particular does
+//  not exist on T6 at all.
+//
+//  🛑 cl_maxppf IS NOT A PERFORMANCE DVAR. Plutonium's own description reads
+//  "Maximum servers to ping per frame in server browser". Dropped.
+//
+//  🛑 r_bloomTweaks IS DELIBERATELY NOT SET. Its description is "enbale bloom
+//  tweaks" [sic] and it is the same family as r_filmUseTweaks, whose
+//  description is "Overide film effects with tweak dvar values" - the dvar this
+//  project has already documented as making the renderer ignore every
+//  visionset. Overriding bloom from tweak dvars would fight every map's own
+//  grade and this mod's visionsets. Not worth the risk for a bloom nudge.
+//
+//  🛑 r_lodBiasRigid / r_lodBiasSkinned ARE NOT TOUCHED HERE. The LOD FIX row
+//  above already owns them and already writes -1000, which holds full model
+//  detail at every distance - strictly better than REZ's 0. Two writers on one
+//  dvar is how a setting starts flickering between two owners. The other four
+//  LOD dvars are unowned and are set here.
+//
+//  🌟 THE ANTI-ALIASING FIGURE IS READ OUT OF THE GAME'S OWN MENU, NOT GUESSED.
+//  ui\t6\menus\optionssettings.lua's AntiAliasingChangeCallback accepts
+//  `AntiAliasingChosen.value <= 16` straight into r_aaSamples, and its choices
+//  17 and 18 are the TXAA pair ( r_aaSamples 2 or 4 with r_txaa 1 ). So 16 is a
+//  real MSAA level, and it is above anything the TXAA rows can reach - which is
+//  exactly what the user asked for. r_txaa and r_fxaa go to 0 with it, the same
+//  pairing that callback does.
+//
+//  🛑 TWO OF THESE ARE LATCHED AND CANNOT APPLY MID-GAME. The console log for
+//  this install prints "r_aaSamples will be changed upon restarting." and
+//  "r_texFilterQuality will be changed upon restarting.", and the game's own
+//  menu flags exactly those two with NeedVidRestart. They are still written -
+//  they simply take effect the next time the game starts. Everything else in
+//  the list applies immediately. This is the engine's behaviour, not a
+//  shortcut: the stock menu shows an Apply prompt for the same two.
+//
+//  🛑 OFF IS A REAL RESTORE, NOT A GUESS. Every value is read ONCE before
+//  anything is written and put back verbatim when the row is switched off -
+//  the same discipline qol_opt_move_speed() uses. Nothing here invents a
+//  "default".
+//
+//  📝 OFF BY DEFAULT. REZ's own documentation targets "Modern Dedicated
+//  Graphics (AMD RX / NVIDIA RTX)" with "~1.5 GB - 2 GB Peak" VRAM overhead and
+//  a 144Hz+ monitor. Forcing 16x MSAA, 16x anisotropic and full shadow maps on
+//  every player who updates the mod would make the game slower for anyone below
+//  that, so the row ships off and changes nothing until it is thrown.
+// ============================================================================
+qol_opt_graphics_boost()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    level endon( "end_game" );
+
+    //  Cached before the first write, so OFF restores this install's real
+    //  values rather than a number this file invented.
+    a_keys = [];
+    a_keys[ a_keys.size ] = "r_aaSamples";
+    a_keys[ a_keys.size ] = "r_txaa";
+    a_keys[ a_keys.size ] = "r_fxaa";
+    a_keys[ a_keys.size ] = "r_texFilterQuality";
+    a_keys[ a_keys.size ] = "r_texFilterAnisoMin";
+    a_keys[ a_keys.size ] = "r_texFilterAnisoMax";
+    a_keys[ a_keys.size ] = "r_texFilterMipMode";
+    a_keys[ a_keys.size ] = "r_picmip_manual";
+    a_keys[ a_keys.size ] = "r_picmip";
+    a_keys[ a_keys.size ] = "r_picmip_bump";
+    a_keys[ a_keys.size ] = "r_picmip_spec";
+    a_keys[ a_keys.size ] = "r_ssao";
+    a_keys[ a_keys.size ] = "sm_enable";
+    a_keys[ a_keys.size ] = "sm_maxLights";
+    a_keys[ a_keys.size ] = "sm_spotQuality";
+    a_keys[ a_keys.size ] = "sm_sunQuality";
+    a_keys[ a_keys.size ] = "r_bloomHiQuality";
+    a_keys[ a_keys.size ] = "r_autoLodScale";
+    a_keys[ a_keys.size ] = "r_lodScaleRigid";
+    a_keys[ a_keys.size ] = "r_lodScaleSkinned";
+    a_keys[ a_keys.size ] = "com_maxfps";
+
+    a_on = [];
+    a_on[ "r_aaSamples" ]          = "16";   // latched - next launch
+    a_on[ "r_txaa" ]               = "0";
+    a_on[ "r_fxaa" ]               = "0";
+    a_on[ "r_texFilterQuality" ]   = "0";    // latched - next launch
+    a_on[ "r_texFilterAnisoMin" ]  = "16";
+    a_on[ "r_texFilterAnisoMax" ]  = "16";
+    a_on[ "r_texFilterMipMode" ]   = "Force Trilinear";
+    //  🛑 REZ set r_picmip_manual 0, which is "picmip is set automatically" -
+    //  so their four r_picmip 0 lines did nothing at all. 1 is what makes them
+    //  count, and it is the whole reason the texture lines are worth setting.
+    a_on[ "r_picmip_manual" ]      = "1";
+    a_on[ "r_picmip" ]             = "0";
+    a_on[ "r_picmip_bump" ]        = "0";
+    a_on[ "r_picmip_spec" ]        = "0";
+    a_on[ "r_ssao" ]               = "3";
+    a_on[ "sm_enable" ]            = "1";
+    a_on[ "sm_maxLights" ]         = "4";
+    a_on[ "sm_spotQuality" ]       = "2";
+    a_on[ "sm_sunQuality" ]        = "2";
+    a_on[ "r_bloomHiQuality" ]     = "1";
+    a_on[ "r_autoLodScale" ]       = "0";
+    a_on[ "r_lodScaleRigid" ]      = "1";
+    a_on[ "r_lodScaleSkinned" ]    = "1";
+    a_on[ "com_maxfps" ]           = "250";
+
+    a_off = [];
+    for ( i = 0; i < a_keys.size; i++ )
+        a_off[ a_keys[i] ] = getdvar( a_keys[i] );
+
+    n_prev = -1;
+
+    for ( ;; )
+    {
+        n_on = getdvarintdefault( "graphics_boost", 0 );
+
+        if ( n_on != n_prev )
+        {
+            n_prev = n_on;
+
+            for ( i = 0; i < a_keys.size; i++ )
+            {
+                str_key = a_keys[i];
+
+                if ( n_on )
+                    setdvar( str_key, a_on[ str_key ] );
+                else if ( a_off[ str_key ] != "" )
+                    setdvar( str_key, a_off[ str_key ] );
+            }
+
+            if ( n_on )
+                println( "[zm_qol] GRAPHICS BOOST on  - " + a_keys.size + " render dvars set (r_aaSamples/r_texFilterQuality apply next launch)" );
+            else
+                println( "[zm_qol] GRAPHICS BOOST off - restored" );
+        }
+
+        wait 0.5;
+    }
+}
 //  setdvar only when the dvar has never been set, so a value already in the
 //  user's config or typed at the console survives a map change. Remix's
 //  create_dvar(), same idea.

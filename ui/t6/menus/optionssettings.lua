@@ -1517,6 +1517,7 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	-- Moved here from the GAME tab, dvars unchanged.                  2 rows
 	T(QolPatchesButtons, LocalClientIndex, "BACKSPEED PATCH",     "move_speed",          "Walk backwards and sideways at full speed.")
 	T(QolPatchesButtons, LocalClientIndex, "NETWORK FRAME PATCH", "network_frame_patch", "Solo runs on the console's fixed 100ms network frame instead of PC timing.")
+	T(QolPatchesButtons, LocalClientIndex, "GRAPHICS BOOST",      "graphics_boost",      "16x anti-aliasing, 16x sharper textures, shadows and SSAO. Needs a good GPU. Restart the game for the anti-aliasing.")
 	T(QolPatchesButtons, LocalClientIndex, "ANIMATED CAMO PATCH", "anim_pap_camo",       "Animated Pack-a-Punch camo on Mob, Buried and Origins.")
 
 	QolPatchesButtons:addSpacer(CoD.CoD9Button.Height / 2)
