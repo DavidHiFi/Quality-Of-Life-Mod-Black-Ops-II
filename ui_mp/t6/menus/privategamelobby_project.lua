@@ -1,3 +1,131 @@
+-- ============================================================================
+--  zm_qol v2.1.3 - THE NUKETOWN SURVIVAL MAP PREVIEW, SIZED TO FIT
+--
+--  User, 2026-08-21, with a screenshot: *"the hellhounds option is here for
+--  nuketown now, but it caused the preview image to be overlapped/colliding
+--  like adding options to the pre-game lobby has done in the past, so fix
+--  that."*
+--
+--  🛑 THE v2.1.0 FIX FOR THIS DID NOTHING, AND THE REASON IS IN THE STOCK
+--  WIDGET'S OWN SOURCE. It shrank the preview by passing a shorter box to
+--  mapInfoImage:setTopBottom(). CoD.MapInfoImage.new (patch_zm/ui/t6/
+--  mapinfoimage.lua) builds every visible part of the panel anchored to the
+--  WIDGET'S BOTTOM EDGE at fixed offsets:
+--
+--        picture   bottom -57 - MapImageHeight .. -57      (136 tall)
+--        frame     bottom -57 - MapImageHeight .. -11      (182 tall on ZM)
+--        captions  bottom -25 and -42, right-aligned to MapImageWidth - 20
+--
+--  Nothing in there reads the widget's height, so the box can be any size at
+--  all and the panel drawn inside it never changes. Only `bottom` moves it.
+--  That is why the v2.1.0 screen still measures 182 units tall.
+--
+--  🌟 THE MODEL IS NOW EXACT, AND IT IS BACKED BY TWO INDEPENDENT MEASUREMENTS.
+--  Screen position of the visible frame, from the value passed as `bottom`:
+--
+--        frame top    = 37 + bottom - 57 - MapImageHeight
+--        frame bottom = 37 + bottom - 11
+--
+--  The 37 is the button pane's own top, and it is not a new guess: the v1.99.28
+--  note below records asking for bottom 640 and measuring a frame top of 484.5,
+--  which gives 37. Checked against the user's 2026-08-21 screenshot (2560x1440,
+--  2 px per LUI unit) on the shipped bottom of 635: predicted 479, measured 478.
+--
+--  🛑 SO THE PANEL CANNOT BE MOVED OUT OF THE WAY - only shrunk. Every number
+--  below is a text-band scan of that screenshot, not an estimate:
+--
+--        rows        dead-even 32-unit pitch, 12 of them, 90 .. 442
+--                    (HELLHOUNDS is the 9th; the scan reads it at 346 only on a
+--                     lower brightness threshold because it is the orange
+--                     selected row)
+--        hint        474 .. 488   - one full pitch below the last row
+--        frame       478 .. 658   - and 37 + 635 - 57 - 136 = 479 predicts the
+--                                   top to within one unit, so the model holds
+--        ESC Back    663 .. 679
+--
+--  The hint therefore ends at 488 and the frame starts at 478: the panel is
+--  drawn OVER the hint line by 10 units, which is the collision. The band left
+--  between hint and ESC is 175 units and the frame is 182 tall, so it does not
+--  fit there either, and moving it down puts it through ESC Back - the exact
+--  v1.99.28 failure this file already records.
+--
+--  🌟 SO THE PICTURE ITSELF GETS SMALLER, ON THIS ONE SCREEN ONLY, and the
+--  bottom edge does not move at all - the clearance to ESC Back stays exactly
+--  what ships today. MapImageHeight 136 -> 112 raises the frame's top by 24:
+--
+--        frame top    502   (14 units clear of the hint, better than the 8.7
+--                            this file has used since v1.99.29)
+--        frame bottom 658   (unchanged, 5 units clear of ESC Back)
+--
+--  MapImageWidth goes 294 -> 242 with it so the picture keeps its aspect
+--  (294/136 = 2.162, 242/112 = 2.161). The caption plate is a fixed 46 units
+--  and is anchored to the bottom, so the map name and mode stay exactly where
+--  and how big they are now.
+--
+--  📝 THE COST, STATED PLAINLY: the Nuketown survival preview is ~18% smaller
+--  in each direction than on every other screen. With twelve rows there is no
+--  arrangement in which it is not, short of dropping a row or moving the panel
+--  to the empty right-hand half of the lobby, which is a different design and
+--  was not asked for.
+--
+--  🛑 WHY A WRAPPER AND NOT A WRITE TO THE CONSTANTS. They are module-level and
+--  shared with every other lobby that builds a MapInfoImage (privatelocalgame-
+--  lobby, playermatchpartylobby, theaterlobby, mapvoter). Setting them from
+--  PopulateButtons_Project would leave them shrunk for whatever screen came
+--  next. Inside the wrapper they are shrunk for exactly the duration of one
+--  constructor call and restored immediately, whoever the caller is.
+-- ============================================================================
+--  🛑 THE nil GUARD IS NOT DEFENSIVE PADDING - IT MUST PASS, AND IT DOES.
+--  Stock's privategamelobby.lua does require("T6.MapInfoImage") on line 3 and
+--  require("T6.Menus.PrivateGameLobby_Project") - this file - on line 13, so
+--  CoD.MapInfoImage is fully built by the time these lines run. Read out of the
+--  decompiled patch_ui_zm copy, not assumed. If that ever stops being true the
+--  wrapper no-ops and the preview goes back to its stock size, which is the
+--  right way round to fail.
+if CoD.MapInfoImage ~= nil and CoD.MapInfoImage.ZmQolSizeWrapped ~= true then
+	CoD.MapInfoImage.ZmQolSizeWrapped = true
+	CoD.MapInfoImage.ZmQolStockWidth  = CoD.MapInfoImage.MapImageWidth
+	CoD.MapInfoImage.ZmQolStockHeight = CoD.MapInfoImage.MapImageHeight
+
+	local ZmQolStockMapInfoImageNew = CoD.MapInfoImage.new
+
+	CoD.MapInfoImage.new = function (Properties)
+		local Width  = CoD.MapInfoImage.ZmQolStockWidth
+		local Height = CoD.MapInfoImage.ZmQolStockHeight
+
+		--  pcall for the same reason QolArchive uses one in optionssettings.lua:
+		--  a dvar read that throws must never be able to stop the lobby being
+		--  built. On a throw both stay at the stock size.
+		pcall(function ()
+			local Mapname = UIExpression.DvarString(nil, "ui_mapname")
+			local ModeGrp = UIExpression.DvarString(nil, "ui_zm_gamemodegroup")
+
+			if Mapname == "zm_nuked" and ModeGrp == "zsurvival" then
+				Width  = 242
+				Height = 112
+			end
+		end)
+
+		CoD.MapInfoImage.MapImageWidth  = Width
+		CoD.MapInfoImage.MapImageHeight = Height
+
+		--  🛑 THE RESTORE MUST HAPPEN EVEN IF THE CONSTRUCTOR THROWS. Lua has no
+		--  finally, and leaving the shrunk numbers in place would carry them into
+		--  the next lobby built in this session - a fault that would look like it
+		--  came from somewhere else entirely. pcall, restore, then re-raise.
+		local Ok, Widget = pcall(ZmQolStockMapInfoImageNew, Properties)
+
+		CoD.MapInfoImage.MapImageWidth  = CoD.MapInfoImage.ZmQolStockWidth
+		CoD.MapInfoImage.MapImageHeight = CoD.MapInfoImage.ZmQolStockHeight
+
+		if not Ok then
+			error(Widget, 0)
+		end
+
+		return Widget
+	end
+end
+
 CoD.PrivateGameLobby.GameTypeSettings = {}
 CoD.PrivateGameLobby.GameTypeSettings[1] = {}
 CoD.PrivateGameLobby.GameTypeSettings[1].id = "zmDifficulty"
@@ -886,10 +1014,19 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 			--  Requested values are screen minus the constant +21.5 parent
 			--  offset this block already establishes: top 480, bottom 635.
 			--
-			--  📝 THE COST, STATED: the Nuketown survival map preview is
-			--  about 12% shorter than everywhere else. That is the only way
-			--  nine rows and the panel both fit, and it is a deliberate
-			--  trade rather than something to discover in a screenshot.
+			--  🛑 v2.1.3 - EVERYTHING FROM "So on this one screen" DOWN WAS
+			--  WRONG, and the user's next screenshot proved it: the panel
+			--  had not shrunk at all and the hint was still under it.
+			--  THE HEIGHT PASSED HERE IS IGNORED. CoD.MapInfoImage.new
+			--  anchors every visible part of the panel to the WIDGET'S
+			--  BOTTOM at fixed offsets and reads nothing from its height,
+			--  so `top` does nothing and `bottom` alone places it. The row
+			--  count was wrong too - this screen draws TWELVE rows, not
+			--  nine. The working fix is the size wrapper at the top of this
+			--  file; the full measurement and the model are written up
+			--  there. The 635 below is kept exactly as it shipped, because
+			--  it is what puts the panel's bottom 5 units clear of ESC
+			--  Back, and the wrapper only moves the top.
 			-- ============================================================
 			local Mapname  = UIExpression.DvarString(nil, "ui_mapname")
 			local ModeGrp  = UIExpression.DvarString(nil, "ui_zm_gamemodegroup")

@@ -8,8 +8,9 @@
 //
 //  Every GAMEPLAY option here is OFF by default, so a fresh install plays
 //  exactly as it did before any of this existed. The HUD readouts are the
-//  exception and always were: hud_timer, hud_health_bar and hud_remaining ship
-//  on, and hud_round_timer joined them in v1.84.0 at the user's request.
+//  exception and always were: hud_timers, hud_health_bar and hud_remaining ship
+//  on. (hud_timers was hud_timer + hud_round_timer until v2.1.3; the round
+//  timer joined the defaults in v1.84.0 at the user's request.)
 //
 //  🛑 THREE THINGS WERE VERIFIED AGAINST THE SHIPPED GAME BEFORE BEING WRITTEN,
 //  because each is the class of bug that has already cost this project a
@@ -86,6 +87,26 @@ init()
     //  v1.84.0 - ON by default. The user asked for the round timer to be shown
     //  under the game counter, not left behind a switch they have to find.
     qol_opt_dvar( "hud_round_timer",  "1" );
+    // ========================================================================
+    //  v2.1.3 - hud_timers, the FOUR-WAY row that replaced the two above.
+    //
+    //  User, 2026-08-21: *"for the timers remove both of them and turn them it
+    //  into one option called 'GAME TIMERS' ... 'GAME TIMER', 'ROUND TIMER',
+    //  'GAME TIMER + ROUND TIMER', 'OFF'."*
+    //
+    //      1 = both (the shipped default)   2 = game only
+    //      3 = round only                   0 = off
+    //
+    //  🛑 NOT a plain qol_opt_dvar default: seeding a blank hud_timers with "1"
+    //  would give BOTH timers back to a player who had deliberately switched one
+    //  of them off, because their choice lives in the two dvars above and this
+    //  is the first build that has ever read this name. qol_opt_timer_seed()
+    //  derives the value from those two instead. The LUI does the same
+    //  derivation in optionssettings.lua::QolMigrateTimers for the case where
+    //  the menu is opened before a map has ever loaded; both use the same table
+    //  and both are skipped the moment hud_timers holds anything.
+    // ========================================================================
+    qol_opt_timer_seed();
     qol_opt_dvar( "hud_health_bar",   "1" );
     //  v1.99.1 - the red "Bleeding out in: N" bar shown while you are downed
     //  (scripts\zm\bleedout_bar.gsc, imported from Nathan3197's mod). User asked
@@ -342,7 +363,26 @@ qol_opt_roundcounter_master()
     {
         wait 0.25;
 
-        n_on = getdvarintdefault( "hud_master", 1 );
+        // ====================================================================
+        //  v2.1.3 - ROUND COUNTER POSITION -> OFF hides it here too.
+        //
+        //  User, 2026-08-21: *"add a third 'off' options so you can turn it off
+        //  entirely."*  hud_round_left 2 = OFF.
+        //
+        //  🌟 THIS LOOP IS THE RIGHT PLACE AND NOT A NEW MECHANISM: it already
+        //  owns this element's alpha and already re-asserts it every pass, which
+        //  is exactly what the round counter needs - round_hud() fades it back
+        //  to alpha 1 at every round transition, so a single write would be
+        //  undone by the next round. Adding a second writer elsewhere is the
+        //  flashing-hudelem bug this project has already had once.
+        //
+        //  🛑 level.zmqol_roundcounter is a SERVER hudelem, one for the whole
+        //  match, so OFF is the host's setting for everybody - the same as
+        //  hud_master has always been on this element. It cannot be per-player
+        //  without rebuilding the counter as a client hudelem, which would
+        //  change what every other feature that touches it is holding.
+        // ====================================================================
+        n_on = getdvarintdefault( "hud_master", 1 ) && getdvarintdefault( "hud_round_left", 0 ) != 2;
 
         if ( !isdefined( level.zmqol_roundcounter ) )
         {
@@ -683,6 +723,46 @@ qol_opt_dvar( str_dvar, str_default )
 {
     if ( getdvar( str_dvar ) == "" )
         setdvar( str_dvar, str_default );
+}
+
+// ============================================================================
+//  qol_opt_timer_seed  -  v2.1.3, the GAME TIMER / ROUND TIMER merge
+//
+//  Fills hud_timers in from the two dvars the old pair of HUD rows wrote, once,
+//  and only while hud_timers is still empty:
+//
+//        hud_timer  hud_round_timer      hud_timers
+//            1            1          ->      1   both
+//            1            0          ->      2   game only
+//            0            1          ->      3   round only
+//            0            0          ->      0   off
+//
+//  🛑 IDEMPOTENT BY CONSTRUCTION. The only write is the setdvar at the bottom,
+//  and the first line returns the moment the name holds anything, so a stale
+//  hud_timer can never re-derive a value the player has since changed.
+//
+//  📝 Twin of optionssettings.lua::CoD.OptionsSettings.QolMigrateTimers, which
+//  covers the player who opens the menu from the main menu before any map has
+//  loaded. Same table on both sides - change one and change the other.
+// ============================================================================
+qol_opt_timer_seed()
+{
+    if ( getdvar( "hud_timers" ) != "" )
+        return;
+
+    b_game  = getdvarintdefault( "hud_timer", 1 ) != 0;
+    b_round = getdvarintdefault( "hud_round_timer", 1 ) != 0;
+
+    n_mode = 0;
+
+    if ( b_game && b_round )
+        n_mode = 1;
+    else if ( b_game )
+        n_mode = 2;
+    else if ( b_round )
+        n_mode = 3;
+
+    setdvar( "hud_timers", n_mode );
 }
 
 qol_opt_connect_loop()
@@ -1475,8 +1555,9 @@ qol_opt_nullptr()
 //  decide for itself, 1 forces everything on. That way turning it on to see
 //  everything does not wipe out the individual settings underneath.
 //
-//  🛑 Only hud_zone and hud_round_timer create anything, and only while their
-//  dvar is on - see the HUD allowance note at the top of this file.
+//  🛑 Only hud_zone and the round timer (hud_timers 1 or 3) create anything,
+//  and only while their dvar is on - see the HUD allowance note at the top of
+//  this file.
 // ----------------------------------------------------------------------------
 qol_opt_hud_watcher()
 {
@@ -1592,7 +1673,11 @@ qol_opt_hud_watcher()
         //  would do it N times for no reason. It is guarded because the default
         //  branch of round_hud() destroys and re-creates it every round.
         // ====================================================================
-        b_round_left = getdvarintdefault( "hud_round_left", 0 ) != 0;
+        //  🛑 v2.1.3 - `!= 0` BECAME `== 1`. hud_round_left is three-valued now
+        //  (0 RIGHT, 1 LEFT, 2 OFF) and the old test would have read OFF as
+        //  LEFT, dragging both timers to the other side of the screen the moment
+        //  the round number was switched off. OFF anchors RIGHT, the default.
+        b_round_left = getdvarintdefault( "hud_round_left", 0 ) == 1;
 
         if ( !isdefined( self.qol_round_left_last ) || self.qol_round_left_last != b_round_left )
         {
@@ -1605,7 +1690,11 @@ qol_opt_hud_watcher()
                 zmqol_hud_round_anchor( level.zmqol_roundcounter );
         }
 
-        self qol_opt_show( self.qol_hud_timer, b_master && ( b_all || getdvarintdefault( "hud_timer", 1 ) ) );
+        //  v2.1.3 - one dvar, four states. See qol_opt_timer_seed() for the
+        //  table and for why nobody's old setting was lost in the merge.
+        n_timers = getdvarintdefault( "hud_timers", 1 );
+
+        self qol_opt_show( self.qol_hud_timer, b_master && ( b_all || n_timers == 1 || n_timers == 2 ) );
 
         // ====================================================================
         //  🛑 TWO ELEMENTS ARE DELIBERATELY NOT TOUCHED HERE, AND v1.85.0 GOT
@@ -1634,7 +1723,7 @@ qol_opt_hud_watcher()
 
         self qol_opt_zone_hud( b_master && ( b_all || getdvarintdefault( "hud_zone", 0 ) ) );
         self qol_opt_compass_hud( b_master && ( b_all || getdvarintdefault( "hud_compass", 0 ) ) );
-        self qol_opt_round_timer_hud( b_master && ( b_all || getdvarintdefault( "hud_round_timer", 1 ) ) );
+        self qol_opt_round_timer_hud( b_master && ( b_all || n_timers == 1 || n_timers == 3 ) );
 
         //  Colour is only re-applied when the string actually changes. Writing
         //  .color every tick on every element would be a lot of needless work
@@ -1969,7 +2058,8 @@ zmqol_hud_round_anchor( elem )
     if ( !isdefined( elem ) )
         return;
 
-    if ( getdvarintdefault( "hud_round_left", 0 ) )
+    //  v2.1.3 - `== 1`, not `!= 0`: 2 is OFF and OFF stays on the RIGHT.
+    if ( getdvarintdefault( "hud_round_left", 0 ) == 1 )
     {
         elem.horzalign = "left";
         elem.x = -25;

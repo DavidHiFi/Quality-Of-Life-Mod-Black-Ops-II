@@ -729,6 +729,127 @@ act_remove_mod() {
   pause_key
 }
 
+# ---------------------------------------------------------------------------
+#  EVERYTHING - install, and remove, in one row each.
+#
+#  v2.1.3, bringing this script level with the Windows one. INSTALL EVERYTHING
+#  shipped there in v2.0.6 and REMOVE EVERYTHING was asked for on 2026-08-21
+#  (*"add an option to remove everything at the top of remove, similar to how
+#  install has everything, simple."*); neither existed here, so the package was
+#  offering Linux players a smaller menu than Windows players.
+#
+#  🌟 NOTHING IS REIMPLEMENTED, exactly as on Windows. menu() already answers
+#  from $CHOICE without drawing whenever $HEADLESS is 1 - that is the door the
+#  --action switch uses - so zmqol_pick below borrows it for one call and puts
+#  both globals back. Whatever each act_* does interactively is precisely what
+#  happens here, including every missing-file check, every backup, every
+#  GitHub fallback and every manifest.
+#
+#  Row indices, read off each act_*'s own MENU_KEYS:
+#     act_mod              0 = keep     (never wipe - an all-in-one must not be
+#                                        the thing that forgets saved settings)
+#     act_pack             0 = backup / 1 = plain
+#     act_reshade          0 = go
+#     act_remove_pack      the restore row EXISTS ONLY IF that backup does:
+#                            backup present -> 0 = restore, 1 = plain
+#                            no backup      -> 0 = plain
+#     act_remove_reshade   0 = go
+#     act_remove_mod       0 = keep
+#
+#  📝 The mod is removed LAST on purpose: act_remove_mod is what deletes the
+#  mods/zm_qol folder, and the earlier steps still want to log into it.
+# ---------------------------------------------------------------------------
+zmqol_pick() {
+  local choice="$1"; shift
+  local o_headless="$HEADLESS" o_choice="$CHOICE"
+  HEADLESS=1; CHOICE="$choice"
+  "$@"
+  HEADLESS="$o_headless"; CHOICE="$o_choice"
+}
+
+act_install_everything() {
+  MENU_KEYS=(backup plain back)
+  MENU_LABELS=("Back up my files first, then install it all" "Install it all without a backup" "Cancel")
+  MENU_STATUS=("recommended" "" "")
+  MENU_SECTIONS=("" "" "")
+  menu "Install everything" \
+    "Installs every part of this package, one after the other:" \
+    "~   the mod  ·  HD texture pack  ·  custom sounds  ·  ReShade" \
+    "" \
+    "~Any part whose files are not in this download - and cannot be fetched" \
+    "~from GitHub - is reported and skipped. Nothing else stops." \
+    "" \
+    "~Your saved menu settings are always kept." \
+    "" \
+    "!⚠️   THIS OVERWRITES CUSTOM TEXTURES AND SOUNDS ALREADY IN PLUTONIUM"
+  case "$MENU_RESULT" in ""|back) return ;; esac
+
+  local sub=1
+  [ "$MENU_RESULT" = "backup" ] && sub=0
+  log "action: install everything ($MENU_RESULT)"
+
+  zmqol_pick 0     act_mod
+  zmqol_pick "$sub" act_pack images "HD texture pack" "$IMGDIR" "THIS OVERWRITES ANY CUSTOM TEXTURES ALREADY IN THAT FOLDER"
+  zmqol_pick "$sub" act_pack zone   "custom sounds"   "$ZONEDIR" "THIS REPLACES ANY CUSTOM SOUNDS ALREADY IN THAT FOLDER"
+  zmqol_pick 0     act_reshade
+
+  header "Install everything"
+  say "Where things stand now:"
+  printf '\n'
+  say "The mod            $(mod_version "$MODDIR/mod.json" 2>/dev/null || echo 'not installed')"
+  say "HD texture pack    $( [ -f "$STATE/installed-images.txt" ] && echo installed || echo 'not installed')"
+  say "Custom sounds      $( [ -f "$ZONEDIR/${SOUND_FILES[0]}" ] && echo installed || echo 'not installed')"
+  say "ReShade            $( [ -f "$BINDIR/dxgi.dll" ] && echo installed || echo 'not installed')"
+  pause_key
+}
+
+act_remove_everything() {
+  local img_b=0 snd_b=0
+  has_backup images && img_b=1
+  has_backup zone   && snd_b=1
+
+  MENU_KEYS=(); MENU_LABELS=(); MENU_STATUS=(); MENU_SECTIONS=()
+  if [ "$img_b" -eq 1 ] || [ "$snd_b" -eq 1 ]; then
+    MENU_KEYS+=(restore); MENU_LABELS+=("Remove it all and put my original files back"); MENU_STATUS+=("backup found"); MENU_SECTIONS+=("")
+  fi
+  MENU_KEYS+=(plain); MENU_LABELS+=("Just remove it all"); MENU_STATUS+=(""); MENU_SECTIONS+=("")
+  MENU_KEYS+=(back);  MENU_LABELS+=("Cancel");            MENU_STATUS+=(""); MENU_SECTIONS+=("")
+
+  menu "Remove everything" \
+    "Removes every part of this package, one after the other:" \
+    "~   the HD texture pack  ·  custom sounds  ·  ReShade  ·  the mod" \
+    "" \
+    "~Only files this installer put there are deleted. Anything that was" \
+    "~already in those folders is left exactly where it is." \
+    "" \
+    "~Your saved menu settings are KEPT. To wipe them instead, use Remove the mod."
+  case "$MENU_RESULT" in ""|back) return ;; esac
+
+  local restore=0
+  [ "$MENU_RESULT" = "restore" ] && restore=1
+  log "action: remove everything ($MENU_RESULT)"
+
+  # The restore row is only present when that particular backup is, so the
+  # index of "plain" moves with it.
+  local ip=0 sp=0
+  [ "$img_b" -eq 1 ] && [ "$restore" -eq 0 ] && ip=1
+  [ "$snd_b" -eq 1 ] && [ "$restore" -eq 0 ] && sp=1
+
+  zmqol_pick "$ip" act_remove_pack images "HD textures"   "$IMGDIR"
+  zmqol_pick "$sp" act_remove_pack zone   "custom sounds" "$ZONEDIR"
+  zmqol_pick 0     act_remove_reshade
+  zmqol_pick 0     act_remove_mod
+
+  header "Remove everything"
+  say "Where things stand now:"
+  printf '\n'
+  say "HD texture pack    $( [ -f "$STATE/installed-images.txt" ] && echo 'still installed' || echo 'removed')"
+  say "Custom sounds      $( [ -f "$ZONEDIR/${SOUND_FILES[0]}" ] && echo 'still installed' || echo 'removed')"
+  say "ReShade            $( [ -f "$BINDIR/dxgi.dll" ] && echo 'still installed' || echo 'removed')"
+  say "The mod            $( [ -f "$MODDIR/mod.json" ] && echo 'still installed' || echo 'removed')"
+  pause_key
+}
+
 # ------------------------------------------------------------------ network --
 have_net() { command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; }
 
@@ -884,14 +1005,21 @@ main_menu() {
     local bkst="nothing backed up yet"
     [ "$nbk" -gt 0 ] && bkst="$nbk of 4 backed up"
 
-    MENU_KEYS=(mod images sounds reshade rimages rsounds rreshade rmod backups update details quit)
-    MENU_LABELS=("The mod" "HD texture pack" "Custom sounds" "ReShade + BO2 preset" \
+    # v2.1.3 - the two EVERYTHING rows, one at the top of each section, so this
+    # menu matches the Windows one exactly. See act_install_everything and
+    # act_remove_everything for why neither reimplements anything.
+    MENU_KEYS=(all mod images sounds reshade rall rimages rsounds rreshade rmod backups update details quit)
+    MENU_LABELS=("EVERYTHING - the whole package" \
+                 "The mod" "HD texture pack" "Custom sounds" "ReShade + BO2 preset" \
+                 "EVERYTHING - the whole package" \
                  "Remove the HD textures" "Remove the custom sounds" "Remove ReShade" "Remove the mod" \
                  "Back up / restore my own files" \
                  "Check for a newer version" "Details and log" "Quit")
-    MENU_STATUS=("$modst" "$imgst" "$sndst" "$rshst" "" "" "" "" "$bkst" "" "" "")
-    MENU_SECTIONS=("INSTALL" "INSTALL" "INSTALL" "INSTALL" \
-                   "REMOVE" "REMOVE" "REMOVE" "REMOVE" \
+    MENU_STATUS=("mod + textures + sounds + ReShade" "$modst" "$imgst" "$sndst" "$rshst" \
+                 "textures + sounds + ReShade + mod" "" "" "" "" \
+                 "$bkst" "" "" "")
+    MENU_SECTIONS=("INSTALL" "INSTALL" "INSTALL" "INSTALL" "INSTALL" \
+                   "REMOVE" "REMOVE" "REMOVE" "REMOVE" "REMOVE" \
                    "BACKUP" \
                    "MORE" "MORE" "MORE")
 
@@ -905,6 +1033,8 @@ main_menu() {
     menu "Black Ops II Zombies  ·  Plutonium T6 on Linux" "${intro[@]}"
     case "$MENU_RESULT" in
       ""|quit) return ;;
+      all)      act_install_everything ;;
+      rall)     act_remove_everything ;;
       mod)      act_mod ;;
       images)   act_pack images "HD texture pack" "$IMGDIR" "THIS OVERWRITES ANY CUSTOM TEXTURES ALREADY IN THAT FOLDER" ;;
       sounds)   act_pack zone   "custom sounds"   "$ZONEDIR" "THIS REPLACES ANY CUSTOM SOUNDS ALREADY IN THAT FOLDER" ;;
@@ -925,6 +1055,8 @@ move_old_backups
 
 if [ -n "$ACTION" ]; then
   case "$ACTION" in
+    all)      act_install_everything ;;
+    rall)     act_remove_everything ;;
     mod)      act_mod ;;
     images)   act_pack images "HD texture pack" "$IMGDIR" "THIS OVERWRITES ANY CUSTOM TEXTURES ALREADY IN THAT FOLDER" ;;
     sounds)   act_pack zone   "custom sounds"   "$ZONEDIR" "THIS REPLACES ANY CUSTOM SOUNDS ALREADY IN THAT FOLDER" ;;

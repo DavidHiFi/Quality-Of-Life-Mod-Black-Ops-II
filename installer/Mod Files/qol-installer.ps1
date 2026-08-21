@@ -628,7 +628,65 @@ function Copy-Payload {
     if (-not (Test-Path $Dest)) { New-Item -ItemType Directory -Force -Path $Dest | Out-Null }
     $r = robocopy $Source $Dest /E /NFL /NDL /NJH /NJS /NP
     if ($LASTEXITCODE -ge 8) { Say "Copy FAILED - close Plutonium and try again." $C.Bad; return $false }
-    $rel = $files | ForEach-Object { $_.FullName.Substring($Source.Length).TrimStart('\') }
+    $rel = @($files | ForEach-Object { $_.FullName.Substring($Source.Length).TrimStart('\') })
+
+    # -----------------------------------------------------------------------
+    #  v2.1.3 - THE BLOCKLIST. One texture in the pack breaks the HUD, and it
+    #  has to be dealt with HERE rather than by deleting it from the payload,
+    #  because the payload can also arrive as the texture zip attached to the
+    #  v2.0.0 GitHub release - a published asset that must never be renamed or
+    #  re-uploaded, so it will always still contain the file.
+    #
+    #  hud_dpad_blood.iwi - the blood splat behind the points and ammo in the
+    #  bottom right. User, 2026-08-20, two screenshots: *"the points text on the
+    #  hud there is being overlapped by the blood."*
+    #
+    #  🌟 MEASURED, not judged by eye. Both copies are 256x128 - the pack's is
+    #  not an upscale of anything - and decoding both to alpha shows they are
+    #  DIFFERENT ARTWORK: stock is a compact blob with scattered droplets, mean
+    #  alpha 27.7, while the pack's is one splat filling almost the whole frame
+    #  plus two ring droplets at the upper left, mean alpha 31.8. That silhouette
+    #  - big mass, two rings - is exactly what both screenshots show around the
+    #  points. Every OTHER hud_dpad_* texture in the pack matches stock's alpha
+    #  to within 0.5, so they are the same art re-encoded and they stay.
+    #  📝 The text is not overlapped, strictly: zooming the screenshot shows the
+    #  white glyphs whole and on top. The splat behind them is simply so much
+    #  bigger than stock's that it reads as covering them.
+    # -----------------------------------------------------------------------
+    $blocked = @()
+    if ($Kind -eq 'images') { $blocked = @('hud_dpad_blood.iwi') }
+    foreach ($b in $blocked) {
+        $f = Join-Path $Dest $b
+        if (Test-Path $f) {
+            if (-not $DryRun) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
+            Say "Left out $b - it covers the points number." $C.Dim
+        }
+        $rel = @($rel | Where-Object { $_ -ne $b })
+    }
+
+    # -----------------------------------------------------------------------
+    #  v2.1.3 - AN INSTALL IS A SYNC, NOT AN ADD. robocopy /E copies and never
+    #  purges, and this function then OVERWRITES the manifest, so before today a
+    #  file dropped from the pack stayed on disk forever AND fell out of the
+    #  record - "Remove the HD textures" could no longer see it either.
+    #  Only files this installer itself put there can be removed, because the old
+    #  manifest is the only list consulted; the player's own files were never in
+    #  it and are never touched.
+    # -----------------------------------------------------------------------
+    $now = @{}
+    foreach ($r2 in $rel) { $now[$r2.ToLower()] = $true }
+    $stale = 0
+    foreach ($r2 in (Read-Manifest $Kind)) {
+        if (-not $now.ContainsKey($r2.ToLower())) {
+            $f = Join-Path $Dest $r2
+            if (Test-Path $f) {
+                if (-not $DryRun) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
+                $stale++
+            }
+        }
+    }
+    if ($stale -gt 0) { Say ("Cleared {0} file(s) left over from an older version." -f $stale) $C.Text }
+
     Write-Manifest $Kind $rel
     Say "Done." $C.Good
     return $true
@@ -1156,6 +1214,113 @@ function Act-RemoveMod {
     Pause-Key
 }
 
+# ---------------------------------------------------------------------------
+#  REMOVE EVERYTHING - the mirror of Act-InstallEverything.
+#
+#  User, 2026-08-21: *"add an option to remove everything at the top of remove,
+#  similar to how install has everything, simple."*
+#
+#  🌟 SAME RULE AS THE INSTALL SIDE: NOTHING IS REIMPLEMENTED. Each Act-Remove*
+#  already takes a -Pick that selects one of its own rows without drawing the
+#  menu, so this is a driver. Whatever those four do interactively is exactly
+#  what happens here - the same manifest-only deletion, the same .backup
+#  restores, the same log rescue when the mod folder goes.
+#
+#  Pick indices, read off each function's own $items array:
+#     Act-RemoveImages   restore row EXISTS ONLY IF a backup does, so:
+#                          backup present -> 0 = 'restore', 1 = 'plain'
+#                          no backup      -> 0 = 'plain'
+#     Act-RemoveSounds   identical, keyed on the 'zone' backup
+#     Act-RemoveReShade  0 = 'go'   (its only non-cancel row)
+#     Act-RemoveMod      0 = 'keep' (NEVER 'wipe' - an all-in-one must not be
+#                                    the thing that silently forgets the
+#                                    player's menu settings; Remove the mod ->
+#                                    "wipe my settings" is still there for
+#                                    anyone who actually wants that)
+#
+#  📝 The restore question is asked ONCE here and passed down, for the same
+#  reason the install side asks about backups once.
+#
+#  📝 The mod goes LAST on purpose. Act-RemoveMod is the step that moves the
+#  game logs out and deletes storage\t6\mods\zm_qol; doing it first would mean
+#  the later steps write their log lines into a folder that is about to vanish.
+# ---------------------------------------------------------------------------
+function Act-RemoveEverything {
+    param([int] $Pick = -1)
+
+    $imgHasB = Has-Backup 'images'
+    $sndHasB = Has-Backup 'zone'
+    $anyB    = ($imgHasB -or $sndHasB)
+
+    $intro = @(
+        "Removes every part of this package, one after the other:",
+        "~   the HD texture pack  ·  custom sounds  ·  ReShade  ·  the mod",
+        '',
+        "~Only files this installer put there are deleted. Anything that was",
+        "~already in those folders is left exactly where it is, and your game",
+        "~logs are moved to storage\t6\backups\zm_qol-logs rather than deleted.",
+        '',
+        "~Your saved menu settings are KEPT, and copied to the backups, so a",
+        "~reinstall can import them. To wipe them instead, use Remove the mod."
+    )
+    if ($anyB) {
+        $intro += ''
+        $intro += "~A backup of your own files was found - the first row puts it back."
+    }
+
+    $items = @()
+    if ($anyB) { $items += @{ Key='restore'; Label='Remove it all and put my original files back'; Status='backup found'; StatusColour=$C.Good } }
+    $items += @{ Key='plain'; Label='Just remove it all' }
+    $items += @{ Key='back';  Label='Cancel' }
+    if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'Remove everything' $items -Intro $intro }
+    if (-not $sel -or $sel.Key -eq 'back') { return }
+
+    Write-Log "action: remove everything ($($sel.Key))"
+
+    $restore = ($sel.Key -eq 'restore')
+
+    # Index of the row we want inside each pack remover, given that its
+    # 'restore' row is only present when that particular backup is.
+    $imgPick = 0
+    if ($imgHasB -and -not $restore) { $imgPick = 1 }
+    $sndPick = 0
+    if ($sndHasB -and -not $restore) { $sndPick = 1 }
+
+    $wasQuiet = $script:Quiet
+    if (-not $script:Headless) { Clear-Host }
+    $script:Quiet = $true
+    try {
+        Act-RemoveImages  -Pick $imgPick
+        Act-RemoveSounds  -Pick $sndPick
+        Act-RemoveReShade -Pick 0
+        Act-RemoveMod     -Pick 0
+    }
+    finally { $script:Quiet = $wasQuiet }
+
+    $st = Get-Status
+    Draw-Header 'Remove everything'
+    Say 'Where things stand now:' $C.Text -NoLog
+    Write-Host ''
+    $rows = @(
+        @{ n='HD texture pack'; v=$st.Images;  on=$st.ImagesOn },
+        @{ n='Custom sounds';   v=$st.Sounds;  on=$st.SoundsOn },
+        @{ n='ReShade';         v=$st.ReShade; on=$st.ReShadeOn },
+        @{ n='The mod';         v=$st.Mod;     on=$st.ModOn }
+    )
+    foreach ($r in $rows) {
+        # Inverted against the install screen on purpose: here "still on" is the
+        # bad news and "not installed" is the result the player asked for.
+        $col = $C.Good
+        if ($r.on) { $col = $C.Warn }
+        Say ($r.n.PadRight(20) + $r.v) $col -NoLog
+    }
+    Write-Host ''
+    if ($st.ModOn) { Say "The mod is still installed - see Details and log." $C.Bad -NoLog }
+    else { Say "Your settings were kept. Backups -> the mod -> put back imports them." $C.Dim -NoLog }
+    Write-Log "remove everything finished: mod=$($st.ModOn) images=$($st.ImagesOn) sounds=$($st.SoundsOn) reshade=$($st.ReShadeOn)"
+    Pause-Key
+}
+
 # ------------------------------------------------------------------ updates --
 # ---------------------------------------------------------------------------
 #  Backups. One screen listing the four things, and one screen per thing with
@@ -1547,6 +1712,7 @@ function Main-Menu {
             @{ Key='sounds'; Section='INSTALL';   Label='Custom sounds';         Status=$st.Sounds;  StatusColour=$sndColour },
             @{ Key='reshade';Section='INSTALL';   Label='ReShade + BO2 preset';  Status=$st.ReShade; StatusColour=$rshColour },
 
+            @{ Key='rall';    Section='REMOVE';   Label='EVERYTHING - the whole package'; Status='textures + sounds + ReShade + mod'; StatusColour=$C.Title },
             @{ Key='rimages'; Section='REMOVE';   Label='Remove the HD textures' },
             @{ Key='rsounds'; Section='REMOVE';   Label='Remove the custom sounds' },
             @{ Key='rreshade';Section='REMOVE';   Label='Remove ReShade' },
@@ -1568,6 +1734,7 @@ function Main-Menu {
             'images'   { Act-InstallImages }
             'sounds'   { Act-InstallSounds }
             'reshade'  { Act-InstallReShade }
+            'rall'     { Act-RemoveEverything }
             'rimages'  { Act-RemoveImages }
             'rsounds'  { Act-RemoveSounds }
             'rreshade' { Act-RemoveReShade }
@@ -1589,6 +1756,7 @@ if ($Action) {
         'images'   { Act-InstallImages  -Pick $Choice }
         'sounds'   { Act-InstallSounds  -Pick $Choice }
         'reshade'  { Act-InstallReShade -Pick $Choice }
+        'rall'     { Act-RemoveEverything -Pick $Choice }
         'rimages'  { Act-RemoveImages   -Pick $Choice }
         'rsounds'  { Act-RemoveSounds   -Pick $Choice }
         'rreshade' { Act-RemoveReShade  -Pick $Choice }

@@ -5904,8 +5904,12 @@ zmqol_help_lines()
     //  than given its own, because this panel has a hard line budget and has
     //  been silently truncated before. See zmqol_console_command_watcher().
 
-    a_lines[a_lines.size] = "^5console: ^3hud_all hud_timer hud_health_bar hud_remaining hud_zone";
-    a_lines[a_lines.size] = "^5console: ^3hud_round_timer hud_master ^7| chat cmds are dvars: ^3round 100^7 ^3pack 1";
+    //  v2.1.3 - hud_timer and hud_round_timer were merged into hud_timers
+    //  (0 off, 1 both, 2 game only, 3 round only). The two old names still
+    //  exist so an old config line is harmless, but nothing reads them any
+    //  more, so listing them here would be advertising a dead switch.
+    a_lines[a_lines.size] = "^5console: ^3hud_all hud_timers hud_health_bar hud_remaining hud_zone";
+    a_lines[a_lines.size] = "^5console: ^3hud_round_left hud_master ^7| chat cmds are dvars: ^3round 100^7 ^3pack 1";
 
     // 🛑 The tail of this panel is GENERATED, not typed - user: "make sure that
     // the .help command always is updated to show all the custom added chat
@@ -15425,7 +15429,8 @@ zmqol_hud_round_anchor( elem )
     if ( !isdefined( elem ) )
         return;
 
-    if ( getdvarintdefault( "hud_round_left", 0 ) )
+    //  v2.1.3 - `== 1`, not `!= 0`: 2 is OFF and OFF stays on the RIGHT.
+    if ( getdvarintdefault( "hud_round_left", 0 ) == 1 )
     {
         elem.horzalign = "left";
         elem.x = -25;

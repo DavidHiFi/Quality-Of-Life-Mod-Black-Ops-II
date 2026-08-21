@@ -1215,6 +1215,60 @@ CoD.OptionsSettings.QolChoice = function (ButtonList, LocalClientIndex, Label, D
 	return Selector
 end
 
+-- ============================================================================
+--  QolMigrateTimers  -  v2.1.3, the GAME TIMER / ROUND TIMER merge
+--
+--  Runs once, the first time this tab is built on a machine that has never seen
+--  hud_timers. It reads the two dvars the old pair of rows wrote - both of which
+--  are still sitting in the player's config - and writes the four-way value that
+--  means the same thing:
+--
+--        game  round      hud_timers
+--          1     1    ->      1   both
+--          1     0    ->      2   game only
+--          0     1    ->      3   round only
+--          0     0    ->      0   off
+--
+--  🛑 IT MUST BE IDEMPOTENT, and it is: the migration is skipped the moment
+--  hud_timers holds anything at all, and the seta below is what puts it there.
+--  A second pass can therefore never re-derive it from a stale hud_timer.
+--
+--  📝 The GSC does the same derivation in qol_options.gsc::qol_opt_timer_mode()
+--  for a player who never opens this menu. Both sides agree on the table above;
+--  change one and change the other.
+--
+--  Everything is inside pcall for the same reason QolArchive is: a dvar read
+--  that throws must never be able to stop the tab from being built.
+-- ============================================================================
+CoD.OptionsSettings.QolMigrateTimers = function ()
+	pcall(function ()
+		local Cur = UIExpression.DvarString(nil, "hud_timers")
+		if Cur ~= nil and Cur ~= "" then
+			return
+		end
+
+		local function OldOn(Name)
+			local V = UIExpression.DvarString(nil, Name)
+			-- Unset means the player never touched it, and both rows shipped ON.
+			if V == nil or V == "" then
+				return true
+			end
+			return V ~= "0"
+		end
+
+		local Value = 0
+		if OldOn("hud_timer") and OldOn("hud_round_timer") then
+			Value = 1
+		elseif OldOn("hud_timer") then
+			Value = 2
+		elseif OldOn("hud_round_timer") then
+			Value = 3
+		end
+
+		Engine.Exec(nil, "seta hud_timers \"" .. Value .. "\"")
+	end)
+end
+
 CoD.OptionsSettings.QolToggle = function (ButtonList, LocalClientIndex, Label, DvarName, Description)
 	local Selector = ButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize(Label), DvarName, Engine.Localize(Description))
 	Selector:addChoice(LocalClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0)
@@ -1239,7 +1293,7 @@ end
 --  past both ends of its container, over the tab strip above and the ESC
 --  prompt below. That is the whole of the reported "scuffed-ness".
 --
---  The mod's own tabs, as of v2.1.2: GAME 13.5, HUD 14.0, PATCHES 11.0,
+--  The mod's own tabs, as of v2.1.3: GAME 13.5, HUD 13.0, PATCHES 11.0,
 --  CHEATS 7. The stock tabs this file also builds: ADVANCED 15.0 (full).
 --  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTEST TAB IT HONESTLY BELONGS IN.
 --
@@ -1457,7 +1511,7 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	local T = CoD.OptionsSettings.QolToggle
 	local C = CoD.OptionsSettings.QolChoice
 
-	-- HUD elements, and nothing else.                                14 rows
+	-- HUD elements, and nothing else.                                13 rows
 	T(QolHudButtons, LocalClientIndex, "HUD",               "hud_master",     "Master switch for the whole HUD.")
 	T(QolHudButtons, LocalClientIndex, "HITMARKERS",        "hitmarkers",     "Hit and kill markers on your crosshair.")
 	T(QolHudButtons, LocalClientIndex, "ROUND SUMMARY",     "round_summary",  "Stats pop-up after each round.")
@@ -1465,8 +1519,34 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	T(QolHudButtons, LocalClientIndex, "PERK POP-UP",       "hud_perk_popup", "Icon and name shown when you buy a perk.")
 	-- v1.99.0, user request 2026-08-16.
 	T(QolHudButtons, LocalClientIndex, "POWER-UP TIMERS",   "hud_powerup_timers", "Seconds left under each power-up icon.")
-	T(QolHudButtons, LocalClientIndex, "GAME TIMER",        "hud_timer",      "Time since the match started.")
-	T(QolHudButtons, LocalClientIndex, "ROUND TIMER",       "hud_round_timer","Time since this round started.")
+	-- ========================================================================
+	--  🌟 v2.1.3 - THE TWO TIMER ROWS ARE ONE FOUR-WAY ROW NOW.
+	--
+	--  User, 2026-08-21: *"for the timers remove both of them and turn them it
+	--  into one option called 'GAME TIMERS' and make it cycleable, So it'd be 4
+	--  options 'GAME TIMER', 'ROUND TIMER', 'GAME TIMER + ROUND TIMER', 'OFF'."*
+	--
+	--  🛑 A MERGE CANNOT KEEP BOTH OLD DVARS - a dvar selector writes exactly
+	--  one name - so this row takes a NEW one, hud_timers, and NOBODY'S SAVED
+	--  SETTING IS LOST: QolMigrateTimers below reads the two old archived dvars
+	--  ONCE and writes the matching four-way value. hud_timer and hud_round_timer
+	--  stay registered (an old config line is harmless), they are simply no
+	--  longer what the HUD reads.
+	--
+	--  Values are NOT the display order, on purpose:
+	--        1 = both   2 = game only   3 = round only   0 = off
+	--  1 is "both" because that is what the shipped default hud_timer "1" plus
+	--  hud_round_timer "1" already meant, so the migration is the identity for
+	--  every player on defaults. The user's own order is what the row cycles
+	--  through; addChoice order is what shows, the number behind it is free.
+	-- ========================================================================
+	CoD.OptionsSettings.QolMigrateTimers()
+	C(QolHudButtons, LocalClientIndex, "GAME TIMERS",       "hud_timers",     "Match time and round time, under the round number.", {
+		{ "GAME TIMER",                2 },
+		{ "ROUND TIMER",               3 },
+		{ "GAME TIMER + ROUND TIMER",  1 },
+		{ "OFF",                       0 }
+	})
 	-- 🌟 v2.1.2 - WAS THE TOGGLE "ROUND COUNTER LEFT". User request, 2026-08-21:
 	-- *"rename that to ROUND COUNTER POSITION and make it 2 cycleable options
 	-- LEFT, or RIGHT"*. RIGHT is listed first because it is value 0, the stock
@@ -1478,9 +1558,19 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	-- (quality_of_life.gsc:15428, qol_options.gsc:1595 and :1972), and RIGHT=0 /
 	-- LEFT=1 is exactly what the old toggle wrote, so nobody's saved setting
 	-- changes meaning.
-	C(QolHudButtons, LocalClientIndex, "ROUND COUNTER POSITION","hud_round_left", "Which corner the round number and both timers sit in.", {
+	-- 🌟 v2.1.3 - A THIRD CHOICE, OFF. User, 2026-08-21: *"for the Round
+	-- position thingy on top of the left or right cycleable options, add a third
+	-- 'off' options so you can turn it off entirely."*
+	-- 🛑 OFF IS 2, AND 2 STILL ANCHORS RIGHT. Every reader of this dvar used to
+	-- be a plain `!= 0` test meaning "left", so all three - the two
+	-- zmqol_hud_round_anchor() twins and qol_opt_hud_watcher - now test `== 1`
+	-- instead. Getting that wrong would put the timers on the left whenever the
+	-- counter was switched off. The timers keep their own y; only the round
+	-- number goes, which is what "turn it off" asks for.
+	C(QolHudButtons, LocalClientIndex, "ROUND COUNTER POSITION","hud_round_left", "Which corner the round number sits in, or off entirely.", {
 		{ "RIGHT", 0 },
-		{ "LEFT",  1 }
+		{ "LEFT",  1 },
+		{ "OFF",   2 }
 	})
 	T(QolHudButtons, LocalClientIndex, "HEALTH BAR",        "hud_health_bar", "Your health bar, bottom left.")
 	-- v1.99.1, user request 2026-08-16. Belongs in HUD despite HUD being the
@@ -1543,7 +1633,11 @@ CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
 	--  was told that explicitly before choosing.
 	-- ========================================================================
 
-	return QolHudContainer                                          -- 14 total
+	-- 🌟 v2.1.3 - 13 rows now: GAME TIMER + ROUND TIMER became one GAME TIMERS
+	-- row. 13.0 pitches puts the hint line at 234 + 13*50 = 884 px, 152 px clear
+	-- of the ESC prompt at 1036, and the longest description here is 55 chars so
+	-- nothing wraps. Two full rows of headroom for the next HUD option.
+	return QolHudContainer                                          -- 13 total
 end
 
 -- ============================================================================

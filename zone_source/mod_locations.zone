@@ -637,6 +637,52 @@ rawfile,vision/zm_powerup_zombie_blood.vision
 //  build, not just by precedent: the user's screenshot shows the power-up drop
 //  itself rendering correctly on TranZit, and p6_zm_tm_blood_power_up's images
 //  (p6_zm_bu_blood_power_up_c/_n/_s) are Origins-only too.
+//  🛑 v2.1.3 - THE MATERIAL LINE ALONE WAS NOT ENOUGH, AND THE NOTE ABOVE IS
+//  CORRECTED. User, 2026-08-21: *"i got a zombie blood power up in nuketown and
+//  the icon in the bottom middle was missing."*  Not a checkerboard - nothing at
+//  all, which is the signature of a material that resolves and pixels that do
+//  not. The v1.65.1 fix stopped the checkerboard and was never able to supply
+//  the pixels; the "proven by this very build" line above proved the DROP MODEL
+//  rendered, not this icon.
+//
+//  🌟 THE MECHANISM, MEASURED. specialty_zomblood_zombies is a STREAMED image:
+//  `Unlinker --include-assets image` on zm_tomb.ff dumps 721 images and this is
+//  not one of them (it is among the 1203 errors), while the small non-streamed
+//  icons like specialty_juggernaut_zombies_pro dump fine at 1152 bytes. A
+//  streamed image's pixels live in an .ipak, and a sweep of all 24 ipaks in
+//  zone\all for its name hash 8ED0233B finds it in **dlczm4.ipak only** -
+//  Origins' DLC pack. Off Origins that ipak is not mounted, so nothing anywhere
+//  holds the pixels, and no fastfile can carry them (mod.ff declares
+//  >level.ipak_read,zm and zm.ipak does not have it).
+//
+//  🌟 THE FIX IS THE ROUTE THIS MOD ALREADY SHIPS AND HAS CONFIRMED IN GAME:
+//  a loose `images\<name>.iwi` inside mod.iwd. 148 of the mod's images are
+//  ipak-backed names shipped exactly this way, and the closest twin is
+//  `specialty_vulture_zombies_glow` - a dlczm3 perk icon, 64x64 DXT5, 4160
+//  bytes, rendering correctly off Buried. The new file has a byte-identical
+//  header (magic/ver 27/fmt 13/flags 2/64x64x1) and the same 4160-byte size.
+//  A loose .iwi cannot beat a MOUNTED ipak, which is why an HD replacement for a
+//  live stock texture never works - but here there is no mounted copy to beat,
+//  and on Origins the ipak's own copy wins and is the same art anyway.
+//
+//  Pixels are stock, and their provenance was cross-checked rather than assumed:
+//  `All .DDS Files for Zombies` is byte-identical to the ipak dump on every name
+//  both hold (specialty_firesale_zombies, specialty_instakill_zombies), so its
+//  specialty_zomblood_zombies.dds is the retail asset. Converted with OAT's
+//  ImageConverter --t6.
+//
+//  🛑 SAME BUG, SAME PASS: specialty_firesale_zombies is streamed too, and it is
+//  in dlczm0/dlczm2/dlczm3/dlczm4/zm_nuked - i.e. NOT in zm.ipak and NOT in
+//  dlczm1. So Fire Sale's countdown icon has been invisible on TRANZIT and DIE
+//  RISE, the exact two maps the note above says this mod enables it on, ever
+//  since v1.55.x. `images\specialty_firesale_zombies.iwi` ships now for the same
+//  reason and by the same route.
+//
+//  📝 The other five icons hudpowerupszombie.lua registers are fine and that was
+//  checked, not assumed: specialty_instakill_zombies is in zm.ipak (mounted on
+//  every zombies map), and specialty_doublepoints_zombies, its _blue twin,
+//  zom_icon_bonfire and zom_icon_minigun are in NO ipak at all, i.e. non-streamed
+//  with their pixels inside the fastfile.
 material,specialty_zomblood_zombies
 fx,maps/zombie_tomb/fx_tomb_pwr_up_zmb_blood
 fx,maps/zombie_tomb/fx_zm_blood_overlay_pclouds

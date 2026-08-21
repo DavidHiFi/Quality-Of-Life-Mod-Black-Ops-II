@@ -76,6 +76,15 @@ mod.iwd
 # until the pack folder above is copied back into images\.
 images/*.iwi
 
+# 🛑 v2.1.3 - EXCEPTIONS, because these two are the MOD'S OWN and it is broken
+# without them. They are the stock 64x64 power-up HUD icons for Zombie Blood and
+# Fire Sale, whose pixels live in DLC ipaks that are not mounted off their home
+# maps - so the icon draws as nothing unless mod.iwd carries the .iwi. See
+# zone_source\mod_locations.zone for the measurement. Anything else added here
+# must be an asset the mod needs to function, never a texture-pack file.
+!images/specialty_zomblood_zombies.iwi
+!images/specialty_firesale_zombies.iwi
+
 # 1.9 GB of optional payloads the INSTALLER ships, not the mod: the upscaled
 # texture pack for the player's Plutonium images folder and the custom sound
 # banks for their zone folder. Far past any sane git limit - they belong in a

@@ -75,7 +75,7 @@ It finds your Wine prefix on its own, and does everything the Windows version do
 | 🔊 **Custom sound pack** | Optional. Same backup offer. |
 | 🌈 **ReShade** | Optional, with the mod's BO2 preset and overlay theme ready to go. **End** opens it in game. |
 | 💾 **Backups** | Back up your **own** textures, sounds, ReShade setup or mod folder — each on its own — and put them back any time. Kept as plain folders in `storage\t6\backups\`. |
-| 🧹 **Remove any of it** | One piece at a time, and the mod folder really goes, so it stops showing in the Mods menu. Your game logs are moved to the backups, never deleted. Only deletes what the installer put there, and offers your backup back. |
+| 🧹 **Remove any of it** | **EVERYTHING** in one row, or one piece at a time. The mod folder really goes, so it stops showing in the Mods menu. Your game logs are moved to the backups, never deleted. Only deletes what the installer put there, and offers your backup back. |
 
 The texture and sound packs are separate downloads on the [release page](https://github.com/DavidHiFi/zm_qol/releases/latest) because of their size — the installer fetches whichever you say yes to.
 

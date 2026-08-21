@@ -1902,6 +1902,11 @@ zmqol_vulture_machines_enable( localclientnumber )
 	level.zmqol_vulture_fx[ localclientnumber ] = spawnstruct();
 	level.zmqol_vulture_fx[ localclientnumber ].ids = a_ids;
 	level.zmqol_vulture_fx[ localclientnumber ].perks = a_perks;
+	//  v2.1.3 - who these markers belong to. zmqol_vulture_marker_perk_watch()
+	//  needs a player entity to ask hasperk() on, and this is the only handle
+	//  that is written by THIS mod at the exact moment markers exist. See the
+	//  banner over that function for why it stopped using stock's.
+	level.zmqol_vulture_fx[ localclientnumber ].player_ent = self;
 }
 
 zmqol_vulture_machines_disable( localclientnumber )
@@ -2773,6 +2778,45 @@ zmqol_vulture_marker_perk_signature( localclientnumber )
 	return str;
 }
 
+//  ---------------------------------------------------------------------------
+//  🛑 v2.1.3 - THE GUARD CHAIN WAS THE PROBLEM, AND IT IS GONE.
+//
+//  User, 2026-08-21, re-reporting the same symptom v1.99.91 was written to fix:
+//  *"the icons for the perks that have default/weapon icons on them for vulture
+//  aid dont disappear after you have the perk, make sure that once a perk is
+//  obtained the icon disppears."*
+//
+//  🌟 WHY THE EVENT ROUTE CANNOT COVER THESE PERKS - MEASURED, NOT INFERRED.
+//  zmqol_vulture_global_perk_callback() only runs for perks whose clientfield
+//  was registered WITH a callback. Reading the registrations rather than
+//  assuming them:
+//      perk_dead_shot        ::zmqol_deadshot_perk_callback  -> chains  ✅
+//      the eight in perks_register_clientfield()             -> chains  ✅
+//      perk_dive_to_nuke     stock _zm_perk_divetonuke.csc:22 registers it with
+//                            the callback argument literally `undefined`   ❌
+//  So PhD Flopper has NO client callback at all, on any map, in stock or here -
+//  which is exactly the perk the user named both times. Stock's own
+//  register_perk_with_clientfield( "perk_dive_to_nuke", "specialty_flakjacket" )
+//  is dead code for that reason.
+//
+//  🛑 SO THE POLL IS THE ONLY COVER FOR IT, AND THE POLL WAS NOT RUNNING.
+//  v1.99.91 gated every pass on FOUR stock fields -
+//  level.perk_vulture.fx_array, .fx_array[c], .fx_array[c].player_ent and
+//  .players_with_vulture_perk[c] - none of which this mod writes, and fx_array
+//  is never initialised anywhere in stock's file (only ever indexed into, at
+//  _zm_perk_vulture.csc:689). Any one of them being other than assumed silently
+//  disables the whole thing, with no error, which is what shipped.
+//
+//  🌟 THE FIX IS TO STOP ASKING STOCK. level.zmqol_vulture_fx[c] is written by
+//  zmqol_vulture_machines_enable() and cleared by _disable(), so "is it defined"
+//  IS the question this watch actually wants - markers are up for that client
+//  right now - and it carries .player_ent as of this version. No stock struct is
+//  in the chain any more, so this cannot be switched off by a field being
+//  shaped differently than expected.
+//
+//  📝 Rebuilding is safe to do from here: zmqol_vulture_machines_enable() calls
+//  _disable() first, so a rebuild replaces the set rather than stacking on it.
+//  ---------------------------------------------------------------------------
 zmqol_vulture_marker_perk_watch()
 {
 	level endon( "end_game" );
@@ -2783,28 +2827,38 @@ zmqol_vulture_marker_perk_watch()
 	{
 		wait 1;
 
-		if ( !isDefined( level.perk_vulture ) || !isDefined( level.perk_vulture.fx_array ) )
+		if ( !isDefined( level.zmqol_vulture_fx ) )
 			continue;
 
 		for ( c = 0; c < 4; c++ )
 		{
-			if ( !isDefined( level.perk_vulture.players_with_vulture_perk ) ||
-			     !isDefined( level.perk_vulture.players_with_vulture_perk[ c ] ) ||
-			     !isDefined( level.perk_vulture.fx_array[ c ] ) ||
-			     !isDefined( level.perk_vulture.fx_array[ c ].player_ent ) )
+			if ( !isDefined( level.zmqol_vulture_fx[ c ] ) ||
+			     !isDefined( level.zmqol_vulture_fx[ c ].player_ent ) )
 			{
-				//  Not holding Vulture (any more). Drop the signature so the next
-				//  time they do, the first pass is treated as a change and the
-				//  markers are rebuilt against their perks as they are then.
+				//  No markers up for this client. Drop the signature so the next
+				//  time they go up, the first pass counts as a change and the set
+				//  is rebuilt against their perks as they are then.
 				a_last[ c ] = undefined;
 				continue;
 			}
 
-			e_player = level.perk_vulture.fx_array[ c ].player_ent;
+			e_player = level.zmqol_vulture_fx[ c ].player_ent;
 			str_now = e_player zmqol_vulture_marker_perk_signature( c );
 
 			if ( isDefined( a_last[ c ] ) && a_last[ c ] == str_now )
 				continue;
+
+			//  🔬 v2.1.3 PROBE - print only, no behaviour change. It names the
+			//  old and new owned-perk signatures every time the watch actually
+			//  fires a rebuild, so one boot settles "the watch is running" versus
+			//  "the rebuild ran and the marker still drew". 🛑 Delete once the
+			//  user has confirmed the icons go.
+			str_was = "(first)";
+
+			if ( isDefined( a_last[ c ] ) )
+				str_was = a_last[ c ];
+
+			println( "[zm_qol] vulture marker watch: client " + c + " perks " + str_was + " -> " + str_now + ", rebuilding" );
 
 			a_last[ c ] = str_now;
 			e_player zmqol_vulture_machines_enable( c );
