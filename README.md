@@ -68,6 +68,7 @@ It finds your Wine prefix on its own, and does everything the Windows version do
 
 | | |
 |---|---|
+| 📦 **EVERYTHING** | One row that installs the mod, the HD textures, the sounds and ReShade in one pass — with the same backup offer, asked once. |
 | 🧟 **The mod** | Install or update it. Asks whether to **keep your menu settings** or start fresh. |
 | 🔎 **Update check** | Pulls the newest release from GitHub. Won't put an older release over a newer build without asking twice. |
 | 🖼️ **HD texture pack** | Optional. Backs up your current textures first if you want. |
