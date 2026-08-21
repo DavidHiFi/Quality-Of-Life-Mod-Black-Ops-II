@@ -372,22 +372,22 @@ material,gfx_fxt_perk_deadshot_blend
 material,gfx_fxt_perk_deadshot_lesnflare
 
 // ----------------------------------------------------------------------------
-//  VULTURE AID - THE BRIGHTER ZOMBIE EYES, v1.99.68
+//  VULTURE AID - THE BRIGHTER ZOMBIE EYES: DROPPED BY THE USER, 2026-08-21
 //
-//  🛑 THESE THREE ARE CANDIDATES FOR ONE CHOICE, NOT THREE FEATURES. The user
-//  asked for the zombie eyes to glow brighter while holding Vulture Aid. Stock
-//  already swaps in fx_zombie_eye_vulture, which is a DIFFERENT eye rather than
-//  a brighter one, and v1.99.65-67 proved (from the client's own log line) that
-//  drawing the map's normal eye effect twice is applied and invisible.
+//  *"just totally drop the 'Brighter eyes with Vulture Aid' idea, leave the
+//  zombies' eyes alone and drop it ... no more zombies eyes changing glow
+//  colours or anything of the sort."*
 //
-//  Brightness cannot be measured offline - OpenAssetTools can neither load nor
-//  dump FxEffectDef - so instead of guessing, the `vulture_eye_fx` dvar picks
-//  between them in game and ONE boot settles it. The loser gets deleted from
-//  this list once the user has chosen.
+//  The three candidate eye effects that used to be declared here are gone with
+//  it, together with zm_expanded.csc::zmqol_vulture_brighter_eyes() and the
+//  vulture_eye_fx dvar. Nothing else referenced them - checked by grep over
+//  scripts, ui and ui_mp before removing.
+//
+//  🛑 STOCK VULTURE AID'S OWN EYE GLOW IS UNTOUCHED AND MUST STAY THAT WAY.
+//  _zm_perk_vulture loads misc/fx_zombie_eye_vulture and attaches it for anyone
+//  holding the perk - that is the perk working, not this mod tinting anything.
+//  Only the OVERRIDE on top of it was removed.
 // ----------------------------------------------------------------------------
-fx,misc/fx_zombie_eye_side_quest
-fx,maps/zombie/fx_zombie_eye_returned_orng
-fx,maps/zombie/fx_zombie_eye_returned_blue
 
 // ----------------------------------------------------------------------------
 //  VULTURE AID - the STINK HUD, and the checkerboard it caused

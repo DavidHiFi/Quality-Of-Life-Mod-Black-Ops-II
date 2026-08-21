@@ -68,7 +68,6 @@ init()
     //  note over zm_expanded.csc::zmqol_vulture_brighter_eyes(). Registered here
     //  so it shows in console autocomplete; the CLIENT reads it, and both halves
     //  run in one process on this platform.
-    qol_opt_dvar( "vulture_eye_fx",        "2" );
     qol_opt_dvar( "disable_player_quotes", "1" );
     qol_opt_dvar( "coop_pause",            "0" );
     //  v1.99.91 - the ADVANCED tab's FOG row and the .fog command both write
