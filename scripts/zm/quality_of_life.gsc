@@ -495,6 +495,7 @@ init()
     level thread zmqol_team_emblem_watch();     // scoreboard CDC/CIA emblem (v1.99.61)
     level thread zmqol_perk_slot_connect();
     level thread zmqol_blood_money_natural_drop();
+    level thread zmqol_fire_sale_custom_gate();  // FIRE SALE under CUSTOM POWER-UPS (v2.0.5)
     level thread zmqol_register_announcer_vox();
     level thread zmqol_powerup_timer_think();   // POWER-UP TIMERS (v1.99.1)
 
@@ -9505,6 +9506,85 @@ zmqol_zb_should_drop()
 zmqol_bm_should_drop()
 {
     return zmqol_custom_powerups_enabled();
+}
+
+// ============================================================================
+//  zmqol_fs_should_drop / zmqol_fire_sale_custom_gate  -  FIRE SALE under the
+//  CUSTOM POWER-UPS row                                            (v2.0.5)
+//
+//  User, 2026-08-21: *"if you have the custom power ups option enabled,
+//  alongside all the power ups it already allows for, add fire sale in to the
+//  equation as well so that all maps can have fire sale in them, again only
+//  with the custom power ups option toggled on."*
+//
+//  🌟 THE FIRST HALF WAS ALREADY SHIPPING, and that was checked before writing
+//  anything. zmqol_enable_fire_sale() (server, :9356) and its exact client twin
+//  in zm_expanded.csc have carried Fire Sale on zm_transit and zm_highrise since
+//  v1.54.0 - the two maps stock leaves it out of. Measured again against the
+//  dump: include_powerup( "fire_sale" ) is called by zm_nuked:720, zm_prison:947,
+//  zm_buried:1279 and zm_tomb:1173, on both the .gsc and the .csc side, and by
+//  neither transit nor highrise. So "all maps can have fire sale" is already
+//  true; the ONLY thing missing was the user's second clause - the row.
+//
+//  🛑 THE ROW IS ENFORCED IN THE DROP PREDICATE, NEVER AT REGISTRATION. Gating
+//  include_powerup() would move a registerclientfield and that is exactly the
+//  EXE_CLIENT_FIELD_MISMATCH this mod already shipped once - see the block above
+//  zmqol_enable_zombie_blood, and the long client-side write-up above
+//  zm_expanded.csc::zmqol_enable_fire_sale(). Both sides register
+//  ( "toplayer", "powerup_fire_sale", 1, 2, "int" ) as a side effect of the
+//  include LIST, so the two lists must stay identical no matter what this row
+//  says. Re-pointing the predicate touches nothing that is registered.
+//
+//  🌟 THE BIT BUDGET IS NOT A CONCERN HERE, and that is measured rather than
+//  hoped: per-map clientfield dumps give toplayer totals of 38 (transit classic)
+//  and 33 (die rise) against Buried's 63, Origins' 61 and Mob's 50 - all of which
+//  already carry powerup_fire_sale. toplayer is plainly not a 32-bit-capped set,
+//  and the two maps being changed sit at the LOW end of the shipped range.
+//
+//  🛑 THE MAP GATE IS NOT COSMETIC. On zm_nuked / zm_prison / zm_buried / zm_tomb
+//  Fire Sale is STOCK, so turning CUSTOM POWER-UPS off there must not remove it -
+//  that would be the row deleting vanilla behaviour, which is the same mistake
+//  the Blood Money block above documents for Origins. This only re-points the
+//  predicate on the two maps where this mod is the reason Fire Sale exists.
+//
+//  📝 STOCK'S OWN TEST IS KEPT, not replaced. func_should_drop_fire_sale()
+//  refuses while a Fire Sale is already running, while level.chest_moves < 1
+//  (so the box must have moved at least once) and while level.disable_firesale_drop
+//  is set. All three still apply; the row is ANDed on top.
+// ============================================================================
+zmqol_fs_should_drop()
+{
+    if ( !zmqol_custom_powerups_enabled() )
+        return false;
+
+    return maps\mp\zombies\_zm_powerups::func_should_drop_fire_sale();
+}
+
+zmqol_fire_sale_custom_gate()
+{
+    map = getDvar( "mapname" );
+
+    //  The same two maps zmqol_enable_fire_sale() names, for the same reason.
+    if ( map != "zm_transit" && map != "zm_highrise" )
+        return;
+
+    //  Polls for the struct rather than assuming an order, exactly as
+    //  zmqol_blood_money_natural_drop() does: _zm_powerups::init() is reached
+    //  from _zm::init(), threaded by the MAP's main(), so this init is not
+    //  ordered against it. Capped at 30 seconds so a map that never registers
+    //  the powerup cannot leave a thread spinning all game.
+    for ( i = 0; i < 600; i++ )
+    {
+        if ( isdefined( level.zombie_powerups ) &&
+             isdefined( level.zombie_powerups[ "fire_sale" ] ) )
+        {
+            level.zombie_powerups[ "fire_sale" ].func_should_drop_with_regular_powerups =
+                ::zmqol_fs_should_drop;
+            return;
+        }
+
+        wait 0.05;
+    }
 }
 
 zmqol_enable_blood_money()

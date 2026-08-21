@@ -80,14 +80,60 @@ function Write-Log {
 
 function Say {
     param([string] $Text, [string] $Colour = $C.Text, [switch] $NoLog)
+    # A caller that passes an undefined colour must never be able to abort the
+    # install - the message just comes out in the default colour instead. See
+    # the note in Set-ReShadeFont for the $C/$c shadowing bug that made this
+    # necessary; the shadowing is fixed, but nothing here is worth a crash.
+    if ([string]::IsNullOrWhiteSpace($Colour)) { $Colour = 'Gray' }
     Write-Host ('     ' + $Text) -ForegroundColor $Colour
     if (-not $NoLog) { Write-Log $Text }
 }
 
 # --------------------------------------------------------------------- chrome -
+# ---------------------------------------------------------------------------
+#  $script:Quiet is set only while ALL-IN-ONE is running four installs back to
+#  back. It turns the screen into a transcript: no clear between steps, and no
+#  "press any key" after each one, so the four results stay on screen together
+#  and there is a single pause at the end instead of four.
+# ---------------------------------------------------------------------------
+$script:Quiet = $false
+
+<#
+  🛑 THE REST OF THE FLICKER, MEASURED - v2.0.5.
+
+  v2.0.1 stopped Show-Menu clearing the screen on every keypress, but only when
+  the whole frame fits inside the window: `if ($frameHeight -lt WindowHeight)`.
+  The MAIN menu is exactly 30 lines tall -
+        6 header + 12 items + (4 sections x 2) + 3 tail + 1 spare = 30
+  - and a default Windows console is exactly 30 rows. `30 -lt 30` is FALSE, so
+  the main menu has been on the OLD full-redraw path the whole time, clearing
+  and repainting on every arrow key. That is the flash the user still sees, and
+  it is why it looks worst on the first screen. Adding the ALL-IN-ONE row would
+  have made it 31 and no better.
+
+  So the window is grown to fit before the decision is taken. Nothing is
+  reformatted and no row is removed - the frame the user sees is unchanged.
+  If the console refuses to resize (a fixed-size host, or already at the
+  monitor's limit) the old path still works exactly as it did.
+#>
+function Fit-Console {
+    param([int] $Rows)
+    if ($script:Headless -or $script:NoKeys) { return $false }
+    try {
+        if ([Console]::WindowHeight -ge $Rows) { return $true }
+        $want = $Rows
+        $max  = [Console]::LargestWindowHeight
+        if ($max -gt 0 -and $want -gt $max) { $want = $max }
+        # The buffer must be at least as tall as the window or the set throws.
+        if ([Console]::BufferHeight -lt $want) { [Console]::BufferHeight = $want }
+        [Console]::WindowHeight = $want
+        return ([Console]::WindowHeight -ge $Rows)
+    } catch { return $false }
+}
+
 function Draw-Header {
     param([string] $Sub)
-    if (-not $script:Headless) { Clear-Host }
+    if (-not $script:Headless -and -not $script:Quiet) { Clear-Host }
     Write-Host ''
     Write-Host '   ╔══════════════════════════════════════════════════════════════════╗' -ForegroundColor $C.Frame
     Write-Host '   ║' -ForegroundColor $C.Frame -NoNewline
@@ -191,6 +237,9 @@ function Show-Menu {
 
     $fast = $false
     if (-not $script:Headless -and -not $script:NoKeys) {
+        # Grow the window to fit BEFORE testing, so a frame that is one or two
+        # rows too tall stops silently falling back to the clearing path.
+        [void](Fit-Console ($frameHeight + 1))
         try { if ($frameHeight -lt [Console]::WindowHeight) { $fast = $true } } catch { $fast = $false }
     }
 
@@ -300,7 +349,7 @@ function Pause-Key {
     Write-Host ''
     Draw-Rule
     Write-Host $Text -ForegroundColor $C.Dim
-    if ($script:Headless) { return }
+    if ($script:Headless -or $script:Quiet) { return }
     if ($script:NoKeys) { [void](Read-Host '   ENTER'); return }
     try { [void][Console]::ReadKey($true) } catch { $script:NoKeys = $true; [void](Read-Host '   ENTER') }
 }
@@ -820,7 +869,15 @@ function Set-ReShadeFont {
         (Join-Path $env:WINDIR "Fonts\$name")
     )
     $font = $null
-    foreach ($c in $candidates) { if ($c -and (Test-Path -LiteralPath $c)) { $font = (Resolve-Path -LiteralPath $c).Path; break } }
+    # 🛑 THE LOOP VARIABLE MUST NOT BE $c.  PowerShell variable names are
+    #    case-INSENSITIVE, so `foreach ($c in ...)` overwrote $C - the colour
+    #    table - for the rest of this function. Every Say below then passed
+    #    $C.Dim on a plain string, which is $null, and Write-Host threw
+    #    "Cannot convert value ''" and killed the installer. Installing ReShade
+    #    has ended in that error since v2.0.0: the files copied, then the run
+    #    aborted. Fixed by renaming the variable, and Say now refuses to pass an
+    #    empty colour through even if something like this happens again.
+    foreach ($cand in $candidates) { if ($cand -and (Test-Path -LiteralPath $cand)) { $font = (Resolve-Path -LiteralPath $cand).Path; break } }
     if (-not $font) {
         Say "Font not on this PC - ReShade will use its own. Everything else is set." $C.Dim
         return
@@ -1269,6 +1326,96 @@ function Act-Details {
     Pause-Key
 }
 
+# ---------------------------------------------------------------------------
+#  ALL-IN-ONE                                                        (v2.0.5)
+#
+#  User, 2026-08-21: *"add an option aside from the main 4 options, an
+#  'all-in-one' option so if you want you can just install the entire mod, or
+#  specific parts of the mod package, again with the option to backup
+#  everything."*
+#
+#  🌟 NOTHING IS REIMPLEMENTED. Every Act-Install* already takes a -Pick that
+#  selects one of its own menu rows without drawing the menu - the same door the
+#  command-line -Action switch uses. So this is a driver, not a fifth installer:
+#  whatever those four do interactively is exactly what happens here, including
+#  every missing-file check, every backup and every GitHub fallback. If one of
+#  them changes, this follows it for free.
+#
+#  Pick indices, read off each function's own $items array:
+#     Act-InstallMod      0 = 'keep'   (update and KEEP the player's settings -
+#                                       never 'wipe'; an all-in-one must not be
+#                                       the thing that silently forgets them)
+#     Act-InstallImages   0 = 'backup' / 1 = 'plain'
+#     Act-InstallSounds   0 = 'backup' / 1 = 'plain'
+#     Act-InstallReShade  0 = 'go'     (its only non-cancel row; it keeps the
+#                                       player's own .ini as .backup regardless)
+#
+#  📝 The backup question is asked ONCE here and passed down, because being
+#  asked it twice in a row is the thing an all-in-one is supposed to remove.
+# ---------------------------------------------------------------------------
+function Act-InstallEverything {
+    param([int] $Pick = -1)
+
+    $st = Get-Status
+    $intro = @(
+        "Installs every part of this package, one after the other:",
+        "~   the mod  ·  HD texture pack  ·  custom sounds  ·  ReShade",
+        '',
+        "~Any part whose files are not in this download - and cannot be fetched",
+        "~from GitHub - is reported and skipped. Nothing else stops.",
+        '',
+        "~Your saved menu settings are always kept.",
+        '',
+        "!⚠️   THIS OVERWRITES CUSTOM TEXTURES AND SOUNDS ALREADY IN PLUTONIUM",
+        "~     Pick the backup row and your own files are copied into",
+        "~     storage\t6\backups first."
+    )
+    $items = @(
+        @{ Key='backup'; Label='Back up my files first, then install it all'; Status='recommended'; StatusColour=$C.Good },
+        @{ Key='plain';  Label='Install it all without a backup' },
+        @{ Key='back';   Label='Cancel' }
+    )
+    if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'Install everything' $items -Intro $intro }
+    if (-not $sel -or $sel.Key -eq 'back') { return }
+
+    Write-Log "action: install everything ($($sel.Key))"
+
+    $subPick = 1
+    if ($sel.Key -eq 'backup') { $subPick = 0 }
+
+    $wasQuiet = $script:Quiet
+    if (-not $script:Headless) { Clear-Host }
+    $script:Quiet = $true
+    try {
+        Act-InstallMod     -Pick 0
+        Act-InstallImages  -Pick $subPick
+        Act-InstallSounds  -Pick $subPick
+        Act-InstallReShade -Pick 0
+    }
+    finally { $script:Quiet = $wasQuiet }
+
+    $st = Get-Status
+    Draw-Header 'Install everything'
+    Say 'Where things stand now:' $C.Text -NoLog
+    Write-Host ''
+    $rows = @(
+        @{ n='The mod';         v=$st.Mod;     on=$st.ModOn },
+        @{ n='HD texture pack'; v=$st.Images;  on=$st.ImagesOn },
+        @{ n='Custom sounds';   v=$st.Sounds;  on=$st.SoundsOn },
+        @{ n='ReShade';         v=$st.ReShade; on=$st.ReShadeOn }
+    )
+    foreach ($r in $rows) {
+        $col = $C.Warn
+        if ($r.on) { $col = $C.Good }
+        Say ($r.n.PadRight(20) + $r.v) $col -NoLog
+    }
+    Write-Host ''
+    if ($st.ModOn) { Say "Plutonium T6 → Zombies → Mods → $MODNAME" $C.Dim -NoLog }
+    else { Say "The mod itself did not install - see Details and log." $C.Bad -NoLog }
+    Write-Log "install everything finished: mod=$($st.ModOn) images=$($st.ImagesOn) sounds=$($st.SoundsOn) reshade=$($st.ReShadeOn)"
+    Pause-Key
+}
+
 # --------------------------------------------------------------------- main --
 function Test-PlutoRunning {
     foreach ($n in @('plutonium-launcher-win32','plutonium-bootstrapper-win32','t6zm','t6mp')) {
@@ -1298,6 +1445,7 @@ function Main-Menu {
         $rshColour = $C.Dim; if ($st.ReShadeOn) { $rshColour = $C.Good }
 
         $items = @(
+            @{ Key='all';    Section='INSTALL';   Label='EVERYTHING - the whole package'; Status='mod + textures + sounds + ReShade'; StatusColour=$C.Title },
             @{ Key='mod';    Section='INSTALL';   Label='The mod';               Status=$st.Mod;     StatusColour=$modColour },
             @{ Key='images'; Section='INSTALL';   Label='HD texture pack';       Status=$st.Images;  StatusColour=$imgColour },
             @{ Key='sounds'; Section='INSTALL';   Label='Custom sounds';         Status=$st.Sounds;  StatusColour=$sndColour },
@@ -1319,6 +1467,7 @@ function Main-Menu {
         if (-not $sel -or $sel.Key -eq 'quit') { return }
 
         switch ($sel.Key) {
+            'all'      { Act-InstallEverything }
             'mod'      { Act-InstallMod }
             'images'   { Act-InstallImages }
             'sounds'   { Act-InstallSounds }
@@ -1339,6 +1488,7 @@ Move-OldBackups
 
 if ($Action) {
     switch ($Action) {
+        'all'      { Act-InstallEverything -Pick $Choice }
         'mod'      { Act-InstallMod     -Pick $Choice }
         'images'   { Act-InstallImages  -Pick $Choice }
         'sounds'   { Act-InstallSounds  -Pick $Choice }
