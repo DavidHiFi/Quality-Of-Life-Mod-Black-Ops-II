@@ -142,7 +142,7 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 - Round summary, timers, health bar, bleedout bar, zombies remaining, zone names, **compass**, velocity meter, Cold-War round HUD (top right, or **top left like BO4** with one switch), perk pop-ups, **power-up timers**.
 - **RESTART GAME**, **INSTANT EXIT** and **QUIT TO DESKTOP** on the pause menu.
 - **Night Mode**, **Fog** and **Higher Draw Distance** on the game's own ADVANCED tab — plus a **DISABLED** step for Depth Of Field that base BO2 never gave you.
-- **Instant match start** — no lobby countdown. Classic intro cutscenes play again.
+- **Hellhounds on Nuketown survival** — Treyarch wired it and never showed the switch. · **Instant match start** — no lobby countdown. Classic intro cutscenes play again.
 
 ### 🧰 Quality of life
 

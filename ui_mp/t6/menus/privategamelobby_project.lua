@@ -78,6 +78,40 @@ CoD.PrivateGameLobby.GameTypeSettings[5].gameTypes = {}
 CoD.PrivateGameLobby.GameTypeSettings[5].gameTypes[1] = "zstandard"
 CoD.PrivateGameLobby.GameTypeSettings[5].maps = {}
 CoD.PrivateGameLobby.GameTypeSettings[5].maps[1] = "zm_transit"
+-- ===========================================================================
+--  zm_qol v2.1.0 - HELLHOUNDS ON NUKETOWN SURVIVAL.  User, 2026-08-21:
+--  *"add hellhounds as a pre-game option for nuketown survival as well ...
+--  and of course make sure the hell hound spawns are proper/normal inside the
+--  actual playable map, not in areas where the player can't even access."*
+--
+--  🌟 TREYARCH ALREADY WIRED THE WHOLE SERVER HALF AND JUST NEVER SHOWED THE
+--  ROW - the same shape as the survival locations this mod already ports.
+--  Nuketown's own gametype script does all of it:
+--        zm_nuked\maps\mp\gametypes_zm\zstandard.gsc:26
+--            maps\mp\zombies\_zm_ai_dogs::init();
+--        :39   level.dog_rounds_allowed = getgametypesetting( "allowdogs" );
+--        :41-42  if ( level.dog_rounds_allowed )
+--                    maps\mp\zombies\_zm_ai_dogs::enable_dog_rounds();
+--  Byte for byte what TranZit, Die Rise, Mob, Buried and Origins run. The ONLY
+--  thing that hid it was this whitelist, which stock left at zm_transit alone.
+--  So this is one line, and no GSC changes at all.
+--
+--  🌟 THE SPAWNS ARE STOCK'S OWN AND THEY ARE IN THE PLAYABLE MAP - measured,
+--  not assumed. `Unlinker --include-assets mapents` on zm_nuked.ff finds 29
+--  script_structs tagged dog_location across 12 zones - both houses, both
+--  backyards, all four alleys, the garage, both cul-de-sacs, the start and the
+--  truck - every one at z -32..-34, the map's ground plane, spanning
+--  x -1976..1688 and y -426..1064. Nuketown survival plays the WHOLE map
+--  rather than a carved-out arena, so unlike the Diner there is no out-of-
+--  bounds zone for a dog to land in. Nothing was moved or disabled.
+--
+--  🛑 THIS MAKES NUKETOWN SURVIVAL THE ONLY NINE-ROW LOBBY IN THE GAME, and
+--  the preview panel had to move for it. See the measured block above
+--  mapInfoImage:setTopBottom() - the ninth row pushes the hint 23.3 units
+--  inside the panel, and the panel cannot simply drop a row without landing on
+--  ESC Back. Change one without the other and they overlap.
+-- ===========================================================================
+CoD.PrivateGameLobby.GameTypeSettings[5].maps[2] = "zm_nuked"
 CoD.PrivateGameLobby.GameTypeSettings[6] = {}
 CoD.PrivateGameLobby.GameTypeSettings[6].id = "cleansedLoadout"
 CoD.PrivateGameLobby.GameTypeSettings[6].name = "ZMUI_CLEANSED_LOADOUT_CAPS"
@@ -820,8 +854,52 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 			end
 
 			Element.body.mapInfoImage.zmqolNudged = true
-			--  448 + 21.5 parent offset = 469.5 on screen; height 177 preserved.
-			Element.body.mapInfoImage:setTopBottom(true, false, 448, 625)
+
+			-- ============================================================
+			--  v2.1.0 - NINE ROWS ON NUKETOWN SURVIVAL NEED THEIR OWN
+			--  PANEL POSITION, and the numbers come straight out of the
+			--  measurements above rather than from a nudge by eye.
+			--
+			--  Adding HELLHOUNDS makes Nuketown survival the only screen in
+			--  the game with NINE option rows. Everything else in this file
+			--  was measured at EIGHT:
+			--        row pitch      32.0 units, dead even
+			--        8 rows         202.9 -> 446.1
+			--        hint           444.2 -> 460.8   (spacer already zeroed)
+			--        panel          469.5 -> 646.5   (8.7 clear above,
+			--                                         25.5 clear of ESC ~672)
+			--  A ninth row pushes the hint down exactly one pitch, to
+			--  476.2 -> 492.8 - which is 23.3 units INSIDE the panel at
+			--  469.5. That is the collision, measured, not feared.
+			--
+			--  🛑 THE PANEL CANNOT SIMPLY MOVE DOWN BY A ROW. Keeping the
+			--  8.7-unit clearance puts its top at 501.5, and 501.5 + 177 =
+			--  678.5, which is past the ESC Back row at ~672 - exactly the
+			--  v1.99.28 failure this block already records ("bottom on ESC").
+			--  The band left between the new hint and ESC is 501.5 -> 672,
+			--  i.e. 170.5 units, and the panel is 177 tall. It does not fit.
+			--
+			--  So on this one screen the preview is 155 tall instead of 177:
+			--        top    501.5  (8.7 clear of the hint, same as every
+			--                       other screen)
+			--        bottom 656.5  (15.5 clear of ESC Back)
+			--  Requested values are screen minus the constant +21.5 parent
+			--  offset this block already establishes: top 480, bottom 635.
+			--
+			--  📝 THE COST, STATED: the Nuketown survival map preview is
+			--  about 12% shorter than everywhere else. That is the only way
+			--  nine rows and the panel both fit, and it is a deliberate
+			--  trade rather than something to discover in a screenshot.
+			-- ============================================================
+			local Mapname  = UIExpression.DvarString(nil, "ui_mapname")
+			local ModeGrp  = UIExpression.DvarString(nil, "ui_zm_gamemodegroup")
+
+			if Mapname == "zm_nuked" and ModeGrp == "zsurvival" then
+				Element.body.mapInfoImage:setTopBottom(true, false, 480, 635)
+			else
+				--  448 + 21.5 parent offset = 469.5 on screen; height 177 preserved.
+				Element.body.mapInfoImage:setTopBottom(true, false, 448, 625)
+			end
 		end)
 		if CoD.useController == true and not PrivateGameLobbyButtonPane:restoreState() then
 			PrivateGameLobbyButtonPane.body.buttonList:selectElementIndex(1)
