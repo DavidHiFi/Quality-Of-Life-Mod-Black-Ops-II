@@ -151,61 +151,41 @@ function Draw-Rule {
     Write-Host '   ────────────────────────────────────────────────────────────────────' -ForegroundColor $C.Frame
 }
 
-# ---------------------------------------------------------------------------
-#  One menu row. Padded out to the window width so that repainting it in place
-#  cannot leave the tail of a longer previous line behind.
-# ---------------------------------------------------------------------------
-function Write-MenuRow {
-    param($Item, [bool] $Selected)
-    $marker = '     '
-    if ($Selected) { $marker = '   ❯ ' }
-    $label  = $Item.Label.PadRight(38)
-    $status = ''
-    if ($Item.Status) { $status = [string]$Item.Status }
-    $colour = $C.Text
-    if ($Item.Disabled) { $colour = $C.Off }
-    if ($Selected)      { $colour = $C.Pick }
-    $sc = $C.Dim
-    if ($Item.StatusColour) { $sc = $Item.StatusColour }
-    $w = 100
-    try { $w = [Console]::BufferWidth } catch { }
-    # 🛑 A row must never wrap. A wrapped row is two rows, which slides every
-    # row under it down by one and makes in-place repainting draw over the
-    # wrong lines - the stray text that used to jump around the window. On a
-    # narrow console the status is cut short instead.
-    $room = ($w - 1) - $marker.Length - $label.Length
-    if ($room -lt 0) { $room = 0 }
-    if ($status.Length -gt $room) {
-        if ($room -ge 1) { $status = $status.Substring(0, $room - 1) + '…' } else { $status = '' }
-    }
-    $used = $marker.Length + $label.Length + $status.Length
-    $pad = ''
-    if (($w - 1) -gt $used) { $pad = ' ' * (($w - 1) - $used) }
-    Write-Host $marker -ForegroundColor $C.Title -NoNewline
-    Write-Host $label  -ForegroundColor $colour  -NoNewline
-    Write-Host $status -ForegroundColor $sc      -NoNewline
-    Write-Host $pad
-}
 
 <#
   One menu, driven by the arrow keys.
   Items: @{ Label; Status; StatusColour; Section; Key; Disabled }
   Returns the chosen item, or $null if the user backed out.
 
-  🛑 THE FLICKER. This used to call Draw-Header - and therefore Clear-Host - on
-  every single keypress, so moving one row down blanked and repainted the whole
-  screen. In Windows Terminal that reads as a hard flash, and the repaint racing
-  the redraw is what threw stray part-drawn lines across the window.
+  🛑 THE DRAWING WAS REWRITTEN IN v2.1.1, AND THE OLD APPROACH IS THE BUG.
+  User screenshot, 2026-08-21: every section heading had its own first row
+  printed over the top of it - "INSTALLTHING - the whole package",
+  "REMOVEve the HD textures", "MOREeck for a newer version". The overlay starts
+  at column 10, which is exactly the width of "   INSTALL", so the row was being
+  written onto the heading's line instead of the one below it.
 
-  Now the frame is drawn ONCE. Each arrow key only rewrites the block of item
-  rows, in place, via SetCursorPosition - nothing else on screen is touched and
-  there is no clear at all, so there is nothing left to flicker. The cursor is
-  hidden while the menu is up, because parking it mid-frame after a repaint is
-  the other thing that was visibly jumping around.
+  The cause is the design, not one off-by-one: v2.0.1 painted the frame once and
+  then rewrote only the item rows in place, from a remembered row number
+  ($itemTop) captured on the first paint. Every one of those remembered numbers
+  is a BUFFER row, and anything that scrolls the buffer - a newline emitted on
+  the last line, a resize, a console host reflowing on startup - silently shifts
+  the whole block while the remembered number stays put. There is no way to make
+  that safe by adjusting an offset.
 
-  It falls back to the old full-redraw path whenever in-place drawing cannot be
-  trusted: no real console, input redirected, or a frame taller than the window
-  (where the buffer scrolls and every remembered row number goes stale).
+  🌟 WHAT IT DOES NOW: the whole frame is rebuilt as a list of lines every time,
+  and each line is drawn at an ABSOLUTE position with no newline ever emitted -
+  SetCursorPosition( 0, top + i ) then the segments, then spaces out to the
+  window width. Three properties fall out of that, and together they are the fix:
+    * nothing can scroll, because no newline is ever written;
+    * every line is padded to full width, so no remnant of a previous frame can
+      survive underneath;
+    * a line always lands where it was computed to land, because it is placed
+      rather than flowed.
+  Redrawing all ~30 lines per keypress is far cheaper than it sounds and there is
+  no clear between frames, so there is nothing to flicker either.
+
+  It falls back to a plain sequential print whenever positioning cannot be
+  trusted: no real console, input redirected, or a frame taller than the window.
 #>
 function Show-Menu {
     param(
@@ -215,88 +195,109 @@ function Show-Menu {
         [string[]] $Intro = @()
     )
 
+    #  🛑 HEADLESS MEANS NO MENUS AT ALL. -Action drives the installer from the
+    #  command line and every Act-* takes a -Pick for exactly that, but a couple
+    #  of them fall through to a submenu when a pick does not resolve. Reaching
+    #  here with a redirected stdin used to hang: ReadKey throws, NoKeys is set,
+    #  the loop retries with Read-Host, and NonInteractive refuses that forever.
+    #  Backing straight out is both the correct answer and the safe one.
+    if ($script:Headless) { return $null }
+
     $pickable = @()
     for ($i = 0; $i -lt $Items.Count; $i++) { if (-not $Items[$i].Disabled) { $pickable += $i } }
     if ($pickable.Count -eq 0) { return $null }
     $cur = $pickable[0]
 
-    # How tall is the item block? One row each, plus a blank + a heading for
-    # every section break. Needed both to size the frame and to know whether
-    # in-place repainting is safe.
-    $sections = 0
-    $seen = $null
-    foreach ($it in $Items) { if ($it.Section -and $it.Section -ne $seen) { $sections++; $seen = $it.Section } }
-    # Exact line count, plus one spare row. It has to be exact: a generous
-    # guess makes a frame that would have fitted look too tall, which silently
-    # drops the menu back to the flickering full-redraw path.
-    #   6 = header block   1 = blank after the intro, only when there is one
-    #   3 = blank + rule + footer
-    $introLines = $Intro.Count
-    if ($introLines -gt 0) { $introLines++ }
-    $frameHeight = 6 + $introLines + $Items.Count + ($sections * 2) + 3 + 1
+    #  Builds the ENTIRE frame, top to bottom, for the current selection.
+    #  Rebuilt per keypress so there is only ever one description of the screen.
+    function Build-Frame {
+        param([int] $Sel, [int] $Width)
+        $L = @()
+        $inner = 66
 
-    $fast = $false
-    if (-not $script:Headless -and -not $script:NoKeys) {
-        # Grow the window to fit BEFORE testing, so a frame that is one or two
-        # rows too tall stops silently falling back to the clearing path.
-        [void](Fit-Console ($frameHeight + 1))
-        try { if ($frameHeight -lt [Console]::WindowHeight) { $fast = $true } } catch { $fast = $false }
-    }
+        $L += ,@( @{ t = ''; c = $C.Text } )
+        $L += ,@( @{ t = '   ╔' + ('═' * $inner) + '╗'; c = $C.Frame } )
+        $L += ,@( @{ t = '   ║'; c = $C.Frame }, @{ t = ('   QUALITY OF LIFE'.PadRight($inner)); c = $C.Title }, @{ t = '║'; c = $C.Frame } )
+        $s = '   ' + $Sub
+        if ($s.Length -gt $inner) { $s = $s.Substring(0, $inner) }
+        $L += ,@( @{ t = '   ║'; c = $C.Frame }, @{ t = $s.PadRight($inner); c = $C.Dim }, @{ t = '║'; c = $C.Frame } )
+        $L += ,@( @{ t = '   ╚' + ('═' * $inner) + '╝'; c = $C.Frame } )
+        $L += ,@( @{ t = ''; c = $C.Text } )
 
-    $cursorWas = $true
-    try { $cursorWas = [Console]::CursorVisible } catch { }
-    if ($fast) { try { [Console]::CursorVisible = $false } catch { } }
-
-    try {
-    $painted = $false
-    $itemTop = 0
-    $drawnW = 0
-    $drawnH = 0
-    while ($true) {
-        # A resize invalidates every remembered row and column, so start over.
-        try {
-            if ($painted -and ([Console]::WindowWidth -ne $drawnW -or [Console]::WindowHeight -ne $drawnH)) {
-                $painted = $false
-                $fast = ($frameHeight -lt [Console]::WindowHeight) -and -not $script:NoKeys -and -not $script:Headless
-            }
-        } catch { }
-
-        $repaintOnly = ($fast -and $painted)
-        if ($repaintOnly) {
-            try { [Console]::SetCursorPosition(0, $itemTop) }
-            catch { $repaintOnly = $false; $painted = $false; $fast = $false }
+        foreach ($line in $Intro) {
+            if ($line -eq '')                 { $L += ,@( @{ t = ''; c = $C.Text } ) }
+            elseif ($line.StartsWith('!'))    { $L += ,@( @{ t = '   ' + $line.Substring(1); c = $C.Warn } ) }
+            elseif ($line.StartsWith('~'))    { $L += ,@( @{ t = '   ' + $line.Substring(1); c = $C.Dim } ) }
+            else                              { $L += ,@( @{ t = '   ' + $line; c = $C.Text } ) }
         }
-
-        if (-not $repaintOnly) {
-            Draw-Header $Sub
-            foreach ($line in $Intro) {
-                if ($line -eq '') { Write-Host '' }
-                elseif ($line.StartsWith('!')) { Write-Host ('   ' + $line.Substring(1)) -ForegroundColor $C.Warn }
-                elseif ($line.StartsWith('~')) { Write-Host ('   ' + $line.Substring(1)) -ForegroundColor $C.Dim }
-                else { Write-Host ('   ' + $line) -ForegroundColor $C.Text }
-            }
-            if ($Intro.Count -gt 0) { Write-Host '' }
-            try { $itemTop = [Console]::CursorTop } catch { $itemTop = 0; $fast = $false }
-        }
+        if ($Intro.Count -gt 0) { $L += ,@( @{ t = ''; c = $C.Text } ) }
 
         $lastSection = $null
         for ($i = 0; $i -lt $Items.Count; $i++) {
             $it = $Items[$i]
             if ($it.Section -and $it.Section -ne $lastSection) {
-                Write-Host ''
-                Write-Host ('   ' + $it.Section) -ForegroundColor $C.Dim
+                $L += ,@( @{ t = ''; c = $C.Text } )
+                $L += ,@( @{ t = '   ' + $it.Section; c = $C.Dim } )
                 $lastSection = $it.Section
             }
-            Write-MenuRow $it ($i -eq $cur)
+
+            $marker = '     '
+            if ($i -eq $Sel) { $marker = '   ❯ ' }
+            $label = $it.Label.PadRight(38)
+            $status = ''
+            if ($it.Status) { $status = [string]$it.Status }
+            $colour = $C.Text
+            if ($it.Disabled) { $colour = $C.Off }
+            if ($i -eq $Sel)  { $colour = $C.Pick }
+            $sc = $C.Dim
+            if ($it.StatusColour) { $sc = $it.StatusColour }
+
+            # A row must never wrap: a wrapped row is two rows, and every line
+            # below it would then be drawn one place too high.
+            $room = ($Width - 1) - $marker.Length - $label.Length
+            if ($room -lt 0) { $room = 0 }
+            if ($status.Length -gt $room) {
+                if ($room -ge 1) { $status = $status.Substring(0, $room - 1) + '…' } else { $status = '' }
+            }
+            $L += ,@( @{ t = $marker; c = $C.Title }, @{ t = $label; c = $colour }, @{ t = $status; c = $sc } )
         }
 
-        if (-not $repaintOnly) {
-            Write-Host ''
-            Draw-Rule
+        $L += ,@( @{ t = ''; c = $C.Text } )
+        $L += ,@( @{ t = '   ' + ('─' * 68); c = $C.Frame } )
+        $L += ,@( @{ t = $Footer; c = $C.Dim } )
+        return ,$L
+    }
 
-            # Arrow keys need a real console. If this is running somewhere that
-            # has its input redirected, fall back to typing the number instead
-            # of falling over.
+    $cursorWas = $true
+    try { $cursorWas = [Console]::CursorVisible } catch { }
+
+    try {
+    $placed  = $false     # has the frame been given a home row yet
+    $top     = 0
+    $drawnW  = 0
+    $drawnH  = 0
+    $lastLen = 0
+
+    while ($true) {
+        $w = 100; $h = 40
+        try { $w = [Console]::WindowWidth; $h = [Console]::WindowHeight } catch { }
+
+        $frame = Build-Frame $cur $w
+
+        # Grow the window to fit before deciding anything, so a frame one or two
+        # rows too tall does not fall back to a worse drawing mode.
+        [void](Fit-Console ($frame.Count + 2))
+        try { $h = [Console]::WindowHeight } catch { }
+
+        $canPlace = (-not $script:Headless) -and (-not $script:NoKeys) -and ($frame.Count -lt $h)
+
+        if (-not $canPlace) {
+            # --- plain sequential fallback -----------------------------------
+            if (-not $script:Headless) { Clear-Host }
+            foreach ($line in $frame) {
+                foreach ($seg in $line) { Write-Host $seg.t -ForegroundColor $seg.c -NoNewline }
+                Write-Host ''
+            }
             if ($script:NoKeys) {
                 Write-Host '   Type the number of what you want, then ENTER. 0 to go back.' -ForegroundColor $C.Dim
                 $typed = Read-Host '   Number'
@@ -308,14 +309,41 @@ function Show-Menu {
                 }
                 continue
             }
+        }
+        else {
+            # A resize, or a frame that changed height, invalidates the home row.
+            if ($placed -and ($w -ne $drawnW -or $h -ne $drawnH -or $frame.Count -ne $lastLen)) { $placed = $false }
 
-            Write-Host $Footer -ForegroundColor $C.Dim
-            $painted = $true
-            try { $drawnW = [Console]::WindowWidth; $drawnH = [Console]::WindowHeight } catch { }
+            if (-not $placed) {
+                Clear-Host                     # cursor home, buffer clean
+                try { $top = [Console]::CursorTop } catch { $top = 0 }
+                $placed  = $true
+                $drawnW  = $w
+                $drawnH  = $h
+                $lastLen = $frame.Count
+                try { [Console]::CursorVisible = $false } catch { }
+            }
+
+            #  🛑 NO NEWLINE IS EVER WRITTEN. Every line is placed absolutely and
+            #  padded to the window width, so nothing scrolls and nothing of the
+            #  previous frame can show through.
+            for ($i = 0; $i -lt $frame.Count; $i++) {
+                $row = $top + $i
+                if ($row -ge ($top + $h)) { break }
+                try { [Console]::SetCursorPosition(0, $row) } catch { $placed = $false; break }
+                $used = 0
+                foreach ($seg in $frame[$i]) {
+                    if ($seg.t -eq '') { continue }
+                    Write-Host $seg.t -ForegroundColor $seg.c -NoNewline
+                    $used += $seg.t.Length
+                }
+                if ($used -lt ($w - 1)) { Write-Host (' ' * (($w - 1) - $used)) -NoNewline }
+            }
+            if (-not $placed) { continue }
         }
 
         try { $key = [Console]::ReadKey($true) }
-        catch { $script:NoKeys = $true; $fast = $false; $painted = $false; continue }
+        catch { $script:NoKeys = $true; $placed = $false; continue }
         switch ($key.Key) {
             'UpArrow' {
                 $p = [array]::IndexOf($pickable, $cur)
@@ -341,7 +369,12 @@ function Show-Menu {
         }
     }
     }
-    finally { try { [Console]::CursorVisible = $cursorWas } catch { } }
+    finally {
+        try { [Console]::CursorVisible = $cursorWas } catch { }
+        #  Park the cursor under the frame so whatever prints next does not land
+        #  on top of it.
+        try { if ($placed) { [Console]::SetCursorPosition(0, [Math]::Min($top + $lastLen, [Console]::BufferHeight - 1)) } } catch { }
+    }
 }
 
 function Pause-Key {
