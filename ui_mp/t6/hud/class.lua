@@ -133,11 +133,91 @@ end
 -- *"add another option just underneath the Restart Level option called Fast
 -- Restart, which as the name implies does the same thing as the fast_restart
 -- console command which restarts the match but without the cutscenes."*
--- Same one-Exec shape as RESTART LEVEL, which the user confirmed working on
--- Origins in the same message. fast_restart is stock RESTART GAME's own command
--- and the string is present in t6zm.exe.
+--
+-- ============================================================================
+--  🛑 v2.2.0 - THE ONE-EXEC VERSION CRASHED THE GAME, AND THEN BRICKED THE MOD.
+--
+--  User, 2026-08-21, at round 19 of Diner survival: *"tried to do fast restart
+--  with the option in the pause menu, I had to first click escape to close the
+--  menu, and the game restarted, then crashed after just a moment"* - and then
+--  every later boot of the mod black-screened at the main menu.
+--
+--  🌟 BOTH HALVES ARE IN THIS INSTALL'S OWN LOGS, and the second is a
+--  CONSEQUENCE of the first, not a separate bug:
+--    console_zm.log.006  the fast_restart itself works - ShutdownGame(0),
+--                        "Restart: 1", the whole level re-initialises and the
+--                        mod's init prints run again - and then the log simply
+--                        STOPS about a second into the restarted match. No
+--                        shutdown lines: a hard crash.
+--    console_zm.log.007/.008/.009  the next three boots all die at exactly
+--                        "Reading stats... / Reading backup stats..." with
+--                        COM_ERROR (0) E_INVALIDARG @ 0x74C0E0 - i.e. the game
+--                        crashing while READING the stats file.
+--    players\mods\zm_qol\badzmdataddl, written 19:12, is the game quarantining
+--                        that stats file as corrupt; the boot straight after it
+--                        runs stats_init.cfg + playerstats_reset.cfg and works.
+--  So the crash left zmStats half-written, and every subsequent launch of the
+--  mod crashed reading it. That is the "black screen, menu music still playing"
+--  the user had to alt-F4 out of.
+--
+--  🌟 WHAT THIS ROW WAS MISSING, TAKEN FROM TWO WORKING IMPLEMENTATIONS.
+--  Stock's own restart is ui\t6\hud\ingamepopups.lua and
+--  ui_mp\t6\zombie\restartgamepopupzombie.lua; read out of the shipped
+--  bytecode's constant table, campaign's runs this sequence THREE times over
+--  (mission_restart / fast_restart / checkpoint_restart), in this order:
+--        Dvar.ui_busyBlockIngameMenu:set( 1 )
+--        widget:processEvent{ name = "close_all_ingame_menus", ... }
+--        Engine.Exec( c, "stopControllerRumble" )
+--        Engine.Exec( c, "fade 0 0 0 255 0 0 1" )
+--        Engine.Exec( c, "silence" )
+--        Engine.Exec( c, "fast_restart" )
+--  and the zombies popup adds Engine.SetDvar( "cl_paused", 0 ) in front of it.
+--  BO2-Reimagined - a mod that runs on this same Plutonium build - ships the
+--  same thing in its restartgamepopupzombie.lua:
+--        Engine.SetDvar( "cl_paused", 0 )
+--        Dvar.ui_busyBlockIngameMenu:set( 1 )
+--        <full-screen black image>
+--        Engine.Exec( f6_arg1.controller, "fast_restart" )
+--
+--  🛑 cl_paused IS THE PART THAT MATTERS. In solo zombies the pause menu really
+--  does pause the server, and BOTH implementations unpause BEFORE restarting.
+--  This row restarted the level with the client still paused and the pause menu
+--  still open - which is also why the user had to press escape afterwards.
+--
+--  📝 The fade/silence/rumble calls are cosmetic and are included because they
+--  are what the two working versions do; ui_busyBlockIngameMenu is what stops
+--  the player driving the menu during the teardown. It is set the same way
+--  Reimagined sets it, and it is cleared by the loading popup on the way back
+--  in - that is stock's own lifecycle, not something added here.
+--
+--  🛑 RESTART LEVEL BELOW IS DELIBERATELY NOT TOUCHED. map_restart reloads the
+--  fastfiles and tears the client down completely, the user has not reported it
+--  failing, and v1.99.91 got it to a shape they signed off on. One change at a
+--  time.
+-- ============================================================================
 CoD.Class.ZmQolFastRestartPressed = function (IngameMenuWidget, ClientInstance)
-	Engine.Exec(ClientInstance.controller, "fast_restart")
+	local Controller = ClientInstance.controller
+
+	-- Guarded, because a nil here would hard-crash LUI and the row would take
+	-- the pause menu with it. Dvar.<name> is the same accessor Reimagined uses.
+	if Dvar and Dvar.ui_busyBlockIngameMenu then
+		Dvar.ui_busyBlockIngameMenu:set(1)
+	end
+
+	-- Close the pause menu the way stock closes it, so the level does not
+	-- restart underneath an open menu. The handler is registered below.
+	IngameMenuWidget:processEvent({
+		name = "close_all_ingame_menus",
+		controller = Controller
+	})
+
+	-- 🛑 UNPAUSE FIRST. See the block above - this is the missing line.
+	Engine.SetDvar("cl_paused", 0)
+
+	Engine.Exec(Controller, "stopControllerRumble")
+	Engine.Exec(Controller, "fade 0 0 0 255 0 0 1")
+	Engine.Exec(Controller, "silence")
+	Engine.Exec(Controller, "fast_restart")
 end
 
 CoD.Class.ZmQolInstantExitPressed = function (IngameMenuWidget, ClientInstance)
@@ -269,6 +349,18 @@ LUI.createMenu.class = function (LocalClientIndex)
 	-- way open_endGamePopup is: a handler with no button is inert, and this
 	-- keeps the registration out of the isZombie branch below where the button
 	-- code cannot see it.
+	-- v2.2.0 - FAST RESTART closes the pause menu before it restarts, the way
+	-- stock's own restart does. Stock registers this handler on the popup that
+	-- normally drives the restart; this menu never had it because the popup was
+	-- taken out of the path in v1.99.91. CoD.InGameMenu comes from the
+	-- T6.HUD.InGameMenus require at the top of this file.
+	-- Guarded even though it is verified present (stock ui\t6\hud\ingamemenus.lua
+	-- defines CoD.InGameMenu.CloseAllInGameMenus, and Reimagined's restart popup
+	-- registers this exact pair): a nil handler here would take the whole pause
+	-- menu down, and losing the pause menu is far worse than losing a fade.
+	if CoD.InGameMenu and CoD.InGameMenu.CloseAllInGameMenus then
+		IngameMenuWidget:registerEventHandler("close_all_ingame_menus", CoD.InGameMenu.CloseAllInGameMenus)
+	end
 	IngameMenuWidget:registerEventHandler("zmqol_restart_game", CoD.Class.ZmQolRestartPressed)
 	IngameMenuWidget:registerEventHandler("zmqol_fast_restart", CoD.Class.ZmQolFastRestartPressed)
 	IngameMenuWidget:registerEventHandler("zmqol_instant_exit", CoD.Class.ZmQolInstantExitPressed)

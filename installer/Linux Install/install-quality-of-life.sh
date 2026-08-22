@@ -132,13 +132,28 @@ find_mod_source() {
   return 1
 }
 
+# v2.2.0 - "dualsense" is not a bare folder name, it is Optionals/Dualsense
+# Icons/Images, so it is mapped here rather than special-cased at every call.
 find_payload() {
   local name="$1" p
+  if [ "$name" = dualsense ]; then
+    for p in "$PKG/Optionals/Dualsense Icons/Images" "$PKG/Optional/Dualsense Icons/Images" "$PKG/../Optionals/Dualsense Icons/Images" "$PKG/../../Optionals/Dualsense Icons/Images" "$PKG/Optionals/Dualsense Icons" "$PKG/../Optionals/Dualsense Icons"; do
+      if [ -d "$p" ] && [ -n "$(ls -A "$p" 2>/dev/null)" ]; then printf '%s
+' "$p"; return 0; fi
+    done
+    return 1
+  fi
   for p in "$PKG/Mod Files/$name" "$PKG/Optional/$name" "$PKG/Optionals/$name" "$PKG/$name" "$HERE/$name" "$PKG/../Optional/$name" "$PKG/../Optionals/$name" "$PKG/../../Optional/$name" "$PKG/../../Optionals/$name"; do
     if [ -d "$p" ] && [ -n "$(ls -A "$p" 2>/dev/null)" ]; then printf '%s\n' "$p"; return 0; fi
   done
   return 1
 }
+
+# v2.2.0 - the filenames the PS5 controller icon pack replaces, read from the
+# payload itself so the list can never drift from what is actually overwritten.
+DS_FILES=""
+_ds_src="$(find_payload dualsense 2>/dev/null || true)"
+[ -n "$_ds_src" ] && DS_FILES="$(cd "$_ds_src" && ls -A 2>/dev/null | tr '\n' ' ')"
 
 mod_version() {
   local f="$1"
@@ -216,6 +231,9 @@ remove_by_manifest() {
 backup_parts() {
   case "$1" in
     images)  printf '%s\n' "images|folder|$IMGDIR" ;;
+    # v2.2.0 - the PS5 icons back up ONLY the 20 filenames they replace, not
+    # the whole images folder: the texture pack already backs that up whole.
+    dualsense) printf '%s\n' "dualsense|files|$IMGDIR|$DS_FILES" ;;
     zone)    printf '%s\n' "zone|folder|$ZONEDIR" ;;
     reshade) printf '%s\n' "bin|files|$BINDIR|ReShade.ini BO2.ini dxgi.dll" \
                            "reshade-shaders|folder|$BINDIR/reshade-shaders" ;;
@@ -223,11 +241,12 @@ backup_parts() {
                            "settings|folder|$CFGDIR" ;;
   esac
 }
-backup_kinds() { printf '%s\n' images zone reshade mod; }
+backup_kinds() { printf '%s\n' images zone dualsense reshade mod; }
 backup_title() {
   case "$1" in
     images)  printf 'your textures' ;;
     zone)    printf 'your sounds' ;;
+    dualsense) printf 'your controller icons' ;;
     reshade) printf 'your ReShade setup' ;;
     mod)     printf 'the mod' ;;
   esac
@@ -236,6 +255,7 @@ backup_label() {
   case "$1" in
     images)  printf 'My textures' ;;
     zone)    printf 'My sounds' ;;
+    dualsense) printf 'My controller icons' ;;
     reshade) printf 'My ReShade setup' ;;
     mod)     printf 'The mod + my settings' ;;
   esac
@@ -807,6 +827,9 @@ act_remove_everything() {
   local img_b=0 snd_b=0
   has_backup images && img_b=1
   has_backup zone   && snd_b=1
+  # v2.2.0 - the PS5 icons go with everything else.
+  local ds_b=0
+  has_backup dualsense && ds_b=1
 
   MENU_KEYS=(); MENU_LABELS=(); MENU_STATUS=(); MENU_SECTIONS=()
   if [ "$img_b" -eq 1 ] || [ "$snd_b" -eq 1 ]; then
@@ -831,12 +854,14 @@ act_remove_everything() {
 
   # The restore row is only present when that particular backup is, so the
   # index of "plain" moves with it.
-  local ip=0 sp=0
+  local ip=0 sp=0 dp=0
   [ "$img_b" -eq 1 ] && [ "$restore" -eq 0 ] && ip=1
   [ "$snd_b" -eq 1 ] && [ "$restore" -eq 0 ] && sp=1
+  [ "$ds_b"  -eq 1 ] && [ "$restore" -eq 0 ] && dp=1
 
   zmqol_pick "$ip" act_remove_pack images "HD textures"   "$IMGDIR"
   zmqol_pick "$sp" act_remove_pack zone   "custom sounds" "$ZONEDIR"
+  zmqol_pick "$dp" act_remove_pack dualsense "PS5 icons" "$IMGDIR"
   zmqol_pick 0     act_remove_reshade
   zmqol_pick 0     act_remove_mod
 
@@ -845,6 +870,7 @@ act_remove_everything() {
   printf '\n'
   say "HD texture pack    $( [ -f "$STATE/installed-images.txt" ] && echo 'still installed' || echo 'removed')"
   say "Custom sounds      $( [ -f "$ZONEDIR/${SOUND_FILES[0]}" ] && echo 'still installed' || echo 'removed')"
+  say "PS5 icons          $( [ -f "$STATE/installed-dualsense.txt" ] && echo 'still installed' || echo 'removed')"
   say "ReShade            $( [ -f "$BINDIR/dxgi.dll" ] && echo 'still installed' || echo 'removed')"
   say "The mod            $( [ -f "$MODDIR/mod.json" ] && echo 'still installed' || echo 'removed')"
   pause_key
@@ -1008,18 +1034,21 @@ main_menu() {
     # v2.1.3 - the two EVERYTHING rows, one at the top of each section, so this
     # menu matches the Windows one exactly. See act_install_everything and
     # act_remove_everything for why neither reimplements anything.
-    MENU_KEYS=(all mod images sounds reshade rall rimages rsounds rreshade rmod backups update details quit)
+    # v2.2.0 - PS5 controller icons, mirroring the Windows menu row for row.
+    local dsst
+    if [ -f "$STATE/installed-dualsense.txt" ]; then dsst="$(wc -l < "$STATE/installed-dualsense.txt" | tr -d ' ') icons installed"; else dsst="not installed"; fi
+    MENU_KEYS=(all mod images sounds reshade dualsense rall rimages rsounds rreshade rdualsense rmod backups update details quit)
     MENU_LABELS=("EVERYTHING - the whole package" \
-                 "The mod" "HD texture pack" "Custom sounds" "ReShade + BO2 preset" \
+                 "The mod" "HD texture pack" "Custom sounds" "ReShade + BO2 preset" "PS5 controller icons" \
                  "EVERYTHING - the whole package" \
-                 "Remove the HD textures" "Remove the custom sounds" "Remove ReShade" "Remove the mod" \
+                 "Remove the HD textures" "Remove the custom sounds" "Remove ReShade" "Remove the PS5 icons" "Remove the mod" \
                  "Back up / restore my own files" \
                  "Check for a newer version" "Details and log" "Quit")
-    MENU_STATUS=("mod + textures + sounds + ReShade" "$modst" "$imgst" "$sndst" "$rshst" \
-                 "textures + sounds + ReShade + mod" "" "" "" "" \
+    MENU_STATUS=("mod + textures + sounds + ReShade" "$modst" "$imgst" "$sndst" "$rshst" "$dsst" \
+                 "textures + sounds + PS5 icons + ReShade + mod" "" "" "" "" "" \
                  "$bkst" "" "" "")
-    MENU_SECTIONS=("INSTALL" "INSTALL" "INSTALL" "INSTALL" "INSTALL" \
-                   "REMOVE" "REMOVE" "REMOVE" "REMOVE" "REMOVE" \
+    MENU_SECTIONS=("INSTALL" "INSTALL" "INSTALL" "INSTALL" "INSTALL" "INSTALL" \
+                   "REMOVE" "REMOVE" "REMOVE" "REMOVE" "REMOVE" "REMOVE" \
                    "BACKUP" \
                    "MORE" "MORE" "MORE")
 
@@ -1039,6 +1068,8 @@ main_menu() {
       images)   act_pack images "HD texture pack" "$IMGDIR" "THIS OVERWRITES ANY CUSTOM TEXTURES ALREADY IN THAT FOLDER" ;;
       sounds)   act_pack zone   "custom sounds"   "$ZONEDIR" "THIS REPLACES ANY CUSTOM SOUNDS ALREADY IN THAT FOLDER" ;;
       reshade)  act_reshade ;;
+      dualsense) act_pack dualsense "PS5 controller icons" "$IMGDIR" "THIS REPLACES THE XBOX BUTTON ICONS IN THAT FOLDER" ;;
+      rdualsense) act_remove_pack dualsense "PS5 icons" "$IMGDIR" ;;
       rimages)  act_remove_pack images "HD textures"   "$IMGDIR" ;;
       rsounds)  act_remove_pack zone   "custom sounds" "$ZONEDIR" ;;
       rreshade) act_remove_reshade ;;
@@ -1061,6 +1092,8 @@ if [ -n "$ACTION" ]; then
     images)   act_pack images "HD texture pack" "$IMGDIR" "THIS OVERWRITES ANY CUSTOM TEXTURES ALREADY IN THAT FOLDER" ;;
     sounds)   act_pack zone   "custom sounds"   "$ZONEDIR" "THIS REPLACES ANY CUSTOM SOUNDS ALREADY IN THAT FOLDER" ;;
     reshade)  act_reshade ;;
+    dualsense) act_pack dualsense "PS5 controller icons" "$IMGDIR" "THIS REPLACES THE XBOX BUTTON ICONS IN THAT FOLDER" ;;
+    rdualsense) act_remove_pack dualsense "PS5 icons" "$IMGDIR" ;;
     rimages)  act_remove_pack images "HD textures"   "$IMGDIR" ;;
     rsounds)  act_remove_pack zone   "custom sounds" "$ZONEDIR" ;;
     rreshade) act_remove_reshade ;;

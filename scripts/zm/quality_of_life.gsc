@@ -114,6 +114,30 @@ main()
     //  zmqol_ai_calculate_health() for the measured difference between them.
     replaceFunc( maps\mp\zombies\_zm::ai_calculate_health, ::zmqol_ai_calculate_health );
 
+    // --- NO BLEEDOUT PATCH  (v2.2.0, PATCHES tab) ---
+    //  See the banner over zmqol_round_spawn_failsafe(). With the row OFF this
+    //  is byte-exact stock; with it ON only the "has not moved" kill is skipped.
+    replaceFunc( maps\mp\zombies\_zm::round_spawn_failsafe, ::zmqol_round_spawn_failsafe );
+
+    //  🛑 AND THE POINTER, BECAUSE THE replaceFunc ALONE ONLY COVERS TWO OF THE
+    //  THREE ROUTES. Stock reaches this function three ways:
+    //        _zm.gsc:3068           ai thread round_spawn_failsafe();
+    //        _zm_ai_dogs.gsc:431    self thread maps\mp\zombies\_zm::round_spawn_failsafe();
+    //        _zm_gametype.gsc:1766  array_thread( level.zombie_spawners,
+    //                                   ::add_spawn_function,
+    //                                   level._zombies_round_spawn_failsafe );
+    //  The third takes a POINTER captured in _zm::init at :88-89 - and that line
+    //  is `if ( !isdefined( level._zombies_round_spawn_failsafe ) )`, so setting
+    //  it here, in main(), means stock leaves ours alone. A half-covered patch
+    //  would look like it worked and still let some zombies die on their own.
+    level._zombies_round_spawn_failsafe = ::zmqol_round_spawn_failsafe;
+
+    // --- BETTER SPEED COLA  (v2.2.0, GAME tab) ---
+    //  Two halves of one feature: the board-closing animation scalar and the
+    //  pause between boards. See the banner over zmqol_replace_chunk().
+    replaceFunc( maps\mp\zombies\_zm_blockers::replace_chunk, ::zmqol_replace_chunk );
+    replaceFunc( maps\mp\zombies\_zm_blockers::do_post_chunk_repair_delay, ::zmqol_do_post_chunk_repair_delay );
+
     perks();
     zmqol_enable_fire_sale();
 
@@ -11893,7 +11917,13 @@ perks_register_clientfield()
 
 init_client_flags()
 {
-	level.disable_deadshot_clientfield = 1;
+	//  🛑 v2.2.0 - level.disable_deadshot_clientfield IS NO LONGER SET HERE.
+	//  Stock sets it on Buried alone; this mod set it on every map, which
+	//  deleted the `deadshot_perk` clientfield and with it the only call to
+	//  usealternateaimparams() in the game - Deadshot's head snap on a
+	//  controller. See the full note in zm_expanded.csc's
+	//  init_client_flag_callback_funcs(), whose matching line went with it. The
+	//  two sides must stay in step or it is EXE_CLIENT_FIELD_MISMATCH at load.
 	if (isdefined(level.use_clientside_board_fx) && level.use_clientside_board_fx)
 	{
 		level._zombie_scriptmover_flag_board_horizontal_fx = 14;
@@ -15440,4 +15470,260 @@ zmqol_hud_round_anchor( elem )
         elem.horzalign = "right";
         elem.x = 25;
     }
+}
+
+// ============================================================================
+//  NO BLEEDOUT PATCH  -  zombies stop killing themselves      (v2.2.0)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-21: *"add an option to the patches to tab called NO BLEEDOUT
+//  PATCH, which as the name suggests, makes it so zombies don't die by
+//  themselves after being alive for too long or getting stuck, so that way the
+//  player would have to actually kill the zombies themself, so the zombies
+//  don't just randomly die, on or off toggle."*
+//
+//  🌟 THIS IS STOCK'S OWN FUNCTION, ONE BRANCH SKIPPED. maps\mp\zombies\_zm.gsc
+//  round_spawn_failsafe() runs on every zombie: every 30 seconds it measures how
+//  far the zombie has moved, and if that is under 24 units (576 squared) it
+//  kills it outright with dodamage( health + 100 ). That is the "zombies just
+//  randomly die" the user is describing, and it is also what quietly removes a
+//  zombie stuck on scenery instead of making the player go and find it.
+//
+//  🛑 THE BELOW-WORLD KILL IS DELIBERATELY KEPT, AND IT IS NOT A COMPROMISE.
+//  The same loop also kills a zombie that has fallen below
+//  level.zombie_vars["below_world_check"]. A zombie under the map cannot be
+//  shot, so removing that kill would not "make the player earn it" - it would
+//  end the round FOREVER. Keeping it is what makes this patch safe to leave on.
+//
+//  🛑 AND SO IS zombie_assure_node(), which is a different function
+//  (_zm_spawner.gsc:600) and is NOT touched: it fires only when a zombie failed
+//  to find ANY usable entrance node, waits 20 seconds and then kills it. That
+//  zombie has no path to anywhere, so it is the same unkillable case as the one
+//  above. Everything the player could actually walk up to and shoot survives.
+//
+//  Default 0 = stock, like every other PATCHES row. The dvar is read on every
+//  pass rather than captured, so the row takes effect mid-match.
+//
+//  📝 The body below is stock's, verbatim, with ONE `if` added. The two /# #/
+//  developer blocks stock has inside the kill branches are dropped because they
+//  are empty in the retail dump.
+// ============================================================================
+zmqol_round_spawn_failsafe()
+{
+    self endon( "death" );
+    prevorigin = self.origin;
+
+    while ( true )
+    {
+        if ( !level.zombie_vars["zombie_use_failsafe"] )
+            return;
+
+        if ( isdefined( self.ignore_round_spawn_failsafe ) && self.ignore_round_spawn_failsafe )
+            return;
+
+        wait 30;
+
+        if ( !self.has_legs )
+            wait 10.0;
+
+        if ( isdefined( self.is_inert ) && self.is_inert )
+            continue;
+
+        if ( isdefined( self.lastchunk_destroy_time ) )
+        {
+            if ( gettime() - self.lastchunk_destroy_time < 8000 )
+                continue;
+        }
+
+        if ( self.origin[2] < level.zombie_vars["below_world_check"] )
+        {
+            if ( isdefined( level.put_timed_out_zombies_back_in_queue ) && level.put_timed_out_zombies_back_in_queue && !flag( "dog_round" ) && !( isdefined( self.isscreecher ) && self.isscreecher ) )
+            {
+                level.zombie_total++;
+                level.zombie_total_subtract++;
+            }
+
+            self dodamage( self.health + 100, ( 0, 0, 0 ) );
+            break;
+        }
+
+        if ( distancesquared( self.origin, prevorigin ) < 576 )
+        {
+            //  🛑 THE WHOLE PATCH IS THIS ONE TEST. Stock falls straight through
+            //  into the kill; with the row on, the zombie is left alive and the
+            //  loop simply keeps watching it.
+            if ( getdvarintdefault( "no_bleedout", 0 ) )
+            {
+                prevorigin = self.origin;
+                continue;
+            }
+
+            if ( isdefined( level.put_timed_out_zombies_back_in_queue ) && level.put_timed_out_zombies_back_in_queue && !flag( "dog_round" ) )
+            {
+                if ( !self.ignoreall && !( isdefined( self.nuked ) && self.nuked ) && !( isdefined( self.marked_for_death ) && self.marked_for_death ) && !( isdefined( self.isscreecher ) && self.isscreecher ) && ( isdefined( self.has_legs ) && self.has_legs ) )
+                {
+                    level.zombie_total++;
+                    level.zombie_total_subtract++;
+                }
+            }
+
+            level.zombies_timeout_playspace++;
+            self dodamage( self.health + 100, ( 0, 0, 0 ) );
+            break;
+        }
+
+        prevorigin = self.origin;
+    }
+}
+
+// ============================================================================
+//  BETTER SPEED COLA  -  boards go up twice as fast          (v2.2.0)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-21: *"make speed cola, like black ops 1 zombies, make speed
+//  cola make the animations for rebuilding barriers twice as fast put a toggle
+//  for it in the GAME tab called BETTER SPEED COLA right under the BETTER
+//  DEADSHOT option."*
+//
+//  🌟 TREYARCH WROTE THIS FEATURE AND A TYPO SWITCHED IT OFF. Measured out of
+//  the stock dump, not inferred:
+//        _zm_blockers::has_blocker_affecting_perk()   returns the string
+//              "specialty_fastreload"
+//        _zm_blockers::replace_chunk()                tests it against
+//              "speciality_fastreload"      <- an extra i
+//  The comparison can never be true, so `scalar` stays 1.0 and Speed Cola has
+//  never sped up boarding in retail BO2. Same class of shipped misspelling as
+//  the LUI `beingAnimation` one this project already had to work around.
+//  Treyarch's own dormant values are 0.31 for the perk and 0.2112 for its
+//  upgrade - i.e. THEY intended 3.2x, not 2x.
+//
+//  🛑 THE ROW USES 2x, NOT TREYARCH'S 3.2x, BECAUSE THE USER GAVE A NUMBER.
+//  "twice as fast" is an instruction, so scalar 0.5 is what ships. Stock's own
+//  numbers are recorded here so the choice can be revisited in one line.
+//
+//  🛑 IT TAKES TWO FUNCTIONS, AND ONLY DOING replace_chunk WOULD BE A HALF FIX.
+//  Repairing one board is the closing ANIMATION plus a fixed one-second pause
+//  between boards - do_post_chunk_repair_delay(). That function ALREADY takes
+//  has_perk as an argument and then ignores it, which is the same dormant hook
+//  from the same author. Halving only the animation would leave the flat second
+//  in place and the boards would not be anywhere near twice as fast.
+//
+//  📝 has_blocker_affecting_perk() is NOT replaced. It returns the correct
+//  string already; the bug is on the reading side.
+//  📝 Both bodies below are stock's, verbatim, with the marked lines changed.
+//  📝 specialty_fastreload_upgrade is unreachable in retail - nothing ever
+//  returns it from has_blocker_affecting_perk() - but its branch is kept and
+//  scaled the same way so a future caller cannot fall back to 1.0.
+// ============================================================================
+zmqol_speed_cola_scalar()
+{
+    //  0.5 = "twice as fast", the number the user asked for.
+    //  Stock's dormant intent was 0.31; see the banner.
+    return 0.5;
+}
+
+zmqol_replace_chunk( barrier, chunk, perk, upgrade, via_powerup )
+{
+    //  ========================================================================
+    //  🛑 THE PAUSE BETWEEN BOARDS IS SET HERE, THROUGH STOCK'S OWN FIELD, AND
+    //  NOT BY THE replaceFunc ON do_post_chunk_repair_delay.
+    //
+    //  That function is called `self do_post_chunk_repair_delay( has_perk )` -
+    //  same file, unqualified, and SYNCHRONOUS - which is precisely the shape
+    //  this project does not bet on a replaceFunc reaching. Its body is
+    //        if ( !self script_delay() ) wait 1;
+    //  and _zm_utility::script_delay() waits `self.script_delay` and returns
+    //  true when that field exists. `self` there is the BARRIER, the same entity
+    //  passed in here as `barrier`. So writing the field makes STOCK'S OWN
+    //  UNMODIFIED CODE wait 0.5 instead of 1, whether or not the replaceFunc
+    //  took. Both routes land on the same number, so they cannot disagree.
+    //
+    //  🌟 THIS RUNS BEFORE THE DELAY, DETERMINISTICALLY. The caller does
+    //  `self thread replace_chunk( ... )` and GSC runs a threaded call
+    //  immediately up to its first wait - which here is the animation wait at
+    //  the bottom - so the field is written before the caller reaches
+    //  do_post_chunk_repair_delay in the same iteration.
+    //
+    //  🛑 THE MAPPER'S OWN VALUE IS SAVED AND PUT BACK. script_delay is a stock
+    //  mapents key; a barrier that shipped with one keeps it the moment the row
+    //  is off or the player has no Speed Cola.
+    //  ========================================================================
+    if ( isdefined( barrier ) )
+    {
+        if ( !isdefined( barrier.zmqol_sd_saved ) )
+        {
+            barrier.zmqol_sd_saved = 1;
+            barrier.zmqol_sd_had = isdefined( barrier.script_delay );
+
+            if ( barrier.zmqol_sd_had )
+                barrier.zmqol_sd_orig = barrier.script_delay;
+        }
+
+        if ( isdefined( perk ) && getdvarintdefault( "better_speed_cola", 0 ) )
+            barrier.script_delay = zmqol_speed_cola_scalar();
+        else if ( barrier.zmqol_sd_had )
+            barrier.script_delay = barrier.zmqol_sd_orig;
+        else
+            barrier.script_delay = undefined;
+    }
+
+    if ( !isdefined( barrier.zbarrier ) )
+    {
+        chunk update_states( "mid_repair" );
+        sound = "rebuild_barrier_hover";
+
+        if ( isdefined( chunk.script_presound ) )
+            sound = chunk.script_presound;
+    }
+
+    has_perk = 0;
+
+    if ( isdefined( perk ) )
+        has_perk = 1;
+
+    if ( !isdefined( via_powerup ) && isdefined( sound ) )
+        play_sound_at_pos( sound, chunk.origin );
+
+    if ( upgrade )
+    {
+        barrier.zbarrier zbarrierpieceuseupgradedmodel( chunk );
+        barrier.zbarrier.chunk_health[chunk] = barrier.zbarrier getupgradedpiecenumlives( chunk );
+    }
+    else
+    {
+        barrier.zbarrier zbarrierpieceusedefaultmodel( chunk );
+        barrier.zbarrier.chunk_health[chunk] = 0;
+    }
+
+    scalar = 1.0;
+
+    if ( has_perk && getdvarintdefault( "better_speed_cola", 0 ) )
+    {
+        //  🛑 "specialty_fastreload", spelled correctly. Stock's own line here
+        //  reads "speciality_fastreload" and therefore never matches.
+        if ( perk == "specialty_fastreload" || perk == "speciality_fastreload" )
+            scalar = zmqol_speed_cola_scalar();
+        else if ( perk == "specialty_fastreload_upgrade" || perk == "speciality_fastreload_upgrade" )
+            scalar = zmqol_speed_cola_scalar();
+    }
+
+    barrier.zbarrier showzbarrierpiece( chunk );
+    barrier.zbarrier setzbarrierpiecestate( chunk, "closing", scalar );
+    waitduration = barrier.zbarrier getzbarrierpieceanimlengthforstate( chunk, "closing", scalar );
+    wait( waitduration );
+}
+
+zmqol_do_post_chunk_repair_delay( has_perk )
+{
+    if ( self script_delay() )
+        return;
+
+    //  has_perk is stock's own argument, which stock then never reads. It is
+    //  the perk STRING (or undefined), not a boolean - see
+    //  has_blocker_affecting_perk() - so isdefined() is the test.
+    if ( isdefined( has_perk ) && getdvarintdefault( "better_speed_cola", 0 ) )
+    {
+        wait 0.5;
+        return;
+    }
+
+    wait 1;
 }

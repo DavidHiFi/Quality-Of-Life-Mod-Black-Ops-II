@@ -73,7 +73,8 @@ It finds your Wine prefix on its own, and does everything the Windows version do
 | 🔎 **Update check** | Pulls the newest release from GitHub. Won't put an older release over a newer build without asking twice. |
 | 🖼️ **HD texture pack** | Optional. Backs up your current textures first if you want. |
 | 🔊 **Custom sound pack** | Optional. Same backup offer. |
-| 🌈 **ReShade** | Optional, with the mod's BO2 preset and overlay theme ready to go. **End** opens it in game. |
+| 🌈 **ReShade** | Optional, with the mod's BO2 preset and overlay theme ready to go, plus the **full shader collection** (856 files) rather than only the shaders the preset happens to use. **End** opens it in game. |
+| 🎮 **PS5 controller icons** | Optional. Swaps the Xbox button prompts for DualSense ones. Same backup offer, and re-applied for you if you install the texture pack afterwards. |
 | 💾 **Backups** | Back up your **own** textures, sounds, ReShade setup or mod folder — each on its own — and put them back any time. Kept as plain folders in `storage\t6\backups\`. |
 | 🧹 **Remove any of it** | **EVERYTHING** in one row, or one piece at a time. The mod folder really goes, so it stops showing in the Mods menu. Your game logs are moved to the backups, never deleted. Only deletes what the installer put there, and offers your backup back. |
 
@@ -101,9 +102,11 @@ All five mod files go in that one folder.
 
 ## ✨ What you get
 
-Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 49 rows, no chat commands required.
+Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 49 rows — 48 on Nuketown, where the CHEATS tab has no TELEPORT row because the map has no landmark list — plus four graphics rows on the stock **ADVANCED** tab and an **AIM ASSIST** row on **CONTROLS → GAMEPAD**. No chat commands required.
 
 > [!NOTE]
+> **New in 2.2.0 and not play-tested yet:** **BETTER SPEED COLA** (GAME), **NO BLEEDOUT PATCH** (PATCHES), **CHANGE ROUND** up to 10000 when the round cap is off (CHEATS), **UNLOCK ALL** and **RESET STATS** in the Zombies main menu under THEATER, and hellhound effects and sounds on Nuketown. Deadshot's controller head lock-on is back to stock behaviour.
+>
 > **Shipped in 2.0.0 but not play-tested yet:** the Die Rise Sliquifier row and the Semtex wall buy, the five new PATCHES rows, SET POINTS / TELEPORT, the DSR 50 and Five-Seven recoil, and the Winter's Howl firing effects. They are in the build; they have not had a boot yet.
 
 <br>
@@ -146,7 +149,7 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 
 ### 🧰 Quality of life
 
-Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-round fix · animated camos · **prone at a perk machine for +100 points** · full backwards and sideways movement speed · **network frame patch** · **graphics boost** on the ADVANCED tab · **remove round cap**, **24-zombie solo cap**, **instakill rounds**, **Double Tap 1.0**, **no barrier attacks** on the PATCHES tab · **SET POINTS** and **TELEPORT** on the CHEATS tab · **your settings are remembered** between sessions.
+Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-round fix · animated camos · **prone at a perk machine for +100 points** · full backwards and sideways movement speed · **network frame patch** · **graphics boost** on the ADVANCED tab · **remove round cap**, **24-zombie solo cap**, **instakill rounds**, **Double Tap 1.0**, **no barrier attacks**, **no bleedout** on the PATCHES tab · **better Speed Cola** on the GAME tab · **SET POINTS** and **TELEPORT** on the CHEATS tab · **your settings are remembered** between sessions.
 
 <br>
 

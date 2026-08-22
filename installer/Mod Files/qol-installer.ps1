@@ -468,9 +468,24 @@ function Format-Size {
 #  Plutonium's own program directory; the only things in it this installer ever
 #  writes are the three files and the one folder listed here, so they are the
 #  only things it has any business copying or putting back.
+#  v2.2.0 - the 20 filenames the PS5 icon pack replaces, read from the payload
+#  itself so this list can never drift from what is actually overwritten. Empty
+#  if the pack is not in the package, which simply means that backup set has
+#  nothing to copy.
+$DSFILES = @()
+$dsSrcForList = Find-Payload 'Dualsense IconsImages'
+if (-not $dsSrcForList) { $dsSrcForList = Find-Payload 'Dualsense Icons' }
+if ($dsSrcForList) { $DSFILES = @(Get-ChildItem -LiteralPath $dsSrcForList -File -Recurse | ForEach-Object { $_.Name }) }
+
 $BACKUPSETS = [ordered]@{
     images  = @{ Title = 'your textures';      Parts = @( @{ Sub='images';          Path=$IMGDIR;  Type='folder' } ) }
     zone    = @{ Title = 'your sounds';        Parts = @( @{ Sub='zone';            Path=$ZONEDIR; Type='folder' } ) }
+    #  v2.2.0 - the PS5 icon set backs up ONLY the 20 filenames it will replace,
+    #  not the whole images folder: the HD texture pack already backs that up as
+    #  a whole and two folder-wide copies of the same 1GB would be absurd. The
+    #  list is read from the payload itself at load time, so it can never drift
+    #  from what actually gets overwritten.
+    dualsense = @{ Title = 'your controller icons'; Parts = @( @{ Sub='dualsense'; Path=$IMGDIR; Type='files'; Items=$DSFILES } ) }
     reshade = @{ Title = 'your ReShade setup'; Parts = @(
                     @{ Sub='bin';             Path=$BINDIR; Type='files'; Items=@('ReShade.ini','BO2.ini','dxgi.dll') },
                     @{ Sub='reshade-shaders'; Path=(Join-Path $BINDIR 'reshade-shaders'); Type='folder' } ) }
@@ -739,6 +754,10 @@ function Get-Status {
     elseif ($have -gt 0) { $s.Sounds = "$have of $($SOUNDFILES.Count) present"; $s.SoundsOn = $false }
     else { $s.Sounds = 'not installed'; $s.SoundsOn = $false }
 
+    $dsMan = Read-Manifest 'dualsense'
+    if ($dsMan.Count -gt 0) { $s.Dualsense = "$($dsMan.Count) icons installed"; $s.DualsenseOn = $true }
+    else { $s.Dualsense = 'not installed'; $s.DualsenseOn = $false }
+
     if (Test-Path (Join-Path $BINDIR 'dxgi.dll')) { $s.ReShade = 'installed'; $s.ReShadeOn = $true }
     else { $s.ReShade = 'not installed'; $s.ReShadeOn = $false }
 
@@ -863,6 +882,26 @@ function Act-InstallImages {
     Write-Log "action: install images ($($sel.Key))"
     if ($sel.Key -eq 'backup') { if (-not (Backup-Thing 'images')) { Pause-Key; return } }
     if (Copy-Payload $src $IMGDIR 'images') { Write-Host ''; Say "✅  Texture pack installed." $C.Good }
+
+    # ------------------------------------------------------------------------
+    #  v2.2.0 - PUT THE PS5 ICONS BACK IF THEY WERE INSTALLED.
+    #  All 20 filenames in the PS5 pack also exist in the HD texture pack, so the
+    #  copy above has just overwritten them with the Xbox glyphs. Re-applying is
+    #  the only way "install the textures" does not silently undo "install the
+    #  PS5 icons". Nothing happens if the icons were never installed.
+    # ------------------------------------------------------------------------
+    if ((Read-Manifest 'dualsense').Count -gt 0) {
+        $dsSrc = Find-Payload 'Dualsense IconsImages'
+        if (-not $dsSrc) { $dsSrc = Find-Payload 'Dualsense Icons' }
+        if ($dsSrc) {
+            Write-Host ''
+            Say "Re-applying your PS5 controller icons ..." $C.Text
+            [void](Copy-Payload $dsSrc $IMGDIR 'dualsense')
+        } else {
+            Write-Host ''
+            Say "Your PS5 icons were overwritten and the pack is not in this folder to re-apply." $C.Warn
+        }
+    }
     Pause-Key
 }
 
@@ -1041,6 +1080,84 @@ function Act-InstallReShade {
         Write-Host ''
         Say "✅  ReShade installed. Press END in game to open it." $C.Good
     }
+    Pause-Key
+}
+
+# =============================================================================
+#  PS5 CONTROLLER ICONS  -  v2.2.0
+# -----------------------------------------------------------------------------
+#  User, 2026-08-21: *"H:\Claude\Projects Sources\zm_qol\Optionals\Dualsense
+#  Icons add an option for the mod installer to install PS5 Controller Icons, or
+#  remove them/backup them as well."*
+#
+#  The payload is 20 .iwi files, all named xenonbutton_* / xenon_controller_top -
+#  BO2's Xbox button glyphs - so installing them simply replaces the Xbox prompts
+#  with DualSense ones. They go to the SAME folder as the HD texture pack
+#  ($IMGDIR), under their own manifest, so removing one never touches the other.
+#
+#  🛑 THE HD TEXTURE PACK CONTAINS THE SAME 20 FILENAMES. Measured: all 20 names
+#  in Optionals\Dualsense Icons\Images also appear in Optionals\images. So
+#  installing (or re-installing) the texture pack after the icons would silently
+#  put the Xbox glyphs back. Act-InstallImages therefore re-applies the icons at
+#  the end whenever their manifest is non-empty - see the marked block there.
+# =============================================================================
+function Act-InstallDualsense {
+    param([int] $Pick = -1)
+    $src = Find-Payload 'Dualsense Icons\Images'
+    if (-not $src) { $src = Find-Payload 'Dualsense Icons' }
+    if (-not $src) {
+        Draw-Header 'PS5 controller icons'
+        Say "The PS5 icon pack is not in this folder, so there is nothing to install." $C.Warn
+        Pause-Key; return
+    }
+    $files = @(Get-ChildItem -LiteralPath $src -File -Recurse)
+    $size  = ($files | Measure-Object Length -Sum).Sum
+
+    $intro = @(
+        "Replaces the Xbox button prompts with PlayStation 5 ones.",
+        "~$($files.Count) files, $(Format-Size $size).",
+        '',
+        "~Goes to:  $IMGDIR",
+        '',
+        "~These are the same $($files.Count) filenames the HD texture pack uses, so if you",
+        "~install the texture pack later the icons are re-applied for you."
+    )
+    $items = @(
+        @{ Key='backup'; Label='Back up my current icons first, then install'; Status='recommended'; StatusColour=$C.Good },
+        @{ Key='plain';  Label='Install without a backup' },
+        @{ Key='back';   Label='Cancel' }
+    )
+    if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'PS5 controller icons' $items -Intro $intro }
+    if (-not $sel -or $sel.Key -eq 'back') { return }
+
+    Draw-Header 'PS5 controller icons'
+    Write-Log "action: install dualsense ($($sel.Key))"
+    if ($sel.Key -eq 'backup') { if (-not (Backup-Thing 'dualsense')) { Pause-Key; return } }
+    if (Copy-Payload $src $IMGDIR 'dualsense') { Write-Host ''; Say "✅  PS5 controller icons installed." $C.Good }
+    Pause-Key
+}
+
+function Act-RemoveDualsense {
+    param([int] $Pick = -1)
+    $hasB = Has-Backup 'dualsense'
+    $intro = @(
+        "Removes only the PS5 icon files this installer put there.",
+        "~Your Xbox icons come back only if you have a backup, or if you",
+        "~re-install the HD texture pack."
+    )
+    $items = @()
+    if ($hasB) { $items += @{ Key='restore'; Label='Remove them and put my originals back'; Status='backup found'; StatusColour=$C.Good } }
+    $items += @{ Key='plain'; Label='Just remove them' }
+    $items += @{ Key='back';  Label='Cancel' }
+    if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'Remove the PS5 icons' $items -Intro $intro }
+    if (-not $sel -or $sel.Key -eq 'back') { return }
+
+    Draw-Header 'Remove the PS5 icons'
+    Write-Log "action: remove dualsense ($($sel.Key))"
+    $did = Remove-ByManifest 'dualsense' $IMGDIR
+    if ($sel.Key -eq 'restore') { [void](Restore-Thing 'dualsense') }
+    Write-Host ''
+    if ($did) { Say "✅  Done." $C.Good } else { Say "Nothing to do." $C.Dim }
     Pause-Key
 }
 
@@ -1250,11 +1367,15 @@ function Act-RemoveEverything {
 
     $imgHasB = Has-Backup 'images'
     $sndHasB = Has-Backup 'zone'
-    $anyB    = ($imgHasB -or $sndHasB)
+    #  v2.2.0 - the PS5 icons go with everything else. Leaving 20 files behind
+    #  after "remove everything" is exactly the class of thing the raw LUI leak
+    #  turned out to be.
+    $dsHasB  = Has-Backup 'dualsense'
+    $anyB    = ($imgHasB -or $sndHasB -or $dsHasB)
 
     $intro = @(
         "Removes every part of this package, one after the other:",
-        "~   the HD texture pack  ·  custom sounds  ·  ReShade  ·  the mod",
+        "~   the HD texture pack  ·  custom sounds  ·  PS5 icons  ·  ReShade  ·  the mod",
         '',
         "~Only files this installer put there are deleted. Anything that was",
         "~already in those folders is left exactly where it is, and your game",
@@ -1285,6 +1406,8 @@ function Act-RemoveEverything {
     if ($imgHasB -and -not $restore) { $imgPick = 1 }
     $sndPick = 0
     if ($sndHasB -and -not $restore) { $sndPick = 1 }
+    $dsPick = 0
+    if ($dsHasB -and -not $restore) { $dsPick = 1 }
 
     $wasQuiet = $script:Quiet
     if (-not $script:Headless) { Clear-Host }
@@ -1292,6 +1415,7 @@ function Act-RemoveEverything {
     try {
         Act-RemoveImages  -Pick $imgPick
         Act-RemoveSounds  -Pick $sndPick
+        Act-RemoveDualsense -Pick $dsPick
         Act-RemoveReShade -Pick 0
         Act-RemoveMod     -Pick 0
     }
@@ -1304,6 +1428,7 @@ function Act-RemoveEverything {
     $rows = @(
         @{ n='HD texture pack'; v=$st.Images;  on=$st.ImagesOn },
         @{ n='Custom sounds';   v=$st.Sounds;  on=$st.SoundsOn },
+        @{ n='PS5 icons';       v=$st.Dualsense; on=$st.DualsenseOn },
         @{ n='ReShade';         v=$st.ReShade; on=$st.ReShadeOn },
         @{ n='The mod';         v=$st.Mod;     on=$st.ModOn }
     )
@@ -1576,6 +1701,7 @@ function Act-Details {
     Say "Mod            $($st.Mod)" $C.Text -NoLog
     Say "Textures       $($st.Images)" $C.Text -NoLog
     Say "Sounds         $($st.Sounds)" $C.Text -NoLog
+    Say "PS5 icons      $($st.Dualsense)" $C.Text -NoLog
     Say "ReShade        $($st.ReShade)" $C.Text -NoLog
     Say "Backups        $(if(Test-Path $BACKUPS){$BACKUPS}else{'none taken yet'})" $C.Text -NoLog
     Write-Host ''
@@ -1663,6 +1789,7 @@ function Act-InstallEverything {
         @{ n='The mod';         v=$st.Mod;     on=$st.ModOn },
         @{ n='HD texture pack'; v=$st.Images;  on=$st.ImagesOn },
         @{ n='Custom sounds';   v=$st.Sounds;  on=$st.SoundsOn },
+        @{ n='PS5 icons';       v=$st.Dualsense; on=$st.DualsenseOn },
         @{ n='ReShade';         v=$st.ReShade; on=$st.ReShadeOn }
     )
     foreach ($r in $rows) {
@@ -1704,6 +1831,7 @@ function Main-Menu {
         $imgColour = $C.Dim; if ($st.ImagesOn) { $imgColour = $C.Good }
         $sndColour = $C.Dim; if ($st.SoundsOn) { $sndColour = $C.Good }
         $rshColour = $C.Dim; if ($st.ReShadeOn) { $rshColour = $C.Good }
+        $dsColour  = $C.Dim; if ($st.DualsenseOn) { $dsColour = $C.Good }
 
         $items = @(
             @{ Key='all';    Section='INSTALL';   Label='EVERYTHING - the whole package'; Status='mod + textures + sounds + ReShade'; StatusColour=$C.Title },
@@ -1711,11 +1839,13 @@ function Main-Menu {
             @{ Key='images'; Section='INSTALL';   Label='HD texture pack';       Status=$st.Images;  StatusColour=$imgColour },
             @{ Key='sounds'; Section='INSTALL';   Label='Custom sounds';         Status=$st.Sounds;  StatusColour=$sndColour },
             @{ Key='reshade';Section='INSTALL';   Label='ReShade + BO2 preset';  Status=$st.ReShade; StatusColour=$rshColour },
+            @{ Key='dualsense';Section='INSTALL'; Label='PS5 controller icons';  Status=$st.Dualsense; StatusColour=$dsColour },
 
             @{ Key='rall';    Section='REMOVE';   Label='EVERYTHING - the whole package'; Status='textures + sounds + ReShade + mod'; StatusColour=$C.Title },
             @{ Key='rimages'; Section='REMOVE';   Label='Remove the HD textures' },
             @{ Key='rsounds'; Section='REMOVE';   Label='Remove the custom sounds' },
             @{ Key='rreshade';Section='REMOVE';   Label='Remove ReShade' },
+            @{ Key='rdualsense';Section='REMOVE'; Label='Remove the PS5 icons' },
             @{ Key='rmod';    Section='REMOVE';   Label='Remove the mod' },
 
             @{ Key='backups'; Section='BACKUP';   Label='Back up / restore my own files'; Status=$st.Backups; StatusColour=$st.BackupsColour },
@@ -1734,10 +1864,12 @@ function Main-Menu {
             'images'   { Act-InstallImages }
             'sounds'   { Act-InstallSounds }
             'reshade'  { Act-InstallReShade }
+            'dualsense' { Act-InstallDualsense }
             'rall'     { Act-RemoveEverything }
             'rimages'  { Act-RemoveImages }
             'rsounds'  { Act-RemoveSounds }
             'rreshade' { Act-RemoveReShade }
+            'rdualsense' { Act-RemoveDualsense }
             'rmod'     { Act-RemoveMod }
             'backups'  { Act-Backups }
             'update'   { Act-CheckUpdate }
@@ -1756,10 +1888,12 @@ if ($Action) {
         'images'   { Act-InstallImages  -Pick $Choice }
         'sounds'   { Act-InstallSounds  -Pick $Choice }
         'reshade'  { Act-InstallReShade -Pick $Choice }
+        'dualsense' { Act-InstallDualsense -Pick $Choice }
         'rall'     { Act-RemoveEverything -Pick $Choice }
         'rimages'  { Act-RemoveImages   -Pick $Choice }
         'rsounds'  { Act-RemoveSounds   -Pick $Choice }
         'rreshade' { Act-RemoveReShade  -Pick $Choice }
+        'rdualsense' { Act-RemoveDualsense -Pick $Choice }
         'rmod'     { Act-RemoveMod      -Pick $Choice }
         'backups'  { Act-Backups        -Pick $Choice }
         'backup'   { [void](Backup-Thing $Extra) }

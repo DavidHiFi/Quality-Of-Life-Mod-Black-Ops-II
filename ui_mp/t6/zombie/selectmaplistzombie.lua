@@ -34,6 +34,37 @@ require("T6.Lobby")
 require("T6.Menus.PopupMenus")
 require("T6.ListBox")
 
+-- ============================================================================
+--  🛑 v2.2.0 - DINER IS GATED ON THE MOD ACTUALLY BEING LOADED.
+--  User, 2026-08-21: another mod was loaded and *"some of the stuff from my mod
+--  was showing up"*. build.bat used to copy this file into Plutonium's GLOBAL
+--  storage\t6\raw\ folder, which is shared by every mod and by no mod at all.
+--  It no longer does - but a copy from an older build may still be sitting
+--  there, so the gate below makes it behave correctly anyway.
+--
+--  🛑 THE REST OF THIS FILE IS DELIBERATELY NOT GATED. It is the list-style map
+--  picker itself, and it REPLACED Plutonium's own copy in raw\ - for which no
+--  pristine backup exists on this machine. Returning early would leave any
+--  other mod with no map picker at all, which is a far worse failure than a
+--  different-looking one. Only the row this project ADDS is conditional.
+--
+--  📝 Dvar.fs_game:get() is Plutonium's own accessor (its raw\ui\t6\mods.lua:127).
+--  Fails OPEN, for the same reason as in optionssettings.lua.
+-- ============================================================================
+local ZmQolModLoadedHere = function ()
+	local Ok, Value = pcall(function () return Dvar.fs_game:get() end)
+
+	if not Ok or type(Value) ~= "string" then
+		return true
+	end
+
+	Value = string.lower(Value)
+
+	return Value == "mods/zm_qol" or Value == "zm_qol"
+end
+
+local ZmQolDinerAllowed = ZmQolModLoadedHere()
+
 CoD.SelectMapListZombie = {}
 CoD.SelectMapListZombie.GameModes = {}
 CoD.SelectMapListZombie.GameModes[1] = {
@@ -89,64 +120,35 @@ CoD.SelectMapListZombie.Maps[5] = {
 --  zm_transit_gamemodes dump, which has only transit/farm/town on each), so its
 --  grief entry is an addition here too, not a vanilla one.
 -- ----------------------------------------------------------------------------
+--  🛑 v2.2.0 - built by APPEND rather than by fixed index, so the two DINER
+--  rows can be left out without leaving a hole in the array. Everything else is
+--  vanilla and is listed in vanilla order.
+local ZmQolAddLoc = function (List, MapName, StartLocation, DisplayName)
+	List[#List + 1] = {
+		ui_mapname = MapName,
+		ui_zm_mapstartlocation = StartLocation,
+		name = DisplayName,
+	}
+end
+
 CoD.SelectMapListZombie.Locations = {}
-CoD.SelectMapListZombie.Locations[1] = {
-	ui_mapname = "zm_nuked",
-	ui_zm_mapstartlocation = "nuked",
-	name = "NUKETOWN",
-}
-CoD.SelectMapListZombie.Locations[2] = {
-	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "transit",
-	name = "BUS DEPOT",
-}
-CoD.SelectMapListZombie.Locations[3] = {
-	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "diner",
-	name = "DINER",                            -- added by this mod
-}
-CoD.SelectMapListZombie.Locations[4] = {
-	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "farm",
-	name = "FARM",
-}
-CoD.SelectMapListZombie.Locations[5] = {
-	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "town",
-	name = "TOWN",
-}
+ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_nuked",   "nuked",   "NUKETOWN")
+ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_transit", "transit", "BUS DEPOT")
+if ZmQolDinerAllowed then
+	ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_transit", "diner", "DINER")   -- added by this mod
+end
+ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_transit", "farm",    "FARM")
+ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_transit", "town",    "TOWN")
 
 CoD.SelectMapListZombie.GriefLocations = {}
-CoD.SelectMapListZombie.GriefLocations[1] = {
-	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "transit",
-	name = "BUS DEPOT",
-}
-CoD.SelectMapListZombie.GriefLocations[2] = {
-	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "diner",
-	name = "DINER",                            -- added by this mod
-}
-CoD.SelectMapListZombie.GriefLocations[3] = {
-	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "farm",
-	name = "FARM",
-}
-CoD.SelectMapListZombie.GriefLocations[4] = {
-	ui_mapname = "zm_transit",
-	ui_zm_mapstartlocation = "town",
-	name = "TOWN",
-}
-CoD.SelectMapListZombie.GriefLocations[5] = {
-	ui_mapname = "zm_buried",
-	ui_zm_mapstartlocation = "street",
-	name = "BOROUGH",
-}
-CoD.SelectMapListZombie.GriefLocations[6] = {
-	ui_mapname = "zm_prison",
-	ui_zm_mapstartlocation = "cellblock",
-	name = "CELL BLOCK",
-}
+ZmQolAddLoc(CoD.SelectMapListZombie.GriefLocations, "zm_transit", "transit", "BUS DEPOT")
+if ZmQolDinerAllowed then
+	ZmQolAddLoc(CoD.SelectMapListZombie.GriefLocations, "zm_transit", "diner", "DINER")   -- added by this mod
+end
+ZmQolAddLoc(CoD.SelectMapListZombie.GriefLocations, "zm_transit", "farm",      "FARM")
+ZmQolAddLoc(CoD.SelectMapListZombie.GriefLocations, "zm_transit", "town",      "TOWN")
+ZmQolAddLoc(CoD.SelectMapListZombie.GriefLocations, "zm_buried",  "street",    "BOROUGH")
+ZmQolAddLoc(CoD.SelectMapListZombie.GriefLocations, "zm_prison",  "cellblock", "CELL BLOCK")
 
 -- Which list a non-classic mode uses. Grief gets its own; anything else
 -- (Survival) gets the survival list.

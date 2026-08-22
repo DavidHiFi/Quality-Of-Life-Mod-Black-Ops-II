@@ -626,7 +626,50 @@ setupWunderfizz()
     	//  ends up clipped or floating, the fix is a further -Y step, not a
     	//  rethink - the direction is settled.
     	//  ====================================================================
-    	zmqol_wf_add((-915,241,-56), (0,66,0), zmqol_wf_machine_model());
+    	//  ====================================================================
+    	//  🛑 v2.2.0 - 8 UNITS FURTHER TOWARDS THE WALL, from (-915, 241, -56).
+    	//  User, 2026-08-21, screenshot 8BSFsDYWPZ.jpg with .where showing them
+    	//  at x -895 y 385 z -49 yaw 257 - which puts this machine dead ahead at
+    	//  bearing 262: *"this zombie here in nuketown got stuck on the wunderfizz
+    	//  machine, the zombies can fault over this wall here still but push the
+    	//  machine back just a tiny bit so it's slightly closer to the wall
+    	//  without clipping any part of the machine into the wall, so it looks
+    	//  neat."*
+    	//
+    	//  🌟 THE WALL'S POSITION IS MEASURED, AND SO IS THE GAP THAT IS LEFT.
+    	//  A wall-mounted dest_electronic_outlet01 sits at (-968.697, 240.302, -1)
+    	//  in the zm_nuked mapents, so the wall face is x ~ -968.7. The machine
+    	//  model (qolwf_vending_diesel_magic: 74 wide x 56 deep, half-extents 37
+    	//  lateral / 28 forward) at yaw 66 has right = (0.914, -0.407), so from
+    	//  (-915, 241) the wall lies 48.8 units to its LEFT and the box reaches
+    	//  37 - i.e. 11.8 units of visible gap. Moving 8 units along -right,
+    	//  ( -0.914, +0.407 ), lands it at (-922.3, 244.3) and leaves 3.8.
+    	//
+    	//  🛑 8 AND NOT 11. The wall PLANE is inferred from a prop mounted on it,
+    	//  and a flush-mounted outlet's origin can sit a couple of units proud of
+    	//  the surface. Three units of margin absorbs that; clipping into the
+    	//  wall is the failure the user explicitly asked to avoid.
+    	//
+    	//  🌟 IT ALSO WIDENS THE LANE THE ZOMBIE WAS CAUGHT IN. The v2.0.4 pass
+    	//  measured this machine against the two zm_mantle_over_40 lanes crossing
+    	//  the wall behind it; their near nodes were 48.1 and 68.2 units forward
+    	//  of the machine against a 28 half-depth. This move is purely lateral, so
+    	//  those forward clearances are unchanged, and the walkable side (+right)
+    	//  gains the full 8 units.
+    	//
+    	//  🛑 WHAT THIS DOES **NOT** DO, STATED PLAINLY: it does not teach the AI
+    	//  that the machine is there. The user also asked to *"make sure the
+    	//  zombies are aware of the wunderfizz machine there and run around it"*.
+    	//  T6 has no verified script call for that on a spawned script_model -
+    	//  disconnectpaths() needs a brushmodel, and while badplace_cylinder /
+    	//  badplace_brush ARE present in t6zm.exe's string table, there is not one
+    	//  call to either anywhere in the 2,093-file stock dump or in any mod
+    	//  source in this workspace, so their argument order cannot be verified
+    	//  offline and this project does not ship a call it cannot verify. The
+    	//  clearance above is therefore the whole of the pathing fix: the pocket
+    	//  the zombie was caught in gets smaller, it does not get a nav volume.
+    	//  ====================================================================
+    	zmqol_wf_add((-922,244,-56), (0,66,0), zmqol_wf_machine_model());
     	zmqol_wf_add((716,21,-57), (0,192,0), zmqol_wf_machine_model());
     }
     else if(level.script == "zm_prison")
@@ -1650,6 +1693,34 @@ wunderfizzSetup(origin, angles, model)
 	wunderfizzMachine.bottle = wunderfizzBottle;
 	wunderfizzMachine.location = level.wunderfizz_locations;
 	wunderfizzMachine.uses = 0;
+
+	//  ========================================================================
+	//  🌟 v2.2.0 - ONE WATCHER PER MACHINE OWNS THE VULTURE MARKER, ON EVERY MAP.
+	//
+	//  User, 2026-08-21: *"for the Vulture Aid perk, some of the Wunderfizz
+	//  machines have the Weapon icon and some do not, as I've previously
+	//  prompted for, make it same logic for the visibility of all wunderfizz
+	//  vulture aid icons, it only shows on the currently active machine and make
+	//  sure that you account for every wunderfizz machine on all maps."*
+	//
+	//  🛑 WHY THE v1.99.91 VERSION COULD DISAGREE WITH ITSELF. It wrote the
+	//  marker from TWO event points inside the machine's think loop - the arrival
+	//  branch and the departure branch - and that loop is not entered until the
+	//  machine's power gate opens (flag_wait("power_on"), or the per-generator
+	//  wait on Origins). A machine that has not passed its gate yet writes
+	//  nothing at all, so while the orb sits on one of those the icon is on no
+	//  machine; and any path that leaves the loop between the two writes leaves
+	//  the last value standing. Two writers, one piece of state.
+	//
+	//  🌟 THIS IS THE SAME LESSON AS THE HUD ALPHA ONE: give the field a single
+	//  owner and let it mirror the truth. level.currentWunderfizzLocation is that
+	//  truth - it is what the arrival branch, the ball, the glow and the hint
+	//  string all already test - so the watcher compares it to self.location and
+	//  writes only when the answer changes. It runs for EVERY machine on EVERY
+	//  map, from setup, before and regardless of any power gate.
+	//  ========================================================================
+	wunderfizzMachine thread zmqol_wf_vulture_marker_watch();
+
 	perks = getPerks();
 
 	//  PROBE (passive, one line, first machine only). The user reports Who's Who
@@ -1979,9 +2050,10 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 			//  was never hidden - showpart on a visible part is a no-op.
 			self showpart( "j_ball" );
 
-			//  v1.99.91 - and the Vulture Aid marker with it. Only the live
-			//  machine advertises itself; see the note at wunderfizzSetup().
-			self thread zmqol_wf_vulture_marker( 1 );
+			//  🛑 v2.2.0 - THE MARKER IS NO LONGER WRITTEN HERE. It has exactly
+			//  one owner now, zmqol_wf_vulture_marker_watch(), started from
+			//  wunderfizzSetup(). See the block there for why two writers could
+			//  disagree.
 
 			self zmqol_wf_anim( "start" );
 			wait 1;
@@ -2073,11 +2145,9 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 								// and puff on the way out - stock's shut_down plus
 								// fx_departure_steam.
 								self notify( "zmqol_wf_ball_off" );
-								//  v1.99.91 - the marker leaves with the orb, at the
-								//  same instant the light and the ball do, so a player
-								//  in Vulture vision never sees an icon on a machine
-								//  the orb has left.
-								self thread zmqol_wf_vulture_marker( 0 );
+								//  🛑 v2.2.0 - not written here either; the watcher
+								//  started in wunderfizzSetup() clears it the moment
+								//  level.currentWunderfizzLocation stops matching.
 								self zmqol_wf_anim( "shut_down" );
 								self thread zmqol_wf_departure_steam();
 								wait 7;
@@ -2855,4 +2925,69 @@ zmqol_wf_vulture_marker( n_code )
 
 	wait 0.05;
 	self setclientfield( "zmqol_vulture_marker", n_code );   //  1 = Wunderfizz, see zmqol_vulture_marker_code()
+}
+
+// ============================================================================
+//  zmqol_wf_vulture_marker_watch  -  ONE OWNER FOR THE VULTURE MARKER (v2.2.0)
+// ----------------------------------------------------------------------------
+//  See the block in wunderfizzSetup() that starts this thread for the why. In
+//  short: the marker used to be written from the machine's arrival and departure
+//  branches, both of which sit BEHIND the machine's power gate, so a machine
+//  that had not passed its gate never wrote anything and the icon could be on
+//  the wrong machine or on none. This mirrors the one piece of truth instead.
+//
+//  🛑 THE GATE IS ASKED ONCE, HERE, exactly as zmqol_wf_vulture_marker() asked
+//  it: zmqol_vulture_marker_enabled() is the same function that decides whether
+//  the clientfield is registered at all, and writing an unregistered field is a
+//  script error that Plutonium swallows silently.
+//
+//  📝 Writes ONLY on change, so this is one comparison per machine per quarter
+//  second and no network traffic while nothing is moving.
+//  📝 n_last starts at -1 rather than 0 so the first pass always writes. That is
+//  what puts the icon on the starting machine, and clears it off the other five
+//  on Origins, without either of them having gone through an arrival first.
+// ============================================================================
+zmqol_wf_vulture_marker_watch()
+{
+	self endon( "death" );
+	level endon( "end_game" );
+
+	if ( !maps\mp\zombies\_zm_perk_vulture::zmqol_vulture_marker_enabled() )
+		return;
+
+	//  level.perk_vulture is created in init_vulture() in the same synchronous
+	//  block as its registerclientfield calls, so once it exists the field is
+	//  certainly registered. Waiting on it is exact; a fixed sleep would be a
+	//  guess. 60 seconds of patience, then give up quietly.
+	n_tries = 0;
+
+	while ( !isdefined( level.perk_vulture ) && n_tries < 1200 )
+	{
+		wait 0.05;
+		n_tries++;
+	}
+
+	if ( !isdefined( level.perk_vulture ) )
+	{
+		println( "[zm_qol] wunderfizz vulture marker: perk never initialised, machine " + self.location + " left unmarked" );
+		return;
+	}
+
+	n_last = -1;
+
+	for ( ;; )
+	{
+		n_want = 0;
+
+		if ( isdefined( level.currentWunderfizzLocation ) && level.currentWunderfizzLocation == self.location )
+			n_want = 1;
+
+		if ( n_want != n_last )
+		{
+			n_last = n_want;
+			self setclientfield( "zmqol_vulture_marker", n_want );   //  1 = Wunderfizz, see zmqol_vulture_marker_code()
+		}
+
+		wait 0.25;
+	}
 }

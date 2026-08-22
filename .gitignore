@@ -126,3 +126,29 @@ parsed/
 # The installer's own run log — it records local paths and the user's install
 # history. It is written next to qol-installer.ps1, which lives in Mod Files\.
 installer/Mod Files/installer.log
+
+# ============================================================================
+#  v2.2.0 - THE FULL RESHADE SHADER COLLECTION IS NOT TRACKED.
+#
+#  User request, 2026-08-22: *"install all the shaders from reshade because
+#  right now when i installed with the install script for my mod it just
+#  installs the shaders that the preset uses."* The installer now ships the
+#  whole collection - 856 files, 130 MB, of which 121 MB is the Textures folder
+#  (LUTs, blue-noise, dirt masks; pd80_example-lut.png alone is 11 MB).
+#
+#  🛑 IT IS THIRD-PARTY AND IT IS BULK, so it follows the same rule as
+#  Optionals\, images\*.iwi and mod.iwd above: it ships in the RELEASE ASSET,
+#  not in the tree. The user asked on 2026-08-20 that this repo carry the mod's
+#  own source only, and 130 MB of other people's shaders in the permanent
+#  history of a public repo is the opposite of that.
+#
+#  🛑 CONSEQUENCE, so nobody is surprised: a fresh clone cannot rebuild the
+#  release package's ReShade half. The master copy is  H:\Claude\reshade-vault\
+#  and the shipped copy is the release zip. Everything else under reshade\ -
+#  BO2.ini, ReShade.ini and dxgi.dll - IS still tracked, so the preset and the
+#  loader survive a clone.
+#
+#  📝 The 20 files that were tracked before this (the subset the preset used)
+#  are removed from the index in the same commit; they stay in history.
+# ============================================================================
+installer/Mod Files/reshade/reshade-shaders/

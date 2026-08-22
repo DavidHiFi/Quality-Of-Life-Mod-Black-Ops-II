@@ -1,6 +1,58 @@
 require("T6.menus.safeareamenu")
 
 -- ============================================================================
+--  🛑 zm_qol v2.2.0 - EVERY ADDITION IN THIS FILE IS GATED ON THE MOD ACTUALLY
+--  BEING LOADED.  User, 2026-08-21, with a screenshot: *"I loaded a completely
+--  seperate mod from my quality of life mod and some of the stuff from my mod
+--  was showing up for some reason, tested multiple mods as well... I also
+--  removed the mod with the installer and tried loading up a mod and it still
+--  had my mods' options there."*
+--
+--  🌟 THE CAUSE IS build.bat STEP [6], AND IT IS NOT A MYSTERY.  This project's
+--  three frontend .lua files are copied into Plutonium's GLOBAL
+--  storage\t6\raw\ folder on every build so the menus exist at boot. raw\ is
+--  not per-mod: it shadows Plutonium's own copy for EVERY mod and for no mod at
+--  all, and uninstalling zm_qol does not touch it. Confirmed by hashing - the
+--  three files in raw\ are byte-identical to this project's copies.
+--
+--  🌟 AND THE raw\ COPY IS NOT EVEN NEEDED, MEASURED OUT OF console_zm.log.006:
+--        523  Loaded menu file: ui_mp/t6/hud/class.lua          <- boot
+--        524  Loaded menu file: ui/t6/menus/optionssettings.lua <- boot
+--        700  loadmod: loaded mods/zm_qol
+--        729  Loading fastfile mod
+--        789  Loaded menu file: ui/t6/menus/optionssettings.lua <- AGAIN
+--  LUI reloads the frontend menus after a mod loads, and at that point the
+--  search path has mods\zm_qol\mod.iwd at rank 1 and raw\ at rank 3, so
+--  mod.iwd's copy wins on its own. The same log line is why class.lua has never
+--  needed the sync.
+--
+--  So the fix is two-sided: build.bat no longer writes into raw\, and this
+--  guard makes any copy that IS already sitting there behave exactly like
+--  Plutonium's original file whenever zm_qol is not the loaded mod. A player
+--  who has had an older build synced into raw\ is fixed by the guard alone.
+--
+--  📝 Dvar.fs_game:get() is PLUTONIUM'S OWN accessor for this, used verbatim in
+--  its shipped storage\t6\raw\ui\t6\mods.lua:127 - not an invented call. It is
+--  "" with no mod loaded and "mods/zm_qol" with this one; both values are in
+--  this install's dvar dumps.
+--
+--  🛑 IT FAILS OPEN ON PURPOSE. If the read ever throws, the rows are SHOWN.
+--  A mod whose entire options menu silently vanished would be a far worse bug
+--  than a leaked row, and showing them is exactly what happens today.
+-- ============================================================================
+ZmQolModLoaded = function ()
+	local Ok, Value = pcall(function () return Dvar.fs_game:get() end)
+
+	if not Ok or type(Value) ~= "string" then
+		return true
+	end
+
+	Value = string.lower(Value)
+
+	return Value == "mods/zm_qol" or Value == "zm_qol"
+end
+
+-- ============================================================================
 --  zm_qol v1.99.73 - THE "CONTROLS" HEADING IS CENTRED IN GAME.
 --
 --  User, 2026-08-19, with a screenshot: *"make sure in the controls menu the
@@ -38,7 +90,7 @@ require("T6.menus.safeareamenu")
 -- ============================================================================
 pcall(require, "T6.menus.optionscontrols")
 
-if LUI and LUI.createMenu and LUI.createMenu.OptionsControlsMenu then
+if ZmQolModLoaded() and LUI and LUI.createMenu and LUI.createMenu.OptionsControlsMenu then
 	local ZmQolStockControlsMenu = LUI.createMenu.OptionsControlsMenu
 
 	LUI.createMenu.OptionsControlsMenu = function (localClientIndex)
@@ -80,7 +132,7 @@ end
 --  reordering LUI children after construction, which is not something this
 --  project can verify offline - so it is not attempted.
 -- ============================================================================
-if CoD and CoD.OptionsControls and CoD.OptionsControls.CreateGamepadTab then
+if ZmQolModLoaded() and CoD and CoD.OptionsControls and CoD.OptionsControls.CreateGamepadTab then
 	local ZmQolStockGamepadTab = CoD.OptionsControls.CreateGamepadTab
 
 	--  🛑 v1.99.75 - THE ROW IS NOW INSERTED DIRECTLY UNDER TARGET ASSIST, AND
@@ -700,7 +752,7 @@ CoD.OptionsSettings.QolDofCallback = function (DofChoice)
 end
 
 CoD.OptionsSettings.QolAddDepthOfFieldRow = function (ButtonList, LocalClientIndex)
-	local DOFChoices = ButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize("PLATFORM_DEPTH_OF_FIELD_CAPS"), "dof_quality", Engine.Localize("PLATFORM_DEPTH_OF_FIELD_DESC"))
+	local DOFChoices = ButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize("PLATFORM_DEPTH_OF_FIELD_CAPS"), "dof_quality", "Blurs whatever you are not aiming at.")
 	local Apply = CoD.OptionsSettings.QolDofCallback
 	DOFChoices:addChoice(LocalClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0, nil, Apply)
 	DOFChoices:addChoice(LocalClientIndex, Engine.Localize("PLATFORM_LOW_CAPS"), 1, nil, Apply)
@@ -826,7 +878,49 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 	AdvancedTab.buttonList = AdvancedTabButtonList
 	AdvancedTabContainer.buttonList = AdvancedTabButtonList
 	AdvancedTabContainer:addElement(AdvancedTabButtonList)
-	local TextureQualityChoices = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_TEXTURE_QUALITY_CAPS"), "r_picmip", Engine.Localize("PLATFORM_TEXTURE_QUALITY_DESC"))
+
+	-- ========================================================================
+	--  🛑 v2.2.0 - WITH ANY OTHER MOD LOADED (OR NONE), THIS TAB IS PLUTONIUM'S,
+	--  UNCHANGED. The body below is copied verbatim out of
+	--  storage\t6\raw\ui\t6\menus\optionssettings.lua.bak-before-gametab, the
+	--  pristine copy taken before this project first touched the file - stock
+	--  strings, stock spacers, stock row order. See ZmQolModLoaded() at the top.
+	-- ========================================================================
+	if not ZmQolModLoaded() then
+		local StockTexQuality = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_TEXTURE_QUALITY_CAPS"), "r_picmip", Engine.Localize("PLATFORM_TEXTURE_QUALITY_DESC"))
+		CoD.OptionsSettings.Button_AddChoices_TextureQuality(StockTexQuality)
+		if Engine.GetHardwareProfileValueAsString("r_picmip_manual") == "0" then
+			StockTexQuality:setChoice(-1)
+		end
+		if InGame and CoD.isMultiplayer then
+			StockTexQuality:disableSelector()
+		end
+		CoD.OptionsSettings.Button_AddChoices_TextureFiltering(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_TEXTURE_MIPMAPS_CAPS"), "r_texFilterQuality", Engine.Localize("PLATFORM_TEXTURE_FILTERING_DESC")))
+		local StockAA = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_ANTIALIASING_CAPS"), "r_aaSamples", Engine.Localize("PLATFORM_ANTIALIASING_DESC"))
+		CoD.OptionsSettings.Button_AddChoices_AntiAliasing(StockAA)
+		CoD.OptionsSettings.AdjustAntiAliasingSettings(StockAA)
+		CoD.Options.Button_AddChoices_YesOrNo(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_FXAA_CAPS"), "r_fxaa", Engine.Localize("PLATFORM_FXAA_DESC")))
+		CoD.Options.Button_AddChoices_OnOrOff(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_AMBIENT_OCCLUSION_CAPS"), "r_ssao", Engine.Localize("PLATFORM_AMBIENT_OCCLUSION_DESC")))
+		CoD.OptionsSettings.Button_AddChoices_DepthOfField(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_DEPTH_OF_FIELD_CAPS"), "r_dofHDR", Engine.Localize("PLATFORM_DEPTH_OF_FIELD_DESC")))
+		AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
+		AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
+		CoD.Options.Button_AddChoices_YesOrNo(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_SYNC_EVERY_FRAME_CAPS"), "r_vsync", Engine.Localize("PLATFORM_VSYNC_DESC")))
+		local StockMaxFps = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_MAX_FPS_CAPS"), "com_maxfps", Engine.Localize("PLATFORM_MAX_FPS_DESC"))
+		CoD.OptionsSettings.Button_AddChoices_MaxFPS(StockMaxFps)
+		if Engine.GetHardwareProfileValueAsString("r_vsync") == "1" then
+			StockMaxFps:setChoice(0)
+			StockMaxFps:disableSelector()
+		end
+		CoD.OptionsSettings.Button_AddChoices_DrawFPS(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_DRAW_FPS_CAPS"), "cg_drawFPS", Engine.Localize("PLATFORM_DRAW_FPS_DESC")))
+		AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
+		CoD.OptionsSettings.Button_AddChoices_StreamerMode(AdvancedTabButtonList:addHardwareProfileLeftRightSelector("STREAMER MODE", "cl_enableStreamerMode", "Hides important networking and player information"))
+		AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
+		local StockSafeArea = AdvancedTabButtonList:addButton(Engine.Localize("MENU_SAFE_AREA_ADJUSTMENT_CAPS"), Engine.Localize("Edit the HUD safearea."))
+		StockSafeArea:setActionEventName("open_safe_area")
+		return AdvancedTabContainer
+	end
+
+	local TextureQualityChoices = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_TEXTURE_QUALITY_CAPS"), "r_picmip", "How sharp textures look. Higher uses more video memory.")
 	CoD.OptionsSettings.Button_AddChoices_TextureQuality(TextureQualityChoices)
 	if Engine.GetHardwareProfileValueAsString("r_picmip_manual") == "0" then
 		TextureQualityChoices:setChoice(-1)
@@ -834,12 +928,13 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 	if InGame and CoD.isMultiplayer then
 		TextureQualityChoices:disableSelector()
 	end
-	CoD.OptionsSettings.Button_AddChoices_TextureFiltering(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_TEXTURE_MIPMAPS_CAPS"), "r_texFilterQuality", Engine.Localize("PLATFORM_TEXTURE_FILTERING_DESC")))
-	local AntiAliasingChoices = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_ANTIALIASING_CAPS"), "r_aaSamples", Engine.Localize("PLATFORM_ANTIALIASING_DESC"))
+	CoD.OptionsSettings.Button_AddChoices_TextureFiltering(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_TEXTURE_MIPMAPS_CAPS"), "r_texFilterQuality", "How sharp textures stay when you view them at an angle."))
+	local AntiAliasingChoices = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_ANTIALIASING_CAPS"), "r_aaSamples", "Smooths jagged edges. Higher settings cost more performance.")
 	CoD.OptionsSettings.Button_AddChoices_AntiAliasing(AntiAliasingChoices)
 	CoD.OptionsSettings.AdjustAntiAliasingSettings(AntiAliasingChoices)
-	CoD.Options.Button_AddChoices_YesOrNo(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_FXAA_CAPS"), "r_fxaa", Engine.Localize("PLATFORM_FXAA_DESC")))
-	CoD.Options.Button_AddChoices_OnOrOff(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_AMBIENT_OCCLUSION_CAPS"), "r_ssao", Engine.Localize("PLATFORM_AMBIENT_OCCLUSION_DESC")))
+	CoD.Options.Button_AddChoices_YesOrNo(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_FXAA_CAPS"), "r_fxaa", "Cheap extra edge smoothing. Slightly softer picture."))
+	CoD.Options.Button_AddChoices_OnOrOff(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_AMBIENT_OCCLUSION_CAPS"), "r_ssao", "Soft shading where surfaces meet. Costs some performance."))
+
 	CoD.OptionsSettings.QolAddDepthOfFieldRow(AdvancedTabButtonList, LocalClientIndex)
 
 	-- ========================================================================
@@ -917,14 +1012,45 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 	CoD.OptionsSettings.QolToggle(AdvancedTabButtonList, LocalClientIndex, "GRAPHICS BOOST", "graphics_boost", "Sharper textures, shadows, SSAO and 16x anti-aliasing. Needs a good GPU and a restart.")
 	-- ========================================================================
 
-	CoD.Options.Button_AddChoices_YesOrNo(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_SYNC_EVERY_FRAME_CAPS"), "r_vsync", Engine.Localize("PLATFORM_VSYNC_DESC")))
-	local MaxFpsChoices = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_MAX_FPS_CAPS"), "com_maxfps", Engine.Localize("PLATFORM_MAX_FPS_DESC"))
+	-- ========================================================================
+	--  🛑 v2.2.0 - THE SIX STOCK DESCRIPTIONS BELOW ARE REPLACED WITH SHORT
+	--  ONES, AND THAT IS THE FIX FOR THE "ESC BACK" COLLISION.
+	--
+	--  User, 2026-08-21, screenshot Eki9Qryrh0.jpg: *"the description text
+	--  collides with the ESC BACK prompt/option"*, with SYNC EVERY FRAME
+	--  highlighted.
+	--
+	--  🌟 MEASURED, NOT NUDGED. This tab is 15 rows and no spacers = exactly
+	--  15.0 pitches, the proven ceiling (see the GRAPHICS BOOST block above):
+	--  rows run on a 50 px pitch from y=234, the hint draws one pitch below the
+	--  last row at y=984, and the ESC prompt is anchored at y=1036. A ONE-line
+	--  hint clears it by 52 px. PLATFORM_VSYNC_DESC is 152 characters - *"Match
+	--  screen updates with your monitor's refresh rate. Enabling this will cap
+	--  your FPS to your monitor's refresh rate, but will prevent screen
+	--  tearing."* - and wraps to two, putting line 2 at ~y=1030, on top of ESC.
+	--  The wrap point measured off that screenshot is ~104 characters.
+	--
+	--  🌟 WHY SHORTEN THE TEXT RATHER THAN DROP A ROW. Dropping one would mean
+	--  moving a row the user specifically asked to have here (NIGHT MODE, FOG,
+	--  HIGHER DRAW DISTANCE and GRAPHICS BOOST were all placed on this tab by
+	--  name, GRAPHICS BOOST as recently as v2.1.2), and the GRAPHICS tab has no
+	--  room either - it is 13 rows + 3 half-spacers = 14.5 pitches already.
+	--  Shortening costs nothing and it is what the user asked for generally in
+	--  v2.0.3: *"make them really simplistic."*
+	--
+	--  🛑 KEEP EVERY ONE OF THESE UNDER ~95 CHARACTERS. That is the whole point
+	--  of the block; a long one puts the collision straight back.
+	--  📝 Only rows this file creates are changed. The stock STRING is untouched
+	--  and any other menu that uses PLATFORM_VSYNC_DESC still shows Treyarch's.
+	-- ========================================================================
+	CoD.Options.Button_AddChoices_YesOrNo(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("MENU_SYNC_EVERY_FRAME_CAPS"), "r_vsync", "Match your monitor's refresh rate. Stops tearing, but caps your FPS."))
+	local MaxFpsChoices = AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_MAX_FPS_CAPS"), "com_maxfps", "The highest frame rate the game will run at.")
 	CoD.OptionsSettings.Button_AddChoices_MaxFPS(MaxFpsChoices)
 	if Engine.GetHardwareProfileValueAsString("r_vsync") == "1" then
 		MaxFpsChoices:setChoice(0)
 		MaxFpsChoices:disableSelector()
 	end
-	CoD.OptionsSettings.Button_AddChoices_DrawFPS(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_DRAW_FPS_CAPS"), "cg_drawFPS", Engine.Localize("PLATFORM_DRAW_FPS_DESC")))
+	CoD.OptionsSettings.Button_AddChoices_DrawFPS(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_DRAW_FPS_CAPS"), "cg_drawFPS", "Show your frame rate on screen."))
 	
 	CoD.OptionsSettings.Button_AddChoices_StreamerMode(AdvancedTabButtonList:addHardwareProfileLeftRightSelector("STREAMER MODE", "cl_enableStreamerMode", "Hides important networking and player information"))
 
@@ -1435,6 +1561,20 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- Deadshot's stock effect is aim-assist only, so on mouse and keyboard the
 	-- perk does nothing at all; this is what makes it worth buying either way.
 	T(QolButtons, LocalClientIndex, "BETTER DEADSHOT",    "better_deadshot",      "Deadshot doubles bullet headshot damage. Works on mouse too.")
+	-- ========================================================================
+	--  v2.2.0 - BETTER SPEED COLA, directly under BETTER DEADSHOT as asked.
+	--  User, 2026-08-21: *"make speed cola, like black ops 1 zombies, make speed
+	--  cola make the animations for rebuilding barriers twice as fast."*
+	--
+	--  🌟 TREYARCH WROTE THIS AND A TYPO SWITCHED IT OFF.
+	--  _zm_blockers::has_blocker_affecting_perk() returns the string
+	--  "specialty_fastreload", and replace_chunk() then tests it against
+	--  "speciality_fastreload" - an extra i - so the branch NEVER runs and the
+	--  board-rebuild scalar stays 1.0. Speed Cola has never sped up boarding in
+	--  retail BO2. Same class of shipped misspelling as the LUI beingAnimation
+	--  one. See zmqol_replace_chunk() in quality_of_life.gsc for the two halves.
+	-- ========================================================================
+	T(QolButtons, LocalClientIndex, "BETTER SPEED COLA",  "better_speed_cola",    "Speed Cola rebuilds barriers twice as fast, like Black Ops 1.")
 
 	-- v1.99.83, queue item 11. ON by default - the animated Pack-a-Punch camo
 	-- is behaviour the mod has always had on Mob, Buried and Origins, so the
@@ -1749,9 +1889,29 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	--  quality_of_life.gsc, the read removed from zm_highrise.gsc), so nothing
 	--  is left reading a dvar no menu writes.
 	-- ========================================================================
+	-- ========================================================================
+	--  v2.2.0 - NO BLEEDOUT PATCH. User, 2026-08-21: *"add an option to the
+	--  patches to tab called NO BLEEDOUT PATCH, which as the name suggests,
+	--  makes it so zombies don't die by themselves after being alive for too
+	--  long or getting stuck, so that way the player would have to actually kill
+	--  the zombies themself, so the zombies don't just randomly die."*
+	--
+	--  🌟 IT IS STOCK'S OWN SWITCH. maps\mp\zombies\_zm::round_spawn_failsafe()
+	--  runs on every zombie: every 30 seconds it checks whether the zombie moved
+	--  24 units, and kills it if not. The whole loop is already gated on
+	--  level.zombie_vars["zombie_use_failsafe"]. Nothing is invented.
+	--
+	--  🛑 THE FALL-OUT-OF-THE-WORLD KILL IS KEPT ON. The same function also kills
+	--  a zombie that drops below level.zombie_vars["below_world_check"], and that
+	--  one has to stay: a zombie under the map cannot be shot, so removing it
+	--  would end the round forever rather than making the player earn the kill.
+	--  See zmqol_round_spawn_failsafe() in quality_of_life.gsc.
+	-- ========================================================================
+	T(QolPatchesButtons, LocalClientIndex, "NO BLEEDOUT PATCH",    "no_bleedout",         "Stuck zombies stay alive. You have to kill every one yourself.")
+
 	T(QolPatchesButtons, LocalClientIndex, "SLIQUIFIER PRE-NERF", "sliquifier_prenerf",  "Die Rise. Sliquifier kills to round 255, chains while put away, and leaves no extra goo.")
 
-	return QolPatchesContainer                                      -- 8 total
+	return QolPatchesContainer                                      -- 9 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)
@@ -1793,12 +1953,38 @@ CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientInde
 	--  `set_round <n>`, `kill_horde 1`, `end_round 1`. set_round is also the
 	--  existing `.round <n>` chat command.
 	-- ========================================================================
+	-- ========================================================================
+	--  v2.2.0 - 500 / 1000 / 10000, and ONLY WITH THE ROUND CAP OFF.
+	--  User, 2026-08-21: *"for the change round cheat add 3 more options, round
+	--  500, 1000, 10000 but only of course if the 255 round cap has been turned
+	--  off via the patch in options for it."*
+	--
+	--  🌟 THE GSC SIDE ALREADY AGREES, so this row and the jump cannot disagree:
+	--  zmqol_goto_round() clamps to 255 when remove_round_cap is 0, matching
+	--  stock's own clamp in round_think() (_zm.gsc:3516). Hiding the three rows
+	--  here is the same test, read live off the same dvar - so with the cap on
+	--  the player is never offered a number the jump would truncate.
+	--
+	--  📝 remove_round_cap DEFAULTS TO 1 in qol_options.gsc, so out of the box
+	--  the three rows are there. The read is pcall'd like every other one in
+	--  this file; if it ever throws, the extra rows are simply not offered.
+	-- ========================================================================
+	local ZmQolRounds = {
+		{ "OFF", 0 }, { "1", 1 }, { "5", 5 }, { "10", 10 }, { "15", 15 },
+		{ "20", 20 }, { "25", 25 }, { "30", 30 }, { "40", 40 }, { "50", 50 },
+		{ "75", 75 }, { "100", 100 }, { "150", 150 }, { "200", 200 }, { "255", 255 }
+	}
+
+	local CapOk, CapValue = pcall(UIExpression.DvarString, nil, "remove_round_cap")
+
+	if CapOk and tonumber(CapValue) ~= nil and tonumber(CapValue) ~= 0 then
+		ZmQolRounds[#ZmQolRounds + 1] = { "500", 500 }
+		ZmQolRounds[#ZmQolRounds + 1] = { "1000", 1000 }
+		ZmQolRounds[#ZmQolRounds + 1] = { "10000", 10000 }
+	end
+
 	CoD.OptionsSettings.QolChoice(QolCheatsButtons, LocalClientIndex, "CHANGE ROUND", "set_round",
-		"Jump to a round. Returns to OFF once it fires.", {
-			{ "OFF", 0 }, { "1", 1 }, { "5", 5 }, { "10", 10 }, { "15", 15 },
-			{ "20", 20 }, { "25", 25 }, { "30", 30 }, { "40", 40 }, { "50", 50 },
-			{ "75", 75 }, { "100", 100 }, { "150", 150 }, { "200", 200 }, { "255", 255 }
-		})
+		"Jump to a round. Returns to OFF once it fires.", ZmQolRounds)
 	T(QolCheatsButtons, LocalClientIndex, "KILL HORDE",      "kill_horde",     "Kill every zombie on the map. Bosses are left alone.")
 	T(QolCheatsButtons, LocalClientIndex, "END ROUND",       "end_round",      "Finish this round now.")
 
@@ -1902,10 +2088,16 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	--  Guarded anyway: an unexpected nil here would hard-crash LUI, and a
 	--  left-aligned heading is a cosmetic loss, not a broken menu.
 	-- ========================================================================
+	-- 🛑 v2.2.0 - with another mod loaded (or none) the heading stays stock and
+	-- none of this mod's tabs are added. See ZmQolModLoaded() at the top.
+	local ZmQolLoaded = ZmQolModLoaded()
 	local ZmQolMenuTitle = Engine.Localize("QUALITY OF LIFE")
+	if not ZmQolLoaded then
+		ZmQolMenuTitle = Engine.Localize("MENU_SETTINGS_CAPS")
+	end
 	if InGame then
 		OptionsSettingsWidget = CoD.InGameMenu.New("OptionsSettingsMenu", LocalClientIndex, ZmQolMenuTitle)
-		if OptionsSettingsWidget.titleElement then
+		if ZmQolLoaded and OptionsSettingsWidget.titleElement then
 			OptionsSettingsWidget.titleElement:setAlignment(LUI.Alignment.Center)
 		end
 	else
@@ -2015,11 +2207,29 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	-- Stock leaves ~34 units of margin per side, so the minimum is 822 + 68 =
 	-- 890. 900 leaves 39 units (78 px) per side - 5 units more than stock's, and
 	-- still biased wide for the reason above.
-	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, 900)
+	--  v2.2.0 - 900 is the EIGHT-tab width. With no zm_qol tabs the strip is
+	--  stock's four, so it takes stock's own 500 - measured the same way, and it
+	--  is the number in the pristine .bak-before-gametab copy.
+	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, (ZmQolLoaded and 900) or 500)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_GRAPHICS_CAPS", CoD.OptionsSettings.CreateGraphicsTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_ADVANCED_CAPS", CoD.OptionsSettings.CreateAdvancedTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_SOUND_CAPS", CoD.OptionsSettings.CreateSoundTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_VOICECHAT_CAPS", CoD.OptionsSettings.CreateVoiceChatTab)
+	if not ZmQolLoaded then
+		--  🛑 A remembered tab index from a zm_qol session can point past the
+		--  four stock tabs. CurrentTabIndex is a file-level value that survives
+		--  in this same Lua state, so clamp it rather than hand loadTab an
+		--  index that does not exist.
+		if CoD.OptionsSettings.CurrentTabIndex and CoD.OptionsSettings.CurrentTabIndex > 4 then
+			CoD.OptionsSettings.CurrentTabIndex = 1
+		end
+		if CoD.OptionsSettings.CurrentTabIndex then
+			SettingsTabs:loadTab(LocalClientIndex, CoD.OptionsSettings.CurrentTabIndex)
+		else
+			SettingsTabs:refreshTab(LocalClientIndex)
+		end
+		return OptionsSettingsWidget
+	end
 	-- zm_qol: LAST, after VOICE CHAT. Registering it first is what broke the
 	-- navigation arrows in v1.93.0 - see the note above CreateQolTab.
 	-- Engine.Localize falls back to the literal when a key does not exist, which

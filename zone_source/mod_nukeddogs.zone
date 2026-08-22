@@ -1,0 +1,49 @@
+// ============================================================================
+//  mod_nukeddogs.zone - THE HELLHOUND EFFECTS, SO NUKETOWN CAN SHOW THEM.
+//                                                                    (v2.2.0)
+//  User, 2026-08-21: *"I played a match of nuketown survival with the new
+//  hellhounds option turned on in the pre-game menu, it works but there's a
+//  bunch of missing sound effects and visual effects, make sure that the dog
+//  rounds on nuketown are not missing anything."*
+//
+//  🌟 MEASURED, NOT SUSPECTED. All five effects _zm_ai_dogs::init() loads live
+//  in so_zsurvival_zm_transit.ff - the TRANZIT SURVIVAL fastfile - and in
+//  nothing else that Nuketown loads:
+//        Unlinker --list so_zsurvival_zm_transit.ff | grep fx_zombie_dog
+//            fx, maps/zombie/fx_zombie_dog_lightning_spawn
+//            fx, maps/zombie/fx_zombie_dog_lightning_buildup
+//            fx, maps/zombie/fx_zombie_dog_eyes
+//            fx, maps/zombie/fx_zombie_dog_explosion
+//            fx, maps/zombie/fx_zombie_dog_fire_trail
+//            fx, maps/zombie/fx_zombie_dog_ash_trail
+//        the same command on zm_nuked.ff, zm_nuked_patch.ff, zm_transit.ff,
+//        zm_transit_patch.ff, common_zm.ff and patch_zm.ff finds NONE of them.
+//  Nuketown survival does not load a so_zsurvival fastfile - only TranZit ships
+//  one - so on Nuketown every one of those loadfx() calls returns undefined and
+//  playfx() has nothing to draw. No spawn lightning, no eye glow, no gib, no
+//  fire trail, no ash trail. That is the "missing visual effects".
+//
+//  🛑 SHIPPING A STOCK-NAMED ASSET IN mod.ff IS SAFE HERE, AND THAT IS PROVEN BY
+//  THIS MOD'S OWN BUILD, not assumed. mod.ff already owns
+//        xmodel,  p6_zm_al_vending_ads_on          - zm_prison.ff ships it too
+//        fx,      misc/fx_zombie_cola_arsenal_on   - zm_buried.ff ships it too
+//  and the mod boots and plays on both of those maps. The fatal "Attempting to
+//  override asset ... from zone 'mod'" case is a stock SOUND BANK declared in
+//  our zone (v1.21.0, Origins), which is a different asset class entirely.
+//
+//  🛑 DONOR ORDER MATTERS AND IT IS ALREADY RIGHT. build_ff.bat --loads
+//  so_zsurvival_zm_transit.ff fifth, and none of the four ahead of it
+//  (base mod.ff, ui_zm, zm_prison, zm_prison_patch) carries any fx_zombie_dog_*
+//  - checked with Unlinker --list on all four - so these resolve from the one
+//  fastfile that has them and there is no per-map permutation to pick wrong.
+//
+//  📝 lightning_spawn is included even though _zm_ai_dogs::init() does not load
+//  it: it is part of the same set in the donor and costs nothing.
+// ============================================================================
+>game,T6
+fx,maps/zombie/fx_zombie_dog_lightning_buildup
+fx,maps/zombie/fx_zombie_dog_lightning_spawn
+fx,maps/zombie/fx_zombie_dog_eyes
+fx,maps/zombie/fx_zombie_dog_explosion
+fx,maps/zombie/fx_zombie_dog_fire_trail
+fx,maps/zombie/fx_zombie_dog_ash_trail

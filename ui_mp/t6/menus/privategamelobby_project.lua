@@ -1,4 +1,29 @@
 -- ============================================================================
+--  🛑 zm_qol v2.2.0 - THIS MOD'S LOBBY ROWS ARE GATED ON THE MOD BEING LOADED.
+--  User, 2026-08-21: another mod was loaded and *"some of the stuff from my mod
+--  was showing up"*, and it survived removing zm_qol with the installer.
+--  build.bat used to copy this file into Plutonium's GLOBAL storage\t6\raw\
+--  folder, which every mod - and no mod - reads. It no longer does, but a copy
+--  from an older build may still be there, so the gate makes such a copy behave
+--  like Plutonium's own file.
+--
+--  📝 Dvar.fs_game:get() is Plutonium's own accessor for this, used verbatim in
+--  its shipped raw\ui\t6\mods.lua:127. It fails OPEN - a read that throws shows
+--  the rows - because a lobby that silently lost its rows would be worse.
+-- ============================================================================
+function ZmQolLobbyModLoaded()
+	local Ok, Value = pcall(function () return Dvar.fs_game:get() end)
+
+	if not Ok or type(Value) ~= "string" then
+		return true
+	end
+
+	Value = string.lower(Value)
+
+	return Value == "mods/zm_qol" or Value == "zm_qol"
+end
+
+-- ============================================================================
 --  zm_qol v2.1.3 - THE NUKETOWN SURVIVAL MAP PREVIEW, SIZED TO FIT
 --
 --  User, 2026-08-21, with a screenshot: *"the hellhounds option is here for
@@ -239,7 +264,12 @@ CoD.PrivateGameLobby.GameTypeSettings[5].maps[1] = "zm_transit"
 --  inside the panel, and the panel cannot simply drop a row without landing on
 --  ESC Back. Change one without the other and they overlap.
 -- ===========================================================================
-CoD.PrivateGameLobby.GameTypeSettings[5].maps[2] = "zm_nuked"
+-- 🛑 v2.2.0 - the Nuketown row only exists when zm_qol is loaded. Stock's
+-- whitelist is zm_transit alone; with another mod loaded this file must leave it
+-- that way. See ZmQolLobbyModLoaded() at the top.
+if ZmQolLobbyModLoaded() then
+	CoD.PrivateGameLobby.GameTypeSettings[5].maps[2] = "zm_nuked"
+end
 CoD.PrivateGameLobby.GameTypeSettings[6] = {}
 CoD.PrivateGameLobby.GameTypeSettings[6].id = "cleansedLoadout"
 CoD.PrivateGameLobby.GameTypeSettings[6].name = "ZMUI_CLEANSED_LOADOUT_CAPS"
@@ -902,7 +932,13 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 		-- DIFFICULTY is GameTypeSettings[1], so nothing short of rendering our
 		-- table before that one puts a row above it. Only one of these four rows
 		-- can pass the map/mode filters at a time, so this adds exactly one row.
-		AddGameOptionsButtons(PrivateGameLobbyButtonPane, CoD.PrivateGameLobby.QolCharacter, "dvar")
+		-- 🛑 v2.2.0 - only when zm_qol is the loaded mod. See ZmQolLobbyModLoaded()
+		-- at the top of this file: an older build may still have a copy of this
+		-- file sitting in Plutonium's global raw\ folder, where it is shared by
+		-- every mod.
+		if ZmQolLobbyModLoaded() then
+			AddGameOptionsButtons(PrivateGameLobbyButtonPane, CoD.PrivateGameLobby.QolCharacter, "dvar")
+		end
 		AddGameOptionsButtons(PrivateGameLobbyButtonPane, CoD.PrivateGameLobby.GameTypeSettings, "gts")
 		AddGameOptionsButtons(PrivateGameLobbyButtonPane, CoD.PrivateGameLobby.Dvars, "dvar")
 		PrivateGameLobbyButtonPane:registerEventHandler("enable_sliding_zm", CoD.PrivateGameLobby.EnableSlidingZombie)

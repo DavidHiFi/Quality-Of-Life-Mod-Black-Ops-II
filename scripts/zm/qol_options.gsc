@@ -228,6 +228,19 @@ init()
     //  reads it on every bullet, so it is live both ways mid-game.
     qol_opt_dvar( "better_deadshot", "0" );
 
+    //  v2.2.0 - BETTER SPEED COLA, user request 2026-08-21, the GAME tab row
+    //  directly under BETTER DEADSHOT. OFF by default for the same reason that
+    //  one is: a new switch must not change what the mod already does until it
+    //  is thrown. Read per board chunk in quality_of_life.gsc's
+    //  zmqol_replace_chunk() / zmqol_do_post_chunk_repair_delay(), so it is live
+    //  mid-match in both directions.
+    qol_opt_dvar( "better_speed_cola", "0" );
+
+    //  v2.2.0 - NO BLEEDOUT PATCH, user request 2026-08-21, the PATCHES tab.
+    //  OFF = stock. Read on every pass of zmqol_round_spawn_failsafe(), which is
+    //  stock's own 30-second per-zombie loop, so it is live mid-match too.
+    qol_opt_dvar( "no_bleedout", "0" );
+
     // ------------------------------------------------------------------------
     //  v1.99.91 - NO BOX LIMITS (was BOX LIMITS, v1.99.83, queue item 30).
     //

@@ -37,14 +37,25 @@ Black Ops II Zombies  ·  Plutonium T6
       files of yours offers to back them up first.
 
    ·  BACKUPS. The menu has a "Back up / restore my own files"
-      screen. Your textures, your sounds, your ReShade setup and
-      the mod folder can each be backed up and put back on their
-      own, whenever you like. They are kept as plain folders in
+      screen. Your textures, your sounds, your controller icons,
+      your ReShade setup and the mod folder can each be backed up
+      and put back on their own, whenever you like. They are
+      kept as plain folders in
 
           storage\t6\backups\
 
       so you can copy them out by hand too. Nothing in there is
       ever deleted by an install or an update - only by you.
+
+   ·  PS5 CONTROLLER ICONS are an option of their own. They swap
+      the Xbox button prompts for DualSense ones, and because the
+      HD texture pack contains the same twenty filenames they are
+      re-applied for you if you install the texture pack after.
+
+   ·  RESHADE now installs the FULL shader collection rather than
+      only the shaders the bundled BO2 preset happens to use, so
+      you can switch effects on in the overlay without hunting
+      files down first.
 
    ·  Everything can be removed again from the same menu, one
       piece at a time.

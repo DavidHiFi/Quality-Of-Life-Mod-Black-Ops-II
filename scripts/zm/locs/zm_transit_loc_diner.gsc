@@ -739,9 +739,54 @@ zmqol_add_semtex_wallbuy()
 //      zmqol_claymore_diner_y -7430      (into the wall, 1 unit at a time)
 //      zmqol_claymore_diner_z -7          (up or down the wall)
 //
+//  ── v2.2.0: IT WAS FLOATING IN THE MIDDLE OF THE SHACK, AND NOW IT IS ON THE
+//     WALL, MEASURED ───────────────────────────────────────────────────────────
+//  User, 2026-08-21: *"the claymore wallbuy on Diner Survival is still floating
+//  in the middle of the shack... have it properly aligned to the wall next to
+//  the window where zombies come through in the shack."*
+//
+//  🌟 THE WALL IS IN THE MAPENTS AFTER ALL - the block above looked for a
+//  barrier ENTITY and there is none, but the WINDOWS are there as mantle lanes,
+//  and a mantle lane straddles the surface it crosses. Both of the shack's
+//  windows are in the zm_transit dump:
+//        window A   begin (-3839, -7531, -28) -> end (-3839, -7447, -28)
+//        window B   begin (-3564, -7536, -28) -> end (-3564, -7452, -28)
+//                   (targetname "hatch_storage_node", animscript zm_mantle_over_40)
+//  Both run along +Y with 84 units between begin and end, so the wall they cross
+//  is a single east-west plane at  y = -7494,  with the shack interior on the +Y
+//  side. That also settles which window the user means: from the flashed spot
+//  (-3615, -7398) window B is 109 units away and window A is 245, so it is B.
+//
+//  THE NEW ORIGIN, term by term:
+//        y = -7486   the interior face of that wall: the plane is y = -7494 and
+//                    the model is mounted just inside it
+//        x = -3630   66 units west of window B's centre, i.e. beside the window
+//                    and clear of it - the window is ~64 wide so its west edge
+//                    is near x = -3596, and the claymore's own half-width is
+//                    ~15, leaving about 19 units of gap. West rather than east
+//                    because west is where the user was standing.
+//        z = -7      UNCHANGED. The 51-units-up-the-wall figure was derived from
+//                    stock's own farm claymore and nothing about it has changed.
+//        yaw = 90    the wall's outward normal is +Y (the interior side, where
+//                    the mantle END nodes are), and this file's own derived rule
+//                    is buy yaw = outward normal, model yaw = that + 90. The old
+//                    270 came from reading the player's FACING as the wall
+//                    normal, which is what put it in mid-air pointing the wrong
+//                    way.
+//
+//  📝 RESIDUAL RISK, STATED PLAINLY: the WALL PLANE is measured, the WALL
+//  THICKNESS is not - mapents carries no brush geometry, so "8 units in from the
+//  plane" is the one estimated term. If it ends up a little proud of the wall or
+//  a little sunk into it, that is a one-line nudge and nothing else moves:
+//      zmqol_claymore_diner_y -7490    (further into the wall)
+//      zmqol_claymore_diner_y -7482    (further out of it)
+//  Standing with your back to the exact spot and running .where would settle it
+//  outright.
+//
 //  🛑 THE DVARS ARE READ ON BOTH SIDES FROM THE SAME DEFAULTS. Changing one
 //  renames the clientfield on both sides identically, which is safe; changing
-//  one side's default alone is a guaranteed drop at load.
+//  one side's default alone is a guaranteed drop at load. Both defaults moved
+//  together in v2.2.0 - zm_expanded.csc has the identical numbers.
 //
 //  📝 NO ASSET WORK. claymore_zm is already in this mod's include list for
 //  TranZit (scripts\zm\zm_transit\zm_transit.csc:82 and the server twin), and
@@ -753,13 +798,13 @@ zmqol_claymore_wallbuy_origin()
 	// Twin of zm_expanded.csc::zmqol_claymore_wallbuy_origin(). Same dvars, same
 	// defaults - if these ever disagree the two sides register different
 	// clientfield names and everyone is dropped at load.
-	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3615 ), getdvarintdefault( "zmqol_claymore_diner_y", -7398 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3630 ), getdvarintdefault( "zmqol_claymore_diner_y", -7486 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
 }
 
 zmqol_add_claymore_wallbuy()
 {
 	v_origin = zmqol_claymore_wallbuy_origin();
-	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 270 );
+	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 90 );
 
 	// The buy struct takes the wall's outward normal; the model struct takes
 	// that + 90. Stock's own pair, see the block above.
@@ -1035,6 +1080,10 @@ disable_zombie_spawn_locations()
 		zmqol_disable_out_of_arena_ai_locations( zone.screecher_locations );
 		zmqol_disable_out_of_arena_ai_locations( zone.avogadro_locations );
 	}
+
+	//  v2.2.0 - AFTER the pruning above, so the snapshot it takes can only hold
+	//  in-arena locations. See the banner over zmqol_diner_dog_init().
+	zmqol_diner_dog_init();
 }
 
 //  Structs are references in GSC, so writing .is_enabled through a copied array
@@ -1067,4 +1116,227 @@ zmqol_disable_out_of_arena_ai_locations( a_locs )
 			a_locs[i].is_enabled = false;
 		}
 	}
+}
+
+// ============================================================================
+//  DINER HELLHOUNDS  -  A DOG THAT NEVER ARRIVES                    (v2.2.0)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-21, round 19 of Diner survival: *"the final hell hound spawned
+//  god knows where, outside of the playable map of Diner obviously, couldn't
+//  even hear the sound of it or anything... make sure that the spawns of the
+//  hell hounds aren't bugged at all and work properly for Diner Survival, and
+//  they spawn in the map all the time."*
+//
+//  🛑 v1.99.90 PRUNED THE SPAWN LIST AND THAT WAS ONLY HALF THE STORY. The dog
+//  the user could not find was almost certainly not at a bad LOCATION - it was
+//  at the world origin, hidden, with ignoreme still set. Here is the whole
+//  chain, every link read out of the stock dump:
+//
+//    1. Diner survival has exactly ONE dog spawner and it is at (0, 0, 0).
+//       `so_zsurvival_zm_transit.addonmapents` carries one actor_zombie_dog with
+//       script_noteworthy "zombie_dog_spawner" at origin "0 0 0", and the BASE
+//       zm_transit mapents carries NONE - grep returns zero. So
+//       level.dog_spawners has one entry, sitting at the map origin.
+//
+//    2. Stock spawns every dog THERE and teleports it afterwards.
+//       _zm_ai_dogs::dog_round_spawning() (:135-141):
+//             spawn_loc = [[ level.dog_spawn_func ]]( ... );
+//             ai        = spawn_zombie( level.dog_spawners[0] );      <- at 0,0,0
+//             spawn_loc thread dog_spawn_fx( ai, spawn_loc );
+//       and dog_spawn_fx() is what does `ai forceteleport( ent.origin, angles )`,
+//       `ai show()` and `ai.ignoreme = 0` - in that order, at the END.
+//
+//    3. So if dog_spawn_fx never completes, the dog stays at (0, 0, 0), STILL
+//       HIDDEN and STILL ignoring the player. Invisible, silent, unkillable,
+//       and the round can never end. That is exactly what was reported.
+//
+//    4. The way it fails is stock's own fallback. dog_spawn_transit_logic()
+//       (zm_transit.gsc:2906) ends with `return dog_locs[0]` where dog_locs is
+//       level.enemy_dog_locations - and that list is REBUILT EVERY SECOND by
+//       _zm_zonemgr::create_spawner_list() from the zones that are enabled AND
+//       active AND spawning_allowed. If it is momentarily empty, dog_locs[0] is
+//       undefined, `spawn_loc thread dog_spawn_fx(...)` throws on an undefined
+//       entity, and the thread dies before the teleport.
+//
+//  🌟 THE FIX IS IN TWO PARTS, AND THE SECOND ONE IS THE POINT.
+//    (a) level.dog_spawn_func is a POINTER, so this location script simply owns
+//        it. zmqol_dog_spawn_diner_logic() is stock's own transit logic with the
+//        one hole closed: it can never return undefined, because it falls back
+//        to a snapshot of the arena's dog locations taken at init.
+//    (b) A per-dog WATCHDOG, because (a) only fixes the failure mode that can be
+//        named. Anything else inside dog_spawn_fx - a missing fx handle, an
+//        undefined favoriteenemy at the wrong moment - lands the dog in the same
+//        state, and the watchdog does not care which: if a dog is still sitting
+//        within 64 units of its spawner 4 seconds after it spawned, it is put
+//        where it should have gone, shown, and un-ignored.
+//
+//  🛑 DELIBERATELY DINER-ONLY, like the v1.99.90 pruning above it. This is
+//  called from this location script and nothing else, so no other map's dog
+//  rounds are touched.
+//
+//  📝 The roof spawns are LEFT ALONE. Two of the arena's dog locations sit on
+//  the diner roof at z 242.3 (zone_diner_roof_spawners); they are Treyarch's
+//  own, they are inside the arena, and there is no evidence they are bad. If a
+//  dog ever does get stuck up there the watchdog will not catch it - it only
+//  catches dogs that never left the spawner - so that would be a separate fix.
+// ============================================================================
+zmqol_diner_dog_init()
+{
+    //  Snapshot the arena's dog locations AFTER the pruning pass above has run,
+    //  so the fallback list can only contain in-arena spots.
+    level.zmqol_diner_dog_locs = [];
+
+    for ( z = 0; z < level.zone_keys.size; z++ )
+    {
+        zone = level.zones[level.zone_keys[z]];
+
+        if ( !isdefined( zone ) || !isdefined( zone.dog_locations ) )
+            continue;
+
+        for ( i = 0; i < zone.dog_locations.size; i++ )
+        {
+            s_loc = zone.dog_locations[i];
+
+            if ( !isdefined( s_loc ) || !isdefined( s_loc.origin ) )
+                continue;
+
+            //  is_enabled is what the pruning pass writes; honour it here so a
+            //  struct this file just switched off cannot come back as a
+            //  fallback.
+            if ( isdefined( s_loc.is_enabled ) && !s_loc.is_enabled )
+                continue;
+
+            level.zmqol_diner_dog_locs[level.zmqol_diner_dog_locs.size] = s_loc;
+        }
+    }
+
+    println( "[zm_qol] diner dogs: " + level.zmqol_diner_dog_locs.size + " in-arena dog location(s) snapshotted" );
+
+    //  🛑 ONLY TAKE THE POINTER IF THERE IS SOMETHING TO FALL BACK ON. With an
+    //  empty snapshot this function would be strictly worse than stock's.
+    if ( level.zmqol_diner_dog_locs.size > 0 )
+        level.dog_spawn_func = ::zmqol_dog_spawn_diner_logic;
+
+    level thread zmqol_diner_dog_watchdog();
+}
+
+//  Stock's dog_spawn_transit_logic(), with the undefined return closed off.
+//  The 160000 / 1322500 bounds are stock's own (400 and 1150 units squared).
+zmqol_dog_spawn_diner_logic( dog_array, favorite_enemy )
+{
+    dog_locs = array_randomize( level.enemy_dog_locations );
+
+    for ( i = 0; i < dog_locs.size; i++ )
+    {
+        if ( isdefined( level.old_dog_spawn ) && level.old_dog_spawn == dog_locs[i] )
+            continue;
+
+        canuse = 1;
+        players = get_players();
+
+        foreach ( player in players )
+        {
+            if ( !canuse )
+                continue;
+
+            dist_squared = distancesquared( dog_locs[i].origin, player.origin );
+
+            if ( dist_squared < 160000 || dist_squared > 1322500 )
+                canuse = 0;
+        }
+
+        if ( canuse )
+        {
+            level.old_dog_spawn = dog_locs[i];
+            return dog_locs[i];
+        }
+    }
+
+    //  Stock's own fallback, guarded.
+    if ( dog_locs.size > 0 && isdefined( dog_locs[0] ) )
+    {
+        level.old_dog_spawn = dog_locs[0];
+        return dog_locs[0];
+    }
+
+    //  🛑 THE HOLE STOCK LEAVES OPEN. Reached when level.enemy_dog_locations is
+    //  momentarily empty; stock returns undefined here and the dog is stranded
+    //  at the spawner. The snapshot is built from the same structs, so this is
+    //  still a real in-arena spot.
+    s_fallback = level.zmqol_diner_dog_locs[randomint( level.zmqol_diner_dog_locs.size )];
+    level.old_dog_spawn = s_fallback;
+    println( "[zm_qol] diner dogs: enemy_dog_locations was EMPTY - used the snapshot fallback" );
+    return s_fallback;
+}
+
+//  Catches a dog that never got teleported, whatever the reason.
+zmqol_diner_dog_watchdog()
+{
+    level endon( "end_game" );
+    level endon( "intermission" );
+
+    v_spawner = ( 0, 0, 0 );
+
+    if ( isdefined( level.dog_spawners ) && level.dog_spawners.size > 0 && isdefined( level.dog_spawners[0] ) )
+        v_spawner = level.dog_spawners[0].origin;
+
+    for ( ;; )
+    {
+        wait 1;
+
+        if ( !isdefined( level.zmqol_diner_dog_locs ) || level.zmqol_diner_dog_locs.size == 0 )
+            continue;
+
+        a_ai = getaiarray( level.zombie_team );
+
+        for ( i = 0; i < a_ai.size; i++ )
+        {
+            ai = a_ai[i];
+
+            if ( !isdefined( ai ) || !isalive( ai ) )
+                continue;
+
+            if ( !( isdefined( ai.isdog ) && ai.isdog ) )
+                continue;
+
+            //  First sighting: remember when, and move on. dog_spawn_fx takes
+            //  1.5s of its own before it teleports, so nothing is judged early.
+            if ( !isdefined( ai.zmqol_dog_seen ) )
+            {
+                ai.zmqol_dog_seen = gettime();
+                continue;
+            }
+
+            if ( gettime() - ai.zmqol_dog_seen < 4000 )
+                continue;
+
+            //  Already rescued once - do not fight the stock thread if it is
+            //  simply slow.
+            if ( isdefined( ai.zmqol_dog_rescued ) )
+                continue;
+
+            if ( distancesquared( ai.origin, v_spawner ) > 4096 )     //  64 units
+                continue;
+
+            ai.zmqol_dog_rescued = 1;
+
+            s_loc = level.zmqol_diner_dog_locs[randomint( level.zmqol_diner_dog_locs.size )];
+
+            //  The tail of stock's own dog_spawn_fx(), in stock's order.
+            v_angles = ai.angles;
+
+            if ( isdefined( ai.favoriteenemy ) && isdefined( ai.favoriteenemy.origin ) )
+            {
+                v_face = vectortoangles( ai.favoriteenemy.origin - s_loc.origin );
+                v_angles = ( ai.angles[0], v_face[1], ai.angles[2] );
+            }
+
+            ai forceteleport( s_loc.origin, v_angles );
+            ai show();
+            ai.ignoreme = 0;
+            ai notify( "visible" );
+
+            println( "[zm_qol] diner dogs: STRANDED DOG rescued to (" + int( s_loc.origin[0] ) + "," + int( s_loc.origin[1] ) + "," + int( s_loc.origin[2] ) + ")" );
+        }
+    }
 }

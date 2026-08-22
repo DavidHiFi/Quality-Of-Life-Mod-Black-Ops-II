@@ -22,7 +22,11 @@ What it can do
   install or update the mod          keeping your menu settings, or wiping them
   install the HD texture pack        with a backup of what you had first
   install the custom sound pack      same
-  install ReShade + the BO2 preset   see the note below
+  install ReShade + the BO2 preset   see the note below, and it now brings
+                                     the FULL shader collection, not only the
+                                     shaders the preset happens to use
+  install PS5 controller icons       swaps the Xbox button prompts for DualSense
+                                     ones, with a backup of what you had first
   remove any of those again          putting your own files back
   check GitHub for a newer release
 

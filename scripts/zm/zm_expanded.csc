@@ -426,7 +426,7 @@ zmqol_claymore_wallbuy_origin()
 	//  (_zm_weapons.csc:218), so a single unit of drift between these two
 	//  functions renames the field on one side only and drops every player at
 	//  load with EXE_CLIENT_FIELD_MISMATCH.
-	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3615 ), getdvarintdefault( "zmqol_claymore_diner_y", -7398 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3630 ), getdvarintdefault( "zmqol_claymore_diner_y", -7486 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
 }
 
 zmqol_add_claymore_wallbuy()
@@ -435,7 +435,7 @@ zmqol_add_claymore_wallbuy()
 		return;
 
 	v_origin = zmqol_claymore_wallbuy_origin();
-	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 270 );
+	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 90 );
 
 	//  Stock's own pair: the model struct is rotated +90 from the buy struct.
 	//  See the long block on the server copy for where that came from.
@@ -2158,28 +2158,18 @@ zmqol_deadshot_perk_callback( localclientnum, oldval, newval, bnewent, binitials
 	if ( isdefined( level.zombies_global_perk_client_callback ) )
 		self [[ level.zombies_global_perk_client_callback ]]( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump );
 
-	//  ====================================================================
-	//  🔬 v1.99.75 PROBE - PRINT ONLY, NO BEHAVIOUR CHANGE.
-	//  User, 2026-08-19, on a controller with BOTH assists enabled: Deadshot
-	//  did not lock to heads at all. The v1.99.61 fix has never been verified,
-	//  and there are two very different reasons it could be silent - this
-	//  callback never firing, or the local-player guard rejecting it - so the
-	//  line is printed BEFORE the guard and again after.
-	//  🛑 DELETE once the cause is known.
-	//  ====================================================================
-	println( "[zm_qol] deadshot cf: newval=" + newval + " client=" + localclientnum + " initial=" + binitialsnap );
-
+	//  🛑 v2.2.0 - THE v1.99.75 PROBE PRINTS ARE GONE. The cause is known and
+	//  fixed at source: this mod was setting level.disable_deadshot_clientfield
+	//  on every map, which killed stock's own handler. Stock's field is
+	//  registered again (see init_client_flag_callback_funcs above) and this
+	//  substitute stays only to cover Buried, where stock switches that field
+	//  off itself. The prints ran on every perk change and every spectate, and
+	//  the log is read for real faults.
 	if ( !self islocalplayer() || isspectating( localclientnum, 0 ) || isdefined( level.localplayers[localclientnum] ) && self getentitynumber() != level.localplayers[localclientnum] getentitynumber() )
-	{
-		println( "[zm_qol] deadshot cf: REJECTED by the local-player guard" );
 		return;
-	}
 
 	if ( newval )
-	{
-		println( "[zm_qol] deadshot cf: usealternateaimparams()" );
 		self usealternateaimparams();
-	}
 	else
 		self clearalternateaimparams();
 }
@@ -2312,7 +2302,34 @@ perks_register_clientfield()
 
 init_client_flag_callback_funcs()
 {
-	level.disable_deadshot_clientfield = 1;
+	//  ========================================================================
+	//  🛑 v2.2.0 - level.disable_deadshot_clientfield IS NO LONGER SET HERE.
+	//  User, 2026-08-21: *"make sure you quit messing around with deadshot and
+	//  controller players, deadshot's meant to make controller players lock onto
+	//  the head so make it behave normally."*
+	//
+	//  🌟 STOCK DOES NOT SET THIS FLAG AT ALL - across the whole 2,093-file dump
+	//  the ONLY places that set it are Buried's own map scripts
+	//  (zm_buried.gsc:222 and zm_buried.csc:40), where there is no Deadshot
+	//  machine and the bit is freed on purpose. This mod set it on EVERY map,
+	//  which deleted the `deadshot_perk` clientfield and with it stock's
+	//  player_deadshot_perk_handler() - the one and only place BO2 calls
+	//  usealternateaimparams(), which IS the head snap.
+	//
+	//  🌟 PUTTING IT BACK COSTS NOTHING. The per-map clientfield dumps show
+	//  stock registering `toplayer deadshot_perk 1 1 int` on Mob of the Dead,
+	//  the tightest toplayer set this mod touches - so this is a bit Treyarch
+	//  always spent, not a new one.
+	//
+	//  🛑 THE SERVER HALF MUST MATCH. quality_of_life.gsc::init_client_flags()
+	//  has the identical line removed in the same version. One side without the
+	//  other is EXE_CLIENT_FIELD_MISMATCH at load.
+	//
+	//  📝 The v1.99.61 substitute on `perk_dead_shot` STAYS. It is what covers
+	//  Buried, where stock's own map script switches this field off and where
+	//  this mod adds Deadshot anyway. Both paths call the same engine function
+	//  with the same value in the same frame, so running both is harmless.
+	//  ========================================================================
 	level._client_flag_callbacks = [];
 	level._client_flag_callbacks["vehicle"] = [];
 	level._client_flag_callbacks["player"] = [];

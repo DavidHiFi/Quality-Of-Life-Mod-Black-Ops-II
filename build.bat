@@ -97,38 +97,57 @@ echo [5/6] Installing to Plutonium (skipped if not installed):
 echo        %PLUTO_DIR%
 call :deploy "%PLUTO_DIR%"
 if errorlevel 1 echo    [skip] couldn't write to Plutonium - the send-ready copy above is still good.
-
 echo.
-echo [6/6] Refreshing LUI copies in Plutonium's raw\ folder...
-REM  v1.99.85 - THE REASON GIVEN HERE USED TO BE WRONG, AND IT COST A FILE.
-REM  It said 'Plutonium searches raw\ BEFORE mod.iwd'. Measured out of
-REM  console_zm.log, that is only true when NO MOD IS LOADED. The search path
-REM  printed right after 'loadmod: loaded mods/zm_qol' is, in order:
-REM        1 storage\t6\mods\zm_qol\mod.iwd
-REM        2 storage\t6\mods\zm_qol
-REM        3 storage\t6\raw     - raw is BELOW mod.iwd, not above it
-REM  So a .lua in mod.iwd wins for anything loaded once the mod is up.
+echo [6/7] Cleaning this mod's LUI out of Plutonium's raw\ folder...
+REM  ============================================================================
+REM  🛑 v2.2.0 - THIS STEP USED TO *WRITE* INTO raw\. IT NOW UNDOES THAT.
 REM
-REM  What actually needs this step is the FRONTEND menus, which LUI loads at
-REM  BOOT, before any mod is on the search path at all - optionssettings.lua,
-REM  privategamelobby_project.lua and selectmaplistzombie.lua. Those three
-REM  genuinely cannot be delivered any other way.
+REM  User, 2026-08-21, with a screenshot: "I loaded a completely seperate mod
+REM  from my quality of life mod and some of the stuff from my mod was showing
+REM  up for some reason, tested multiple mods as well... I also removed the mod
+REM  with the installer and tried loading up a mod and it still had my mods'
+REM  options there."
 REM
-REM  IN-GAME LUI MUST NOT BE SYNCED HERE. ui_mp\t6\hud\class.lua, the pause
-REM  menu, is reloaded AFTER the mod loads - it appears twice in the log, once
-REM  at boot and once after 'Loading fastfile mod' - so mod.iwd delivers it on
-REM  its own, to downloaders as well as to this machine. Copying it into raw\
-REM  would also leave the mod's rows in the player's VANILLA pause menu with no
-REM  mod loaded, and leave a stale copy shadowing Plutonium's own file the next
-REM  time they update it. It is in the skip table below for that reason. Put
-REM  any other in-game .lua there too.
+REM  storage\t6\raw\ is GLOBAL. It is not per-mod, every mod reads it, no-mod
+REM  reads it, and uninstalling zm_qol never touched it. Copying this project's
+REM  optionssettings.lua / privategamelobby_project.lua / selectmaplistzombie.lua
+REM  in there put this mod's tabs, rows and start locations in front of every
+REM  other mod on the machine, permanently.
 REM
-REM  Any other .lua that exists in BOTH this project and raw\ is refreshed here.
-REM  Files only in raw\ are left alone - they are not ours.
+REM  🌟 AND THE SYNC WAS NEVER NEEDED. The old comment here claimed the frontend
+REM  menus load at BOOT before any mod is on the search path, so they could not
+REM  be delivered any other way. Only the first half of that is true. Measured
+REM  out of console_zm.log.006, verbatim line numbers:
+REM        523  Loaded menu file: ui_mp/t6/hud/class.lua           <- boot
+REM        524  Loaded menu file: ui/t6/menus/optionssettings.lua  <- boot
+REM        700  loadmod: loaded mods/zm_qol
+REM        729  Loading fastfile mod
+REM        786  Loaded menu file: ui/t6/mainlobby.lua              <- AGAIN
+REM        789  Loaded menu file: ui/t6/menus/optionssettings.lua  <- AGAIN
+REM        792  Loaded menu file: ui_mp/t6/menus/privategamelobby_project.lua
+REM        793  Loaded menu file: ui_mp/t6/zombie/selectmaplistzombie.lua
+REM  LUI reloads the frontend menus AFTER a mod loads, and the search path
+REM  printed right after loadmod is mod.iwd (1), the mod folder (2), raw (3). So
+REM  mod.iwd's copy wins on its own - exactly the reason class.lua has never
+REM  needed this step.
+REM
+REM  WHAT THIS STEP DOES NOW, per file this project ships under ui\ or ui_mp\:
+REM    - if raw holds a copy that CONTAINS THE STRING "zm_qol" - i.e. one of
+REM      ours, from any build - restore the pristine Plutonium file from its
+REM      .bak-* sibling if one exists, otherwise LEAVE IT ALONE and say so.
+REM      A BYTE-COMPARE IS NOT GOOD ENOUGH and the first attempt used one: the
+REM      moment this project edits one of these files the stale copy in raw\
+REM      stops matching and becomes invisible to the clean-up forever.
+REM      Plutonium own files carry no such string - checked against every
+REM      .bak-* in raw and against its mainlobby.lua.
+REM    - never delete a raw\ file with no backup: Plutonium's own copy of
+REM      selectmaplistzombie.lua was overwritten before any backup was taken, and
+REM      deleting it would leave every other mod with no map picker at all. The
+REM      in-file ZmQolModLoaded() gate is what makes such a leftover behave.
+REM  ============================================================================
 set "RAW_DIR=%LOCALAPPDATA%\Plutonium\storage\t6\raw"
 set "PROJ_DIR=%~dp0"
-"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$raw=$env:RAW_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $raw)){ Write-Host '    [skip] no raw\ folder - nothing shadows the mod'; exit 0 }; $skip=@{ 'ui_mp\t6\hud\class.lua'=$true }; $n=0; @('ui_mp','ui') | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $proj $_) -Recurse -Filter *.lua -ErrorAction SilentlyContinue } | ForEach-Object { $rel=$_.FullName.Substring($proj.Length); if($skip[$rel]){ Write-Host ('    [skip] ' + $rel + '  in-game LUI, mod.iwd delivers it'); return }; $dst=Join-Path $raw $rel; if(Test-Path -LiteralPath $dst){ Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [sync] ' + $rel); $n++ } }; if($n -eq 0){ Write-Host '    [ok] nothing in raw\ shadows this mod' }" 2>nul
-
+"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$raw=$env:RAW_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $raw)){ Write-Host '    [skip] no raw\ folder'; exit 0 }; $restored=0; $left=0; @('ui_mp','ui') | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $proj $_) -Recurse -Filter *.lua -ErrorAction SilentlyContinue } | ForEach-Object { $rel=$_.FullName.Substring($proj.Length); $dst=Join-Path $raw $rel; if(-not (Test-Path -LiteralPath $dst)){ return }; $body=(Get-Content -LiteralPath $dst -Raw); if($body -eq $null -or -not ($body -match 'zm_qol')){ return }; $bak=@(Get-ChildItem -LiteralPath (Split-Path $dst -Parent) -Filter ((Split-Path $dst -Leaf) + '.bak-*') -ErrorAction SilentlyContinue | Sort-Object LastWriteTime); if($bak.Count -gt 0){ Copy-Item -LiteralPath $bak[0].FullName -Destination $dst -Force; Write-Host ('    [restored] ' + $rel + '  <- ' + $bak[0].Name); $restored++ } else { Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [gated] ' + $rel + '  no pristine backup - refreshed to the mod-aware copy'); $left++ } }; if($restored -eq 0 -and $left -eq 0){ Write-Host '    [ok] raw\ holds none of this mod''s LUI' }" 2>nul
 echo.
 echo [7/7] Reconciling Plutonium's loose scripts\ folder...
 REM  🛑 THIS ONE COST SIX BOOTS AND FOUR CRASHES, 2026-08-11.
