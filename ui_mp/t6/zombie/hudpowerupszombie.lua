@@ -42,7 +42,16 @@ CoD.PowerUps.ClientFieldNames[5] = {
 }
 CoD.PowerUps.ClientFieldNames[6] = {
 	clientFieldName = "powerup_zombie_blood",
-	material = RegisterMaterial("specialty_zomblood_zombies")
+	-- zm_qol v2.2.6 - THE USER'S OWN ZOMBIE BLOOD ICON, UNDER A NAME NOTHING
+	-- ELSE OWNS. specialty_zomblood_zombies lives in dlczm4.ipak, and that ipak
+	-- is MOUNTED ON EVERY MAP (the user's console_zm.log, line 482, in a
+	-- zm_transit session: "Added ipak file: dlczm4"), so no loose .iwi can ever
+	-- replace it - which is why their custom art kept coming out stock.
+	-- zmqol_zomblood_zombies is in no ipak and no stock fastfile, so the mod's
+	-- own image and material simply ARE the asset. Declared in
+	-- zone_source\mod_locations.zone; the .iwi ships in images\ (pixels) and
+	-- zone_assets\images\ (so the Linker can compile the material).
+	material = RegisterMaterial("zmqol_zomblood_zombies")
 }
 CoD.PowerUps.ClientFieldNames[7] = {
 	clientFieldName = "deathmachine_powerup",

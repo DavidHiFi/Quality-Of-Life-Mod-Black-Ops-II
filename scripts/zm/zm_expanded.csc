@@ -426,7 +426,7 @@ zmqol_claymore_wallbuy_origin()
 	//  (_zm_weapons.csc:218), so a single unit of drift between these two
 	//  functions renames the field on one side only and drops every player at
 	//  load with EXE_CLIENT_FIELD_MISMATCH.
-	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3630 ), getdvarintdefault( "zmqol_claymore_diner_y", -7486 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3624 ), getdvarintdefault( "zmqol_claymore_diner_y", -7486 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
 }
 
 zmqol_add_claymore_wallbuy()

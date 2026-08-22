@@ -34,7 +34,7 @@ $REPO    = 'DavidHiFi/zm_qol'
 $MODID   = 'zm_qol'
 $MODNAME = 'Quality Of Life'
 $MODFILES = @('mod.ff','mod.iwd','mod.json','mod.all.sabl','mod.all.sabs')
-$SOUNDFILES = @('cmn_root.all.sabl','zmb_code_post_gfx.all.sabs','zmb_common.english.sabs')
+$SOUNDFILES = @('cmn_root.all.sabl','zmb_code_post_gfx.all.sabs','zmb_common.english.sabs','zmb_alcatraz.all.sabl','zmb_tomb.all.sabl')
 
 $HERE = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -55,7 +55,33 @@ $OLDBACKUPS = Join-Path $STATE 'backups'
 $LOGFILE  = Join-Path $HERE 'installer.log'
 
 $script:Log = New-Object System.Collections.Generic.List[string]
-$script:Headless = [bool]$Action
+
+# ---------------------------------------------------------------------------
+#  🛑 v2.2.6 - A RUN WITH NOWHERE TO READ A KEY FROM MUST END, NOT SPIN.
+#
+#  Measured 2026-08-23: launching this script with stdin redirected and no
+#  -Action ran for two minutes without exiting and had to be killed.
+#
+#  The mechanism: [Console]::KeyAvailable THROWS when console input is
+#  redirected ("Cannot see if a key has been pressed when either application
+#  does not have a console or when console input has been redirected"). The
+#  catch around it sets NoKeys and `continue`s, the next pass takes the plain
+#  sequential path, and that path asks Read-Host - which on a stream already at
+#  end-of-file answers instantly and forever. Every layer behaved as written;
+#  the loop between them had no floor.
+#
+#  🌟 The floor is one question asked once, at startup: is there a human who
+#  could answer a menu at all? -Action already meant no. Redirected input means
+#  no for exactly the same reason, so it joins it. Menus then return $null the
+#  moment they are opened and the run finishes instead of spinning.
+#
+#  📝 It is deliberately NOT gated on -NonInteractive: a normal interactive
+#  double-click has IsInputRedirected false, and a piped or scheduled run has it
+#  true, which is the distinction that actually matters here.
+# ---------------------------------------------------------------------------
+$script:NoStdin = $false
+try { $script:NoStdin = [Console]::IsInputRedirected } catch { $script:NoStdin = $true }
+$script:Headless = ([bool]$Action) -or $script:NoStdin
 
 # ------------------------------------------------------------------- colours -
 $C = @{
@@ -209,7 +235,9 @@ function Draw-Rule {
 
 <#
   One menu, driven by the arrow keys.
-  Items: @{ Label; Status; StatusColour; Section; Key; Disabled }
+  Items: @{ Label; Status; StatusColour; Section; Key; Disabled; Hint }
+  Hint is one plain sentence saying what choosing that row DOES. It is shown for
+  the highlighted row only, on a pinned line above the rule.
   Returns the chosen item, or $null if the user backed out.
 
   🛑 THE DRAWING WAS REWRITTEN IN v2.1.1, AND THE OLD APPROACH IS THE BUG.
@@ -346,10 +374,30 @@ function Show-Menu {
             $L += ,@( @{ t = $marker; c = $C.Title }, @{ t = $label; c = $colour }, @{ t = $status; c = $sc } )
         }
 
+        # -------------------------------------------------------------------
+        #  v2.2.6 - THE HIGHLIGHTED ROW EXPLAINS ITSELF.
+        #
+        #  User, 2026-08-23: *"I didn't like some of the descriptions for some of
+        #  the options for the script ... make sure that the descriptions make
+        #  sense because some of them don't really do a good job of explaining"*.
+        #  Until now a row showed a LABEL and a STATUS and nothing that said what
+        #  choosing it would do - the explanation only appeared on the screen
+        #  AFTER you had already committed to opening it.
+        #
+        #  So each item may carry a Hint, and the hint for whatever is currently
+        #  highlighted is drawn on its own pinned line just above the rule. It is
+        #  pinned rather than inline so it cannot scroll out of view, and it is
+        #  one line so the frame grows by exactly one row.
+        # -------------------------------------------------------------------
+        $hint = ''
+        if ($Sel -ge 0 -and $Sel -lt $Items.Count -and $Items[$Sel].Hint) { $hint = [string]$Items[$Sel].Hint }
+        if ($hint.Length -gt $Width - 6) { $hint = $hint.Substring(0, [Math]::Max(0, $Width - 7)) + '…' }
+
         $L += ,@( @{ t = ''; c = $C.Text } )
+        $L += ,@( @{ t = '   ' + $hint; c = $C.Title } )
         $L += ,@( @{ t = '   ' + ('─' * 68); c = $C.Frame } )
         $L += ,@( @{ t = $Footer; c = $C.Dim } )
-        return @{ Lines = $L; Head = $headCount; Tail = 3; Sel = $selLine }
+        return @{ Lines = $L; Head = $headCount; Tail = 4; Sel = $selLine }
     }
 
     <#
@@ -478,9 +526,16 @@ function Show-Menu {
                 Write-Host ''
             }
             if ($script:NoKeys) {
+                #  v2.2.6 - belt and braces behind the NoStdin gate above: even
+                #  with a real stdin, a stream that answers nothing must not be
+                #  able to hold the menu open. Ten unusable answers and it backs
+                #  out, and a throw backs out at once.
+                $script:BadReads = [int]$script:BadReads + 1
+                if ($script:BadReads -gt 10) { return $null }
                 Write-Host '   Type the number of what you want, then ENTER. 0 to go back.' -ForegroundColor $C.Dim
-                $typed = Read-Host '   Number'
-                if ($typed -eq '0' -or $typed -eq '') { return $null }
+                $typed = $null
+                try { $typed = Read-Host '   Number' } catch { return $null }
+                if ($null -eq $typed -or $typed -eq '0' -or $typed -eq '') { return $null }
                 $n = 0
                 if ([int]::TryParse($typed, [ref]$n)) {
                     $n = $n - 1
@@ -622,8 +677,15 @@ function Pause-Key {
     Draw-Rule
     Write-Host $Text -ForegroundColor $C.Dim
     if ($script:Headless -or $script:Quiet) { return }
-    if ($script:NoKeys) { [void](Read-Host '   ENTER'); return }
-    try { [void][Console]::ReadKey($true) } catch { $script:NoKeys = $true; [void](Read-Host '   ENTER') }
+    #  v2.2.6 - a Read-Host on an exhausted stream returns instantly and forever,
+    #  so it is only ever asked where a key genuinely cannot be read AND there is
+    #  a real stdin to read from. Otherwise this returns and the run moves on.
+    if ($script:NoKeys) { if (-not $script:NoStdin) { [void](Read-Host '   ENTER') }; return }
+    try { [void][Console]::ReadKey($true) }
+    catch {
+        $script:NoKeys = $true
+        if (-not $script:NoStdin) { [void](Read-Host '   ENTER') }
+    }
 }
 
 # -------------------------------------------------------------- discovery ----
@@ -1376,6 +1438,17 @@ function Get-Status {
         $word = 'things'; if ($n -eq 1) { $word = 'thing' }
         $s.Backups = "$n of $($BACKUPSETS.Count) $word backed up"; $s.BackupsColour = $C.Good
     }
+    #  v2.2.6 - the one-line status for the collapsed REMOVE row. It has to say
+    #  whether there is anything to uninstall at all, because that row no longer
+    #  shows the five individual statuses that used to answer it on sight.
+    $installed = 0
+    foreach ($on in @($s.ModOn, $s.ImagesOn, $s.SoundsOn, $s.ReShadeOn, $s.ControllerOn)) {
+        if ($on) { $installed++ }
+    }
+    if ($installed -eq 0) { $s.RemoveHint = 'nothing installed' }
+    elseif ($installed -eq 1) { $s.RemoveHint = '1 part installed' }
+    else { $s.RemoveHint = "$installed parts installed" }
+
     return $s
 }
 
@@ -2467,8 +2540,11 @@ function Act-InstallEverything {
 
     $st = Get-Status
     $intro = @(
-        "Installs every part of this package, one after the other:",
+        "Installs these four, one after the other:",
         "~   the mod  ·  HD texture pack  ·  custom sounds  ·  ReShade",
+        '',
+        "~Controller icons are NOT included - they are a choice between three",
+        "~pads, so that row is left for you.",
         '',
         "~Any part whose files are not in this download - and cannot be fetched",
         "~from GitHub - is reported and skipped. Nothing else stops.",
@@ -2507,11 +2583,14 @@ function Act-InstallEverything {
     Draw-Header 'Install everything'
     Say 'Where things stand now:' $C.Text -NoLog
     Write-Host ''
+    #  v2.2.6 - Controller icons are NOT one of the four steps this function
+    #  runs, so listing them here made a green "installed" look like something
+    #  this action had just done - or a grey "not installed" look like it had
+    #  failed. They are reported separately, below, as the choice they are.
     $rows = @(
         @{ n='The mod';         v=$st.Mod;     on=$st.ModOn },
         @{ n='HD texture pack'; v=$st.Images;  on=$st.ImagesOn },
         @{ n='Custom sounds';   v=$st.Sounds;  on=$st.SoundsOn },
-        @{ n='Controller icons'; v=$st.Controller; on=$st.ControllerOn },
         @{ n='ReShade';         v=$st.ReShade; on=$st.ReShadeOn }
     )
     foreach ($r in $rows) {
@@ -2520,6 +2599,10 @@ function Act-InstallEverything {
         Say ($r.n.PadRight(20) + $r.v) $col -NoLog
     }
     Write-Host ''
+    if (-not $st.ControllerOn) {
+        Say 'Controller icons were not part of this - pick that row if you want them.' $C.Dim -NoLog
+        Write-Host ''
+    }
     if ($st.ModOn) { Say "Plutonium T6 → Zombies → Mods → $MODNAME" $C.Dim -NoLog }
     else { Say "The mod itself did not install - see Details and log." $C.Bad -NoLog }
     Write-Log "install everything finished: mod=$($st.ModOn) images=$($st.ImagesOn) sounds=$($st.SoundsOn) reshade=$($st.ReShadeOn)"
@@ -2532,6 +2615,75 @@ function Test-PlutoRunning {
         if (Get-Process -Name $n -ErrorAction SilentlyContinue) { return $true }
     }
     return $false
+}
+
+# ---------------------------------------------------------------------------
+#  v2.2.6 - THE UNINSTALL LIST MOVED OFF THE FRONT SCREEN.
+#
+#  User, 2026-08-23: *"i like the way the installer looks but there's a few
+#  things that could be adjusted to look a tiny bit better / function slightly
+#  more efficiently"*, with a screenshot whose MORE section - Quit included -
+#  was below the fold behind a "↓ more" marker.
+#
+#  🌟 THAT WAS A HEIGHT PROBLEM AND IT IS MEASURABLE. The main menu was 34
+#  printed lines: 6 header + (2+6) INSTALL + (2+6) REMOVE + (2+1) BACKUP +
+#  (2+3) MORE + 4 tail. The window in the screenshot is 1123x654, which is 30
+#  rows in the shipped font - so four rows had nowhere to go, and Quit was one
+#  of them. Fit-Frame scrolls rather than clipping, so nothing was ever lost,
+#  but you had to drive down to reach the exit.
+#
+#  Six removal rows collapse to one and the menu is 29 lines, which fits a
+#  default console with the new hint line already counted. Nothing is taken
+#  away - every one of the six is on this screen, one keypress further in - and
+#  uninstalling is the rarest thing anyone comes here to do, so it is the right
+#  thing to move.
+# ---------------------------------------------------------------------------
+function Remove-Menu {
+    while ($true) {
+        $st = Get-Status
+
+        $modColour = $C.Dim; if ($st.ModOn) { $modColour = $C.Good }
+        $imgColour = $C.Dim; if ($st.ImagesOn) { $imgColour = $C.Good }
+        $sndColour = $C.Dim; if ($st.SoundsOn) { $sndColour = $C.Good }
+        $rshColour = $C.Dim; if ($st.ReShadeOn) { $rshColour = $C.Good }
+        $dsColour  = $C.Dim; if ($st.ControllerOn) { $dsColour = $C.Good }
+
+        $intro = @(
+            'Only what is actually installed can be removed - a greyed status',
+            '~means there is nothing there to take off.',
+            '',
+            '~Removing a pack puts your own files back if a backup was taken.'
+        )
+
+        $items = @(
+            @{ Key='rall';    Label='EVERYTHING - the whole package'; Status='textures + sounds + ReShade + mod'; StatusColour=$C.Title
+               Hint='Takes it all back off and puts your own files back where a backup exists.' },
+            @{ Key='rimages'; Label='Remove the HD textures';       Status=$st.Images;  StatusColour=$imgColour
+               Hint='Deletes the texture pack only. The game goes back to its own textures.' },
+            @{ Key='rsounds'; Label='Remove the custom sounds';     Status=$st.Sounds;  StatusColour=$sndColour
+               Hint='Deletes the sound pack only. The game goes back to its own audio.' },
+            @{ Key='rreshade';Label='Remove ReShade';               Status=$st.ReShade; StatusColour=$rshColour
+               Hint='Deletes ReShade and its presets. Nothing else is affected.' },
+            @{ Key='rcontroller'; Label='Remove the controller icons'; Status=$st.Controller; StatusColour=$dsColour
+               Hint='Puts the standard Xbox button prompts back.' },
+            @{ Key='rmod';    Label='Remove the mod';               Status=$st.Mod;     StatusColour=$modColour
+               Hint='Deletes the mod. Your saved menu settings and stats are kept.' },
+            @{ Key='back';    Label='Back'
+               Hint='Returns to the main menu. Nothing is removed.' }
+        )
+
+        $sel = Show-Menu 'Uninstall' $items -Intro $intro
+        if (-not $sel -or $sel.Key -eq 'back') { return }
+
+        switch ($sel.Key) {
+            'rall'        { Act-RemoveEverything }
+            'rimages'     { Act-RemoveImages }
+            'rsounds'     { Act-RemoveSounds }
+            'rreshade'    { Act-RemoveReShade }
+            'rcontroller' { Act-RemoveController }
+            'rmod'        { Act-RemoveMod }
+        }
+    }
 }
 
 function Main-Menu {
@@ -2565,26 +2717,50 @@ function Main-Menu {
         $rshColour = $C.Dim; if ($st.ReShadeOn) { $rshColour = $C.Good }
         $dsColour  = $C.Dim; if ($st.ControllerOn) { $dsColour = $C.Good }
 
+        # -------------------------------------------------------------------
+        #  v2.2.6 - EVERY ROW NOW SAYS WHAT IT DOES, IN ONE PLAIN SENTENCE.
+        #
+        #  User, 2026-08-23: *"i didn't like some of the descriptions for some of
+        #  the options ... make sure that the descriptions make sense because
+        #  some of them don't really do a good job of explaining to be honest"*.
+        #
+        #  Rules the wording follows, so later rows stay consistent:
+        #    * the Hint says what HAPPENS, not what the thing is called;
+        #    * it names WHERE files land when the answer is "somewhere on your
+        #      PC", because that is the question people actually have;
+        #    * it says plainly when something overwrites, and when it does not;
+        #    * no jargon that is not already on the screen.
+        #  🛑 "EVERYTHING" DOES NOT INCLUDE THE CONTROLLER ICONS and never has -
+        #  Act-InstallEverything runs mod / textures / sounds / ReShade, four
+        #  steps, and the icons are a personal choice between three pads. The row
+        #  now says so instead of leaving people to find out.
+        # -------------------------------------------------------------------
         $items = @(
-            @{ Key='all';    Section='INSTALL';   Label='EVERYTHING - the whole package'; Status='mod + textures + sounds + ReShade'; StatusColour=$C.Title },
-            @{ Key='mod';    Section='INSTALL';   Label='The mod';               Status=$st.Mod;     StatusColour=$modColour },
-            @{ Key='images'; Section='INSTALL';   Label='HD texture pack';       Status=$st.Images;  StatusColour=$imgColour },
-            @{ Key='sounds'; Section='INSTALL';   Label='Custom sounds';         Status=$st.Sounds;  StatusColour=$sndColour },
-            @{ Key='reshade';Section='INSTALL';   Label='ReShade + BO2 preset';  Status=$st.ReShade; StatusColour=$rshColour },
-            @{ Key='controller';Section='INSTALL'; Label='Controller icons';      Status=$st.Controller; StatusColour=$dsColour },
+            @{ Key='all';    Section='INSTALL';   Label='EVERYTHING - the whole package'; Status='mod + textures + sounds + ReShade'; StatusColour=$C.Title
+               Hint='Runs the four installs below in order. Controller icons stay your choice.' },
+            @{ Key='mod';    Section='INSTALL';   Label='The mod';               Status=$st.Mod;     StatusColour=$modColour
+               Hint='The mod itself - 5 files into Plutonium. This is the only part you actually need.' },
+            @{ Key='images'; Section='INSTALL';   Label='HD texture pack';       Status=$st.Images;  StatusColour=$imgColour
+               Hint='Sharper weapon, perk and world textures. Optional, and it replaces any you already had.' },
+            @{ Key='sounds'; Section='INSTALL';   Label='Custom sounds';         Status=$st.Sounds;  StatusColour=$sndColour
+               Hint='Remastered weapon audio. Optional. Your real game files are never touched.' },
+            @{ Key='reshade';Section='INSTALL';   Label='ReShade + BO2 preset';  Status=$st.ReShade; StatusColour=$rshColour
+               Hint='A screen filter that makes the game look richer. Toggle it in game with the HOME key.' },
+            @{ Key='controller';Section='INSTALL'; Label='Controller icons';      Status=$st.Controller; StatusColour=$dsColour
+               Hint='Swaps the on-screen button prompts to PlayStation, Xbox or Switch. Pick one.' },
 
-            @{ Key='rall';    Section='REMOVE';   Label='EVERYTHING - the whole package'; Status='textures + sounds + ReShade + mod'; StatusColour=$C.Title },
-            @{ Key='rimages'; Section='REMOVE';   Label='Remove the HD textures' },
-            @{ Key='rsounds'; Section='REMOVE';   Label='Remove the custom sounds' },
-            @{ Key='rreshade';Section='REMOVE';   Label='Remove ReShade' },
-            @{ Key='rcontroller';Section='REMOVE'; Label='Remove the controller icons' },
-            @{ Key='rmod';    Section='REMOVE';   Label='Remove the mod' },
+            @{ Key='remove';  Section='REMOVE';   Label='Uninstall something'; Status=$st.RemoveHint; StatusColour=$C.Dim
+               Hint='Opens the uninstall list: everything at once, or one part on its own.' },
 
-            @{ Key='backups'; Section='BACKUP';   Label='Back up / restore my own files'; Status=$st.Backups; StatusColour=$st.BackupsColour },
+            @{ Key='backups'; Section='BACKUP';   Label='Back up / restore my own files'; Status=$st.Backups; StatusColour=$st.BackupsColour
+               Hint='Copies YOUR textures, sounds and ReShade aside first - or puts them back later.' },
 
-            @{ Key='update';  Section='MORE';     Label='Check for a newer version' },
-            @{ Key='details'; Section='MORE';     Label='Details and log' },
-            @{ Key='quit';    Section='MORE';     Label='Quit' }
+            @{ Key='update';  Section='MORE';     Label='Check for a newer version'
+               Hint='Asks GitHub whether a newer release exists, and can download it for you.' },
+            @{ Key='details'; Section='MORE';     Label='Details and log'
+               Hint='Where every file went, what is installed, and what this session did.' },
+            @{ Key='quit';    Section='MORE';     Label='Quit'
+               Hint='Closes this installer. Nothing is undone.' }
         )
 
         $sel = Show-Menu $sub $items -Intro $intro -Footer '   ↑ ↓  move      ENTER  choose      Q  quit'
@@ -2597,12 +2773,7 @@ function Main-Menu {
             'sounds'   { Act-InstallSounds }
             'reshade'  { Act-InstallReShade }
             'controller' { Act-InstallController }
-            'rall'     { Act-RemoveEverything }
-            'rimages'  { Act-RemoveImages }
-            'rsounds'  { Act-RemoveSounds }
-            'rreshade' { Act-RemoveReShade }
-            'rcontroller' { Act-RemoveController }
-            'rmod'     { Act-RemoveMod }
+            'remove'   { Remove-Menu }
             'backups'  { Act-Backups }
             'update'   { Act-CheckUpdate }
             'details'  { Act-Details }

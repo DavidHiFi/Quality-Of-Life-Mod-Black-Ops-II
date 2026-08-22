@@ -129,115 +129,6 @@ CoD.Class.ZmQolRestartPressed = function (IngameMenuWidget, ClientInstance)
 	Engine.Exec(ClientInstance.controller, "map_restart")
 end
 
--- v1.99.92 - FAST RESTART, directly under RESTART LEVEL. User, 2026-08-20:
--- *"add another option just underneath the Restart Level option called Fast
--- Restart, which as the name implies does the same thing as the fast_restart
--- console command which restarts the match but without the cutscenes."*
---
--- ============================================================================
---  🛑 v2.2.0 - THE ONE-EXEC VERSION CRASHED THE GAME, AND THEN BRICKED THE MOD.
---
---  User, 2026-08-21, at round 19 of Diner survival: *"tried to do fast restart
---  with the option in the pause menu, I had to first click escape to close the
---  menu, and the game restarted, then crashed after just a moment"* - and then
---  every later boot of the mod black-screened at the main menu.
---
---  🌟 BOTH HALVES ARE IN THIS INSTALL'S OWN LOGS, and the second is a
---  CONSEQUENCE of the first, not a separate bug:
---    console_zm.log.006  the fast_restart itself works - ShutdownGame(0),
---                        "Restart: 1", the whole level re-initialises and the
---                        mod's init prints run again - and then the log simply
---                        STOPS about a second into the restarted match. No
---                        shutdown lines: a hard crash.
---    console_zm.log.007/.008/.009  the next three boots all die at exactly
---                        "Reading stats... / Reading backup stats..." with
---                        COM_ERROR (0) E_INVALIDARG @ 0x74C0E0 - i.e. the game
---                        crashing while READING the stats file.
---    players\mods\zm_qol\badzmdataddl, written 19:12, is the game quarantining
---                        that stats file as corrupt; the boot straight after it
---                        runs stats_init.cfg + playerstats_reset.cfg and works.
---  So the crash left zmStats half-written, and every subsequent launch of the
---  mod crashed reading it. That is the "black screen, menu music still playing"
---  the user had to alt-F4 out of.
---
---  🌟 WHAT THIS ROW WAS MISSING, TAKEN FROM TWO WORKING IMPLEMENTATIONS.
---  Stock's own restart is ui\t6\hud\ingamepopups.lua and
---  ui_mp\t6\zombie\restartgamepopupzombie.lua; read out of the shipped
---  bytecode's constant table, campaign's runs this sequence THREE times over
---  (mission_restart / fast_restart / checkpoint_restart), in this order:
---        Dvar.ui_busyBlockIngameMenu:set( 1 )
---        widget:processEvent{ name = "close_all_ingame_menus", ... }
---        Engine.Exec( c, "stopControllerRumble" )
---        Engine.Exec( c, "fade 0 0 0 255 0 0 1" )
---        Engine.Exec( c, "silence" )
---        Engine.Exec( c, "fast_restart" )
---  and the zombies popup adds Engine.SetDvar( "cl_paused", 0 ) in front of it.
---  BO2-Reimagined - a mod that runs on this same Plutonium build - ships the
---  same thing in its restartgamepopupzombie.lua:
---        Engine.SetDvar( "cl_paused", 0 )
---        Dvar.ui_busyBlockIngameMenu:set( 1 )
---        <full-screen black image>
---        Engine.Exec( f6_arg1.controller, "fast_restart" )
---
---  🛑 cl_paused IS THE PART THAT MATTERS. In solo zombies the pause menu really
---  does pause the server, and BOTH implementations unpause BEFORE restarting.
---  This row restarted the level with the client still paused and the pause menu
---  still open - which is also why the user had to press escape afterwards.
---
---  📝 The fade/silence/rumble calls are cosmetic and are included because they
---  are what the two working versions do; ui_busyBlockIngameMenu is what stops
---  the player driving the menu during the teardown. It is set the same way
---  Reimagined sets it, and it is cleared by the loading popup on the way back
---  in - that is stock's own lifecycle, not something added here.
---
---  🛑 RESTART LEVEL BELOW IS DELIBERATELY NOT TOUCHED. map_restart reloads the
---  fastfiles and tears the client down completely, the user has not reported it
---  failing, and v1.99.91 got it to a shape they signed off on. One change at a
---  time.
--- ============================================================================
--- ============================================================================
---  🛑 v2.2.5 - BACK TO ONE COMMAND, AND THE CRASH WAS NEVER THIS ROW.
---
---  User, 2026-08-22, with a screenshot of the console: *"i tried fast restart
---  in the pause menu with my mod and it froze the game for like a few seconds,
---  then it restarted and then crashed/errored and for some reason it did a
---  bunch of these commands that you can see in the bottom left, idk why you
---  made it do that, just make the fast restart option literally do the
---  fast_restart command, not that hard."*
---
---  THE THREE EXTRA COMMANDS DO NOT EXIST IN t6zm.exe. The screenshot's three
---  lines are the game rejecting them by name:
---        Unknown cmd stopControllerRumble
---        Unknown cmd fade
---        Unknown cmd silence
---  They were copied out of stock's CAMPAIGN restart popup, which runs in a
---  build that has them. Here they are three no-ops that print, so they were
---  never anything but noise on screen. Gone.
---
---  🌟 THE CRASH IS ALREADY FIXED, AND IT WAS r_aaSamples 16 - THE SAME BUG AS
---  THE BLACK SCREEN. Measured out of this install's own logs rather than
---  reasoned about:
---    · console_zm.log.000, first dvar dump (map load):   r_aaSamples "4"
---    · same log, the dump AFTER the fast_restart:        r_aaSamples "16"
---      with r_aaSamplesMax "8" both times
---    · the restart re-applies the config, so the latched 16 goes live, the
---      renderer asks D3D for a 16x MSAA device, gets nothing back, and
---      dereferences it: 0xC0000005 at 0x005DD7ED, ~1s into the restarted match
---    · the 2026-08-21 fast-restart crash dump has the SAME exception address,
---      and that one ran the ONE-COMMAND version of this row - which is the
---      proof that the command list was never the cause either way.
---  GRAPHICS BOOST stopped writing 16 in v2.2.4 (qol_options.gsc), so this row
---  has nothing left to trip over.
---
---  🛑 NOTHING ELSE IS DONE HERE ON PURPOSE. cl_paused, ui_busyBlockIngameMenu
---  and close_all_ingame_menus are all gone: ui_busyBlockIngameMenu is what
---  froze the menu with no way back when a restart did not complete, and the
---  user asked for the console command and nothing else.
--- ============================================================================
-CoD.Class.ZmQolFastRestartPressed = function (IngameMenuWidget, ClientInstance)
-	Engine.Exec(ClientInstance.controller, "fast_restart")
-end
-
 CoD.Class.ZmQolInstantExitPressed = function (IngameMenuWidget, ClientInstance)
 	Engine.Exec(ClientInstance.controller, "disconnect")
 end
@@ -295,10 +186,20 @@ CoD.Class.PrepareClassButtonList = function (LocalClientIndex, IngameMenuWidget)
 			-- the popup are both stock; see restartgamepopupzombie.lua for the
 			-- two lines that had to change in the popup itself.
 			CoD.Class.AddButton(IngameMenuWidget, Engine.Localize("MENU_RESTART_LEVEL_CAPS"), "zmqol_restart_game")
-			-- v1.99.92 - FAST RESTART, immediately under it and inside the same
-			-- CanPauseZombiesGame/canLeaveGame gate: it restarts the same match,
-			-- so it must not be offered where a restart is not allowed.
-			CoD.Class.AddButton(IngameMenuWidget, Engine.Localize("FAST RESTART"), "zmqol_fast_restart")
+			-- 🛑 v2.2.6 - THE FAST RESTART ROW IS GONE, AND THE ROW WAS NEVER THE BUG.
+			-- The user reproduced the crash by typing `fast_restart` into the console
+			-- with no menu involved (2026-08-23), which retires every theory that
+			-- blamed this row's command list. Three console logs carry `Restart: 1`
+			-- (.000, .008, .009) and all three END at the re-init - three crashes out
+			-- of three attempts. Two of those ran v2.2.5, whose post-restart dvar dump
+			-- reads r_aaSamples "8" of r_aaSamplesMax "8", so ERROR_CATALOGUE 26b's
+			-- latched-dvar cause is ruled out as well. The minidump's own exception
+			-- record is a null-pointer READ at address 0x4 inside the game image, and
+			-- the console log carries no GSC error line at all, so the mechanism could
+			-- not be named offline. Per the user's instruction (2026-08-23) the row is
+			-- removed rather than shipped broken.
+			-- 📝 RESTART GAME above STAYS. It runs `map_restart`, a full reload, which
+			-- is a different engine path and appears in none of the three crashes.
 		end
 	else
 		if UIExpression.Team(LocalClientIndex, "name") ~= "TEAM_SPECTATOR" and CoD.IsWagerMode() == false then
@@ -369,7 +270,7 @@ LUI.createMenu.class = function (LocalClientIndex)
 	-- code cannot see it.
 	-- v2.2.0 - added so FAST RESTART could close the pause menu before it
 	-- restarted, the way stock's own restart does. v2.2.5 took that call back
-	-- out (see the banner over ZmQolFastRestartPressed), so nothing in this file
+	-- out, and v2.2.6 removed the FAST RESTART row entirely, so nothing in this file
 	-- fires the event any more. THE REGISTRATION STAYS: it binds a stock event
 	-- name to stock's own handler, which is what stock does on every other menu
 	-- that carries it, and removing it could only take away a close path some
@@ -383,7 +284,6 @@ LUI.createMenu.class = function (LocalClientIndex)
 		IngameMenuWidget:registerEventHandler("close_all_ingame_menus", CoD.InGameMenu.CloseAllInGameMenus)
 	end
 	IngameMenuWidget:registerEventHandler("zmqol_restart_game", CoD.Class.ZmQolRestartPressed)
-	IngameMenuWidget:registerEventHandler("zmqol_fast_restart", CoD.Class.ZmQolFastRestartPressed)
 	IngameMenuWidget:registerEventHandler("zmqol_instant_exit", CoD.Class.ZmQolInstantExitPressed)
 	IngameMenuWidget:registerEventHandler("zmqol_quit_desktop", CoD.Class.ZmQolQuitToDesktopPressed)
 	if CoD.isZombie == true then

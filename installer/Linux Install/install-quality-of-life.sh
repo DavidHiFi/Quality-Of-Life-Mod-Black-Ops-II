@@ -24,7 +24,7 @@ REPO="DavidHiFi/zm_qol"
 MODID="zm_qol"
 MODNAME="Quality Of Life"
 MOD_FILES=(mod.ff mod.iwd mod.json mod.all.sabl mod.all.sabs)
-SOUND_FILES=(cmn_root.all.sabl zmb_code_post_gfx.all.sabs zmb_common.english.sabs)
+SOUND_FILES=(cmn_root.all.sabl zmb_code_post_gfx.all.sabs zmb_common.english.sabs zmb_alcatraz.all.sabl zmb_tomb.all.sabl)
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG="$(dirname "$HERE")"          # the package root: the .bat lives there

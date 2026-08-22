@@ -792,13 +792,62 @@ zmqol_add_semtex_wallbuy()
 //  TranZit (scripts\zm\zm_transit\zm_transit.csc:82 and the server twin), and
 //  t6_wpn_claymore_world is stock's own wall-buy model, already in the level for
 //  the farm claymore - the same reasoning that settled the semtex bag.
+//
+//  ── v2.2.6: THE POST WEST OF IT WAS MEASURED OFF THE SCREENSHOT ─────────────
+//  User, 2026-08-23, screenshot JSRY2LneTx.jpg: *"it's a bit too far off to the
+//  right from the window therefore colliding with the structure itself, so just
+//  move it a tiny bit off to the left ... also i couldn't interact with it in
+//  the position it's in currently."*
+//
+//  🌟 THE BEAM IS BAKED WORLD GEOMETRY - it is in NO mapents dump, so it was
+//  measured out of the picture instead. Everything below is arithmetic on
+//  numbers that were read, not estimated:
+//    * the shot's own HUD gives the camera:  x -3629  y -7416  z -58  yaw 269
+//    * the dvar dump in that session's console_zm.log gives  cg_fov "100"  and
+//      r_mode "2560x1440", so the Hor+ horizontal FOV is
+//          2*atan( tan(50 deg) * (16/9)/(4/3) ) = 115.6 deg,  tan(half) = 1.589
+//    * a pixel sweep of rows 480 / 560 / 640 / 700 finds the same dark vertical
+//      band at px 1302-1339 in every one of them (luminance ~22 against ~90 for
+//      the chalk either side), so it is a vertical post, 38 px wide, centred on
+//      px 1320.5
+//    * screen right is -X here (right = anglestoright(269) = (-1.000, 0.017)),
+//      and at the wall's 70-unit depth one pixel is 2*70*1.589/2560 = 0.0869
+//      units, so the post is 3.3 units wide with its centre at
+//          x = -3629 + 70*(-0.01745) + 3.52*(-0.99985) = -3633.7
+//      i.e. it spans x -3635.4 .. -3632.1
+//    * the mine is 11.16 wide (its mesh, above), so at x -3630 it spanned
+//      -3635.6 .. -3624.4 - THE POST COVERED ITS WESTERN 3.3 UNITS, which is
+//      exactly the overlap the screenshot shows.
+//
+//  🌟 THE CHECK THAT SAYS THE MODEL IS RIGHT: the same arithmetic predicts the
+//  shack window at px 494 and it is measured at ~454. 40 px out of 2560 on an
+//  eyeballed window centre, so the camera model is sound.
+//
+//  x -3630 -> -3624 puts the mine at -3629.6 .. -3618.4: 2.5 units clear of the
+//  post, and still 22 units clear of window B's western edge (~-3596), so it
+//  cannot drift into the window either. Nothing else moves.
+//
+//  📝 WHY THIS SHOULD ALSO FIX "I COULDN'T PURCHASE IT". The use trigger is a
+//  unitrigger_box_use with require_look_at = 1 (_zm_weapons.gsc:936-960), so the
+//  prompt needs a clear line of sight from the crosshair to the trigger. With a
+//  solid post standing in front of the mine's western third that trace lands on
+//  the post. This is the likeliest cause and it is NOT proven - the post is not
+//  in any dump, so its depth cannot be confirmed offline.
+//
+//  🛑 RESIDUAL RISK AND THE ONE-LINE NUDGE. If it is still fouled, or still not
+//  buyable, the origin is dvar-driven and nothing needs rebuilding:
+//      zmqol_claymore_diner_x -3618     (further east, away from the post)
+//      zmqol_claymore_diner_x -3630     (back to where v2.2.5 had it)
+//  🛑 BOTH SIDES CARRY THE SAME DEFAULT. zm_expanded.csc:429 was changed in the
+//  same edit; the client is what spawns the visible model, so changing one alone
+//  moves the trigger and leaves the mine behind.
 // ============================================================================
 zmqol_claymore_wallbuy_origin()
 {
 	// Twin of zm_expanded.csc::zmqol_claymore_wallbuy_origin(). Same dvars, same
 	// defaults - if these ever disagree the two sides register different
 	// clientfield names and everyone is dropped at load.
-	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3630 ), getdvarintdefault( "zmqol_claymore_diner_y", -7486 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3624 ), getdvarintdefault( "zmqol_claymore_diner_y", -7486 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
 }
 
 zmqol_add_claymore_wallbuy()
@@ -1254,6 +1303,44 @@ zmqol_diner_dog_init()
         if ( !isdefined( zone ) || !isdefined( zone.dog_locations ) )
             continue;
 
+        //  ====================================================================
+        //  🛑 v2.2.6 - THE SNAPSHOT WAS NOT AN ARENA SNAPSHOT AT ALL, AND THE
+        //  LOG SAID SO IN ONE NUMBER.
+        //
+        //  The banner above claims "12 dog locations remain enabled". The
+        //  user's console_zm.log from the 49-minute Diner run prints
+        //        [zm_qol] diner dogs: 97 in-arena dog location(s) snapshotted
+        //  Ninety-seven, out of the 162 dog_location structs in the whole of
+        //  zm_transit's mapents. So this loop was collecting dog locations from
+        //  EVERY zone in TranZit - the town, the farm, the power station - and
+        //  calling them "in-arena".
+        //
+        //  🌟 THE CAUSE IS ONE MISSING TEST, AND STOCK SPELLS OUT WHICH.
+        //  _zm_zonemgr::create_spawner_list() builds level.enemy_dog_locations
+        //  with TWO gates:
+        //        if ( zone.is_enabled && zone.is_active && zone.is_spawning_allowed )
+        //            ... if ( zone.dog_locations[x].is_enabled )
+        //  This loop only ever applied the second one. zone.is_enabled is what
+        //  says a zone is part of the arena, and it was never read - so
+        //  zmqol_disable_out_of_arena_ai_locations()'s per-struct flags were
+        //  doing all the work, and they only cover five specific entries.
+        //
+        //  The fallback below is used whenever level.enemy_dog_locations is
+        //  momentarily empty, and it picks from this list AT RANDOM. With 97
+        //  entries spread across the whole map, that fallback could teleport a
+        //  hellhound a mile up the road, outside the Diner arena, with no
+        //  player anywhere near it - which is the shape of every "the dog
+        //  spawned god knows where" report this file already carries.
+        //
+        //  📝 is_active / is_spawning_allowed are deliberately NOT part of the
+        //  test here. They are per-round state that flips while the match runs;
+        //  this snapshot is taken once at init and is a LAST-RESORT list, so it
+        //  must not be empty just because a zone happened to be quiet at init.
+        //  is_enabled is the one that means "part of this arena", and it is the
+        //  one this was missing.
+        //  ====================================================================
+        if ( isdefined( zone.is_enabled ) && !zone.is_enabled )
+            continue;
         for ( i = 0; i < zone.dog_locations.size; i++ )
         {
             s_loc = zone.dog_locations[i];
@@ -1468,6 +1555,113 @@ zmqol_diner_dog_watchdog()
                     println( "[zm_qol] diner dogs: a dog was still in its pre-spawn state after 4s -" + str_fixed + " - stock's dog_spawn_fx did not finish. Repaired." );
             }
 
+            //  ================================================================
+            //  🌟 v2.2.6 - CONTAINMENT: A DOG THAT LEAVES THE ARENA IS BROUGHT
+            //  BACK. THE ROUND CAN NO LONGER BE LOST TO ONE RUNAWAY.
+            //
+            //  User, 2026-08-23, Diner survival: *"it spawned in front of the
+            //  slightly open garage door where the zombies and the player can
+            //  crawl/prone under, and the dog just went straight through the
+            //  door and then continued to go through the lifted car itself as
+            //  well, totally glitched and then it ignored me (the player) and
+            //  then went through the back wall out of the map, running
+            //  indefinitely outside of the map/playable area causing that match
+            //  to be ruined."*
+            //
+            //  🛑 WHY THE v2.2.5 REPAIR ABOVE DID NOT COVER THIS, STATED
+            //  HONESTLY. That repair fixes a dog whose dog_spawn_fx() thread
+            //  died - unkillable, ignoreme, no attack properties. It printed
+            //  NOTHING in the 49-minute run's console_zm.log, so on the
+            //  evidence available every dog in that match reached its correct
+            //  end state and this was a different fault. Walking through a
+            //  closed garage door, through a car and out through a wall is what
+            //  a T6 actor does when it has no usable path and simply steers at
+            //  its goal: actors are moved by the path graph, not by brush
+            //  collision. Which node graph failed, and why, is NOT established
+            //  offline - the garage door is a crawl-under traverse that dogs do
+            //  not use, which is a plausible cause and is not proof.
+            //
+            //  🌟 SO THIS DOES NOT TRY TO NAME THE CAUSE. It catches the state:
+            //  a dog that is nowhere near a player AND is standing in no
+            //  enabled zone is, by the game's own definition of the arena, out
+            //  of the map. It gets put back on a real dog location with its
+            //  full spawn state re-asserted, and the round can finish.
+            //
+            //  -- THE TWO TESTS, AND WHY THOSE TESTS --------------------------
+            //    1. distance. Stock's own dog_spawn_transit_logic() refuses any
+            //       spawn location further than 1150 units from a player
+            //       (dist_squared > 1322500). A dog more than 2500 units from
+            //       EVERY player is therefore far outside anything stock would
+            //       ever have placed it in, with generous headroom for a chase.
+            //       This is only a cheap pre-filter so the zone test below runs
+            //       on almost nothing.
+            //    2. the zone. _zm_zonemgr::get_zone_from_position() returns
+            //       undefined when a position is inside no ENABLED zone - it is
+            //       stock's own "is this spot part of the arena" question, and
+            //       it is what actually authorises the teleport. It spawns and
+            //       deletes a script_origin per call, which is why it is gated
+            //       behind test 1 and behind five consecutive seconds.
+            //
+            //  📝 FIVE CONSECUTIVE SECONDS, not one. A dog crossing a gap
+            //  between zone volumes for a frame must never be teleported; the
+            //  counter is reset the moment the dog is near a player again.
+            //  📝 maps\mp\zombies\_zm_zonemgr is core zombies and loads on every
+            //  map, so referencing it from locs\ - which loads everywhere - is
+            //  safe (AI_CONTEXT rule 2).
+            //  ================================================================
+            b_far = 1;
+
+            foreach ( player in get_players() )
+            {
+                if ( isdefined( player ) && distancesquared( ai.origin, player.origin ) < 6250000 )   //  2500 units
+                    b_far = 0;
+            }
+
+            if ( !b_far )
+            {
+                ai.zmqol_dog_far_ticks = 0;
+            }
+            else
+            {
+                if ( !isdefined( ai.zmqol_dog_far_ticks ) )
+                    ai.zmqol_dog_far_ticks = 0;
+
+                ai.zmqol_dog_far_ticks++;
+
+                if ( ai.zmqol_dog_far_ticks >= 5 )
+                {
+                    ai.zmqol_dog_far_ticks = 0;
+
+                    if ( !isdefined( maps\mp\zombies\_zm_zonemgr::get_zone_from_position( ai.origin ) ) )
+                    {
+                        s_home = level.zmqol_diner_dog_locs[randomint( level.zmqol_diner_dog_locs.size )];
+
+                        v_angles = ai.angles;
+
+                        if ( isdefined( ai.favoriteenemy ) && isdefined( ai.favoriteenemy.origin ) )
+                        {
+                            v_face   = vectortoangles( ai.favoriteenemy.origin - s_home.origin );
+                            v_angles = ( ai.angles[0], v_face[1], ai.angles[2] );
+                        }
+
+                        ai forceteleport( s_home.origin, v_angles );
+
+                        //  Re-assert the whole of dog_spawn_fx()'s end state, in
+                        //  stock's order, because a dog that got out there may
+                        //  have got out there BECAUSE part of it never ran.
+                        if ( isdefined( ai.magic_bullet_shield ) && ai.magic_bullet_shield == 1 )
+                            ai maps\mp\zombies\_zm_utility::stop_magic_bullet_shield();
+
+                        ai show();
+                        ai setfreecameralockonallowed( 1 );
+                        ai.ignoreme  = 0;
+                        ai.ignoreall = 0;
+                        ai notify( "visible" );
+
+                        println( "[zm_qol] diner dogs: RUNAWAY DOG was in no enabled zone and " + int( distance( ai.origin, s_home.origin ) ) + " units out - returned to (" + int( s_home.origin[0] ) + "," + int( s_home.origin[1] ) + "," + int( s_home.origin[2] ) + ")" );
+                    }
+                }
+            }
             //  Already rescued once - do not fight the stock thread if it is
             //  simply slow.
             if ( isdefined( ai.zmqol_dog_rescued ) )

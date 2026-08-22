@@ -139,7 +139,7 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 - **Diner as a Survival location** on TranZit — its own Pack-a-Punch, wall buys, Semtex, buildable shield, teddy bears and secret song.
 - **Nuketown:** the sunken perk-drop pad is fixed, and **`MACHINE DROPS → ALL ON ROUND 1`** airlifts every machine in at match start instead of making you wait until round 26.
 - **Die Rise:** the **Sliquifier pre-nerf** (a PATCHES switch) and the **Semtex wall buy**, which is always on.
-- **Scoreboard emblem** finally matches the team you are actually playing as.
+- **Scoreboard emblem** finally matches the team you are actually playing as, and the scoreboard now names the **start location** you are actually in — "Survival - Diner" instead of "Survival - Green Run".
 
 ### 🖥️ HUD & menus
 

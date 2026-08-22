@@ -684,6 +684,54 @@ rawfile,vision/zm_powerup_zombie_blood.vision
 //  zom_icon_bonfire and zom_icon_minigun are in NO ipak at all, i.e. non-streamed
 //  with their pixels inside the fastfile.
 material,specialty_zomblood_zombies
+
+// ----------------------------------------------------------------------------
+//  🛑 v2.2.6 - THE NOTE ABOVE IS WRONG ON ONE MEASURED FACT, AND THAT FACT IS
+//  WHY THE USER'S OWN ZOMBIE BLOOD ICON NEVER APPEARED.
+//
+//  It says: *"Off Origins that ipak is not mounted, so nothing anywhere holds
+//  the pixels"*. **dlczm4.ipak IS MOUNTED ON EVERY MAP.** The user's own
+//  console_zm.log from a zm_transit / Diner session says so in one line:
+//        482: Added ipak file: dlczm4
+//  loaded by the zone dlc4_load_zm, which is a DLC LOADING-SCREEN fastfile and
+//  comes up at startup on every map, not on Origins only. dlczm0 / dlczm1 /
+//  dlczm2 / dlczm3 mount right beside it (lines 406 / 425 / 444 / 463).
+//
+//  🛑 THE CONSEQUENCE: specialty_zomblood_zombies ALWAYS resolves from a MOUNTED
+//  ipak, and [[t6-ipak-hash-named-image-overrides]] is the rule that applies -
+//  a loose .iwi cannot beat a mounted ipak, disproven in game at four separate
+//  placements. So BOTH shipped copies of that name are inert:
+//      images\specialty_zomblood_zombies.iwi          (v2.1.3, stock pixels)
+//      Optionals\images\specialty_zomblood_zombies.iwi (v2.2.5, the user's art)
+//  and the icon the user sees is dlczm4's, which is exactly their report:
+//  *"the zombie blood power up is still the stock one and not the custom one i
+//  made"* (2026-08-23).
+//
+//  🌟 THE ROUTE THAT WORKS IS THE ONE THIS MOD ALREADY SHIPS, TWO SECTIONS UP.
+//  hud_thundergun is a name that exists in NO ipak and in no stock fastfile: its
+//  .iwi ships raw in images\, its material is authored in
+//  zone_assets\materials\, and both are declared here. Nothing has to be beaten
+//  because nothing else owns the name. The user's icon gets the same treatment
+//  under zmqol_zomblood_zombies, and hudpowerupszombie.lua asks for that name
+//  instead of the stock one.
+//
+//  SOURCE AND CONVERSION, so it can be redone: the user's
+//  H:\Claude\blooddddddddddd\specialty_zomblood_zombies.png, 1024x1024 32bpp
+//  with real alpha (sampled min alpha 0), downscaled to 512x512 bicubic, then
+//  png2dds.ps1 -> A8B8G8R8 .dds -> ImageConverter --t6 -> IWI. The header reads
+//  magic IWi / version 27 / format 1 / 512x512x1, and format 1 is the same
+//  uncompressed format the Wunderfizz textures in this mod already use, which is
+//  png2dds.ps1's own reason for emitting A8B8G8R8 rather than A8R8G8B8.
+//
+//  📝 IT SHIPS IN THE BASE MOD, NOT IN THE OPTIONAL TEXTURE PACK. The user asked
+//  for it "with the texture pack install option", but the texture pack is
+//  optional and a missing image draws BLACK - so behind that option the icon
+//  would be broken for anyone who did not install it. In mod.iwd it is there for
+//  everyone, which is what they actually want. The dead 262 KB copy under the
+//  stock name has been removed from Optionals\images\.
+// ----------------------------------------------------------------------------
+image,zmqol_zomblood_zombies
+material,zmqol_zomblood_zombies
 fx,maps/zombie_tomb/fx_tomb_pwr_up_zmb_blood
 fx,maps/zombie_tomb/fx_zm_blood_overlay_pclouds
 
