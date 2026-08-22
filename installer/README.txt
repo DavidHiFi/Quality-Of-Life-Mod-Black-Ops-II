@@ -54,7 +54,7 @@ Black Ops II Zombies  ·  Plutonium T6
       and your pick is the only thing that changes them. Picking
       a different pack swaps it over cleanly, extra files and all.
 
-   ·  RESHADE ships version 6.8.0 and the FULL shader collection
+   ·  RESHADE ships version 6.7.3 and the FULL shader collection
       rather than only the shaders one preset happens to use, so
       you can switch effects on in the overlay without hunting
       files down first.

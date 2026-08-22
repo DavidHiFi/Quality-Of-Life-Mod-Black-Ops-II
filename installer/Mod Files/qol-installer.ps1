@@ -862,28 +862,26 @@ $BACKUPSETS = [ordered]@{
     reshade = @{ Label = 'My ReShade setup';      Title = 'your ReShade setup'; Parts = @(
                     @{ Sub='bin';             Path=$BINDIR; Type='files'; Items=@('ReShade.ini','BO2.ini','BO1.ini','MW3.ini','WAW.ini','dxgi.dll') },
                     @{ Sub='reshade-shaders'; Path=(Join-Path $BINDIR 'reshade-shaders'); Type='folder' } ) }
-    #  🛑 v2.2.3 - THE SETTINGS BACKUP CARRIES SETTINGS, NOT STATS.
+    #  🛑 THE SETTINGS BACKUP CARRIES SETTINGS, NOT STATS. The rule stands; the
+    #  reason written here in v2.2.3 did not, and is corrected below.
     #
-    #  User, 2026-08-22, third black screen in a day: the mod loads and the game
-    #  dies at the main menu. The log is the same three lines every time -
-    #      Reading stats... / Reading backup stats...
-    #      COM_ERROR (0) E_INVALIDARG @ 0x74C0E0
-    #  and the cause was THIS BACKUP. players\mods\zm_qol held a `badzmdataddl`
-    #  from 21 Aug - the marker Plutonium writes when it REJECTS a stats file as
-    #  corrupt - next to the zmStats and zmdatabk0000 that were rejected with it.
-    #  "Remove the mod, keep my settings" copied all nine files into
-    #  backups\mod\settings, and every restore after that put the condemned data
-    #  straight back. MEASURED: the three files in the live folder were
-    #  byte-identical to the three in the backup (md5 a31d9ea4, 2fe30180,
-    #  f6278404), and both were dated 21 Aug - carried forward, not regenerated.
+    #  v2.2.3 said the black screen was caused by this backup carrying a
+    #  `badzmdataddl` - a file it called Plutonium's "I rejected this" marker -
+    #  back into place on every restore. That was WRONG. Measurement since:
+    #  every mod folder on the install has a `badzmdataddl`, all byte-identical
+    #  (md5 a31d9ea4), including mods that boot and play perfectly. It is a
+    #  fixed per-mod file, not a fault flag, and it never had anything to do
+    #  with the crash. The real cause was `r_aaSamples 16` - see
+    #  Repair-BadAaSamples below.
     #
-    #  🌟 A stats file the GAME has already condemned is not the player's data any
-    #  more; it is the thing stopping the game from starting. Copying it forward
-    #  only spreads it. So the settings part now takes the SETTINGS - the config,
-    #  the key bindings, the controller profile - and leaves every stats artefact
-    #  where it is. Nothing of the player's is lost: menu settings and binds are
-    #  exactly what "keep my settings" was ever meant to preserve, and the game
-    #  rebuilds stats by itself on the next launch.
+    #  🌟 The rule survives its wrong justification, for a better reason. A
+    #  backup set must ENUMERATE what it saves, never take "the folder", because
+    #  the game writes into that folder too and a folder-wide copy silently
+    #  adopts whatever the game left there. Naming the five settings files is
+    #  what makes this backup mean one thing. And it is exactly the shape that
+    #  lets Repair-BadAaSamples reach into the backup copy of plutonium_zm.cfg
+    #  and disarm it, instead of a restore handing the player back the value
+    #  that stopped their game starting.
     mod     = @{ Label = 'The mod + my settings'; Title = 'the mod'; Parts = @(
                     @{ Sub='files';           Path=$MODDIR; Type='folder' },
                     @{ Sub='settings';        Path=$CFGDIR; Type='files'
@@ -892,61 +890,112 @@ $BACKUPSETS = [ordered]@{
 
 # ---------------------------------------------------------------------------
 #  Stats files the game writes into players\mods\<id>\. NONE of them are ever
-#  backed up or restored - see the note in $BACKUPSETS.mod above. `badzmdataddl`
-#  and `badzmdatachecksum` are Plutonium's own "I rejected this" markers; their
-#  presence means the stats beside them are already condemned.
+#  backed up or restored - see the note in $BACKUPSETS.mod above. That rule is
+#  still right, and it is right for the ordinary reason: this installer does not
+#  own the player's progress and must not carry copies of it around.
+#
+#  🛑 CORRECTION, v2.2.4 - `badzmdataddl` IS NOT A REJECT MARKER.
+#
+#  v2.2.3 shipped a "condemned stats" self-heal built on the belief that this
+#  file appears when Plutonium rejects a stats file as corrupt. That belief was
+#  wrong, and it was disproved by measurement: EVERY mod folder on the test
+#  install carries a `badzmdataddl`, all of them byte-identical (md5 a31d9ea4),
+#  including the mods that boot and play perfectly. It is a fixed file the game
+#  drops in every per-mod player folder, not a fault flag.
+#
+#  The self-heal that read it has been REMOVED. It was moving the player's real
+#  zmStats and zmdatabk0000 aside on every single install - wiping progress to
+#  cure a problem that never existed. The real cause of the black screen is
+#  below.
 # ---------------------------------------------------------------------------
 $STATSFILES  = @('zmStats','zmleaderboards','zmdatabk0000','zmdatabk0001','zmdatabk0002')
-$STATSMARKER = @('badzmdataddl','badzmdatachecksum')
 
 <#
-  Move a condemned stats set out of the way so the game can start, into
-  backups\zm_qol-condemned-stats\ where it can still be looked at or put back
-  by hand. Only ever acts when Plutonium's own reject marker is present - a
-  healthy zmStats is never touched.
+  🛑 THE REAL CAUSE OF THE BLACK SCREEN: r_aaSamples.
 
-  🛑 This is the ONE thing that makes "the mod black-screens at the main menu"
-  self-healing instead of a support conversation. The failure looks exactly like
-  a broken mod - the mod loads, then the screen stays black - and it is not the
-  mod at all; it is the game refusing to start on data it has already rejected.
+  Symptom - the mod loads from the in-game Mods menu, the screen goes black and
+  the game hard-freezes. console_zm.log ends:
+
+      Reading stats... / Reading backup stats...
+      COM_ERROR (0) E_INVALIDARG ... (-2147024809) @ 0x74C0E0
+
+  Cause - GRAPHICS BOOST wrote `r_aaSamples 16`. That dvar is LATCHED, so it is
+  applied by the renderer restart that happens as the mod loads, before any of
+  the mod's script runs. 16x MSAA is not a sample count the hardware can create,
+  so device creation fails with E_INVALIDARG and the frontend dies.
+
+  Measured, not reasoned:
+    · the boot-time dvar dump in console_zm.log reports  r_aaSamplesMax "8"
+    · the game's own menu offers 1 / 2 / 4 / 8 and nothing above that
+    · five mod loads out of five crashed; zm_qol was the only mod on the install
+      whose config carried "16" - every mod that booted carried "4"
+
+  The mod itself no longer writes 16 (it reads r_aaSamplesMax now). But a value
+  already saved in plutonium_zm.cfg will still kill the next launch on its own,
+  because the config is exec'd long before any script runs. So the installer has
+  to be able to take it back out - in the live config AND in the settings backup,
+  which is otherwise a loaded gun aimed at the next "put back".
 #>
-function Clear-CondemnedStats {
-    $s = Get-CondemnedStats
-    if (-not $s.Condemned) { return }
+$AAVALID    = @(1,2,4,8)
+$AAFALLBACK = 4
 
-    $dest = Join-Path $BACKUPS 'zm_qol-condemned-stats'
-    Say "Your saved zombie stats were rejected by the game as corrupt." $C.Warn
-    Say "That is what makes the mod load to a black screen - it is not the mod." $C.Dim
-    if ($DryRun) { Say "(dry run - nothing moved)" $C.Dim; return }
-    try {
-        if (-not (Test-Path $dest)) { New-Item -ItemType Directory -Force -Path $dest | Out-Null }
-        $moved = 0
-        foreach ($n in $s.Files) {
-            $p = Join-Path $CFGDIR $n
-            if (Test-Path -LiteralPath $p) {
-                Move-Item -LiteralPath $p -Destination (Join-Path $dest $n) -Force
-                $moved++
-            }
-        }
-        Say ("Moved {0} file(s) out of the way - the game will rebuild them." -f $moved) $C.Good
-        Say "   $dest" $C.Dim
-        Say "Your menu settings and key binds are untouched." $C.Dim
-        Write-Log "cleared condemned stats: $($s.Files -join ', ')"
-    } catch {
-        Say "Could not move them - close Plutonium and run this again." $C.Bad
-        Write-Log "could not clear condemned stats: $_" 'warn'
-    }
+function Get-CfgAaSamples {
+    param([string] $Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return $null }
+    try { $raw = [IO.File]::ReadAllText($Path) } catch { return $null }
+    $m = [regex]::Match($raw, '(?m)^[ \t]*seta[ \t]+r_aaSamples[ \t]+"?(-?\d+)"?')
+    if (-not $m.Success) { return $null }
+    return [int] $m.Groups[1].Value
 }
 
-function Get-CondemnedStats {
-    $hit = @()
-    foreach ($n in ($STATSMARKER + $STATSFILES)) {
-        $p = Join-Path $CFGDIR $n
-        if (Test-Path -LiteralPath $p) { $hit += $n }
+function Get-AaCfgTargets {
+    return @(
+        (Join-Path $CFGDIR 'plutonium_zm.cfg'),
+        (Join-Path $BACKUPS 'mod\settings\plutonium_zm.cfg')
+    )
+}
+
+function Test-BadAaSamples {
+    foreach ($p in (Get-AaCfgTargets)) {
+        $v = Get-CfgAaSamples $p
+        if ($null -ne $v -and -not ($AAVALID -contains $v)) { return $true }
     }
-    $marked = $false
-    foreach ($n in $STATSMARKER) { if (Test-Path -LiteralPath (Join-Path $CFGDIR $n)) { $marked = $true } }
-    return @{ Files = $hit; Condemned = $marked }
+    return $false
+}
+
+<#
+  Rewrite ONLY the r_aaSamples line, in place, byte-for-byte everywhere else.
+  Reading and rewriting the whole file through Get-Content/Set-Content would
+  rewrite every line ending too - the mistake that cost 150 bytes of ReShade.ini
+  in v2.2.1 (ERROR_CATALOGUE 21). A raw regex on the whole text cannot do that.
+#>
+function Repair-BadAaSamples {
+    $fixed = 0
+    foreach ($p in (Get-AaCfgTargets)) {
+        $v = Get-CfgAaSamples $p
+        if ($null -eq $v -or ($AAVALID -contains $v)) { continue }
+
+        Say ("Anti-aliasing was saved as {0}x, which the game cannot start with." -f $v) $C.Warn
+        Say "That is what made the mod load to a black screen - setting it back." $C.Dim
+        if ($DryRun) { Say "(dry run - nothing changed)" $C.Dim; continue }
+
+        try {
+            $raw = [IO.File]::ReadAllText($p)
+            $new = [regex]::Replace($raw,
+                                    '(?m)^([ \t]*seta[ \t]+r_aaSamples[ \t]+)"?-?\d+"?',
+                                    ('${1}"' + $AAFALLBACK + '"'))
+            [IO.File]::WriteAllText($p, $new, (New-Object System.Text.UTF8Encoding($false)))
+            $fixed++
+            Write-Log "repaired r_aaSamples $v -> $AAFALLBACK in $p"
+        } catch {
+            Say "Could not change it - close Plutonium and run this again." $C.Bad
+            Write-Log "could not repair r_aaSamples in ${p}: $_" 'warn'
+        }
+    }
+
+    if ($fixed -gt 0) {
+        Say ("Set back to {0}x MSAA in {1} file(s). The mod picks a safe value itself now." -f $AAFALLBACK, $fixed) $C.Good
+    }
 }
 
 function Get-BackupPart {
@@ -1286,8 +1335,37 @@ function Get-Status {
         $s.ControllerPack = $null
     }
 
-    if (Test-Path (Join-Path $BINDIR 'dxgi.dll')) { $s.ReShade = 'installed'; $s.ReShadeOn = $true }
-    else { $s.ReShade = 'not installed'; $s.ReShadeOn = $false }
+    # -----------------------------------------------------------------------
+    #  🛑 v2.2.4 - THE RESHADE ROW HAD THE SOUNDS-ROW BUG ALL ALONG.
+    #
+    #  v2.2.1 made the sounds row manifest-first and left this one reading bare
+    #  file presence, so the pair contradicted each other exactly the way the
+    #  sounds pair used to. User, 2026-08-22: *"i closed the game closed the
+    #  installer re-opened the installer and it said the reshade was no longer
+    #  installed"* - with dxgi.dll sitting in bin the whole time. The row said
+    #  installed because a file was there; Remove ReShade said "no record"
+    #  because the manifest was not. Both were right and the pair was nonsense.
+    #
+    #  Manifest decides whether it is OURS; a ReShade that is present but not
+    #  ours says so, and either way the row reports the VERSION, because on this
+    #  install the version is the difference between ReShade working and ReShade
+    #  never loading at all - see the note on the reshade payload.
+    # -----------------------------------------------------------------------
+    $rshMan = Read-Manifest 'reshade'
+    $rshDll = Join-Path $BINDIR 'dxgi.dll'
+    $rshVer = $null
+    if (Test-Path $rshDll) {
+        try { $rshVer = (Get-Item -LiteralPath $rshDll).VersionInfo.ProductVersion } catch { $rshVer = $null }
+    }
+    $rshTag = 'ReShade'; if ($rshVer) { $rshTag = "ReShade $rshVer" }
+
+    if ($rshMan.Count -gt 0) {
+        $s.ReShade = "$rshTag installed"; $s.ReShadeOn = $true
+    } elseif (Test-Path $rshDll) {
+        $s.ReShade = "$rshTag already there (not mine)"; $s.ReShadeOn = $false
+    } else {
+        $s.ReShade = 'not installed'; $s.ReShadeOn = $false
+    }
 
     $s.Settings = (Test-Path $CFGDIR)
 
@@ -1334,7 +1412,7 @@ function Act-InstallMod {
 
     Draw-Header 'Install the mod'
     Write-Log "action: install mod ($($sel.Key))"
-    Clear-CondemnedStats
+    Repair-BadAaSamples
 
     $missing = @()
     foreach ($f in $MODFILES) { if (-not (Test-Path (Join-Path $src $f))) { $missing += $f } }
@@ -1556,6 +1634,33 @@ function Set-ReShadeFont {
     Write-Log "reshade font: $font"
 }
 
+<#
+  🛑 THE RESHADE PAYLOAD IS PINNED TO 6.7.3. DO NOT "UPDATE" IT.
+
+  v2.2.1 moved it to 6.8.0. On this install 6.8.0 NEVER LOADED - not once, in
+  any session it was present. That is not an inference; ReShade writes
+  ReShade.log next to its own DLL at process attach, and across every launch
+  with 6.8.0 in bin no ReShade.log was ever created anywhere on the machine.
+  Putting 6.7.3 back produced one immediately:
+
+      20:58:03 | INFO | Initializing crosire's ReShade version '6.7.3.2149'
+      (32-bit) loaded from '...\Plutonium\bin\dxgi.dll'
+      into '...\Plutonium\bin\plutonium-bootstrapper-win32.exe'
+
+  41 KB of log, zero errors, and the preset files came back modified - so it
+  loaded, ran, and saved.
+
+  📝 WHY 6.8.0 does not attach is NOT known. Both DLLs are valid 32-bit builds
+  with the same exports (CreateDXGIFactory / 1 / 2, D3D11CreateDeviceAndSwapChain)
+  and the same import set; neither the launcher nor the bootstrapper calls
+  SetDefaultDllDirectories, and dxgi is not a KnownDLL on this machine, so the
+  application-directory copy is reachable either way. Checked, and it explains
+  nothing. The version is the only variable that moved.
+
+  So this is pinned by MEASUREMENT, not by preference. If it is ever raised
+  again, the test is one launch and one question: is there a ReShade.log in
+  Plutonium\bin afterwards?
+#>
 function Act-InstallReShade {
     param([int] $Pick = -1)
     $src = Find-Payload 'reshade'
@@ -2445,11 +2550,12 @@ function Main-Menu {
         }
 
         #  The black-screen warning. Loud, because the symptom points at the mod
-        #  and the cause is the game's own rejected stats file.
-        if ((Get-CondemnedStats).Condemned) {
-            $intro += "!⚠️   YOUR SAVED STATS ARE CORRUPT - THIS IS WHY THE MOD BLACK-SCREENS."
-            $intro += "!     The game rejected them, so it stops at the main menu. Pick"
-            $intro += "!     The mod  below and they are moved aside; the game rebuilds them."
+        #  and the cause is one saved graphics value - see Repair-BadAaSamples.
+        if (Test-BadAaSamples) {
+            $intro += "!⚠️   A SAVED GRAPHICS SETTING WILL BLACK-SCREEN THE GAME."
+            $intro += "!     16x anti-aliasing was written by an older build of this mod"
+            $intro += "!     and the game cannot start with it. Pick  The mod  below and"
+            $intro += "!     it is set back to 4x. Your stats and binds are untouched."
             $intro += ''
         }
 

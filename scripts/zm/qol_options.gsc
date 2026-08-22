@@ -611,12 +611,17 @@ qol_opt_move_speed()
 //  dvar is how a setting starts flickering between two owners. The other four
 //  LOD dvars are unowned and are set here.
 //
-//  🌟 THE ANTI-ALIASING FIGURE IS READ OUT OF THE GAME'S OWN MENU, NOT GUESSED.
-//  ui\t6\menus\optionssettings.lua's AntiAliasingChangeCallback accepts
-//  `AntiAliasingChosen.value <= 16` straight into r_aaSamples, and its choices
-//  17 and 18 are the TXAA pair ( r_aaSamples 2 or 4 with r_txaa 1 ). So 16 is a
-//  real MSAA level, and it is above anything the TXAA rows can reach - which is
-//  exactly what the user asked for. r_txaa and r_fxaa go to 0 with it, the same
+//  🛑 THE ANTI-ALIASING FIGURE WAS WRONG UNTIL v2.2.4, AND IT WAS FATAL.
+//  This block used to argue that because AntiAliasingChangeCallback accepts
+//  `AntiAliasingChosen.value <= 16`, sixteen must be a real MSAA level. It is
+//  not. That comparison only separates MSAA values from the TXAA sentinels 17
+//  and 18; the authority on what is real is Button_AddChoices_AntiAliasing a
+//  few lines below it, which offers 1 / 2 / 4 / 8 and nothing else. Writing 16
+//  made the renderer ask D3D for a 16x MSAA target on the latched restart that
+//  runs when the mod loads, which returns E_INVALIDARG and kills the game at
+//  the frontend before a single line of GSC executes. The value now comes from
+//  r_aaSamplesMax, which is the engine reporting its own ceiling - "8" on the
+//  install this was found on. r_txaa and r_fxaa still go to 0 with it, the same
 //  pairing that callback does.
 //
 //  🛑 TWO OF THESE ARE LATCHED AND CANNOT APPLY MID-GAME. The console log for
@@ -671,7 +676,37 @@ qol_opt_graphics_boost()
     a_keys[ a_keys.size ] = "com_maxfps";
 
     a_on = [];
-    a_on[ "r_aaSamples" ]          = "16";   // latched - next launch
+    //  🛑 CLAMPED TO WHAT THE ENGINE ITSELF REPORTS, NEVER A FIXED NUMBER.
+    //
+    //  v2.2.4. This line used to write a hard "16", and that one value is what
+    //  black-screened and hard-froze the mod on EVERY launch from v2.0.7
+    //  onward, for anyone who ever switched GRAPHICS BOOST on:
+    //
+    //      Reading stats... / Reading backup stats...
+    //      COM_ERROR (0) E_INVALIDARG ... @ 0x74C0E0
+    //
+    //  r_aaSamples is LATCHED, so it is applied by the renderer restart that
+    //  happens when the mod loads - before any GSC runs. 16x MSAA is a sample
+    //  count D3D cannot create, so the device creation returns E_INVALIDARG and
+    //  the game dies at the frontend. Measured, not reasoned:
+    //
+    //    · the boot-time dvar dump in console_zm.log reports r_aaSamplesMax "8"
+    //    · optionssettings.lua Button_AddChoices_AntiAliasing offers exactly
+    //      1 / 2 / 4 / 8 - there is no 16 choice anywhere in the stock menu
+    //    · every mod on this install that boots has r_aaSamples "4" in its
+    //      config; zm_qol was the only one carrying "16", and the only one
+    //      that crashed - five loads out of five
+    //
+    //  🛑 THE "<= 16" IN AntiAliasingChangeCallback WAS MISREAD. It is the bound
+    //  that separates real MSAA values from the TXAA sentinels 17 and 18. It
+    //  was never a claim that 16 is a valid sample count, and the choice list a
+    //  few lines below it is the authority on what is.
+    n_aa_max = getdvarintdefault( "r_aaSamplesMax", 4 );
+
+    if ( n_aa_max < 1 )
+        n_aa_max = 4;
+
+    a_on[ "r_aaSamples" ]          = "" + n_aa_max;   // latched - next launch
     a_on[ "r_txaa" ]               = "0";
     a_on[ "r_fxaa" ]               = "0";
     a_on[ "r_texFilterQuality" ]   = "0";    // latched - next launch
@@ -721,7 +756,7 @@ qol_opt_graphics_boost()
             }
 
             if ( n_on )
-                println( "[zm_qol] GRAPHICS BOOST on  - " + a_keys.size + " render dvars set (r_aaSamples/r_texFilterQuality apply next launch)" );
+                println( "[zm_qol] GRAPHICS BOOST on  - " + a_keys.size + " render dvars set (r_aaSamples " + a_on[ "r_aaSamples" ] + " of max " + n_aa_max + ", latched to next launch)" );
             else
                 println( "[zm_qol] GRAPHICS BOOST off - restored" );
         }

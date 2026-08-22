@@ -623,6 +623,7 @@ act_mod() {
   case "$MENU_RESULT" in ""|back) return ;; esac
 
   header "Install the mod"
+  repair_bad_aasamples
   local f missing=""
   for f in "${MOD_FILES[@]}"; do [ -f "$src/$f" ] || missing="$missing $f"; done
   if [ -n "$missing" ]; then
@@ -657,6 +658,54 @@ act_mod() {
   say "✅  The mod is installed - version $(mod_version "$MODDIR/mod.json")" "$GN"
   say "Plutonium T6 → Zombies → Mods → $MODNAME" "$DIM"
   pause_key
+}
+
+# ---------------------------------------------------------------------------
+#  repair_bad_aasamples - take r_aaSamples 16 back out of a saved config.
+#
+#  Symptom on both platforms: the mod loads from the in-game Mods menu, the
+#  screen goes black and the game freezes. console_zm.log ends on
+#      Reading stats... / Reading backup stats...
+#      COM_ERROR (0) E_INVALIDARG ... @ 0x74C0E0
+#
+#  Cause: GRAPHICS BOOST used to write r_aaSamples 16. That dvar is LATCHED, so
+#  it is applied by the renderer restart that runs as the mod loads, before any
+#  script of the mod executes. 16x MSAA is not a sample count the hardware can
+#  create, so device creation fails and the frontend dies. The boot-time dvar
+#  dump reports r_aaSamplesMax "8"; the game's own menu offers 1 / 2 / 4 / 8.
+#
+#  The mod no longer writes 16 - it reads r_aaSamplesMax. But a value already
+#  saved in plutonium_zm.cfg still kills the next launch by itself, because the
+#  config is exec'd long before any script runs. So it has to be taken out of
+#  the live config AND out of the settings backup, which a later "put back"
+#  would otherwise hand straight back to the player.
+#
+#  🛑 sed -i in place, ONE line, so every other byte and every line ending is
+#  left exactly as it was. Rewriting the whole file is how ReShade.ini lost 150
+#  bytes in v2.2.1.
+# ---------------------------------------------------------------------------
+repair_bad_aasamples() {
+  local p v fixed=0
+  for p in "$CFGDIR/plutonium_zm.cfg" "$BACKUPS/mod/settings/plutonium_zm.cfg"; do
+    [ -f "$p" ] || continue
+    v="$(sed -n 's/^[ \t]*seta[ \t]\+r_aaSamples[ \t]\+"\?\(-\?[0-9]\+\)"\?.*$/\1/p' "$p" | head -n1)"
+    [ -n "$v" ] || continue
+    case "$v" in 1|2|4|8) continue ;; esac
+
+    say "Anti-aliasing was saved as ${v}x, which the game cannot start with." "$YE"
+    say "That is what made the mod load to a black screen - setting it back." "$DIM"
+    [ "$DRYRUN" -eq 1 ] && { say "(dry run - nothing changed)" "$DIM"; continue; }
+
+    if sed -i 's/^\([ \t]*seta[ \t]\+r_aaSamples[ \t]\+\)"\?-\?[0-9]\+"\?.*$/\1"4"/' "$p"; then
+      fixed=$((fixed+1))
+      log "repaired r_aaSamples $v -> 4 in $p"
+    else
+      say "Could not change it - close Plutonium and run this again." "$RD"
+      log "could not repair r_aaSamples in $p"
+    fi
+  done
+  [ "$fixed" -gt 0 ] && say "Set back to 4x MSAA in $fixed file(s). The mod picks a safe value itself now." "$GN"
+  return 0
 }
 
 act_pack() {
