@@ -9,8 +9,8 @@ disable-model-invocation: true
 
 - Current branch: !`git branch --show-current`
 - Working tree: !`git status --short`
-- Handoff mailbox: !`git fetch origin arena/01a02afd-zm-qol --quiet 2>&1; git show origin/arena/01a02afd-zm-qol:HANDOFF.md 2>&1 || echo "NO HANDOFF FILE - branch missing or not yet pushed"`
-- Files changed on the handoff branch vs main: !`git diff --stat origin/main...origin/arena/01a02afd-zm-qol 2>&1 | tail -40`
+- Handoff mailbox: !`git fetch origin '+refs/heads/arena/*:refs/remotes/origin/arena/*' --quiet 2>&1; git show origin/arena/01a02afd-zm-qol:HANDOFF.md 2>&1 || echo "NO HANDOFF FILE - branch missing, not yet pushed, or fetch refspec is main-only"`
+- Files changed on the handoff branch vs main: !`git fetch origin main --quiet 2>&1; git diff --stat origin/main...origin/arena/01a02afd-zm-qol 2>&1 | tail -40`
 
 ## Your task
 
@@ -52,3 +52,16 @@ Argument (may be empty): $ARGUMENTS — if an entry ID is given, deal with that 
 
 Also check the **Outbox** section for questions the Arena agent has asked. Answer any you can
 determine from this machine, and surface the rest to the user.
+
+## If the mailbox failed to load
+
+If the context block above says `NO HANDOFF FILE`, the usual cause is a clone whose fetch
+refspec only covers `main`, so `arena/*` never lands in `refs/remotes/`. Check with
+`git config --get-all remote.origin.fetch`. One-time fix:
+
+```
+git config --add remote.origin.fetch '+refs/heads/arena/*:refs/remotes/origin/arena/*'
+```
+
+Then re-run `/arena-sync`. Confirm the branch exists at all with
+`git ls-remote origin 'refs/heads/arena/*'`.
