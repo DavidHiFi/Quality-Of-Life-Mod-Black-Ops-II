@@ -1679,7 +1679,21 @@ zombiecounter()
     self endon( "disconnect" );
     level endon( "end_game" );
     flag_wait( "initial_blackscreen_passed" );
-    self.zombietext = createfontstring( "hudsmall", 1.2 );
+    //  🛑 v2.2.5 - "hudsmall" -> "small". "hudsmall" IS NOT A T6 FONT and the
+    //  engine had been rejecting it on every one of the five createfontstring()
+    //  calls in this mod, every match, since they were written. Found in the
+    //  crash dumps rather than the console, because Plutonium does not surface
+    //  it: BOTH of this install's dumps (2026-08-21 and 2026-08-22) carry it as
+    //  the last recorded GSC error, word for word -
+    //        "hudsmall" is not a valid value for hudelem field "font"
+    //        Should be one of: default bigfixed smallfixed objective big small
+    //                          extrabig extrasmall
+    //  The assignment is the third line of stock's createfontstring()
+    //  (_hud_util.gsc:310), so the element was built and then silently kept the
+    //  default font - the row worked, it just never had the font it asked for.
+    //  "small" is the name from the engine's own list. Changed with the user's
+    //  explicit approval, 2026-08-22, because it alters how the text looks.
+    self.zombietext = createfontstring( "small", 1.2 );
 
     //  y -7 -> -12, v1.77.0. The shield bar (v1.75.0) now occupies -0.5..4.5,
     //  which used to be the empty clearance under this counter, so the text was
@@ -6014,7 +6028,7 @@ zmqol_print_help()
 
     for ( i = 0; i < a_lines.size; i++ )
     {
-        e_line = self createfontstring( "hudsmall", 1.1 );
+        e_line = self createfontstring( "small", 1.1 );
 
         //  Tucked into the very top-left, tight line spacing: the user's
         //  screenshot had the chat feed cutting straight through the middle of

@@ -1922,7 +1922,7 @@ qol_opt_zone_hud( b_on )
 
     if ( !isdefined( self.qol_hud_zone ) )
     {
-        self.qol_hud_zone = self createfontstring( "hudsmall", 1.2 );
+        self.qol_hud_zone = self createfontstring( "small", 1.2 );
 
         //  -19 -> -24, v1.77.0. Moves in lockstep with the zombie counter
         //  (quality_of_life.gsc::zombiecounter(), -7 -> -12) so the 12-unit gap
@@ -1999,7 +1999,7 @@ qol_opt_compass_hud( b_on )
 
     if ( !isdefined( self.qol_hud_compass ) )
     {
-        self.qol_hud_compass = self createfontstring( "hudsmall", 1.4 );
+        self.qol_hud_compass = self createfontstring( "small", 1.4 );
         //  Top centre. Clear of the round counter (top right) and of the
         //  power-up row, which is centred lower down.
         self.qol_hud_compass setpoint( "TOP", "TOP", 0, 10 );
@@ -2074,7 +2074,7 @@ qol_opt_round_timer_hud( b_on )
         //  (Both keep vertalign "user_top" rather than round_hud()'s "top": the y
         //  values are measured in the "user_top" frame, so that offset is already
         //  accounted for.)
-        self.qol_hud_roundtimer = self createfontstring( "hudsmall", 1.2 );
+        self.qol_hud_roundtimer = self createfontstring( "small", 1.2 );
         self.qol_hud_roundtimer.alignx = "center";
         self.qol_hud_roundtimer.aligny = "top";
         self.qol_hud_roundtimer.vertalign = "user_top";
