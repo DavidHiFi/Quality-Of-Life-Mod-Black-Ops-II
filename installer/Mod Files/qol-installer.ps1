@@ -71,6 +71,61 @@ $C = @{
     Good   = 'Green'
 }
 
+# ---------------------------------------------------------------------------
+#  ANSI / virtual-terminal output. The menu draws each frame as one string with
+#  colour codes in it and pushes it in a single write, which is what stops the
+#  terminal presenting a half-drawn frame. Windows Terminal has VT on always;
+#  conhost needs ENABLE_VIRTUAL_TERMINAL_PROCESSING (0x0004) turned on, which is
+#  what Enable-Vt does. If either the P/Invoke or the mode set fails, $script:Vt
+#  stays $false and the menu uses the old per-segment Write-Host path.
+# ---------------------------------------------------------------------------
+$script:Vt = $false
+$VTMAP = @{
+    'Black'='30'; 'DarkRed'='31'; 'DarkGreen'='32'; 'DarkYellow'='33'
+    'DarkBlue'='34'; 'DarkMagenta'='35'; 'DarkCyan'='36'; 'Gray'='37'
+    'DarkGray'='90'; 'Red'='91'; 'Green'='92'; 'Yellow'='93'
+    'Blue'='94'; 'Magenta'='95'; 'Cyan'='96'; 'White'='97'
+}
+function Vt-Colour {
+    param([string] $Name)
+    $c = '37'
+    if ($Name -and $VTMAP.ContainsKey($Name)) { $c = $VTMAP[$Name] }
+    return "$([char]27)[${c}m"
+}
+function Enable-Vt {
+    if ($script:Headless) { return }
+
+    #  🛑 REDIRECTED OUTPUT IS NOT A CONSOLE. Escape codes would land in the file
+    #  or pipe as literal bytes, and GetConsoleMode below fails on a pipe handle
+    #  anyway. This is also what makes the -Action tests behave.
+    try { if ([Console]::IsOutputRedirected) { return } } catch { return }
+
+    #  The host's own answer, and the one that actually holds on this machine:
+    #  Windows PowerShell 5.1 reports SupportsVirtualTerminal = True in both
+    #  Windows Terminal and a modern conhost. Trust it before reaching for
+    #  P/Invoke - it is the supported API and it cannot throw.
+    try {
+        if ($Host -and $Host.UI -and $Host.UI.SupportsVirtualTerminal) { $script:Vt = $true; return }
+    } catch { }
+
+    #  Older host that has not turned VT on for itself: ask Windows directly.
+    try {
+        if (-not ([System.Management.Automation.PSTypeName]'ZmQolVt').Type) {
+            Add-Type -Namespace '' -Name ZmQolVt -MemberDefinition @'
+[DllImport("kernel32.dll", SetLastError=true)] public static extern IntPtr GetStdHandle(int n);
+[DllImport("kernel32.dll", SetLastError=true)] public static extern bool GetConsoleMode(IntPtr h, out uint m);
+[DllImport("kernel32.dll", SetLastError=true)] public static extern bool SetConsoleMode(IntPtr h, uint m);
+'@ -ErrorAction Stop
+        }
+        $h = [ZmQolVt]::GetStdHandle(-11)
+        $m = 0
+        if (-not [ZmQolVt]::GetConsoleMode($h, [ref]$m)) { return }
+        if (($m -band 0x0004) -eq 0) { [void][ZmQolVt]::SetConsoleMode($h, ($m -bor 0x0004)) }
+        $m2 = 0
+        if ([ZmQolVt]::GetConsoleMode($h, [ref]$m2) -and (($m2 -band 0x0004) -ne 0)) { $script:Vt = $true }
+    } catch { $script:Vt = $false }
+}
+
 function Write-Log {
     param([string] $Text, [string] $Level = 'info')
     $line = '{0}  {1,-5}  {2}' -f (Get-Date -Format 'HH:mm:ss'), $Level, $Text
@@ -224,6 +279,10 @@ function Show-Menu {
         $L += ,@( @{ t = '   ╚' + ('═' * $inner) + '╝'; c = $C.Frame } )
         $L += ,@( @{ t = ''; c = $C.Text } )
 
+        # Everything above this point is pinned when the frame has to scroll.
+        $headCount = $L.Count
+        $selLine   = -1
+
         foreach ($line in $Intro) {
             if ($line -eq '')                 { $L += ,@( @{ t = ''; c = $C.Text } ) }
             elseif ($line.StartsWith('!'))    { $L += ,@( @{ t = '   ' + $line.Substring(1); c = $C.Warn } ) }
@@ -231,6 +290,26 @@ function Show-Menu {
             else                              { $L += ,@( @{ t = '   ' + $line; c = $C.Text } ) }
         }
         if ($Intro.Count -gt 0) { $L += ,@( @{ t = ''; c = $C.Text } ) }
+
+        # -------------------------------------------------------------------
+        #  🛑 v2.2.1 - THE STATUS COLUMN IS MEASURED, NOT A FIXED 38.
+        #
+        #  User screenshot, 2026-08-22, with an arrow drawn at it: *"Back up my
+        #  files first, then install it allrecommended"*. The label is 43
+        #  characters and PadRight(38) does nothing to a string already longer
+        #  than 38, so the green status started in the very next column with no
+        #  space at all. Any label over 38 had the same collision waiting.
+        #
+        #  So the column is the widest label on THIS screen plus two spaces, and
+        #  never less than 38 - which leaves every screen that already fitted
+        #  looking exactly as it did, and makes a collision impossible rather
+        #  than unlikely.
+        # -------------------------------------------------------------------
+        $labelCol = 38
+        foreach ($it in $Items) {
+            $n = ([string]$it.Label).Length
+            if ($n + 2 -gt $labelCol) { $labelCol = $n + 2 }
+        }
 
         $lastSection = $null
         for ($i = 0; $i -lt $Items.Count; $i++) {
@@ -243,7 +322,11 @@ function Show-Menu {
 
             $marker = '     '
             if ($i -eq $Sel) { $marker = '   ❯ ' }
-            $label = $it.Label.PadRight(38)
+            #  [string] and not a bare .PadRight: a row whose Label came back
+            #  $null used to end the whole installer with InvokeMethodOnNull.
+            #  The Label is table-driven now so it cannot be $null, but a menu
+            #  must never be the thing that kills the run.
+            $label = ([string]$it.Label).PadRight($labelCol)
             $status = ''
             if ($it.Status) { $status = [string]$it.Status }
             $colour = $C.Text
@@ -259,13 +342,90 @@ function Show-Menu {
             if ($status.Length -gt $room) {
                 if ($room -ge 1) { $status = $status.Substring(0, $room - 1) + '…' } else { $status = '' }
             }
+            if ($i -eq $Sel) { $selLine = $L.Count }
             $L += ,@( @{ t = $marker; c = $C.Title }, @{ t = $label; c = $colour }, @{ t = $status; c = $sc } )
         }
 
         $L += ,@( @{ t = ''; c = $C.Text } )
         $L += ,@( @{ t = '   ' + ('─' * 68); c = $C.Frame } )
         $L += ,@( @{ t = $Footer; c = $C.Dim } )
-        return ,$L
+        return @{ Lines = $L; Head = $headCount; Tail = 3; Sel = $selLine }
+    }
+
+    <#
+      🛑 v2.2.1 - THE FRAME IS MADE TO FIT THE WINDOW; THE WINDOW IS NOT MADE TO
+      FIT THE FRAME. This is the flicker fix and the missing-Quit fix, and they
+      were always the same bug.
+
+      User, 2026-08-22: *"there's still some weird flickering at the bottom of
+      the terminal window ... and also I couldn't see the final quit option at
+      the bottom of the script unless i made the window bigger"*, with a
+      screenshot of the main menu scrolled so its header was off the top.
+
+      v2.0.5 tried to solve it by GROWING the console (Fit-Console). That works
+      in conhost and does nothing in Windows Terminal, which does not implement
+      the console resize API - and the screenshot is Windows Terminal. When the
+      grow fails the frame is taller than the window, $canPlace goes false, and
+      the drawing drops to the sequential path that Clear-Hosts on every keypress
+      and lets the buffer scroll: exactly the flash at the bottom, and exactly
+      the header scrolling off so the last row is out of view.
+
+      🌟 So the frame is now CUT to the window instead. The six title lines and
+      the three closing lines (rule + footer) are pinned; the middle - intro and
+      rows - scrolls just far enough to keep the selected row in view, with a
+      "more above / more below" marker in the pinned rule. Nothing ever leaves
+      the absolute-positioned path, so nothing clears and nothing scrolls, at any
+      window size. The console itself is never resized - see the v2.2.3 note at
+      the call site for why growing it was making the last row unreachable.
+    #>
+    function Fit-Frame {
+        param($F, [int] $Height)
+        $lines = $F.Lines
+        if ($Height -lt 8) { return ,$lines }              # absurdly small: draw and let it clip
+        if ($lines.Count -le $Height) { return ,$lines }
+
+        $head = $F.Head
+        $tail = $F.Tail
+        $room = $Height - $head - $tail                    # rows left for the middle
+        if ($room -lt 1) { return ,($lines[0..($Height - 1)]) }
+
+        $bodyStart = $head
+        $bodyEnd   = $lines.Count - $tail - 1
+        $bodyLen   = $bodyEnd - $bodyStart + 1
+
+        # Scroll so the selected row sits inside the window, with one row of lead
+        # where there is one.
+        $off = 0
+        if ($F.Sel -ge 0) {
+            $selInBody = $F.Sel - $bodyStart
+            if ($selInBody -ge $room) { $off = $selInBody - $room + 2 }
+            if ($off -gt $bodyLen - $room) { $off = $bodyLen - $room }
+            if ($off -lt 0) { $off = 0 }
+        }
+
+        $out = @()
+        for ($i = 0; $i -lt $head; $i++) { $out += ,$lines[$i] }
+        for ($i = 0; $i -lt $room; $i++) {
+            $src = $bodyStart + $off + $i
+            if ($src -le $bodyEnd) { $out += ,$lines[$src] } else { $out += ,@( @{ t = ''; c = $C.Text } ) }
+        }
+        # The pinned rule carries the scroll marker, so no row is spent on it.
+        $more = ''
+        if ($off -gt 0 -and ($off + $room) -lt $bodyLen) { $more = '  ↑ ↓ more  ' }
+        elseif ($off -gt 0)                              { $more = '  ↑ more  ' }
+        elseif (($off + $room) -lt $bodyLen)             { $more = '  ↓ more  ' }
+        for ($i = $lines.Count - $tail; $i -lt $lines.Count; $i++) {
+            $ln = $lines[$i]
+            if ($more -ne '' -and $ln.Count -eq 1 -and $ln[0].t -like '   ─*') {
+                $bar = $ln[0].t
+                $keep = $bar.Length - $more.Length
+                if ($keep -gt 4) {
+                    $ln = @( @{ t = $bar.Substring(0, $keep); c = $C.Frame }, @{ t = $more; c = $C.Title } )
+                }
+            }
+            $out += ,$ln
+        }
+        return ,$out
     }
 
     $cursorWas = $true
@@ -282,14 +442,33 @@ function Show-Menu {
         $w = 100; $h = 40
         try { $w = [Console]::WindowWidth; $h = [Console]::WindowHeight } catch { }
 
-        $frame = Build-Frame $cur $w
+        $built = Build-Frame $cur $w
 
-        # Grow the window to fit before deciding anything, so a frame one or two
-        # rows too tall does not fall back to a worse drawing mode.
-        [void](Fit-Console ($frame.Count + 2))
-        try { $h = [Console]::WindowHeight } catch { }
+        # ---------------------------------------------------------------
+        #  🛑 v2.2.3 - Fit-Console IS NOT CALLED ANY MORE, AND REMOVING IT IS THE
+        #  FIX FOR THE HIDDEN "QUIT" ROW.
+        #
+        #  User, 2026-08-22, after v2.2.1 was supposed to have fixed this:
+        #  *"i couldn't see the last quit option until i resized and made the
+        #  window bigger"*.
+        #
+        #  Fit-Console grew the console to fit the frame. On a host that will not
+        #  resize its WINDOW it could still succeed in growing the BUFFER - the
+        #  two are set separately, and the buffer set comes first because the
+        #  window may not exceed it. A buffer taller than the viewport is a
+        #  SCROLLBACK: the viewport sits at the bottom of it, so a frame drawn at
+        #  buffer rows 0..29 of a 34-row buffer has its top rows scrolled off and
+        #  its last rows out of view. That is exactly the reported symptom, and
+        #  making the window bigger "fixed" it by letting the viewport show the
+        #  whole buffer again.
+        #
+        #  Fit-Frame already cuts the frame to the window, so growing anything is
+        #  pointless as well as harmful. The window is left completely alone now
+        #  and the frame is fitted to whatever height the window actually is.
+        # ---------------------------------------------------------------
+        $frame = Fit-Frame $built $h
 
-        $canPlace = (-not $script:Headless) -and (-not $script:NoKeys) -and ($frame.Count -lt $h)
+        $canPlace = (-not $script:Headless) -and (-not $script:NoKeys) -and ($frame.Count -le $h)
 
         if (-not $canPlace) {
             # --- plain sequential fallback -----------------------------------
@@ -324,25 +503,85 @@ function Show-Menu {
                 try { [Console]::CursorVisible = $false } catch { }
             }
 
-            #  🛑 NO NEWLINE IS EVER WRITTEN. Every line is placed absolutely and
-            #  padded to the window width, so nothing scrolls and nothing of the
-            #  previous frame can show through.
-            for ($i = 0; $i -lt $frame.Count; $i++) {
-                $row = $top + $i
-                if ($row -ge ($top + $h)) { break }
-                try { [Console]::SetCursorPosition(0, $row) } catch { $placed = $false; break }
-                $used = 0
-                foreach ($seg in $frame[$i]) {
-                    if ($seg.t -eq '') { continue }
-                    Write-Host $seg.t -ForegroundColor $seg.c -NoNewline
-                    $used += $seg.t.Length
+            # ---------------------------------------------------------------
+            #  🛑 v2.2.3 - THE WHOLE FRAME GOES OUT IN **ONE** WRITE.
+            #
+            #  User, 2026-08-22, after v2.2.1 was supposed to have fixed this:
+            #  *"there's still visual inconsistencies with the installer script
+            #  like flickering weird stuff when moving"*.
+            #
+            #  v2.2.1 fixed the SCROLLING (the frame is cut to the window now and
+            #  nothing clears between keypresses) and that part held. What it did
+            #  not fix is the TEARING, because it still drew the frame as roughly
+            #  a hundred separate console calls per keypress - a SetCursorPosition
+            #  plus one Write-Host per coloured segment per line. Windows Terminal
+            #  repaints on its own clock, so it happily presents a half-drawn
+            #  frame; that is the flicker, and no amount of "don't clear" removes
+            #  it while the frame arrives in a hundred pieces.
+            #
+            #  🌟 So the frame is now rendered to a SINGLE string - ANSI colour
+            #  codes and one absolute cursor move per line - and pushed with one
+            #  [Console]::Out.Write(). One write is one repaint: there is no
+            #  intermediate state for the terminal to show.
+            #
+            #  Falls back to the old per-segment path when the host has no VT
+            #  support (see Enable-Vt), so nothing is lost on an old console.
+            # ---------------------------------------------------------------
+            if ($script:Vt) {
+                $sb = New-Object System.Text.StringBuilder
+                for ($i = 0; $i -lt $frame.Count; $i++) {
+                    $row = $top + $i
+                    if ($row -ge ($top + $h)) { break }
+                    [void]$sb.Append("$([char]27)[$($row + 1);1H")   # absolute, 1-based
+                    $used = 0
+                    foreach ($seg in $frame[$i]) {
+                        if ($seg.t -eq '') { continue }
+                        [void]$sb.Append((Vt-Colour $seg.c)).Append($seg.t)
+                        $used += $seg.t.Length
+                    }
+                    [void]$sb.Append("$([char]27)[0m")
+                    if ($used -lt ($w - 1)) { [void]$sb.Append(' ' * (($w - 1) - $used)) }
                 }
-                if ($used -lt ($w - 1)) { Write-Host (' ' * (($w - 1) - $used)) -NoNewline }
+                try { [Console]::Out.Write($sb.ToString()) } catch { $script:Vt = $false; $placed = $false; continue }
             }
-            if (-not $placed) { continue }
+            else {
+                for ($i = 0; $i -lt $frame.Count; $i++) {
+                    $row = $top + $i
+                    if ($row -ge ($top + $h)) { break }
+                    try { [Console]::SetCursorPosition(0, $row) } catch { $placed = $false; break }
+                    $used = 0
+                    foreach ($seg in $frame[$i]) {
+                        if ($seg.t -eq '') { continue }
+                        Write-Host $seg.t -ForegroundColor $seg.c -NoNewline
+                        $used += $seg.t.Length
+                    }
+                    if ($used -lt ($w - 1)) { Write-Host (' ' * (($w - 1) - $used)) -NoNewline }
+                }
+                if (-not $placed) { continue }
+            }
         }
 
-        try { $key = [Console]::ReadKey($true) }
+        # ---------------------------------------------------------------
+        #  🛑 A RESIZE MUST REDRAW WITHOUT A KEYPRESS.
+        #  User, 2026-08-22: *"i couldn't see the last quit option until i
+        #  resized and made the window bigger AND THEN MOVED AROUND IN THE MENU
+        #  TO REFRESH IT"*. The second half of that sentence is the bug: the loop
+        #  blocked in ReadKey, so a resize was not noticed until the next
+        #  keypress and the frame stayed cut to the old height. Polling instead
+        #  means the window is re-measured about ten times a second and the frame
+        #  follows the window on its own.
+        # ---------------------------------------------------------------
+        $key = $null
+        try {
+            while (-not [Console]::KeyAvailable) {
+                Start-Sleep -Milliseconds 90
+                $nw = $w; $nh = $h
+                try { $nw = [Console]::WindowWidth; $nh = [Console]::WindowHeight } catch { }
+                if ($nw -ne $drawnW -or $nh -ne $drawnH) { $placed = $false; break }
+            }
+            if (-not $placed) { continue }
+            $key = [Console]::ReadKey($true)
+        }
         catch { $script:NoKeys = $true; $placed = $false; continue }
         switch ($key.Key) {
             'UpArrow' {
@@ -468,30 +707,246 @@ function Format-Size {
 #  Plutonium's own program directory; the only things in it this installer ever
 #  writes are the three files and the one folder listed here, so they are the
 #  only things it has any business copying or putting back.
-#  v2.2.0 - the 20 filenames the PS5 icon pack replaces, read from the payload
-#  itself so this list can never drift from what is actually overwritten. Empty
-#  if the pack is not in the package, which simply means that backup set has
-#  nothing to copy.
-$DSFILES = @()
-$dsSrcForList = Find-Payload 'Dualsense IconsImages'
-if (-not $dsSrcForList) { $dsSrcForList = Find-Payload 'Dualsense Icons' }
-if ($dsSrcForList) { $DSFILES = @(Get-ChildItem -LiteralPath $dsSrcForList -File -Recurse | ForEach-Object { $_.Name }) }
+# =============================================================================
+#  CONTROLLER ICON PACKS  -  v2.2.1
+# -----------------------------------------------------------------------------
+#  User, 2026-08-22: *"also give the option to install/remove both nintendo
+#  switch controller & xbox one controller icons ... so you can choose from 3
+#  options based off what controller the user uses."*
+#
+#  Three packs, ONE slot. They all overwrite the same xenonbutton_* .iwi names
+#  in storage\t6\images, so only one can be installed at a time and picking a
+#  new one removes the old one first (by its own manifest, so nothing that was
+#  not put there by this installer is ever touched).
+#
+#  🛑 EACH PACK HAS A DIFFERENT FOLDER SHAPE, measured from the payload:
+#       Dualsense Icons\Images\*.iwi                 20 files
+#       Nintendo Switch Icons\t6\images\*.iwi        28 files
+#       Xbox One Buttons\t6r\data\images\*.iwi       24 files
+#  Plutonium wants them FLAT in storage\t6\images, so the copy must start from
+#  the folder that actually holds the .iwi files, never from the pack root -
+#  robocopy /E would otherwise recreate "t6\images\" inside the images folder
+#  and the game would see nothing. Resolve-IconSource finds that folder.
+# =============================================================================
+$CONTROLLERS = [ordered]@{
+    ps5    = @{ Name = 'PlayStation 5 (DualSense)'; Short = 'PS5';    Folder = 'Dualsense Icons' }
+    switch = @{ Name = 'Nintendo Switch';           Short = 'Switch'; Folder = 'Nintendo Switch Icons' }
+    xbox   = @{ Name = 'Xbox One';                  Short = 'Xbox';   Folder = 'Xbox One Buttons' }
+}
+
+# The folder inside a pack that actually holds the .iwi files. Every pack keeps
+# them all in one directory; the deepest one with .iwi in it is that directory.
+function Resolve-IconSource {
+    param([string] $PackKey)
+    $root = Find-Payload $CONTROLLERS[$PackKey].Folder
+    if (-not $root) { return $null }
+    $iwi = @(Get-ChildItem -LiteralPath $root -File -Recurse -Filter '*.iwi' -ErrorAction SilentlyContinue)
+    if ($iwi.Count -eq 0) { return $null }
+    $dirs = @($iwi | ForEach-Object { $_.DirectoryName } | Sort-Object -Unique)
+    # One directory is the normal case. If a pack ever ships two, take the one
+    # with the most files rather than silently copying half of it.
+    if ($dirs.Count -eq 1) { return $dirs[0] }
+    return (($iwi | Group-Object DirectoryName | Sort-Object Count -Descending)[0]).Name
+}
+
+# -----------------------------------------------------------------------------
+#  Every filename any pack can overwrite. This is the list the HD texture pack is
+#  forbidden to install, the list the icon backup captures, and the list a pack
+#  swap has to be able to clear.
+#
+#  🛑 IT STARTS FROM A CONSTANT, AND THAT IS NOT BELT-AND-BRACES - IT IS THE
+#  WHOLE POINT. The icon packs live in Optionals\, the release ZIP does not carry
+#  Optionals\, and this list is what stops the texture pack shipping controller
+#  art. Deriving it ONLY from the payloads would make it empty for exactly the
+#  people who install from the release - and the texture pack would go straight
+#  back to deciding their button prompts, which is the bug being fixed.
+#
+#  The 20 constants are the names the HD texture pack actually contains,
+#  measured against Optionals\images. The payloads are then unioned in, so a pack
+#  that grows a file (Switch's 8 ui_button_crc_*, Xbox's 4 xenon_stick_*) is
+#  covered without this list having to be edited.
+# -----------------------------------------------------------------------------
+$ICONFILES = @(
+    'xenon_controller_top.iwi',
+    'xenonbutton_a.iwi','xenonbutton_b.iwi','xenonbutton_x.iwi','xenonbutton_y.iwi',
+    'xenonbutton_back.iwi','xenonbutton_start.iwi',
+    'xenonbutton_lb.iwi','xenonbutton_rb.iwi','xenonbutton_lt.iwi','xenonbutton_rt.iwi',
+    'xenonbutton_ls.iwi','xenonbutton_rs.iwi',
+    'xenonbutton_dpad_all.iwi','xenonbutton_dpad_up.iwi','xenonbutton_dpad_down.iwi',
+    'xenonbutton_dpad_left.iwi','xenonbutton_dpad_right.iwi',
+    'xenonbutton_dpad_ud.iwi','xenonbutton_dpad_rl.iwi'
+)
+foreach ($k in $CONTROLLERS.Keys) {
+    $d = Resolve-IconSource $k
+    if ($d) { $ICONFILES += @(Get-ChildItem -LiteralPath $d -File -Filter '*.iwi' | ForEach-Object { $_.Name }) }
+}
+$ICONFILES = @($ICONFILES | Sort-Object -Unique)
+
+# Which pack is installed right now, or $null. Kept next to the manifests.
+$PACKFILE = Join-Path $STATE 'controller-pack.txt'
+function Get-ControllerPack {
+    if ((Read-Manifest 'controller').Count -eq 0) { return $null }
+    if (-not (Test-Path -LiteralPath $PACKFILE)) { return 'ps5' }   # pre-v2.2.1 installs were always PS5
+    $lines = @(Get-Content -LiteralPath $PACKFILE -ErrorAction SilentlyContinue)
+    $v = $null
+    if ($lines.Count -gt 0) { $v = ([string]$lines[0]).Trim() }
+    if ($v -and $CONTROLLERS.Contains($v)) { return $v }
+    return 'ps5'
+}
+function Set-ControllerPack {
+    param([string] $Key)
+    if ($DryRun) { return }
+    if (-not (Test-Path $STATE)) { New-Item -ItemType Directory -Force -Path $STATE | Out-Null }
+    Set-Content -LiteralPath $PACKFILE -Value $Key -Encoding UTF8
+}
+
+# =============================================================================
+#  RESHADE  -  one install, four games, four presets  -  v2.2.1
+# -----------------------------------------------------------------------------
+#  User, 2026-08-22: *"make sure the reshade install option works for all
+#  plutonium games not just bo2, and make a reshade preset for bo1, mw3, and waw
+#  so each game has it's own reshade preset and whenever you load a specific game
+#  it uses the games' specified reshade preset automatically."*
+#
+#  🛑 THE "AUTOMATICALLY" HALF CANNOT BE DONE, AND THAT IS MEASURED, NOT ASSUMED.
+#  All four Plutonium games run as the SAME executable in the SAME folder -
+#  ReShade.log, this PC, 16:02:21: *"loaded from ...\Plutonium\bin\dxgi.dll into
+#  ...\Plutonium\bin\plutonium-bootstrapper-win32.exe"*, and that one process is
+#  the one that renders (the SetFullscreenState calls through to 16:20 are in it).
+#  ReShade resolves exactly one ReShade.ini from that folder and reads PresetPath
+#  out of it once, at load. Its own string table carries PresetPath,
+#  StartupPresetPath and PresetShortcutPaths and nothing per-application, so
+#  there is no key that could name a different preset per game.
+#
+#  🌟 WHAT IS SHIPPED INSTEAD: all four presets go in beside each other, so they
+#  are all in ReShade's own preset list and Ctrl+Shift+PgUp / PgDn - already bound
+#  in ReShade.ini - steps between them in one keypress. The installer asks which
+#  one to START on and writes that to PresetPath.
+#
+#  🛑 AND THEY ARE NOT COSMETIC VARIANTS. Measured off the import tables:
+#  BlackOps.exe, CoDWaW.exe and iw5sp.exe all import d3d9.dll; t6zm.exe imports
+#  d3d11.dll and dxgi.dll. The BO2 preset uses LocalContrastCS, which is a
+#  compute shader with a __RENDERER__ guard - it cannot run on Direct3D 9 at all.
+#  So the three D3D9 presets use only pixel-shader effects from the D3D9-era
+#  libraries (SweetFX / GShade): LumaSharpen, Clarity2, Vibrance, Curves.
+# =============================================================================
+$RESHADEPRESETS = [ordered]@{
+    'BO2.ini' = @{ Game = 'Black Ops II';    Api = 'DirectX 11' }
+    'BO1.ini' = @{ Game = 'Black Ops';       Api = 'DirectX 9'  }
+    'MW3.ini' = @{ Game = 'Modern Warfare 3';Api = 'DirectX 9'  }
+    'WAW.ini' = @{ Game = 'World at War';    Api = 'DirectX 9'  }
+}
+
+#  Read from the shipped DLL itself so this string can never claim a version the
+#  package does not actually contain.
+$RESHADEVER = 'ReShade'
+try {
+    $rsPay = Find-Payload 'reshade'
+    if ($rsPay) {
+        $rsDll = Join-Path $rsPay 'dxgi.dll'
+        if (Test-Path -LiteralPath $rsDll) {
+            $v = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($rsDll).ProductVersion
+            if ($v) { $RESHADEVER = "ReShade $v" }
+        }
+    }
+} catch { }
 
 $BACKUPSETS = [ordered]@{
-    images  = @{ Title = 'your textures';      Parts = @( @{ Sub='images';          Path=$IMGDIR;  Type='folder' } ) }
-    zone    = @{ Title = 'your sounds';        Parts = @( @{ Sub='zone';            Path=$ZONEDIR; Type='folder' } ) }
-    #  v2.2.0 - the PS5 icon set backs up ONLY the 20 filenames it will replace,
-    #  not the whole images folder: the HD texture pack already backs that up as
-    #  a whole and two folder-wide copies of the same 1GB would be absurd. The
-    #  list is read from the payload itself at load time, so it can never drift
-    #  from what actually gets overwritten.
-    dualsense = @{ Title = 'your controller icons'; Parts = @( @{ Sub='dualsense'; Path=$IMGDIR; Type='files'; Items=$DSFILES } ) }
-    reshade = @{ Title = 'your ReShade setup'; Parts = @(
-                    @{ Sub='bin';             Path=$BINDIR; Type='files'; Items=@('ReShade.ini','BO2.ini','dxgi.dll') },
+    images  = @{ Label = 'My textures';           Title = 'your textures'; Parts = @( @{ Sub='images'; Path=$IMGDIR;  Type='folder' } ) }
+    zone    = @{ Label = 'My sounds';             Title = 'your sounds';   Parts = @( @{ Sub='zone';   Path=$ZONEDIR; Type='folder' } ) }
+    #  The icon set backs up ONLY the filenames a pack can replace, not the whole
+    #  images folder: the HD texture pack already backs that up as a whole and two
+    #  folder-wide copies of the same 1GB would be absurd.
+    controller = @{ Label = 'My controller icons'; Title = 'your controller icons'
+                    Parts = @( @{ Sub='controller'; Path=$IMGDIR; Type='files'; Items=$ICONFILES } ) }
+    reshade = @{ Label = 'My ReShade setup';      Title = 'your ReShade setup'; Parts = @(
+                    @{ Sub='bin';             Path=$BINDIR; Type='files'; Items=@('ReShade.ini','BO2.ini','BO1.ini','MW3.ini','WAW.ini','dxgi.dll') },
                     @{ Sub='reshade-shaders'; Path=(Join-Path $BINDIR 'reshade-shaders'); Type='folder' } ) }
-    mod     = @{ Title = 'the mod';            Parts = @(
+    #  🛑 v2.2.3 - THE SETTINGS BACKUP CARRIES SETTINGS, NOT STATS.
+    #
+    #  User, 2026-08-22, third black screen in a day: the mod loads and the game
+    #  dies at the main menu. The log is the same three lines every time -
+    #      Reading stats... / Reading backup stats...
+    #      COM_ERROR (0) E_INVALIDARG @ 0x74C0E0
+    #  and the cause was THIS BACKUP. players\mods\zm_qol held a `badzmdataddl`
+    #  from 21 Aug - the marker Plutonium writes when it REJECTS a stats file as
+    #  corrupt - next to the zmStats and zmdatabk0000 that were rejected with it.
+    #  "Remove the mod, keep my settings" copied all nine files into
+    #  backups\mod\settings, and every restore after that put the condemned data
+    #  straight back. MEASURED: the three files in the live folder were
+    #  byte-identical to the three in the backup (md5 a31d9ea4, 2fe30180,
+    #  f6278404), and both were dated 21 Aug - carried forward, not regenerated.
+    #
+    #  🌟 A stats file the GAME has already condemned is not the player's data any
+    #  more; it is the thing stopping the game from starting. Copying it forward
+    #  only spreads it. So the settings part now takes the SETTINGS - the config,
+    #  the key bindings, the controller profile - and leaves every stats artefact
+    #  where it is. Nothing of the player's is lost: menu settings and binds are
+    #  exactly what "keep my settings" was ever meant to preserve, and the game
+    #  rebuilds stats by itself on the next launch.
+    mod     = @{ Label = 'The mod + my settings'; Title = 'the mod'; Parts = @(
                     @{ Sub='files';           Path=$MODDIR; Type='folder' },
-                    @{ Sub='settings';        Path=$CFGDIR; Type='folder' } ) }
+                    @{ Sub='settings';        Path=$CFGDIR; Type='files'
+                       Items=@('plutonium_zm.cfg','bindings_zm.bdg','hardware_zm.chp','user_zm.cgp','user_common.cgp') } ) }
+}
+
+# ---------------------------------------------------------------------------
+#  Stats files the game writes into players\mods\<id>\. NONE of them are ever
+#  backed up or restored - see the note in $BACKUPSETS.mod above. `badzmdataddl`
+#  and `badzmdatachecksum` are Plutonium's own "I rejected this" markers; their
+#  presence means the stats beside them are already condemned.
+# ---------------------------------------------------------------------------
+$STATSFILES  = @('zmStats','zmleaderboards','zmdatabk0000','zmdatabk0001','zmdatabk0002')
+$STATSMARKER = @('badzmdataddl','badzmdatachecksum')
+
+<#
+  Move a condemned stats set out of the way so the game can start, into
+  backups\zm_qol-condemned-stats\ where it can still be looked at or put back
+  by hand. Only ever acts when Plutonium's own reject marker is present - a
+  healthy zmStats is never touched.
+
+  🛑 This is the ONE thing that makes "the mod black-screens at the main menu"
+  self-healing instead of a support conversation. The failure looks exactly like
+  a broken mod - the mod loads, then the screen stays black - and it is not the
+  mod at all; it is the game refusing to start on data it has already rejected.
+#>
+function Clear-CondemnedStats {
+    $s = Get-CondemnedStats
+    if (-not $s.Condemned) { return }
+
+    $dest = Join-Path $BACKUPS 'zm_qol-condemned-stats'
+    Say "Your saved zombie stats were rejected by the game as corrupt." $C.Warn
+    Say "That is what makes the mod load to a black screen - it is not the mod." $C.Dim
+    if ($DryRun) { Say "(dry run - nothing moved)" $C.Dim; return }
+    try {
+        if (-not (Test-Path $dest)) { New-Item -ItemType Directory -Force -Path $dest | Out-Null }
+        $moved = 0
+        foreach ($n in $s.Files) {
+            $p = Join-Path $CFGDIR $n
+            if (Test-Path -LiteralPath $p) {
+                Move-Item -LiteralPath $p -Destination (Join-Path $dest $n) -Force
+                $moved++
+            }
+        }
+        Say ("Moved {0} file(s) out of the way - the game will rebuild them." -f $moved) $C.Good
+        Say "   $dest" $C.Dim
+        Say "Your menu settings and key binds are untouched." $C.Dim
+        Write-Log "cleared condemned stats: $($s.Files -join ', ')"
+    } catch {
+        Say "Could not move them - close Plutonium and run this again." $C.Bad
+        Write-Log "could not clear condemned stats: $_" 'warn'
+    }
+}
+
+function Get-CondemnedStats {
+    $hit = @()
+    foreach ($n in ($STATSMARKER + $STATSFILES)) {
+        $p = Join-Path $CFGDIR $n
+        if (Test-Path -LiteralPath $p) { $hit += $n }
+    }
+    $marked = $false
+    foreach ($n in $STATSMARKER) { if (Test-Path -LiteralPath (Join-Path $CFGDIR $n)) { $marked = $true } }
+    return @{ Files = $hit; Condemned = $marked }
 }
 
 function Get-BackupPart {
@@ -611,6 +1066,34 @@ function Restore-Thing {
     return $true
 }
 
+# ---------------------------------------------------------------------------
+#  v2.2.1 - "dualsense" became "controller" when the Switch and Xbox packs were
+#  added. Anyone who installed the PS5 icons under v2.2.0 has an
+#  installed-dualsense.txt manifest and possibly a backups\dualsense folder, and
+#  both must carry over or their icons become un-removable and their originals
+#  un-restorable. Renamed once, in place; nothing is copied twice and nothing is
+#  deleted. Safe to run every launch - it does nothing once the old names are
+#  gone, and it never overwrites a new-name file that already exists.
+# ---------------------------------------------------------------------------
+function Move-OldDualsense {
+    if ($DryRun) { return }
+    try {
+        $old = Join-Path $STATE 'installed-dualsense.txt'
+        $new = Join-Path $STATE 'installed-controller.txt'
+        if ((Test-Path -LiteralPath $old) -and -not (Test-Path -LiteralPath $new)) {
+            Move-Item -LiteralPath $old -Destination $new -Force
+            Set-Content -LiteralPath $PACKFILE -Value 'ps5' -Encoding UTF8
+            Write-Log 'migrated installed-dualsense.txt -> installed-controller.txt (pack=ps5)'
+        }
+        $ob = Join-Path $BACKUPS 'dualsense'
+        $nb = Join-Path $BACKUPS 'controller'
+        if ((Test-Path -LiteralPath $ob) -and -not (Test-Path -LiteralPath $nb)) {
+            Move-Item -LiteralPath $ob -Destination $nb -Force
+            Write-Log 'migrated backups\dualsense -> backups\controller'
+        }
+    } catch { Write-Log "could not migrate the dualsense names: $_" 'warn' }
+}
+
 # Backups used to live in _zm_qol_installer\backups. Move any across, once, so
 # nobody loses one to the new layout.
 function Move-OldBackups {
@@ -633,7 +1116,41 @@ function Move-OldBackups {
 # ------------------------------------------------------------------ copying --
 function Copy-Payload {
     param([string] $Source, [string] $Dest, [string] $Kind)
-    $files = @(Get-ChildItem -LiteralPath $Source -File -Recurse)
+    # -----------------------------------------------------------------------
+    #  THE BLOCKLIST - decided BEFORE the copy, never after.
+    #
+    #  v2.1.3, hud_dpad_blood.iwi: the blood splat behind the points and ammo in
+    #  the bottom right. User, 2026-08-20, two screenshots: *"the points text on
+    #  the hud there is being overlapped by the blood."*
+    #  🌟 MEASURED, not judged by eye. Both copies are 256x128 - the pack's is
+    #  not an upscale of anything - and decoding both to alpha shows they are
+    #  DIFFERENT ARTWORK: stock is a compact blob with scattered droplets, mean
+    #  alpha 27.7, while the pack's is one splat filling almost the whole frame
+    #  plus two ring droplets at the upper left, mean alpha 31.8. Every OTHER
+    #  hud_dpad_* texture in the pack matches stock's alpha to within 0.5, so
+    #  they are the same art re-encoded and they stay.
+    #
+    #  v2.2.1, THE CONTROLLER ICONS. User, 2026-08-22: *"make sure the base mode
+    #  doesn't install any controller icons if i did include any in the original
+    #  texture pack images folder, so you can choose from 3 options based off
+    #  what controller the user uses."*  🌟 Measured: the HD texture pack ships
+    #  exactly the 20 shared xenonbutton_* / xenon_controller_top names, which is
+    #  every name the PS5 pack replaces. Leaving them in meant the texture pack
+    #  silently decided your button prompts. Now the base install ships NO
+    #  controller art at all - the game falls back to its own - and the three
+    #  packs are the only thing that changes it.
+    #
+    #  🛑 EXCLUDED AT THE ROBOCOPY, not deleted afterwards. The old post-copy
+    #  delete would have removed a pack's freshly-installed icons off the disk
+    #  and then relied on the re-apply to put them back; not copying them at all
+    #  cannot get that wrong, and it is faster.
+    # -----------------------------------------------------------------------
+    $blocked = @()
+    if ($Kind -eq 'images') { $blocked = @('hud_dpad_blood.iwi') + $ICONFILES }
+    $blockLower = @{}
+    foreach ($b in $blocked) { $blockLower[$b.ToLower()] = $true }
+
+    $files = @(Get-ChildItem -LiteralPath $Source -File -Recurse | Where-Object { -not $blockLower.ContainsKey($_.Name.ToLower()) })
     $size = ($files | Measure-Object Length -Sum).Sum
     Say ("Copying {0} file(s), {1} ..." -f $files.Count, (Format-Size $size)) $C.Text
     if ($DryRun) {
@@ -641,42 +1158,15 @@ function Copy-Payload {
         return $true
     }
     if (-not (Test-Path $Dest)) { New-Item -ItemType Directory -Force -Path $Dest | Out-Null }
-    $r = robocopy $Source $Dest /E /NFL /NDL /NJH /NJS /NP
+    $xf = @()
+    if ($blocked.Count -gt 0) { $xf = @('/XF') + $blocked }
+    $r = robocopy $Source $Dest /E /NFL /NDL /NJH /NJS /NP @xf
     if ($LASTEXITCODE -ge 8) { Say "Copy FAILED - close Plutonium and try again." $C.Bad; return $false }
     $rel = @($files | ForEach-Object { $_.FullName.Substring($Source.Length).TrimStart('\') })
 
-    # -----------------------------------------------------------------------
-    #  v2.1.3 - THE BLOCKLIST. One texture in the pack breaks the HUD, and it
-    #  has to be dealt with HERE rather than by deleting it from the payload,
-    #  because the payload can also arrive as the texture zip attached to the
-    #  v2.0.0 GitHub release - a published asset that must never be renamed or
-    #  re-uploaded, so it will always still contain the file.
-    #
-    #  hud_dpad_blood.iwi - the blood splat behind the points and ammo in the
-    #  bottom right. User, 2026-08-20, two screenshots: *"the points text on the
-    #  hud there is being overlapped by the blood."*
-    #
-    #  🌟 MEASURED, not judged by eye. Both copies are 256x128 - the pack's is
-    #  not an upscale of anything - and decoding both to alpha shows they are
-    #  DIFFERENT ARTWORK: stock is a compact blob with scattered droplets, mean
-    #  alpha 27.7, while the pack's is one splat filling almost the whole frame
-    #  plus two ring droplets at the upper left, mean alpha 31.8. That silhouette
-    #  - big mass, two rings - is exactly what both screenshots show around the
-    #  points. Every OTHER hud_dpad_* texture in the pack matches stock's alpha
-    #  to within 0.5, so they are the same art re-encoded and they stay.
-    #  📝 The text is not overlapped, strictly: zooming the screenshot shows the
-    #  white glyphs whole and on top. The splat behind them is simply so much
-    #  bigger than stock's that it reads as covering them.
-    # -----------------------------------------------------------------------
-    $blocked = @()
-    if ($Kind -eq 'images') { $blocked = @('hud_dpad_blood.iwi') }
-    foreach ($b in $blocked) {
-        $f = Join-Path $Dest $b
-        if (Test-Path $f) {
-            if (-not $DryRun) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
-            Say "Left out $b - it covers the points number." $C.Dim
-        }
-        $rel = @($rel | Where-Object { $_ -ne $b })
+    if ($Kind -eq 'images' -and $blocked.Count -gt 0) {
+        Say ("Left out {0} file(s): the HUD blood splat, and all controller icons." -f $blocked.Count) $C.Dim
+        Say "Pick your button prompts under  Controller icons." $C.Dim
     }
 
     # -----------------------------------------------------------------------
@@ -748,15 +1238,53 @@ function Get-Status {
         $s.ImagesOn = $false
     }
 
-    $have = 0
-    foreach ($f in $SOUNDFILES) { if (Test-Path (Join-Path $ZONEDIR $f)) { $have++ } }
-    if ($have -eq $SOUNDFILES.Count) { $s.Sounds = 'installed'; $s.SoundsOn = $true }
-    elseif ($have -gt 0) { $s.Sounds = "$have of $($SOUNDFILES.Count) present"; $s.SoundsOn = $false }
-    else { $s.Sounds = 'not installed'; $s.SoundsOn = $false }
+    # -----------------------------------------------------------------------
+    #  🛑 v2.2.1 - THE SOUNDS ROW IS MANIFEST-FIRST NOW, LIKE THE TEXTURES ROW.
+    #
+    #  User, 2026-08-22: *"if I for example install the whole mod, then go to
+    #  uninstall everything, it'll still say custom sounds are installed, but
+    #  then when I choose the option for uninstalling/removing the sounds
+    #  specifically it says it's already removed."*
+    #
+    #  🌟 MEASURED, out of this installer's own log rather than reasoned about:
+    #      14:13:30  action: remove sounds (restore)
+    #      14:13:30  Removed 3 file(s).
+    #      14:13:31  remove everything finished: ... sounds=True ...
+    #      14:13:42  action: remove sounds (plain)
+    #                No record of anything installed by this installer.
+    #  The RESTORE row does exactly what it promises - it deletes our three files
+    #  and then copies the player's own three back, under the same three names.
+    #  This row was reading FILE PRESENCE, so it saw three files and said
+    #  "installed"; removal reads the MANIFEST, which had just been deleted, so it
+    #  said "no record". Both were right and the pair was nonsense.
+    #
+    #  So: the manifest decides whether it is OURS, exactly as the textures row
+    #  has always done, and files that are there but not ours say so out loud
+    #  instead of claiming the mod installed them.
+    # -----------------------------------------------------------------------
+    $sndMan = Read-Manifest 'zone'
+    if ($sndMan.Count -gt 0) { $s.Sounds = 'installed'; $s.SoundsOn = $true }
+    else {
+        $have = 0
+        foreach ($f in $SOUNDFILES) { if (Test-Path (Join-Path $ZONEDIR $f)) { $have++ } }
+        if ($have -gt 0) {
+            $word = 'files'; if ($have -eq 1) { $word = 'file' }
+            $s.Sounds = "$have $word already there (not mine)"
+        } else { $s.Sounds = 'not installed' }
+        $s.SoundsOn = $false
+    }
 
-    $dsMan = Read-Manifest 'dualsense'
-    if ($dsMan.Count -gt 0) { $s.Dualsense = "$($dsMan.Count) icons installed"; $s.DualsenseOn = $true }
-    else { $s.Dualsense = 'not installed'; $s.DualsenseOn = $false }
+    $ctlMan  = Read-Manifest 'controller'
+    $ctlPack = Get-ControllerPack
+    if ($ctlMan.Count -gt 0 -and $ctlPack) {
+        $s.Controller = "$($CONTROLLERS[$ctlPack].Short) - $($ctlMan.Count) icons installed"
+        $s.ControllerOn = $true
+        $s.ControllerPack = $ctlPack
+    } else {
+        $s.Controller = "none - the game's own"
+        $s.ControllerOn = $false
+        $s.ControllerPack = $null
+    }
 
     if (Test-Path (Join-Path $BINDIR 'dxgi.dll')) { $s.ReShade = 'installed'; $s.ReShadeOn = $true }
     else { $s.ReShade = 'not installed'; $s.ReShadeOn = $false }
@@ -806,6 +1334,7 @@ function Act-InstallMod {
 
     Draw-Header 'Install the mod'
     Write-Log "action: install mod ($($sel.Key))"
+    Clear-CondemnedStats
 
     $missing = @()
     foreach ($f in $MODFILES) { if (-not (Test-Path (Join-Path $src $f))) { $missing += $f } }
@@ -884,22 +1413,26 @@ function Act-InstallImages {
     if (Copy-Payload $src $IMGDIR 'images') { Write-Host ''; Say "✅  Texture pack installed." $C.Good }
 
     # ------------------------------------------------------------------------
-    #  v2.2.0 - PUT THE PS5 ICONS BACK IF THEY WERE INSTALLED.
-    #  All 20 filenames in the PS5 pack also exist in the HD texture pack, so the
-    #  copy above has just overwritten them with the Xbox glyphs. Re-applying is
-    #  the only way "install the textures" does not silently undo "install the
-    #  PS5 icons". Nothing happens if the icons were never installed.
+    #  PUT YOUR CONTROLLER ICONS BACK IF A PACK IS INSTALLED.
+    #
+    #  🛑 The texture pack no longer CONTAINS any controller art (see the
+    #  blocklist in Copy-Payload), so the copy above cannot overwrite them any
+    #  more. This is still needed for one reason: an install is a SYNC, and the
+    #  purge below deletes anything the PREVIOUS images manifest listed that this
+    #  one does not - which, for anyone upgrading from v2.2.0 or earlier, is
+    #  exactly those 20 icon filenames. So the purge can still take a pack's
+    #  icons with it, once, and this puts them straight back.
     # ------------------------------------------------------------------------
-    if ((Read-Manifest 'dualsense').Count -gt 0) {
-        $dsSrc = Find-Payload 'Dualsense IconsImages'
-        if (-not $dsSrc) { $dsSrc = Find-Payload 'Dualsense Icons' }
-        if ($dsSrc) {
+    $pack = Get-ControllerPack
+    if ($pack) {
+        $iconSrc = Resolve-IconSource $pack
+        if ($iconSrc) {
             Write-Host ''
-            Say "Re-applying your PS5 controller icons ..." $C.Text
-            [void](Copy-Payload $dsSrc $IMGDIR 'dualsense')
+            Say ("Re-applying your {0} controller icons ..." -f $CONTROLLERS[$pack].Short) $C.Text
+            [void](Copy-Payload $iconSrc $IMGDIR 'controller')
         } else {
             Write-Host ''
-            Say "Your PS5 icons were overwritten and the pack is not in this folder to re-apply." $C.Warn
+            Say ("Your {0} icons may have been removed and that pack is not in this folder to re-apply." -f $CONTROLLERS[$pack].Short) $C.Warn
         }
     }
     Pause-Key
@@ -1032,28 +1565,39 @@ function Act-InstallReShade {
         Pause-Key; return
     }
     $intro = @(
-        "ReShade adds a sharpening / colour pass on top of the game, with this",
-        "mod's own BO2 preset already applied. Press END in game to open it.",
+        "ReShade adds a sharpening / colour pass on top of the game. Press END in",
+        "game to open it. This installs ReShade $RESHADEVER and four presets, one",
+        "per Plutonium game.",
         '',
-        "~It also sets up the overlay the way the mod uses it: the dark blue",
-        "~theme, rounded corners, and the extra keys - Ctrl+Shift+O for the FPS",
-        "~counter, Ctrl+Shift+PgUp / PgDn to step through presets.",
+        "~ONE ReShade serves all four games. Plutonium runs Black Ops II, Black",
+        "~Ops, MW3 and World at War through the same program folder, so they share",
+        "~one ReShade and one settings file - which is why the preset has to be",
+        "~picked rather than detected. All four are installed either way and",
+        "~Ctrl+Shift+PgUp / PgDn steps between them in game.",
+        '',
+        "~BO1, MW3 and WaW are DirectX 9 games and BO2 is DirectX 11, so their",
+        "~presets use different effects. Do not point a DirectX 9 game at the BO2",
+        "~preset - half of it cannot run there.",
         '',
         "~Goes to:  $BINDIR",
         "~Nothing is left running in the background.",
         '',
-        "!⚠️   YOUR EXISTING ReShade.ini AND BO2.ini ARE KEPT AS .backup FILES",
+        "!⚠️   YOUR EXISTING ReShade.ini AND PRESETS ARE KEPT AS .backup FILES",
         "~     Shader files you already have are added to, never deleted."
     )
-    $items = @(
-        @{ Key='go';   Label='Install ReShade with the BO2 preset'; Status='recommended'; StatusColour=$C.Good },
-        @{ Key='back'; Label='Cancel' }
-    )
+    $items = @()
+    foreach ($g in $RESHADEPRESETS.Keys) {
+        $row = @{ Key = $g; Label = "Install, and start on the $($RESHADEPRESETS[$g].Game) preset" }
+        if ($g -eq 'BO2.ini') { $row.Status = 'recommended'; $row.StatusColour = $C.Good }
+        $items += $row
+    }
+    $items += @{ Key='back'; Label='Cancel' }
     if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'ReShade' $items -Intro $intro }
     if (-not $sel -or $sel.Key -eq 'back') { return }
+    $startPreset = $sel.Key
 
     Draw-Header 'ReShade'
-    Write-Log 'action: install reshade'
+    Write-Log "action: install reshade (start preset $startPreset)"
     # Remember the values that belong to THIS PC before the copy replaces them.
     $keepShots = Get-IniValue 'SavePath'
     $keepFont  = Get-IniValue 'Font'
@@ -1062,7 +1606,7 @@ function Act-InstallReShade {
     #    copy the config THIS INSTALLER wrote over the top of the .backup, which
     #    destroyed the only copy of the user's original settings. The first
     #    backup is the real one; a later run must leave it alone.
-    foreach ($f in @('ReShade.ini','BO2.ini')) {
+    foreach ($f in @('ReShade.ini') + @($RESHADEPRESETS.Keys)) {
         $p = Join-Path $BINDIR $f
         if (Test-Path $p) {
             if (Test-Path "$p.backup") {
@@ -1077,85 +1621,147 @@ function Act-InstallReShade {
         if ($keepShots) { Set-ReShadeValue 'SavePath' $keepShots; Say "Kept your screenshot folder: $keepShots" $C.Dim }
         if ($keepFont)  { Set-ReShadeValue 'Font' $keepFont; Set-ReShadeValue 'EditorFont' $keepFont; Say "Kept your overlay font." $C.Dim }
         else            { Set-ReShadeFont $src }
+        if ($startPreset -and $startPreset -ne 'BO2.ini') {
+            Set-ReShadeValue 'PresetPath' ".\$startPreset"
+        }
         Write-Host ''
-        Say "✅  ReShade installed. Press END in game to open it." $C.Good
+        Say ("✅  {0} installed, starting on the {1} preset." -f $RESHADEVER, $RESHADEPRESETS[$startPreset].Game) $C.Good
+        Say "Press END in game to open it, Ctrl+Shift+PgUp / PgDn to change preset." $C.Dim
     }
     Pause-Key
 }
 
 # =============================================================================
-#  PS5 CONTROLLER ICONS  -  v2.2.0
+#  CONTROLLER ICONS  -  three packs, one slot  -  v2.2.1
 # -----------------------------------------------------------------------------
-#  User, 2026-08-21: *"H:\Claude\Projects Sources\zm_qol\Optionals\Dualsense
-#  Icons add an option for the mod installer to install PS5 Controller Icons, or
-#  remove them/backup them as well."*
+#  User, 2026-08-22: *"also give the option to install/remove both nintendo
+#  switch controller & xbox one controller icons ... so you can choose from 3
+#  options based off what controller the user uses."*
 #
-#  The payload is 20 .iwi files, all named xenonbutton_* / xenon_controller_top -
-#  BO2's Xbox button glyphs - so installing them simply replaces the Xbox prompts
-#  with DualSense ones. They go to the SAME folder as the HD texture pack
-#  ($IMGDIR), under their own manifest, so removing one never touches the other.
+#  All three packs write the same xenonbutton_* / xenon_controller_top .iwi names
+#  into storage\t6\images, so exactly one can be in effect at a time. Picking a
+#  pack therefore REMOVES the previous one first, by that pack's own manifest, so
+#  nothing this installer did not put there is ever deleted - and the two packs
+#  that carry extra files (Switch adds 8 ui_button_crc_* , Xbox adds 4
+#  xenon_stick_*) cannot leave strays behind when you switch away from them.
 #
-#  🛑 THE HD TEXTURE PACK CONTAINS THE SAME 20 FILENAMES. Measured: all 20 names
-#  in Optionals\Dualsense Icons\Images also appear in Optionals\images. So
-#  installing (or re-installing) the texture pack after the icons would silently
-#  put the Xbox glyphs back. Act-InstallImages therefore re-applies the icons at
-#  the end whenever their manifest is non-empty - see the marked block there.
+#  🌟 The HD texture pack no longer ships controller art at all, so the base
+#  install leaves the game's own icons alone and these three are the only thing
+#  that changes them. See the blocklist in Copy-Payload.
 # =============================================================================
-function Act-InstallDualsense {
+function Show-ControllerStatusLine {
+    param([string] $Key)
+    $man  = Read-Manifest 'controller'
+    $pack = Get-ControllerPack
+    if ($pack -eq $Key) { return @{ Text = "installed - $($man.Count) files"; Colour = $C.Good } }
+    $src = Resolve-IconSource $Key
+    if (-not $src) { return @{ Text = 'not in this download'; Colour = $C.Off; Disabled = $true } }
+    $n = @(Get-ChildItem -LiteralPath $src -File -Filter '*.iwi').Count
+    return @{ Text = "$n icons"; Colour = $C.Dim }
+}
+
+function Act-InstallController {
     param([int] $Pick = -1)
-    $src = Find-Payload 'Dualsense Icons\Images'
-    if (-not $src) { $src = Find-Payload 'Dualsense Icons' }
+
+    while ($true) {
+        $pack = Get-ControllerPack
+        $any  = $false
+        foreach ($k in $CONTROLLERS.Keys) { if (Resolve-IconSource $k) { $any = $true } }
+        if (-not $any) {
+            Draw-Header 'Controller icons'
+            Say "No controller icon packs are in this download, so there is nothing to install." $C.Warn
+            Pause-Key; return
+        }
+
+        $intro = @(
+            "Replaces the button prompts the game draws with the ones for your",
+            "controller. Pick one - they all replace the same files, so the one you",
+            "pick is the one you get.",
+            '',
+            "~Goes to:  $IMGDIR",
+            "~The HD texture pack does not touch these, so installing it later",
+            "~will not undo your choice."
+        )
+        if ($pack) {
+            $intro += ''
+            $intro += "~Installed now:  $($CONTROLLERS[$pack].Name). Picking another swaps it over."
+        }
+
+        $items = @()
+        foreach ($k in $CONTROLLERS.Keys) {
+            $st = Show-ControllerStatusLine $k
+            $row = @{ Key = $k; Label = $CONTROLLERS[$k].Name; Status = $st.Text; StatusColour = $st.Colour }
+            if ($st.Disabled) { $row.Disabled = $true }
+            $items += $row
+        }
+        $items += @{ Key='back'; Label='Cancel' }
+
+        if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'Controller icons' $items -Intro $intro }
+        if (-not $sel -or $sel.Key -eq 'back') { return }
+
+        Install-ControllerPack $sel.Key
+        if ($Pick -ge 0) { return }
+    }
+}
+
+<#
+  Install one pack. Backs the player's own icons up first if they have never
+  been backed up (Backup-Thing keeps the OLDER backup, which is the one taken
+  before this installer first touched the folder), then removes whatever pack
+  is currently in place, then copies.
+#>
+function Install-ControllerPack {
+    param([string] $Key)
+
+    $src = Resolve-IconSource $Key
+    Draw-Header "Controller icons - $($CONTROLLERS[$Key].Name)"
+    Write-Log "action: install controller ($Key)"
     if (-not $src) {
-        Draw-Header 'PS5 controller icons'
-        Say "The PS5 icon pack is not in this folder, so there is nothing to install." $C.Warn
+        Say "That pack is not in this download." $C.Warn
         Pause-Key; return
     }
-    $files = @(Get-ChildItem -LiteralPath $src -File -Recurse)
-    $size  = ($files | Measure-Object Length -Sum).Sum
 
-    $intro = @(
-        "Replaces the Xbox button prompts with PlayStation 5 ones.",
-        "~$($files.Count) files, $(Format-Size $size).",
-        '',
-        "~Goes to:  $IMGDIR",
-        '',
-        "~These are the same $($files.Count) filenames the HD texture pack uses, so if you",
-        "~install the texture pack later the icons are re-applied for you."
-    )
-    $items = @(
-        @{ Key='backup'; Label='Back up my current icons first, then install'; Status='recommended'; StatusColour=$C.Good },
-        @{ Key='plain';  Label='Install without a backup' },
-        @{ Key='back';   Label='Cancel' }
-    )
-    if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'PS5 controller icons' $items -Intro $intro }
-    if (-not $sel -or $sel.Key -eq 'back') { return }
+    # The player's ORIGINAL icons, before any pack. Only taken once, ever.
+    [void](Backup-Thing 'controller')
 
-    Draw-Header 'PS5 controller icons'
-    Write-Log "action: install dualsense ($($sel.Key))"
-    if ($sel.Key -eq 'backup') { if (-not (Backup-Thing 'dualsense')) { Pause-Key; return } }
-    if (Copy-Payload $src $IMGDIR 'dualsense') { Write-Host ''; Say "✅  PS5 controller icons installed." $C.Good }
+    # Swap, not stack: clear the pack that is there so its extra files go too.
+    $old = Get-ControllerPack
+    if ($old -and $old -ne $Key) {
+        Say ("Removing the {0} icons first ..." -f $CONTROLLERS[$old].Short) $C.Text
+        [void](Remove-ByManifest 'controller' $IMGDIR)
+    }
+
+    if (Copy-Payload $src $IMGDIR 'controller') {
+        Set-ControllerPack $Key
+        Write-Host ''
+        Say ("✅  {0} controller icons installed." -f $CONTROLLERS[$Key].Name) $C.Good
+    }
     Pause-Key
 }
 
-function Act-RemoveDualsense {
+function Act-RemoveController {
     param([int] $Pick = -1)
-    $hasB = Has-Backup 'dualsense'
+    $pack = Get-ControllerPack
+    $hasB = Has-Backup 'controller'
     $intro = @(
-        "Removes only the PS5 icon files this installer put there.",
-        "~Your Xbox icons come back only if you have a backup, or if you",
-        "~re-install the HD texture pack."
+        "Removes only the controller icon files this installer put there.",
+        "~The game goes back to drawing its own button prompts."
     )
+    if ($pack) {
+        $intro = @("Removes the $($CONTROLLERS[$pack].Name) icons this installer put there.") + $intro[1..($intro.Count - 1)]
+    }
     $items = @()
     if ($hasB) { $items += @{ Key='restore'; Label='Remove them and put my originals back'; Status='backup found'; StatusColour=$C.Good } }
     $items += @{ Key='plain'; Label='Just remove them' }
     $items += @{ Key='back';  Label='Cancel' }
-    if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'Remove the PS5 icons' $items -Intro $intro }
+    if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'Remove the controller icons' $items -Intro $intro }
     if (-not $sel -or $sel.Key -eq 'back') { return }
 
-    Draw-Header 'Remove the PS5 icons'
-    Write-Log "action: remove dualsense ($($sel.Key))"
-    $did = Remove-ByManifest 'dualsense' $IMGDIR
-    if ($sel.Key -eq 'restore') { [void](Restore-Thing 'dualsense') }
+    Draw-Header 'Remove the controller icons'
+    Write-Log "action: remove controller ($($sel.Key))"
+    $did = Remove-ByManifest 'controller' $IMGDIR
+    if (-not $DryRun) { Remove-Item -LiteralPath $PACKFILE -Force -ErrorAction SilentlyContinue }
+    if ($sel.Key -eq 'restore') { [void](Restore-Thing 'controller') }
     Write-Host ''
     if ($did) { Say "✅  Done." $C.Good } else { Say "Nothing to do." $C.Dim }
     Pause-Key
@@ -1224,7 +1830,7 @@ function Act-RemoveReShade {
     Draw-Header 'Remove ReShade'
     Write-Log 'action: remove reshade'
     [void](Remove-ByManifest 'reshade' $BINDIR)
-    foreach ($f in @('ReShade.ini','BO2.ini')) {
+    foreach ($f in @('ReShade.ini') + @($RESHADEPRESETS.Keys)) {
         $b = Join-Path $BINDIR "$f.backup"
         if (Test-Path $b) {
             if (-not $DryRun) { Move-Item -LiteralPath $b -Destination (Join-Path $BINDIR $f) -Force }
@@ -1367,15 +1973,15 @@ function Act-RemoveEverything {
 
     $imgHasB = Has-Backup 'images'
     $sndHasB = Has-Backup 'zone'
-    #  v2.2.0 - the PS5 icons go with everything else. Leaving 20 files behind
+    #  The controller icons go with everything else. Leaving 20-odd files behind
     #  after "remove everything" is exactly the class of thing the raw LUI leak
     #  turned out to be.
-    $dsHasB  = Has-Backup 'dualsense'
+    $dsHasB  = Has-Backup 'controller'
     $anyB    = ($imgHasB -or $sndHasB -or $dsHasB)
 
     $intro = @(
         "Removes every part of this package, one after the other:",
-        "~   the HD texture pack  ·  custom sounds  ·  PS5 icons  ·  ReShade  ·  the mod",
+        "~   HD textures  ·  custom sounds  ·  controller icons  ·  ReShade  ·  the mod",
         '',
         "~Only files this installer put there are deleted. Anything that was",
         "~already in those folders is left exactly where it is, and your game",
@@ -1408,6 +2014,8 @@ function Act-RemoveEverything {
     if ($sndHasB -and -not $restore) { $sndPick = 1 }
     $dsPick = 0
     if ($dsHasB -and -not $restore) { $dsPick = 1 }
+    # Act-RemoveController has no 'restore' row when there is no icon backup, so
+    # its pick index shifts exactly the way the other two do.
 
     $wasQuiet = $script:Quiet
     if (-not $script:Headless) { Clear-Host }
@@ -1415,7 +2023,7 @@ function Act-RemoveEverything {
     try {
         Act-RemoveImages  -Pick $imgPick
         Act-RemoveSounds  -Pick $sndPick
-        Act-RemoveDualsense -Pick $dsPick
+        Act-RemoveController -Pick $dsPick
         Act-RemoveReShade -Pick 0
         Act-RemoveMod     -Pick 0
     }
@@ -1428,7 +2036,7 @@ function Act-RemoveEverything {
     $rows = @(
         @{ n='HD texture pack'; v=$st.Images;  on=$st.ImagesOn },
         @{ n='Custom sounds';   v=$st.Sounds;  on=$st.SoundsOn },
-        @{ n='PS5 icons';       v=$st.Dualsense; on=$st.DualsenseOn },
+        @{ n='Controller icons'; v=$st.Controller; on=$st.ControllerOn },
         @{ n='ReShade';         v=$st.ReShade; on=$st.ReShadeOn },
         @{ n='The mod';         v=$st.Mod;     on=$st.ModOn }
     )
@@ -1525,16 +2133,25 @@ function Act-Backups {
             "~One plain folder per thing. Nothing in there is ever deleted by an",
             "~install or an update - only by you, on the screen for that thing."
         )
+        # -------------------------------------------------------------------
+        #  🛑 v2.2.1 - THE LABEL COMES FROM THE TABLE, NOT FROM A switch HERE.
+        #
+        #  User screenshot, 2026-08-22: opening this screen ended the installer
+        #  with "You cannot call a method on a null-valued expression",
+        #  InvokeMethodOnNull. v2.2.0 added a FIFTH backup set - dualsense - to
+        #  $BACKUPSETS and did not add a fifth arm to the switch that used to
+        #  live here, so $label came back $null for that row, and Show-Menu's
+        #  $it.Label.PadRight(38) threw on it. The status line even said so:
+        #  "4 of 5 things backed up".
+        #
+        #  A second list of names that has to be kept in step with the first is
+        #  the bug. There is only one list now: $BACKUPSETS carries its own
+        #  Label, so adding a set cannot leave a row without one.
+        # -------------------------------------------------------------------
         $items = @()
         foreach ($k in $BACKUPSETS.Keys) {
             $st = Get-BackupStatus $k
-            $label = switch ($k) {
-                'images'  { 'My textures' }
-                'zone'    { 'My sounds' }
-                'reshade' { 'My ReShade setup' }
-                'mod'     { 'The mod + my settings' }
-            }
-            $items += @{ Key=$k; Label=$label; Status=$st.Text; StatusColour=$st.Colour }
+            $items += @{ Key=$k; Label=$BACKUPSETS[$k].Label; Status=$st.Text; StatusColour=$st.Colour }
         }
         $items += @{ Key='back'; Label='Back' }
 
@@ -1701,7 +2318,7 @@ function Act-Details {
     Say "Mod            $($st.Mod)" $C.Text -NoLog
     Say "Textures       $($st.Images)" $C.Text -NoLog
     Say "Sounds         $($st.Sounds)" $C.Text -NoLog
-    Say "PS5 icons      $($st.Dualsense)" $C.Text -NoLog
+    Say "Controller     $($st.Controller)" $C.Text -NoLog
     Say "ReShade        $($st.ReShade)" $C.Text -NoLog
     Say "Backups        $(if(Test-Path $BACKUPS){$BACKUPS}else{'none taken yet'})" $C.Text -NoLog
     Write-Host ''
@@ -1789,7 +2406,7 @@ function Act-InstallEverything {
         @{ n='The mod';         v=$st.Mod;     on=$st.ModOn },
         @{ n='HD texture pack'; v=$st.Images;  on=$st.ImagesOn },
         @{ n='Custom sounds';   v=$st.Sounds;  on=$st.SoundsOn },
-        @{ n='PS5 icons';       v=$st.Dualsense; on=$st.DualsenseOn },
+        @{ n='Controller icons'; v=$st.Controller; on=$st.ControllerOn },
         @{ n='ReShade';         v=$st.ReShade; on=$st.ReShadeOn }
     )
     foreach ($r in $rows) {
@@ -1827,11 +2444,20 @@ function Main-Menu {
             $intro += ''
         }
 
+        #  The black-screen warning. Loud, because the symptom points at the mod
+        #  and the cause is the game's own rejected stats file.
+        if ((Get-CondemnedStats).Condemned) {
+            $intro += "!⚠️   YOUR SAVED STATS ARE CORRUPT - THIS IS WHY THE MOD BLACK-SCREENS."
+            $intro += "!     The game rejected them, so it stops at the main menu. Pick"
+            $intro += "!     The mod  below and they are moved aside; the game rebuilds them."
+            $intro += ''
+        }
+
         $modColour = $C.Dim; if ($st.ModOn) { $modColour = $C.Good }
         $imgColour = $C.Dim; if ($st.ImagesOn) { $imgColour = $C.Good }
         $sndColour = $C.Dim; if ($st.SoundsOn) { $sndColour = $C.Good }
         $rshColour = $C.Dim; if ($st.ReShadeOn) { $rshColour = $C.Good }
-        $dsColour  = $C.Dim; if ($st.DualsenseOn) { $dsColour = $C.Good }
+        $dsColour  = $C.Dim; if ($st.ControllerOn) { $dsColour = $C.Good }
 
         $items = @(
             @{ Key='all';    Section='INSTALL';   Label='EVERYTHING - the whole package'; Status='mod + textures + sounds + ReShade'; StatusColour=$C.Title },
@@ -1839,13 +2465,13 @@ function Main-Menu {
             @{ Key='images'; Section='INSTALL';   Label='HD texture pack';       Status=$st.Images;  StatusColour=$imgColour },
             @{ Key='sounds'; Section='INSTALL';   Label='Custom sounds';         Status=$st.Sounds;  StatusColour=$sndColour },
             @{ Key='reshade';Section='INSTALL';   Label='ReShade + BO2 preset';  Status=$st.ReShade; StatusColour=$rshColour },
-            @{ Key='dualsense';Section='INSTALL'; Label='PS5 controller icons';  Status=$st.Dualsense; StatusColour=$dsColour },
+            @{ Key='controller';Section='INSTALL'; Label='Controller icons';      Status=$st.Controller; StatusColour=$dsColour },
 
             @{ Key='rall';    Section='REMOVE';   Label='EVERYTHING - the whole package'; Status='textures + sounds + ReShade + mod'; StatusColour=$C.Title },
             @{ Key='rimages'; Section='REMOVE';   Label='Remove the HD textures' },
             @{ Key='rsounds'; Section='REMOVE';   Label='Remove the custom sounds' },
             @{ Key='rreshade';Section='REMOVE';   Label='Remove ReShade' },
-            @{ Key='rdualsense';Section='REMOVE'; Label='Remove the PS5 icons' },
+            @{ Key='rcontroller';Section='REMOVE'; Label='Remove the controller icons' },
             @{ Key='rmod';    Section='REMOVE';   Label='Remove the mod' },
 
             @{ Key='backups'; Section='BACKUP';   Label='Back up / restore my own files'; Status=$st.Backups; StatusColour=$st.BackupsColour },
@@ -1864,12 +2490,12 @@ function Main-Menu {
             'images'   { Act-InstallImages }
             'sounds'   { Act-InstallSounds }
             'reshade'  { Act-InstallReShade }
-            'dualsense' { Act-InstallDualsense }
+            'controller' { Act-InstallController }
             'rall'     { Act-RemoveEverything }
             'rimages'  { Act-RemoveImages }
             'rsounds'  { Act-RemoveSounds }
             'rreshade' { Act-RemoveReShade }
-            'rdualsense' { Act-RemoveDualsense }
+            'rcontroller' { Act-RemoveController }
             'rmod'     { Act-RemoveMod }
             'backups'  { Act-Backups }
             'update'   { Act-CheckUpdate }
@@ -1879,7 +2505,9 @@ function Main-Menu {
 }
 
 Write-Log "--- installer started (dryrun=$DryRun) ---"
+Enable-Vt
 Move-OldBackups
+Move-OldDualsense
 
 if ($Action) {
     switch ($Action) {
@@ -1888,12 +2516,12 @@ if ($Action) {
         'images'   { Act-InstallImages  -Pick $Choice }
         'sounds'   { Act-InstallSounds  -Pick $Choice }
         'reshade'  { Act-InstallReShade -Pick $Choice }
-        'dualsense' { Act-InstallDualsense -Pick $Choice }
+        'controller' { Act-InstallController -Pick $Choice }
         'rall'     { Act-RemoveEverything -Pick $Choice }
         'rimages'  { Act-RemoveImages   -Pick $Choice }
         'rsounds'  { Act-RemoveSounds   -Pick $Choice }
         'rreshade' { Act-RemoveReShade  -Pick $Choice }
-        'rdualsense' { Act-RemoveDualsense -Pick $Choice }
+        'rcontroller' { Act-RemoveController -Pick $Choice }
         'rmod'     { Act-RemoveMod      -Pick $Choice }
         'backups'  { Act-Backups        -Pick $Choice }
         'backup'   { [void](Backup-Thing $Extra) }

@@ -47,15 +47,30 @@ Black Ops II Zombies  ·  Plutonium T6
       so you can copy them out by hand too. Nothing in there is
       ever deleted by an install or an update - only by you.
 
-   ·  PS5 CONTROLLER ICONS are an option of their own. They swap
-      the Xbox button prompts for DualSense ones, and because the
-      HD texture pack contains the same twenty filenames they are
-      re-applied for you if you install the texture pack after.
+   ·  CONTROLLER ICONS are an option of their own, and you pick
+      one of three: PlayStation 5, Nintendo Switch or Xbox One.
+      The HD texture pack no longer ships any controller art, so
+      the base install leaves the game's own button prompts alone
+      and your pick is the only thing that changes them. Picking
+      a different pack swaps it over cleanly, extra files and all.
 
-   ·  RESHADE now installs the FULL shader collection rather than
-      only the shaders the bundled BO2 preset happens to use, so
+   ·  RESHADE ships version 6.8.0 and the FULL shader collection
+      rather than only the shaders one preset happens to use, so
       you can switch effects on in the overlay without hunting
       files down first.
+
+      Four presets are installed, one per Plutonium game:
+      BO2.ini, BO1.ini, MW3.ini and WAW.ini. Plutonium runs all
+      four games through the same program folder, so they share
+      one ReShade and one settings file - which is why the
+      installer ASKS which preset to start on rather than
+      detecting the game. Ctrl+Shift+PgUp / PgDn steps between
+      them in game, and End opens the overlay.
+
+      Black Ops, MW3 and World at War are DirectX 9 games and
+      Black Ops II is DirectX 11, so their presets use different
+      effects on purpose. Do not point a DirectX 9 game at the
+      BO2 preset - half of it cannot run there.
 
    ·  Everything can be removed again from the same menu, one
       piece at a time.

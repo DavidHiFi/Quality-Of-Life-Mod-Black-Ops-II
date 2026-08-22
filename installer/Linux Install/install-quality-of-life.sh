@@ -132,28 +132,106 @@ find_mod_source() {
   return 1
 }
 
-# v2.2.0 - "dualsense" is not a bare folder name, it is Optionals/Dualsense
-# Icons/Images, so it is mapped here rather than special-cased at every call.
 find_payload() {
   local name="$1" p
-  if [ "$name" = dualsense ]; then
-    for p in "$PKG/Optionals/Dualsense Icons/Images" "$PKG/Optional/Dualsense Icons/Images" "$PKG/../Optionals/Dualsense Icons/Images" "$PKG/../../Optionals/Dualsense Icons/Images" "$PKG/Optionals/Dualsense Icons" "$PKG/../Optionals/Dualsense Icons"; do
-      if [ -d "$p" ] && [ -n "$(ls -A "$p" 2>/dev/null)" ]; then printf '%s
-' "$p"; return 0; fi
-    done
-    return 1
-  fi
   for p in "$PKG/Mod Files/$name" "$PKG/Optional/$name" "$PKG/Optionals/$name" "$PKG/$name" "$HERE/$name" "$PKG/../Optional/$name" "$PKG/../Optionals/$name" "$PKG/../../Optional/$name" "$PKG/../../Optionals/$name"; do
     if [ -d "$p" ] && [ -n "$(ls -A "$p" 2>/dev/null)" ]; then printf '%s\n' "$p"; return 0; fi
   done
   return 1
 }
 
-# v2.2.0 - the filenames the PS5 controller icon pack replaces, read from the
-# payload itself so the list can never drift from what is actually overwritten.
-DS_FILES=""
-_ds_src="$(find_payload dualsense 2>/dev/null || true)"
-[ -n "$_ds_src" ] && DS_FILES="$(cd "$_ds_src" && ls -A 2>/dev/null | tr '\n' ' ')"
+# ---------------------------------------------------------------------------
+#  CONTROLLER ICON PACKS - three of them, one slot.  v2.2.1
+#
+#  Each pack keeps its .iwi files at a different depth, measured from the
+#  payload:  Dualsense Icons/Images  ·  Nintendo Switch Icons/t6/images  ·
+#  Xbox One Buttons/t6r/data/images.  Plutonium wants them FLAT in
+#  storage/t6/images, so the copy must start at the folder that actually holds
+#  them - copying the pack root would recreate "t6/images/" inside the images
+#  folder and the game would see nothing.
+# ---------------------------------------------------------------------------
+controller_folder() {
+  case "$1" in
+    ps5)    printf 'Dualsense Icons' ;;
+    switch) printf 'Nintendo Switch Icons' ;;
+    xbox)   printf 'Xbox One Buttons' ;;
+  esac
+}
+controller_name() {
+  case "$1" in
+    ps5)    printf 'PlayStation 5 (DualSense)' ;;
+    switch) printf 'Nintendo Switch' ;;
+    xbox)   printf 'Xbox One' ;;
+  esac
+}
+controller_short() {
+  case "$1" in ps5) printf 'PS5' ;; switch) printf 'Switch' ;; xbox) printf 'Xbox' ;; esac
+}
+controller_keys() { printf '%s\n' ps5 switch xbox; }
+
+# The one directory inside a pack that holds the .iwi files.
+icon_source() {
+  local root d
+  root="$(find_payload "$(controller_folder "$1")")" || return 1
+  d="$(find "$root" -type f -name '*.iwi' -printf '%h\n' 2>/dev/null | sort | uniq -c | sort -rn | head -1 | sed 's/^ *[0-9]* *//')"
+  [ -n "$d" ] || return 1
+  printf '%s\n' "$d"
+}
+
+# Every filename any pack can overwrite. Also the list the HD texture pack is
+# forbidden to install, and the list the icon backup captures.
+#
+# 🛑 IT STARTS FROM A CONSTANT ON PURPOSE. The packs live in Optionals/, the
+# release ZIP does not carry Optionals/, and this list is what stops the texture
+# pack shipping controller art - deriving it only from the payloads would make it
+# empty for exactly the people who install from the release. The 20 constants are
+# the names the HD texture pack actually contains; the payloads are unioned in on
+# top so a pack that grows a file is covered without editing this.
+ICON_FILES="xenon_controller_top.iwi \
+xenonbutton_a.iwi xenonbutton_b.iwi xenonbutton_x.iwi xenonbutton_y.iwi \
+xenonbutton_back.iwi xenonbutton_start.iwi \
+xenonbutton_lb.iwi xenonbutton_rb.iwi xenonbutton_lt.iwi xenonbutton_rt.iwi \
+xenonbutton_ls.iwi xenonbutton_rs.iwi \
+xenonbutton_dpad_all.iwi xenonbutton_dpad_up.iwi xenonbutton_dpad_down.iwi \
+xenonbutton_dpad_left.iwi xenonbutton_dpad_right.iwi \
+xenonbutton_dpad_ud.iwi xenonbutton_dpad_rl.iwi"
+for _k in ps5 switch xbox; do
+  _d="$(icon_source "$_k" 2>/dev/null || true)"
+  [ -n "$_d" ] && ICON_FILES="$ICON_FILES $(cd "$_d" && ls -A ./*.iwi 2>/dev/null | sed 's|^\./||' | tr '\n' ' ')"
+done
+ICON_FILES="$(printf '%s\n' $ICON_FILES | sort -u | tr '\n' ' ')"
+
+controller_pack() {
+  [ -f "$STATE/installed-controller.txt" ] || return 1
+  if [ -f "$STATE/controller-pack.txt" ]; then
+    head -1 "$STATE/controller-pack.txt" | tr -d ' \r\n'
+  else
+    printf 'ps5'    # pre-v2.2.1 installs were always PS5
+  fi
+}
+set_controller_pack() {
+  [ "$DRYRUN" -eq 1 ] && return 0
+  mkdir -p "$STATE"
+  printf '%s\n' "$1" > "$STATE/controller-pack.txt"
+}
+
+# ---------------------------------------------------------------------------
+#  v2.2.1 - "dualsense" became "controller" when the Switch and Xbox packs were
+#  added. Carry the v2.2.0 manifest and backup across once, or a PS5 install
+#  made under v2.2.0 becomes un-removable and its backup un-restorable.
+# ---------------------------------------------------------------------------
+migrate_dualsense() {
+  [ "$DRYRUN" -eq 1 ] && return 0
+  if [ -f "$STATE/installed-dualsense.txt" ] && [ ! -f "$STATE/installed-controller.txt" ]; then
+    mv -f "$STATE/installed-dualsense.txt" "$STATE/installed-controller.txt"
+    printf 'ps5\n' > "$STATE/controller-pack.txt"
+    log "migrated installed-dualsense.txt -> installed-controller.txt (pack=ps5)"
+  fi
+  if [ -d "$BACKUPS/dualsense" ] && [ ! -d "$BACKUPS/controller" ]; then
+    mv -f "$BACKUPS/dualsense" "$BACKUPS/controller"
+    log "migrated backups/dualsense -> backups/controller"
+  fi
+}
 
 mod_version() {
   local f="$1"
@@ -178,20 +256,63 @@ human() {
 dir_bytes() { du -sb "$1" 2>/dev/null | cut -f1 || echo 0; }
 dir_files() { find "$1" -type f 2>/dev/null | wc -l | tr -d ' '; }
 
+# How many files a copy will ACTUALLY write, once $BLOCKED is taken off. The
+# count on screen has to be the count on disk.
+count_after_block() {
+  local src="$1" n f
+  n="$(dir_files "$src")"
+  for f in $BLOCKED; do
+    [ -n "$(find "$src" -type f -name "$f" -print -quit 2>/dev/null)" ] && n=$(( n - 1 ))
+  done
+  printf '%s' "$n"
+}
+
+preset_game() {
+  case "$1" in
+    BO2.ini) printf 'Black Ops II' ;;
+    BO1.ini) printf 'Black Ops' ;;
+    MW3.ini) printf 'Modern Warfare 3' ;;
+    WAW.ini) printf 'World at War' ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+#  $BLOCKED is a space-separated list of BASENAMES this copy must not install.
+#  Set by the caller for the duration of one copy and cleared afterwards; the
+#  copy and the manifest read the same list, so a blocked file can never end up
+#  on disk or in the record. See act_pack for what goes in it and why.
+# ---------------------------------------------------------------------------
+BLOCKED=""
+
 copy_tree() {
-  local src="$1" dst="$2"
+  local src="$1" dst="$2" f ex=()
   if [ "$DRYRUN" -eq 1 ]; then say "(dry run - not copied)" "$DIM"; return 0; fi
   mkdir -p "$dst"
-  if command -v rsync >/dev/null 2>&1; then rsync -a "$src"/ "$dst"/ || return 1
-  else cp -a "$src"/. "$dst"/ || return 1; fi
+  if command -v rsync >/dev/null 2>&1; then
+    for f in $BLOCKED; do ex+=(--exclude "$f"); done
+    rsync -a "${ex[@]+"${ex[@]}"}" "$src"/ "$dst"/ || return 1
+  else
+    cp -a "$src"/. "$dst"/ || return 1
+    for f in $BLOCKED; do rm -f "$dst/$f"; done
+  fi
   return 0
 }
 
 write_manifest() {
-  local kind="$1" src="$2"
+  local kind="$1" src="$2" f
   [ "$DRYRUN" -eq 1 ] && return 0
   mkdir -p "$STATE"
-  ( cd "$src" && find . -type f -printf '%P\n' ) > "$STATE/installed-$kind.txt"
+  ( cd "$src" && find . -type f -printf '%P\n' ) > "$STATE/installed-$kind.txt.tmp"
+  if [ -n "$BLOCKED" ]; then
+    : > "$STATE/installed-$kind.blocked"
+    for f in $BLOCKED; do printf '%s\n' "$f" >> "$STATE/installed-$kind.blocked"; done
+    grep -vxFf "$STATE/installed-$kind.blocked" "$STATE/installed-$kind.txt.tmp" > "$STATE/installed-$kind.txt" || true
+    rm -f "$STATE/installed-$kind.blocked"
+  else
+    mv -f "$STATE/installed-$kind.txt.tmp" "$STATE/installed-$kind.txt"
+  fi
+  rm -f "$STATE/installed-$kind.txt.tmp"
 }
 
 remove_by_manifest() {
@@ -231,22 +352,22 @@ remove_by_manifest() {
 backup_parts() {
   case "$1" in
     images)  printf '%s\n' "images|folder|$IMGDIR" ;;
-    # v2.2.0 - the PS5 icons back up ONLY the 20 filenames they replace, not
-    # the whole images folder: the texture pack already backs that up whole.
-    dualsense) printf '%s\n' "dualsense|files|$IMGDIR|$DS_FILES" ;;
+    # The icons back up ONLY the filenames a pack can replace, not the whole
+    # images folder: the texture pack already backs that up whole.
+    controller) printf '%s\n' "controller|files|$IMGDIR|$ICON_FILES" ;;
     zone)    printf '%s\n' "zone|folder|$ZONEDIR" ;;
-    reshade) printf '%s\n' "bin|files|$BINDIR|ReShade.ini BO2.ini dxgi.dll" \
+    reshade) printf '%s\n' "bin|files|$BINDIR|ReShade.ini BO2.ini BO1.ini MW3.ini WAW.ini dxgi.dll" \
                            "reshade-shaders|folder|$BINDIR/reshade-shaders" ;;
     mod)     printf '%s\n' "files|folder|$MODDIR" \
                            "settings|folder|$CFGDIR" ;;
   esac
 }
-backup_kinds() { printf '%s\n' images zone dualsense reshade mod; }
+backup_kinds() { printf '%s\n' images zone controller reshade mod; }
 backup_title() {
   case "$1" in
     images)  printf 'your textures' ;;
     zone)    printf 'your sounds' ;;
-    dualsense) printf 'your controller icons' ;;
+    controller) printf 'your controller icons' ;;
     reshade) printf 'your ReShade setup' ;;
     mod)     printf 'the mod' ;;
   esac
@@ -255,7 +376,7 @@ backup_label() {
   case "$1" in
     images)  printf 'My textures' ;;
     zone)    printf 'My sounds' ;;
-    dualsense) printf 'My controller icons' ;;
+    controller) printf 'My controller icons' ;;
     reshade) printf 'My ReShade setup' ;;
     mod)     printf 'The mod + my settings' ;;
   esac
@@ -564,10 +685,94 @@ act_pack() {
 
   header "$pretty"
   if [ "$MENU_RESULT" = "backup" ]; then backup_thing "$kind" || { pause_key; return; }; fi
-  say "Copying $(dir_files "$src") file(s), $(human "$(dir_bytes "$src")") ..."
+
+  # -------------------------------------------------------------------------
+  #  v2.2.1 - THE HD TEXTURE PACK NO LONGER SHIPS CONTROLLER ART.
+  #  User, 2026-08-22: *"make sure the base mode doesn't install any controller
+  #  icons if i did include any in the original texture pack images folder, so
+  #  you can choose from 3 options based off what controller the user uses."*
+  #  Measured: the pack contains exactly the 20 shared xenonbutton_* /
+  #  xenon_controller_top names, so it was silently deciding the button prompts.
+  #  Now the base install leaves the game's own icons alone.
+  # -------------------------------------------------------------------------
+  BLOCKED=""
+  [ "$kind" = images ] && BLOCKED="$ICON_FILES"
+
+  say "Copying $(count_after_block "$src") file(s), $(human "$(dir_bytes "$src")") ..."
   if copy_tree "$src" "$dest"; then
     write_manifest "$kind" "$src"
+    [ -n "$BLOCKED" ] && say "Left out the controller icons - pick yours under Controller icons." "$DIM"
+    BLOCKED=""
     printf '\n'; say "✅  $pretty installed." "$GN"
+    # An install is a sync, so the purge can take a pack's icons with it once,
+    # on an upgrade from v2.2.0 or earlier. Put them straight back.
+    if [ "$kind" = images ]; then
+      local pk isrc
+      if pk="$(controller_pack)"; then
+        if isrc="$(icon_source "$pk")"; then
+          printf '\n'; say "Re-applying your $(controller_short "$pk") controller icons ..."
+          copy_tree "$isrc" "$IMGDIR" && write_manifest controller "$isrc"
+        fi
+      fi
+    fi
+  else
+    BLOCKED=""
+    say "Copy FAILED." "$RD"
+  fi
+  pause_key
+}
+
+# ---------------------------------------------------------------------------
+#  CONTROLLER ICONS - one screen, three packs, one slot.
+# ---------------------------------------------------------------------------
+act_controller() {
+  local k pk n src
+  pk="$(controller_pack)" || pk=""
+
+  MENU_KEYS=(); MENU_LABELS=(); MENU_STATUS=(); MENU_SECTIONS=()
+  local any=0
+  while IFS= read -r k; do
+    if src="$(icon_source "$k")"; then
+      any=1
+      n="$(find "$src" -type f -name '*.iwi' | wc -l | tr -d ' ')"
+      MENU_KEYS+=("$k"); MENU_LABELS+=("$(controller_name "$k")")
+      if [ "$k" = "$pk" ]; then MENU_STATUS+=("installed"); else MENU_STATUS+=("$n icons"); fi
+      MENU_SECTIONS+=("")
+    fi
+  done < <(controller_keys)
+  if [ "$any" -eq 0 ]; then
+    header "Controller icons"
+    say "No controller icon packs are in this download." "$YE"
+    pause_key; return
+  fi
+  MENU_KEYS+=(back); MENU_LABELS+=("Cancel"); MENU_STATUS+=(""); MENU_SECTIONS+=("")
+
+  local extra=""
+  [ -n "$pk" ] && extra="~Installed now:  $(controller_name "$pk"). Picking another swaps it over."
+  menu "Controller icons" \
+    "Replaces the button prompts the game draws with the ones for your" \
+    "controller. Pick one - they all replace the same files." "" \
+    "~Goes to:  $IMGDIR" \
+    "~The HD texture pack does not touch these, so installing it later will" \
+    "~not undo your choice." \
+    "$extra"
+  case "$MENU_RESULT" in ""|back) return ;; esac
+
+  local key="$MENU_RESULT"
+  header "Controller icons - $(controller_name "$key")"
+  log "action: install controller ($key)"
+  src="$(icon_source "$key")" || { say "That pack is not in this download." "$YE"; pause_key; return; }
+
+  backup_thing controller
+  if [ -n "$pk" ] && [ "$pk" != "$key" ]; then
+    say "Removing the $(controller_short "$pk") icons first ..."
+    remove_by_manifest controller "$IMGDIR" || true
+  fi
+  say "Copying $(find "$src" -type f | wc -l | tr -d ' ') file(s) ..."
+  if copy_tree "$src" "$IMGDIR"; then
+    write_manifest controller "$src"
+    set_controller_pack "$key"
+    printf '\n'; say "✅  $(controller_name "$key") controller icons installed." "$GN"
   else
     say "Copy FAILED." "$RD"
   fi
@@ -628,13 +833,28 @@ act_reshade() {
     say "The ReShade files are not in this package." "$YE"
     pause_key; return
   }
-  MENU_KEYS=(go back)
-  MENU_LABELS=("Install ReShade with the BO2 preset" "Cancel")
-  MENU_STATUS=("read the note below first" "")
-  MENU_SECTIONS=("" "")
+  # -------------------------------------------------------------------------
+  #  v2.2.1 - FOUR PRESETS, ONE RESHADE. All four Plutonium games run as the
+  #  same executable out of the same bin folder, so ReShade resolves exactly one
+  #  ReShade.ini and reads PresetPath from it once, at load: there is no way for
+  #  it to pick a different preset per game on its own. All four are installed
+  #  side by side, which puts them in ReShade's own preset list, and
+  #  Ctrl+Shift+PgUp / PgDn steps between them in game. This picks the one to
+  #  START on.
+  #  🛑 They are not cosmetic variants: BO1, MW3 and WaW are Direct3D 9 and BO2
+  #  is Direct3D 11, so the D3D9 presets use only pixel-shader effects.
+  # -------------------------------------------------------------------------
+  MENU_KEYS=(BO2.ini BO1.ini MW3.ini WAW.ini back)
+  MENU_LABELS=("Install, and start on the Black Ops II preset" \
+               "Install, and start on the Black Ops preset" \
+               "Install, and start on the Modern Warfare 3 preset" \
+               "Install, and start on the World at War preset" \
+               "Cancel")
+  MENU_STATUS=("recommended" "" "" "" "")
+  MENU_SECTIONS=("" "" "" "" "")
   menu "ReShade" \
-    "ReShade adds a sharpening / colour pass on top of the game, with this" \
-    "mod's own BO2 preset already applied. Press END in game to open it." "" \
+    "ReShade adds a sharpening / colour pass on top of the game. Press END in" \
+    "game to open it. Four presets are installed, one per Plutonium game." "" \
     "~Goes to:  $BINDIR" "" \
     "!⚠️   ON LINUX THIS NEEDS ONE EXTRA STEP" \
     "~     Wine has to be told to load dxgi.dll. After installing, launch" \
@@ -643,6 +863,7 @@ act_reshade() {
     "" \
     "~Your existing ReShade.ini and BO2.ini are kept as .backup files."
   case "$MENU_RESULT" in ""|back) return ;; esac
+  local start_preset="$MENU_RESULT"
 
   header "ReShade"
   local keep_shots keep_font
@@ -651,7 +872,7 @@ act_reshade() {
   local f
   # NEVER overwrite a .backup that already exists - installing twice used to
   # copy the config THIS INSTALLER wrote over the only copy of the original.
-  for f in ReShade.ini BO2.ini; do
+  for f in ReShade.ini BO2.ini BO1.ini MW3.ini WAW.ini; do
     if [ -f "$BINDIR/$f" ]; then
       if [ -f "$BINDIR/$f.backup" ]; then
         say "Your original $f.backup is already saved - left untouched." "$DIM"
@@ -665,8 +886,10 @@ act_reshade() {
     write_manifest reshade "$src"
     if [ -n "$keep_shots" ]; then set_ini_value SavePath "$keep_shots"; say "Kept your screenshot folder: $keep_shots" "$DIM"; fi
     if [ -n "$keep_font" ]; then set_ini_value Font "$keep_font"; set_ini_value EditorFont "$keep_font"; say "Kept your overlay font." "$DIM"; else set_reshade_font; fi
+    [ "$start_preset" != "BO2.ini" ] && set_ini_value PresetPath ".\\$start_preset"
     printf '\n'
-    say "✅  ReShade installed." "$GN"
+    say "✅  ReShade installed, starting on the $(preset_game "$start_preset") preset." "$GN"
+    say "Ctrl+Shift+PgUp / PgDn steps between the four presets in game." "$DIM"
     say "Remember the WINEDLLOVERRIDES line above, or it will not load." "$YE"
   else
     say "Copy FAILED." "$RD"
@@ -708,7 +931,7 @@ act_remove_reshade() {
   header "Remove ReShade"
   remove_by_manifest reshade "$BINDIR" || true
   local f
-  for f in ReShade.ini BO2.ini; do
+  for f in ReShade.ini BO2.ini BO1.ini MW3.ini WAW.ini; do
     if [ -f "$BINDIR/$f.backup" ]; then
       [ "$DRYRUN" -eq 0 ] && mv -f "$BINDIR/$f.backup" "$BINDIR/$f"
       say "Your original $f was put back." "$GN"
@@ -829,7 +1052,7 @@ act_remove_everything() {
   has_backup zone   && snd_b=1
   # v2.2.0 - the PS5 icons go with everything else.
   local ds_b=0
-  has_backup dualsense && ds_b=1
+  has_backup controller && ds_b=1
 
   MENU_KEYS=(); MENU_LABELS=(); MENU_STATUS=(); MENU_SECTIONS=()
   if [ "$img_b" -eq 1 ] || [ "$snd_b" -eq 1 ]; then
@@ -840,7 +1063,7 @@ act_remove_everything() {
 
   menu "Remove everything" \
     "Removes every part of this package, one after the other:" \
-    "~   the HD texture pack  ·  custom sounds  ·  ReShade  ·  the mod" \
+    "~   HD textures · custom sounds · controller icons · ReShade · the mod" \
     "" \
     "~Only files this installer put there are deleted. Anything that was" \
     "~already in those folders is left exactly where it is." \
@@ -861,7 +1084,7 @@ act_remove_everything() {
 
   zmqol_pick "$ip" act_remove_pack images "HD textures"   "$IMGDIR"
   zmqol_pick "$sp" act_remove_pack zone   "custom sounds" "$ZONEDIR"
-  zmqol_pick "$dp" act_remove_pack dualsense "PS5 icons" "$IMGDIR"
+  zmqol_pick "$dp" act_remove_pack controller "controller icons" "$IMGDIR"
   zmqol_pick 0     act_remove_reshade
   zmqol_pick 0     act_remove_mod
 
@@ -870,7 +1093,7 @@ act_remove_everything() {
   printf '\n'
   say "HD texture pack    $( [ -f "$STATE/installed-images.txt" ] && echo 'still installed' || echo 'removed')"
   say "Custom sounds      $( [ -f "$ZONEDIR/${SOUND_FILES[0]}" ] && echo 'still installed' || echo 'removed')"
-  say "PS5 icons          $( [ -f "$STATE/installed-dualsense.txt" ] && echo 'still installed' || echo 'removed')"
+  say "Controller icons   $( [ -f "$STATE/installed-controller.txt" ] && echo 'still installed' || echo 'removed')"
   say "ReShade            $( [ -f "$BINDIR/dxgi.dll" ] && echo 'still installed' || echo 'removed')"
   say "The mod            $( [ -f "$MODDIR/mod.json" ] && echo 'still installed' || echo 'removed')"
   pause_key
@@ -1023,29 +1246,46 @@ main_menu() {
     modst="$(mod_version "$MODDIR/mod.json" 2>/dev/null | sed 's/^/v/' || true)"
     [ -z "$modst" ] && modst="not installed" || modst="$modst installed"
     if [ -f "$STATE/installed-images.txt" ]; then imgst="$(wc -l < "$STATE/installed-images.txt" | tr -d ' ') files installed"; else imgst="not installed"; fi
-    if [ -f "$ZONEDIR/${SOUND_FILES[0]}" ]; then sndst="installed"; else sndst="not installed"; fi
+    # v2.2.1 - the sounds row is MANIFEST-first, like the textures row, so that
+    # "installed" always means "installed by this installer" and can never
+    # disagree with what Remove the custom sounds will say. See the long note in
+    # the Windows script's Get-Status: restoring your own backup put three files
+    # with the same three names back, and the old file-presence test read them
+    # as ours.
+    if [ -f "$STATE/installed-zone.txt" ]; then
+      sndst="installed"
+    else
+      local nsnd=0 sf
+      for sf in "${SOUND_FILES[@]}"; do [ -f "$ZONEDIR/$sf" ] && nsnd=$(( nsnd + 1 )); done
+      if [ "$nsnd" -gt 0 ]; then sndst="$nsnd files already there (not mine)"; else sndst="not installed"; fi
+    fi
     if [ -f "$BINDIR/dxgi.dll" ]; then rshst="installed"; else rshst="not installed"; fi
 
-    local nbk=0 bk
-    for bk in $(backup_kinds); do has_backup "$bk" && nbk=$(( nbk + 1 )); done
+    local nbk=0 bk nkinds=0
+    for bk in $(backup_kinds); do nkinds=$(( nkinds + 1 )); has_backup "$bk" && nbk=$(( nbk + 1 )); done
     local bkst="nothing backed up yet"
-    [ "$nbk" -gt 0 ] && bkst="$nbk of 4 backed up"
+    [ "$nbk" -gt 0 ] && bkst="$nbk of $nkinds backed up"
 
     # v2.1.3 - the two EVERYTHING rows, one at the top of each section, so this
     # menu matches the Windows one exactly. See act_install_everything and
     # act_remove_everything for why neither reimplements anything.
-    # v2.2.0 - PS5 controller icons, mirroring the Windows menu row for row.
-    local dsst
-    if [ -f "$STATE/installed-dualsense.txt" ]; then dsst="$(wc -l < "$STATE/installed-dualsense.txt" | tr -d ' ') icons installed"; else dsst="not installed"; fi
-    MENU_KEYS=(all mod images sounds reshade dualsense rall rimages rsounds rreshade rdualsense rmod backups update details quit)
+    # v2.2.1 - one Controller icons row leading to the three packs, mirroring
+    # the Windows menu row for row.
+    local dsst pkk
+    if pkk="$(controller_pack)"; then
+      dsst="$(controller_short "$pkk") - $(wc -l < "$STATE/installed-controller.txt" | tr -d ' ') icons installed"
+    else
+      dsst="none - the game's own"
+    fi
+    MENU_KEYS=(all mod images sounds reshade controller rall rimages rsounds rreshade rcontroller rmod backups update details quit)
     MENU_LABELS=("EVERYTHING - the whole package" \
-                 "The mod" "HD texture pack" "Custom sounds" "ReShade + BO2 preset" "PS5 controller icons" \
+                 "The mod" "HD texture pack" "Custom sounds" "ReShade + presets" "Controller icons" \
                  "EVERYTHING - the whole package" \
-                 "Remove the HD textures" "Remove the custom sounds" "Remove ReShade" "Remove the PS5 icons" "Remove the mod" \
+                 "Remove the HD textures" "Remove the custom sounds" "Remove ReShade" "Remove the controller icons" "Remove the mod" \
                  "Back up / restore my own files" \
                  "Check for a newer version" "Details and log" "Quit")
     MENU_STATUS=("mod + textures + sounds + ReShade" "$modst" "$imgst" "$sndst" "$rshst" "$dsst" \
-                 "textures + sounds + PS5 icons + ReShade + mod" "" "" "" "" "" \
+                 "textures + sounds + icons + ReShade + mod" "" "" "" "" "" \
                  "$bkst" "" "" "")
     MENU_SECTIONS=("INSTALL" "INSTALL" "INSTALL" "INSTALL" "INSTALL" "INSTALL" \
                    "REMOVE" "REMOVE" "REMOVE" "REMOVE" "REMOVE" "REMOVE" \
@@ -1068,8 +1308,8 @@ main_menu() {
       images)   act_pack images "HD texture pack" "$IMGDIR" "THIS OVERWRITES ANY CUSTOM TEXTURES ALREADY IN THAT FOLDER" ;;
       sounds)   act_pack zone   "custom sounds"   "$ZONEDIR" "THIS REPLACES ANY CUSTOM SOUNDS ALREADY IN THAT FOLDER" ;;
       reshade)  act_reshade ;;
-      dualsense) act_pack dualsense "PS5 controller icons" "$IMGDIR" "THIS REPLACES THE XBOX BUTTON ICONS IN THAT FOLDER" ;;
-      rdualsense) act_remove_pack dualsense "PS5 icons" "$IMGDIR" ;;
+      controller) act_controller ;;
+      rcontroller) act_remove_pack controller "controller icons" "$IMGDIR" ;;
       rimages)  act_remove_pack images "HD textures"   "$IMGDIR" ;;
       rsounds)  act_remove_pack zone   "custom sounds" "$ZONEDIR" ;;
       rreshade) act_remove_reshade ;;
@@ -1083,6 +1323,7 @@ main_menu() {
 
 log "--- installer started (dryrun=$DRYRUN) ---"
 move_old_backups
+migrate_dualsense
 
 if [ -n "$ACTION" ]; then
   case "$ACTION" in
@@ -1092,8 +1333,8 @@ if [ -n "$ACTION" ]; then
     images)   act_pack images "HD texture pack" "$IMGDIR" "THIS OVERWRITES ANY CUSTOM TEXTURES ALREADY IN THAT FOLDER" ;;
     sounds)   act_pack zone   "custom sounds"   "$ZONEDIR" "THIS REPLACES ANY CUSTOM SOUNDS ALREADY IN THAT FOLDER" ;;
     reshade)  act_reshade ;;
-    dualsense) act_pack dualsense "PS5 controller icons" "$IMGDIR" "THIS REPLACES THE XBOX BUTTON ICONS IN THAT FOLDER" ;;
-    rdualsense) act_remove_pack dualsense "PS5 icons" "$IMGDIR" ;;
+    controller) act_controller ;;
+    rcontroller) act_remove_pack controller "controller icons" "$IMGDIR" ;;
     rimages)  act_remove_pack images "HD textures"   "$IMGDIR" ;;
     rsounds)  act_remove_pack zone   "custom sounds" "$ZONEDIR" ;;
     rreshade) act_remove_reshade ;;
