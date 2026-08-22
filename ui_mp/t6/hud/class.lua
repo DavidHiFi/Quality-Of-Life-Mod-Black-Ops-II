@@ -195,29 +195,47 @@ end
 --  failing, and v1.99.91 got it to a shape they signed off on. One change at a
 --  time.
 -- ============================================================================
+-- ============================================================================
+--  🛑 v2.2.5 - BACK TO ONE COMMAND, AND THE CRASH WAS NEVER THIS ROW.
+--
+--  User, 2026-08-22, with a screenshot of the console: *"i tried fast restart
+--  in the pause menu with my mod and it froze the game for like a few seconds,
+--  then it restarted and then crashed/errored and for some reason it did a
+--  bunch of these commands that you can see in the bottom left, idk why you
+--  made it do that, just make the fast restart option literally do the
+--  fast_restart command, not that hard."*
+--
+--  THE THREE EXTRA COMMANDS DO NOT EXIST IN t6zm.exe. The screenshot's three
+--  lines are the game rejecting them by name:
+--        Unknown cmd stopControllerRumble
+--        Unknown cmd fade
+--        Unknown cmd silence
+--  They were copied out of stock's CAMPAIGN restart popup, which runs in a
+--  build that has them. Here they are three no-ops that print, so they were
+--  never anything but noise on screen. Gone.
+--
+--  🌟 THE CRASH IS ALREADY FIXED, AND IT WAS r_aaSamples 16 - THE SAME BUG AS
+--  THE BLACK SCREEN. Measured out of this install's own logs rather than
+--  reasoned about:
+--    · console_zm.log.000, first dvar dump (map load):   r_aaSamples "4"
+--    · same log, the dump AFTER the fast_restart:        r_aaSamples "16"
+--      with r_aaSamplesMax "8" both times
+--    · the restart re-applies the config, so the latched 16 goes live, the
+--      renderer asks D3D for a 16x MSAA device, gets nothing back, and
+--      dereferences it: 0xC0000005 at 0x005DD7ED, ~1s into the restarted match
+--    · the 2026-08-21 fast-restart crash dump has the SAME exception address,
+--      and that one ran the ONE-COMMAND version of this row - which is the
+--      proof that the command list was never the cause either way.
+--  GRAPHICS BOOST stopped writing 16 in v2.2.4 (qol_options.gsc), so this row
+--  has nothing left to trip over.
+--
+--  🛑 NOTHING ELSE IS DONE HERE ON PURPOSE. cl_paused, ui_busyBlockIngameMenu
+--  and close_all_ingame_menus are all gone: ui_busyBlockIngameMenu is what
+--  froze the menu with no way back when a restart did not complete, and the
+--  user asked for the console command and nothing else.
+-- ============================================================================
 CoD.Class.ZmQolFastRestartPressed = function (IngameMenuWidget, ClientInstance)
-	local Controller = ClientInstance.controller
-
-	-- Guarded, because a nil here would hard-crash LUI and the row would take
-	-- the pause menu with it. Dvar.<name> is the same accessor Reimagined uses.
-	if Dvar and Dvar.ui_busyBlockIngameMenu then
-		Dvar.ui_busyBlockIngameMenu:set(1)
-	end
-
-	-- Close the pause menu the way stock closes it, so the level does not
-	-- restart underneath an open menu. The handler is registered below.
-	IngameMenuWidget:processEvent({
-		name = "close_all_ingame_menus",
-		controller = Controller
-	})
-
-	-- 🛑 UNPAUSE FIRST. See the block above - this is the missing line.
-	Engine.SetDvar("cl_paused", 0)
-
-	Engine.Exec(Controller, "stopControllerRumble")
-	Engine.Exec(Controller, "fade 0 0 0 255 0 0 1")
-	Engine.Exec(Controller, "silence")
-	Engine.Exec(Controller, "fast_restart")
+	Engine.Exec(ClientInstance.controller, "fast_restart")
 end
 
 CoD.Class.ZmQolInstantExitPressed = function (IngameMenuWidget, ClientInstance)
@@ -349,10 +367,13 @@ LUI.createMenu.class = function (LocalClientIndex)
 	-- way open_endGamePopup is: a handler with no button is inert, and this
 	-- keeps the registration out of the isZombie branch below where the button
 	-- code cannot see it.
-	-- v2.2.0 - FAST RESTART closes the pause menu before it restarts, the way
-	-- stock's own restart does. Stock registers this handler on the popup that
-	-- normally drives the restart; this menu never had it because the popup was
-	-- taken out of the path in v1.99.91. CoD.InGameMenu comes from the
+	-- v2.2.0 - added so FAST RESTART could close the pause menu before it
+	-- restarted, the way stock's own restart does. v2.2.5 took that call back
+	-- out (see the banner over ZmQolFastRestartPressed), so nothing in this file
+	-- fires the event any more. THE REGISTRATION STAYS: it binds a stock event
+	-- name to stock's own handler, which is what stock does on every other menu
+	-- that carries it, and removing it could only take away a close path some
+	-- other caller expects. CoD.InGameMenu comes from the
 	-- T6.HUD.InGameMenus require at the top of this file.
 	-- Guarded even though it is verified present (stock ui\t6\hud\ingamemenus.lua
 	-- defines CoD.InGameMenu.CloseAllInGameMenus, and Reimagined's restart popup

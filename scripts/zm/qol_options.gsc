@@ -645,6 +645,37 @@ qol_opt_move_speed()
 // ============================================================================
 qol_opt_graphics_boost()
 {
+    //  ========================================================================
+    //  🛑 THE SELF-HEAL RUNS FIRST, AND IT RUNS EVEN IN MINIMAL MODE, AND EVEN
+    //  WITH GRAPHICS BOOST SWITCHED OFF.                            (v2.2.5)
+    //
+    //  Every build from v2.0.7 to v2.2.3 wrote r_aaSamples 16 the moment
+    //  GRAPHICS BOOST was thrown. That dvar is ARCHIVED and LATCHED, so the 16
+    //  is still sitting in plutonium_zm.cfg afterwards and is applied by the
+    //  renderer restart that runs as the mod loads - before a single line of
+    //  GSC executes. A fixed mod cannot rescue a config that kills the game
+    //  before any script runs, so turning the boost off was never enough:
+    //  the value had to be taken back out of the file.
+    //
+    //  This is the in-mod half of that repair (the installer does the other
+    //  half, for the case where the game cannot start at all). Writing the
+    //  dvar re-archives it, so one launch on a poisoned config is enough to
+    //  clean it permanently.
+    //
+    //  🛑 THE TEST IS AGAINST THE ENGINE'S OWN CEILING, NEVER A FIXED NUMBER.
+    //  r_aaSamplesMax is what the renderer reports this GPU can actually do
+    //  ("8" on this install); 16 is inside r_aaSamples' declared domain, which
+    //  is exactly why no domain check ever caught it.
+    //  ========================================================================
+    n_aa_max_heal = getdvarintdefault( "r_aaSamplesMax", 0 );
+    n_aa_now      = getdvarintdefault( "r_aaSamples", 0 );
+
+    if ( n_aa_max_heal > 0 && n_aa_now > n_aa_max_heal )
+    {
+        setdvar( "r_aaSamples", "" + n_aa_max_heal );
+        println( "[zm_qol] SELF-HEAL: r_aaSamples was " + n_aa_now + " with a hardware max of " + n_aa_max_heal + " - written back to " + n_aa_max_heal + ". That value black-screens the game at load." );
+    }
+
     if ( zmqol_minimal() )
         return;
 
@@ -709,7 +740,18 @@ qol_opt_graphics_boost()
     a_on[ "r_aaSamples" ]          = "" + n_aa_max;   // latched - next launch
     a_on[ "r_txaa" ]               = "0";
     a_on[ "r_fxaa" ]               = "0";
-    a_on[ "r_texFilterQuality" ]   = "0";    // latched - next launch
+    //  🛑 v2.2.5 - THIS WAS "0" AND "0" IS LOW, NOT HIGH. A "boost" row was
+    //  downgrading texture filtering every time it was thrown. The mapping is
+    //  the game's OWN, read out of the stock menu builder this mod overrides
+    //  (ui\t6\menus\optionssettings.lua, Button_AddChoices_TextureFiltering):
+    //        addChoice( PLATFORM_LOW_CAPS,    0 )
+    //        addChoice( PLATFORM_MEDIUM_CAPS, 1 )
+    //        addChoice( PLATFORM_HIGH_CAPS,   2 )
+    //  and the user's own boot dump in console_zm.log.000 confirms the damage:
+    //  r_texFilterQuality "2" at map load, "0" in the dump taken after the
+    //  boost had run. 2 is the ceiling the game offers, so that is what a boost
+    //  writes. Latched, so it takes effect on the next launch either way.
+    a_on[ "r_texFilterQuality" ]   = "2";    // 2 = HIGH. latched - next launch
     a_on[ "r_texFilterAnisoMin" ]  = "16";
     a_on[ "r_texFilterAnisoMax" ]  = "16";
     a_on[ "r_texFilterMipMode" ]   = "Force Trilinear";
@@ -720,7 +762,16 @@ qol_opt_graphics_boost()
     a_on[ "r_picmip" ]             = "0";
     a_on[ "r_picmip_bump" ]        = "0";
     a_on[ "r_picmip_spec" ]        = "0";
-    a_on[ "r_ssao" ]               = "3";
+    //  🛑 v2.2.5 - WAS "3", AND THE ENGINE NEVER TOOK IT. Measured, not
+    //  reasoned: console_zm.log.000 dumps r_ssao TWICE - once at map load and
+    //  once after a fast_restart, by which point GRAPHICS BOOST had provably
+    //  run (r_aaSamples reads 16 and r_texFilterQuality reads 0 in that same
+    //  dump) - and r_ssao reads "1" in BOTH. r_ssao is not in the "will be
+    //  changed upon restarting" list either, so it is not latched and the dump
+    //  is the live value. The 3 simply did not stick.
+    //  Writing 1 changes nothing on screen; it makes the code say what the
+    //  engine actually does, so the next reader does not re-derive this.
+    a_on[ "r_ssao" ]               = "1";
     a_on[ "sm_enable" ]            = "1";
     a_on[ "sm_maxLights" ]         = "4";
     a_on[ "sm_spotQuality" ]       = "2";

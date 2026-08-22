@@ -806,24 +806,85 @@ zmqol_add_claymore_wallbuy()
 	v_origin = zmqol_claymore_wallbuy_origin();
 	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 90 );
 
-	// The buy struct takes the wall's outward normal; the model struct takes
-	// that + 90. Stock's own pair, see the block above.
+	// ========================================================================
+	//  🛑 v2.2.5 - THE PAIR WAS 90 DEGREES OUT AND THE MINE WAS EDGE-ON IN THE
+	//  WALL. THE ROLES OF THE TWO YAWS WERE SWAPPED.               (measured)
+	//
+	//  User, 2026-08-22, with a screenshot: *"the claymore wallbuy in diner
+	//  survival is facing the wrong way, thus colliding into the wall and
+	//  looking scuffed."* The screenshot shows the mine almost entirely inside
+	//  the wall with only its glowing edge past a vertical beam - which is what
+	//  you get when the model's WIDTH axis points into the wall instead of
+	//  along it.
+	//
+	//  -- THE MODEL'S OWN AXES, FROM ITS MESH --------------------------------
+	//  t6_wpn_claymore_world_LOD_0.XMODEL_EXPORT, 1058 verts, in game axes:
+	//        X (forward)  -2.51 .. 1.63    span  4.14   <- the THIN axis
+	//        Y (left)     -5.57 .. 5.59    span 11.16   <- the mine's width
+	//        Z (up)       -2.34 .. 9.67    span 12.01   <- height, legs below
+	//  A claymore is ~11 wide, ~4 thick and ~12 tall on its stand, so local X
+	//  is the front-to-back axis and local +X is the face - confirmed by the
+	//  model's only other tag, tag_fx, at OFFSET (1.603, 0, 8.638), i.e. sat on
+	//  the +X surface where the blast fx belongs.
+	//
+	//  An entity's yaw points local +X at that world angle. So for the mine to
+	//  lie flat on a wall, MODEL YAW MUST EQUAL THE WALL'S OUTWARD NORMAL.
+	//  The old code used normal + 90, which pointed the face along the wall and
+	//  drove the 11-unit width straight through it.
+	//
+	//  -- WHAT THE BUY STRUCT'S YAW REALLY IS --------------------------------
+	//  Not the wall normal. _zm_weapons.gsc:931 places the use trigger with
+	//        origin -= anglestoright( buy.angles ) * ( script_length * 0.4 )
+	//  and anglestoright( yaw ) is the direction yaw-90. Stock wants that
+	//  trigger pushed OFF the wall into the room, and that only happens when
+	//  buy yaw = normal - 90. So the pair is:
+	//        buy yaw   = wall outward normal - 90
+	//        model yaw = wall outward normal
+	//  which reproduces stock's own constant +90 gap between the two.
+	//
+	//  -- CHECKED AGAINST ALL EIGHT STOCK CLAYMORE WALL BUYS -----------------
+	//  Every claymore_purchase / t6_wpn_claymore_world pair in the game, read
+	//  out of the mapents dumps - buy yaw -> model yaw:
+	//        transit farm  90 -> 180     buried street  90 -> 180
+	//        highrise      60 -> 150     nuketown      285 ->  15
+	//        prison        90 -> 180     tomb A        180 -> 270
+	//        tomb B         0 ->  90     tomb C        180 -> 270
+	//  Model = buy + 90 in all eight. 🌟 zm_tomb's pf2209 pair is buy 0 /
+	//  model 90 - the exact pair this file now writes - so this is a shipped
+	//  stock configuration, not an invention.
+	//
+	//  -- THE WALL, UNCHANGED FROM v2.2.0 ------------------------------------
+	//  The shack's south wall is the plane through both of its mantle lanes,
+	//  y = -7494, and the interior is the +Y side: both node_negotiation_begin
+	//  nodes sit at y -7531 / -7536 with angles "0 90 0", so the AI mantles
+	//  from outside toward +Y. Outward normal = +Y = 90. The origin does not
+	//  move; at model yaw 90 only the mine's 2.51-unit back sits toward the
+	//  wall, so it can no longer clip it.
+	//
+	//  🛑 BOTH SIDES CHANGED TOGETHER. zm_expanded.csc's twin carries the same
+	//  two expressions. The clientfield name is built from the ORIGIN only
+	//  (_zm_weapons.gsc:889), so angles cannot desync it - but the client is
+	//  what actually spawns the visible model (_zm_weapons.csc:268 uses
+	//  target_struct.angles), so a change here alone would do nothing at all.
+	// ========================================================================
 	s_model = spawnstruct();
 	s_model.targetname = "zmqol_claymore_diner";
 	s_model.origin = v_origin;
-	s_model.angles = ( 0, n_yaw + 90, 0 );
+	s_model.angles = ( 0, n_yaw, 0 );
 	s_model.model = "t6_wpn_claymore_world";
 	scripts\zm\replaced\utility::add_struct( s_model );
 
 	s_buy = spawnstruct();
 	s_buy.targetname = "claymore_purchase";
 	s_buy.origin = v_origin;
-	s_buy.angles = ( 0, n_yaw, 0 );
+	// normal - 90, so the use trigger is pushed off the wall into the room.
+	// See the derivation above; this is stock's own relationship.
+	s_buy.angles = ( 0, n_yaw - 90, 0 );
 	s_buy.zombie_weapon_upgrade = "claymore_zm";
 	s_buy.target = "zmqol_claymore_diner";
 	scripts\zm\replaced\utility::add_struct( s_buy );
 
-	println( "[zm_qol] diner claymore: wallbuy struct at (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ") yaw " + n_yaw );
+	println( "[zm_qol] diner claymore: wallbuy struct at (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ") wall normal " + n_yaw + " (model yaw " + n_yaw + ", buy yaw " + ( n_yaw - 90 ) + ")" );
 }
 
 zmqol_unlock_shield_buildable_entities()
@@ -1309,6 +1370,103 @@ zmqol_diner_dog_watchdog()
 
             if ( gettime() - ai.zmqol_dog_seen < 4000 )
                 continue;
+
+            //  ================================================================
+            //  🌟 v2.2.5 - THE DOG THAT COULD NOT BE KILLED AND IGNORED THE
+            //  PLAYER. This runs BEFORE the stranded check below, because the
+            //  dog it is for is not stranded - it is up and running around.
+            //
+            //  User, 2026-08-22, Diner survival round 7: *"one of the dogs was
+            //  running through the lifted up car in the garage and through
+            //  building, and it kinda just ignored me... I just now killed all
+            //  the dogs except that one dog that ran through the wall outside
+            //  the map, unable to progress the game now without the use of
+            //  cheats."*
+            //
+            //  🛑 STOCK'S OWN SPAWN THREAD HAS NO ERROR PATH, AND ITS FIRST
+            //  LINE IS THE ONE THAT THROWS. _zm_ai_dogs::dog_spawn_fx() runs,
+            //  in this exact order (:197-222):
+            //        angle = vectortoangles( ai.favoriteenemy.origin - ... )
+            //        ai forceteleport( ent.origin, angles )
+            //        ai zombie_setup_attack_properties_dog()
+            //        ai stop_magic_bullet_shield()
+            //        ai show()
+            //        ai setfreecameralockonallowed( 1 )
+            //        ai.ignoreme = 0
+            //  Every dog is spawned WITH a magic bullet shield - i.e. immune to
+            //  damage - and with ignoreme set, and that thread is the only
+            //  thing that takes either off. Plutonium kills a GSC thread that
+            //  throws in silence, so if ANY line above fails, whatever came
+            //  after it never runs and the dog keeps the state it was born
+            //  with: invulnerable, uninterested in the player, and with none of
+            //  its attack properties set. That is the whole of the user's
+            //  report - a dog that runs about, ignores you and cannot be shot.
+            //
+            //  🌟 THE WATCHDOG DOES NOT CARE WHICH LINE FAILED. It re-asserts
+            //  the end state stock was trying to reach, field for field, and it
+            //  only touches what is actually still wrong.
+            //
+            //  📝 THE FIVE ATTACK-PROPERTY FIELDS ARE SET INLINE RATHER THAN BY
+            //  CALLING zombie_setup_attack_properties_dog(), because they are
+            //  the whole of its body (_zm_ai_dogs.gsc:532-540) minus a
+            //  developer-only history ring. dog_behind_audio() - the dog's
+            //  growl loop, and the reason an earlier stranded dog could not be
+            //  heard - IS started, by name, because it has no inline
+            //  equivalent.
+            //  🛑 THE CROSS-FILE REFERENCE IS SAFE FROM THIS FILE, CHECKED NOT
+            //  ASSUMED: locs\ scripts load on EVERY map, so an external here
+            //  must resolve everywhere or every other map dies at load
+            //  (AI_CONTEXT rule 2). console_zm.log's script list reports
+            //  "_zm_ai_dogs.gsc (patch_zm)" - patch_zm is the global zombies
+            //  patch, loaded on all six maps, same as _zm_utility.
+            //  ================================================================
+            if ( !isdefined( ai.zmqol_dog_state_fixed ) )
+            {
+                ai.zmqol_dog_state_fixed = 1;
+                str_fixed = "";
+
+                //  is_magic_bullet_shield_enabled() is exactly this test
+                //  (_zm_utility.gsc:2784), inlined for the same reason.
+                if ( isdefined( ai.magic_bullet_shield ) && ai.magic_bullet_shield == 1 )
+                {
+                    ai maps\mp\zombies\_zm_utility::stop_magic_bullet_shield();
+                    str_fixed = str_fixed + " unkillable";
+                }
+
+                if ( isdefined( ai.ignoreme ) && ai.ignoreme )
+                {
+                    ai.ignoreme = 0;
+                    str_fixed = str_fixed + " ignoreme";
+                }
+
+                //  🛑 THE PROPERTIES AND THE AUDIO ARE ONLY TOUCHED IF
+                //  zombie_setup_attack_properties_dog() PROVABLY DID NOT RUN.
+                //  Its last two writes are disablearrivals/disableexits = 1,
+                //  and nothing else in the dog path sets them, so
+                //  disablearrivals is a reliable "did that function complete"
+                //  flag. This test is the whole reason the growl thread cannot
+                //  be started twice: starting a second dog_behind_audio() on a
+                //  healthy dog would double every growl it makes, which is a
+                //  worse bug than the one being fixed.
+                if ( !( isdefined( ai.disablearrivals ) && ai.disablearrivals ) )
+                {
+                    //  zombie_setup_attack_properties_dog(), inline.
+                    ai.ignoreall          = 0;
+                    ai.pathenemyfightdist = 64;
+                    ai.meleeattackdist    = 64;
+                    ai.disablearrivals    = 1;
+                    ai.disableexits       = 1;
+
+                    ai thread maps\mp\zombies\_zm_ai_dogs::dog_behind_audio();
+                    str_fixed = str_fixed + " attack-properties+audio";
+                }
+
+                ai show();
+                ai setfreecameralockonallowed( 1 );
+
+                if ( str_fixed != "" )
+                    println( "[zm_qol] diner dogs: a dog was still in its pre-spawn state after 4s -" + str_fixed + " - stock's dog_spawn_fx did not finish. Repaired." );
+            }
 
             //  Already rescued once - do not fight the stock thread if it is
             //  simply slow.

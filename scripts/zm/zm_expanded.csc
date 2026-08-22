@@ -437,19 +437,26 @@ zmqol_add_claymore_wallbuy()
 	v_origin = zmqol_claymore_wallbuy_origin();
 	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 90 );
 
-	//  Stock's own pair: the model struct is rotated +90 from the buy struct.
-	//  See the long block on the server copy for where that came from.
+	//  🛑 v2.2.5 - n_yaw IS THE WALL'S OUTWARD NORMAL, AND THE MODEL TAKES IT
+	//  DIRECTLY. It used to take normal + 90, which stood the mine edge-on and
+	//  pushed half its 11-unit width into the wall. THIS IS THE HALF THAT
+	//  ACTUALLY MOVES THE MODEL - _zm_weapons.csc:268 spawns the visible wall
+	//  buy from target_struct.angles, so the server copy alone changes nothing.
+	//  The full derivation (mesh axes, the trigger-offset proof, and all eight
+	//  stock claymore pairs) is on the server copy in
+	//  scripts\zm\locs\zm_transit_loc_diner.gsc - read it before touching either.
 	s_model = spawnstruct();
 	s_model.targetname = "zmqol_claymore_diner";
 	s_model.origin = v_origin;
-	s_model.angles = ( 0, n_yaw + 90, 0 );
+	s_model.angles = ( 0, n_yaw, 0 );
 	s_model.model = "t6_wpn_claymore_world";
 	zmqol_client_add_struct( s_model );
 
 	s_buy = spawnstruct();
 	s_buy.targetname = "claymore_purchase";
 	s_buy.origin = v_origin;
-	s_buy.angles = ( 0, n_yaw, 0 );
+	//  normal - 90, matching the server copy exactly.
+	s_buy.angles = ( 0, n_yaw - 90, 0 );
 	s_buy.zombie_weapon_upgrade = "claymore_zm";
 	s_buy.target = "zmqol_claymore_diner";
 	zmqol_client_add_struct( s_buy );
