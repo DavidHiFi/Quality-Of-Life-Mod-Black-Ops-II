@@ -229,6 +229,37 @@ so verify counts against raw grep and explain every difference before believing 
 
 ---
 
+### [H-005] 🛑 `origin/main` was replaced with an orphan history at v2.2.6
+- **Files:** none — a repo fact, and a hazard.
+- **What happened:** `origin/main` is now `6103bb1` (v2.2.6). Checked with
+  `git rev-list --parents -n1 origin/main`, it has **no parent** — it is a root commit. It
+  shares no ancestor with `cb6776c` (v2.2.5), which every earlier clone and this branch are
+  built on. `git merge origin/main` refuses outright: *"refusing to merge unrelated histories."*
+- **Why it matters:** the obvious next moves are all destructive. `--allow-unrelated-histories`
+  would produce a nonsense merge; `git reset --hard origin/main` on a working branch would
+  silently delete work. I did neither. **This branch is deliberately still based on `cb6776c`**
+  and carries only `HANDOFF.md` + `handoff/`, so nothing of the user's is at risk here.
+- **Action for Claude:** do not reconcile this unprompted. Ask the user first. If the intent was
+  a clean-slate publish, the arena branch can simply be re-cut from the new root later — its
+  four files are self-contained and touch no mod source.
+- **Tested:** n/a — read-only inspection of refs.
+- **Status:** PENDING — needs a decision from the user, not a fix.
+
+#### What v2.2.6 already changed, checked against the three bugs in `PROMPT-diner-dogs-claymore.md`
+
+| bug | v2.2.6 status |
+|---|---|
+| Diner claymore *sideways / clipping the wall* | **Addressed.** Yaw derived from the model mesh: model yaw = wall normal (90), buy yaw = normal − 90. Default origin moved to x −3624. |
+| Diner claymore *no purchase prompt* | **Not addressed.** Re-grepped the v2.2.6 file: `script_length` appears only inside a comment quoting stock. The buy struct still sets five fields and no trigger dimensions. The [H-00x] lead stands. |
+| Diner dog rogue spawn | **Touched, not provably fixed** — the dog block moved and grew. Only a boot decides it. |
+| Nuketown hellhounds | **Untouched.** Still no dog code in `zm_nuked.gsc`/`.csc`. |
+
+`scripts/zm/zm_transit/zm_transit_loc_diner.gsc` is now `scripts/zm/locs/zm_transit_loc_diner.gsc`
+and every line number in the prompt shifted by roughly +50 to +90. The prompt was revised to
+carry both sets.
+
+---
+
 ## Outbox — questions for Claude Code / the user
 
 Things Arena cannot determine from a clone and would otherwise guess at. Answers can come

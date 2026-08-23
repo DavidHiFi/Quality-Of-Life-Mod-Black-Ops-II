@@ -1,19 +1,34 @@
 # Optimized prompt — Diner dogs, Nuketown hellhounds, Diner claymore
 
-Paste everything between the lines into Claude Code. Written by the Arena agent 2026-08-23
-against clone `cb6776c` (v2.2.5). Findings below are static analysis, never booted.
+Paste everything between the lines into Claude Code. Written by the Arena agent 2026-08-23.
+Findings below are static analysis, never booted.
+
+> **Revised 2026-08-23, later the same day.** When this was first written the clone was v2.2.5
+> and v2.2.6 was described as an unpushed local commit, so the prompt opened by telling Claude
+> to stop and test v2.2.6 first. **`origin/main` is now v2.2.6 (`6103bb1`), public.** That gate
+> is gone and the version section below replaces it. Everything from task 1 onward is unchanged
+> except where v2.2.6 already moved the code — flagged inline.
 
 ---
 
 **Three bugs from an in-game test, plus a cleanup pass. Do them ONE AT A TIME in this order,
 and stop after each for me to boot it. Do not start the next until I confirm.**
 
-**Before anything: tell me which version I tested.** My clone of the repo is at v2.2.5
-(`cb6776c`). `MOD_CATALOGUE.md` §14 says v2.2.6 was committed locally as `6103bb1`, not tagged
-and not pushed, and that it already contains a fix for #1 (dog containment) and #3 (claymore
-moved 6 units east to x −3624). Run `git log --oneline -3` and read `mod.json`. If my build was
-v2.2.5, then v2.2.6's fixes were never in it and the correct first step is to build and test
-v2.2.6 before writing a single new line. **If that is the case, say so and stop.**
+**Before anything: confirm which version I actually tested.** `origin/main` is now **v2.2.6**
+(`6103bb1`) and it already contains Diner work: the claymore's yaw fix and the dog-containment
+changes. Run `git log --oneline -3` and read `mod.json`.
+
+- **If my build was v2.2.5**, the v2.2.6 fixes were never in what I played. Say so and stop —
+  I need to build and boot v2.2.6 before you write a line, because tasks 1 and 3 below may
+  already be fixed and I would be paying you to re-fix them.
+- **If my build was already v2.2.6**, then these bugs survived that fix. Say so and continue,
+  treating each existing fix as *insufficient rather than absent*.
+
+🛑 **A repo fact worth knowing before you `git pull`:** `origin/main` at `6103bb1` is a
+**single commit with no parents** — the history was replaced, not appended to. It shares no
+ancestor with older clones, so a plain `git pull` into a pre-v2.2.6 clone fails with *"refusing
+to merge unrelated histories."* Do not force it and do not reset my work away; check with
+`git rev-list --parents -n1 origin/main` and ask me how I want to reconcile.
 
 ---
 
@@ -26,14 +41,19 @@ and kept running outside the playable area. The round could not end. I had to ch
 This is the same failure reported before and reportedly fixed twice. Treat the existing fix as
 insufficient rather than absent — read what is already there first:
 
-- `zmqol_dog_spawn_diner_logic()` at `scripts/zm/locs/zm_transit_loc_diner.gsc:1288`
-- `zmqol_diner_dog_watchdog()` at line 1334
-- `zmqol_disable_out_of_arena_ai_locations()` at line 1140
+Line numbers below are **v2.2.6** (`origin/main`); the v2.2.5 numbers in brackets are what a
+pre-pull clone shows. Verify with `grep -n` before trusting either — this file moved a lot.
+
+- `zmqol_dog_spawn_diner_logic( dog_array, favorite_enemy )` — `scripts/zm/locs/zm_transit_loc_diner.gsc:1373` [v2.2.5: 1286]
+- `zmqol_diner_dog_init()` — line 1293 [1244]
+- `zmqol_diner_dog_watchdog()` — line 1421 [1334]
+- `zmqol_disable_out_of_arena_ai_locations( a_locs )` — line 1201 [1152], called three times at 1189-1191
+- `level.dog_spawn_func` is assigned at line 1366 [1279]
 
 **Two separate defects, and I want both addressed:**
 
 **(a) The spawn point itself.** Something is still handing out a location at or near the garage
-door. Find which one and remove or relocate it. Note line 1198's comment: there is a spawner
+door. Find which one and remove or relocate it. Note the comment at line 1247 (v2.2.6): there is a spawner
 with `script_noteworthy "zombie_dog_spawner"` at origin `0 0 0`. A dog placed at the world
 origin and then teleported is a different bug from a dog spawned at a bad-but-real location —
 establish which one I saw before fixing anything. The `.where` in my screenshot reads
@@ -80,10 +100,18 @@ move left, toward the window.
 
 The no-prompt half is the real bug and the position is cosmetic. Do the prompt first.
 
-**🌟 Strongest lead, verified statically — check this before anything else.** The buy struct at
-`zm_transit_loc_diner.gsc:876-884` sets `targetname`, `origin`, `angles`,
-`zombie_weapon_upgrade` and `target`. It does **not** set `script_length` or `script_width`.
-The file's own comment at line 837 quotes stock `_zm_weapons.gsc:931`:
+> **Re-checked against v2.2.6.** v2.2.6 rewrote this wall buy: it derives the yaw from the
+> model's own mesh axes and now writes **model yaw = wall normal (90)** and **buy yaw = normal
+> − 90 (0)**, with the default origin moved to **x −3624**. That fixes the mine looking
+> *sideways/clipped*. **It does not add `script_length`, so the lead below still stands** — I
+> re-grepped the v2.2.6 file and the only occurrence of `script_length` is inside a comment
+> quoting stock. If the prompt is still missing on a v2.2.6 build, start here.
+
+**🌟 Strongest lead, verified statically — check this before anything else.** The buy struct in
+`zmqol_add_claymore_wallbuy()` (v2.2.6: `scripts/zm/locs/zm_transit_loc_diner.gsc:926-934`)
+sets `targetname`, `origin`, `angles`, `zombie_weapon_upgrade` and `target`. It does **not**
+set `script_length` or `script_width`. The file's own comment quotes stock
+`_zm_weapons.gsc:931`:
 
 ```
 origin -= anglestoright( buy.angles ) * ( script_length * 0.4 )
@@ -115,14 +143,15 @@ zmqol_claymore_diner_x <value>
 ```
 
 🛑 **The dvar defaults exist in TWO files and must move together** —
-`zm_transit_loc_diner.gsc:801` and `zm_expanded.csc:429`. The clientfield name is built from
+`zmqol_claymore_wallbuy_origin()` in `scripts/zm/locs/zm_transit_loc_diner.gsc` (v2.2.6: line
+850) and its twin in `zm_expanded.csc`. The clientfield name is built from
 the origin, so a one-sided change drops every player at load. The client is the half that
 spawns the visible model.
 
 🛑 **`zmqol_claymore_diner_x/y/z/yaw` are registered nowhere** — they are read with
 `getdvarintdefault()`, which returns the default without creating the dvar. So the console
 line above will do nothing until they are registered. See finding H-002 on the Arena branch;
-`qol_opt_dvar( "zmqol_claymore_diner_x", "-3630" );` in `qol_options.gsc::init()` is the
+`qol_opt_dvar( "zmqol_claymore_diner_x", "-3624" );` in `qol_options.gsc::init()` is the
 pattern. Fix that first or the nudge workflow is unavailable.
 
 ---
