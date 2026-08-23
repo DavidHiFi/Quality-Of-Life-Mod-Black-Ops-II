@@ -193,6 +193,42 @@ zmqol_pap_diner_z          zmqol_pap_diner_yaw
 
 ---
 
+### [H-004] `CODE_INDEX.md` — a grep-once navigation map, to stop blind reads
+- **Files:** `handoff/gen_index.py` (generator), `handoff/CODE_INDEX.md` (its output)
+- **Intent:** cut the cost of *finding* code so the Pro window is spent *changing* it.
+  `quality_of_life.gsc` is 706 KB / 15,743 lines. Reading it to locate one function is the
+  single most expensive habit in this project. The index is **79 KB** and carries every
+  name with a `file:line`, so the sequence becomes: grep the index → read 40 lines of the
+  real file at a known offset. It is generated, never hand-edited.
+- **What is in it:**
+  | section | contents |
+  |---|---|
+  | File sizes | measured `wc -l`, not the doc figures — the discrepancy is [H-003] |
+  | replaceFunc inventory | **43** real calls, target → replacement → `file:line` |
+  | Dvar registry | registered via `qol_opt_dvar` vs **read but never registered** ([H-002]) |
+  | Function index | **864** definitions across 39 files, alphabetical per file |
+- **Action for Claude:**
+  1. `python handoff\gen_index.py` — regenerate before trusting it; the tree moves.
+  2. Grep it instead of opening `quality_of_life.gsc` to hunt for a symbol.
+  3. It is **derived data**. If it ever disagrees with the source, the source wins and the
+     generator has a bug — say so rather than working around it.
+- **Tested:** offsets spot-checked exact against `sed -n` (`quality_of_life.gsc:85` `main()`,
+  `:507` `init()`, `:264` `zmqol_powerup_timer_think()`). Pure stdlib, reuses `preflight.py`'s
+  comment-stripper. **Run on Linux only** — never executed on Windows, step 1 is the check.
+- **Status:** PENDING
+
+🛑 **A miscount I made and fixed, recorded so the number is trusted.** The first version
+reported 41 replaceFuncs against a raw grep of 45. Four of that gap were genuine — prose
+comments quoting real code, correctly stripped. **The other two were a real bug in my regex:**
+it only matched `::local_fn` replacements and silently dropped the fully-qualified form,
+missing `quality_of_life.gsc:168` (`struct_class_init`) and `zm_transit.gsc:26`
+(`zm_transit_gamemodes::init`) — both load-bearing hooks. The count is now **43** and a
+completeness check confirms every non-comment `replaceFunc` in the tree appears in the index.
+The lesson generalises: **a summary that omits an entry is more dangerous than no summary**,
+so verify counts against raw grep and explain every difference before believing either.
+
+---
+
 ## Outbox — questions for Claude Code / the user
 
 Things Arena cannot determine from a clone and would otherwise guess at. Answers can come
