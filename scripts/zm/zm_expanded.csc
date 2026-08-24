@@ -434,6 +434,19 @@ zmqol_add_claymore_wallbuy()
 	if ( getdvar( "mapname" ) != "zm_transit" || getdvar( "ui_zm_mapstartlocation" ) != "diner" )
 		return;
 
+	//  🛑 v2.2.7 - EXACT TWIN OF THE GATE ON THE SERVER COPY. Same dvar, same
+	//  default 0. The full reasoning (three failed placement rounds, why the
+	//  wall cannot be measured offline, and the tiny require_look_at trigger
+	//  that made it unbuyable) is on the server copy in
+	//  scripts\zm\locs\zm_transit_loc_diner.gsc::zmqol_add_claymore_wallbuy.
+	//  🛑 Registering this pair on one side only is EXE_CLIENT_FIELD_MISMATCH
+	//  at load. If this default changes, the server's changes in the same edit.
+	if ( getdvarintdefault( "zmqol_claymore_diner_enabled", 0 ) == 0 )
+	{
+		println( "[zm_qol] CLIENT diner claymore: DISABLED (zmqol_claymore_diner_enabled 0)" );
+		return;
+	}
+
 	v_origin = zmqol_claymore_wallbuy_origin();
 	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 90 );
 

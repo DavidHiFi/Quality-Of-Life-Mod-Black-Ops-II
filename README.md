@@ -73,7 +73,7 @@ It finds your Wine prefix on its own, and does everything the Windows version do
 | 🔎 **Update check** | Pulls the newest release from GitHub. Won't put an older release over a newer build without asking twice. |
 | 🖼️ **HD texture pack** | Optional. Backs up your current textures first if you want. |
 | 🔊 **Custom sound pack** | Optional. Same backup offer. |
-| 🌈 **ReShade** | Optional. Ships **ReShade 6.7.3** and the **full shader collection** (856 files), with four presets — one named for each Plutonium game, all four currently carrying the same BO2 look — and the mod's overlay theme ready to go. **End** opens it in game; **Ctrl+Shift+PgUp / PgDn** steps between presets. |
+| 🌈 **ReShade** | Optional. Ships **ReShade 6.7.3** and its full shader collection (856 files), plus four presets — one per Plutonium game, all four currently carrying the same BO2 look. In game: **End** opens the menu, **Numpad 0** turns the effects off and on, **Ctrl+Shift+PgUp / PgDn** changes preset. Plutonium's launcher clears loose files out of its own `bin` when it updates, so if ReShade stops appearing, run this option again. |
 | 🎮 **Controller icons** | Optional, and you pick one: **PlayStation 5**, **Nintendo Switch** or **Xbox One**. The HD texture pack no longer ships any controller art, so the base install leaves the game's own prompts alone and your pick is the only thing that changes them. Same backup offer; picking a different pack swaps it over cleanly. |
 | 💾 **Backups** | Back up your **own** textures, sounds, ReShade setup or mod folder — each on its own — and put them back any time. Kept as plain folders in `storage\t6\backups\`. |
 | 🧹 **Remove any of it** | **EVERYTHING** in one row, or one piece at a time. The mod folder really goes, so it stops showing in the Mods menu. Your game logs are moved to the backups, never deleted. Only deletes what the installer put there, and offers your backup back. |
@@ -105,11 +105,9 @@ All five mod files go in that one folder.
 Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 49 rows — 48 on Nuketown, where the CHEATS tab has no TELEPORT row because the map has no landmark list — plus four graphics rows on the stock **ADVANCED** tab and an **AIM ASSIST** row on **CONTROLS → GAMEPAD**. No chat commands required.
 
 > [!NOTE]
-> **Confirmed working:** **UNLOCK ALL** and **RESET STATS** in the Zombies main menu under THEATER.
+> **Confirmed in game:** **UNLOCK ALL** and **RESET STATS** (Zombies main menu → THEATER), the pause-menu rows, the **Zombie Blood** HUD icon, and the scoreboard naming your start location — "Survival - Diner", not "Survival - Green Run".
 >
-> **New in 2.2.0 and not play-tested yet:** **BETTER SPEED COLA** (GAME), **NO BLEEDOUT PATCH** (PATCHES), **CHANGE ROUND** up to 10000 when the round cap is off (CHEATS), and hellhound effects and sounds on Nuketown. Deadshot's controller head lock-on is back to stock behaviour.
->
-> **Shipped in 2.0.0 but not play-tested yet:** the Die Rise Sliquifier row and the Semtex wall buy, the five new PATCHES rows, SET POINTS / TELEPORT, the DSR 50 and Five-Seven recoil, and the Winter's Howl firing effects. They are in the build; they have not had a boot yet.
+> **Built but not booted yet:** **BETTER SPEED COLA**, **NO BLEEDOUT PATCH**, **CHANGE ROUND** to 10000 with the round cap off, hellhounds on Nuketown, the Die Rise Sliquifier row, the Die Rise Semtex wall buy, the five newer PATCHES rows, **SET POINTS** / **TELEPORT**, the DSR 50 and Five-Seven recoil, and the Winter's Howl firing effects.
 
 <br>
 
@@ -136,10 +134,10 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 
 ### 🗺️ Maps
 
-- **Diner as a Survival location** on TranZit — its own Pack-a-Punch, wall buys, Semtex, buildable shield, teddy bears and secret song.
+- **Diner as a Survival location** on TranZit — its own Pack-a-Punch, wall buys, Semtex wall buy, buildable shield, teddy bears and secret song.
 - **Nuketown:** the sunken perk-drop pad is fixed, and **`MACHINE DROPS → ALL ON ROUND 1`** airlifts every machine in at match start instead of making you wait until round 26.
 - **Die Rise:** the **Sliquifier pre-nerf** (a PATCHES switch) and the **Semtex wall buy**, which is always on.
-- **Scoreboard emblem** finally matches the team you are actually playing as, and the scoreboard now names the **start location** you are actually in — "Survival - Diner" instead of "Survival - Green Run".
+- **The scoreboard and the loading screen name the place you are actually in** — "Survival - Diner" and "DINER", not "Survival - Green Run" and "GREEN RUN". The **scoreboard emblem** matches the team you are playing as, too.
 
 ### 🖥️ HUD & menus
 
@@ -177,7 +175,8 @@ Kept here on purpose. Nothing below is hidden in the release notes.
 
 | Issue | Where you'll see it |
 |---|---|
-| 🔴 **Deadshot Daiquiri's head lock-on does not work** | Every map. Treat the perk as aim-assist only for now. Being fixed. |
+| 🟠 **Deadshot Daiquiri's head lock-on is unconfirmed on controller** | The fix shipped in 1.99.61 but has not had a gamepad on it since. The damage bonus and the aim assist both work. |
+| 🟠 **The Diner claymore wall buy is switched off** | It has been placed wrong three times and the shack's wall is not in any file that can be read outside the game. 2.2.7 measures it in game instead; it comes back once those numbers are in. |
 | 🔴 **Origins and Mob of the Dead can crash** | Roughly 20–35 s into a match. Cause never found; not currently being worked on. |
 | 🟠 **Vulture Aid is missing on Origins and TranZit** | Those two maps are out of network space — shipping it there crashes the map at load. The other 11 perks are there. |
 | 🟠 **Who's Who clone glow is TranZit-only** | The glow needs assets only the Victis crew have. The perk itself works everywhere it ships. |
@@ -224,7 +223,7 @@ yours belongs here and is missing, please open an issue and it gets added.
 |---|---|
 | **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | The **custom Survival locations** and the extra **gamemodes**. Treyarch left the data for these in the game files and never shipped them; Reimagined is the implementation that works, and Diner is a port of its work. It is this project's designated primary reference. |
 | **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The **Die Rise weapons block**: the Sliquifier pre-nerf behaviours (kills to round 255, keeps chaining while put away, no extra goo) and the **Semtex wall buy** — its position and angles are Remix's, value for value. |
-| **5and5** — [BO2 Strat Tester](https://github.com/5and5/BO2-StratTester) | Every destination in the **TELEPORT** row on the CHEATS tab, copied coordinate for coordinate out of its `commands.gsc`. |
+| **Fraaagaaa** — [Strat Tester for Black Ops II](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the **TELEPORT** row on the CHEATS tab, copied position and angles out of `scripts/zm/strattester/commands.gsc`. |
 | **B2ORG** — [T6-B2OP-PATCH](https://github.com/B2ORG/T6-B2OP-PATCH)<br><sub>built with **Astrox** and **NoMoleMan**</sub> | The reference for most of the **PATCHES** tab. The **NETWORK FRAME PATCH** is its `fixed_wait_network_frame()` shape and its measured console figures (solo 100 ms, coop 50 ms); the backspeed values, the 24-zombie solo cap, instakill rounds, Double Tap 1.0 and no barrier attacks were all checked against it; and this mod's coordinates readout is modelled on its HUD. Used as a reference and re-derived against the shipped game scripts, never copied wholesale. |
 
 ### 📚 Reference data and dumps

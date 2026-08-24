@@ -1398,32 +1398,45 @@ function Get-Status {
     }
 
     # -----------------------------------------------------------------------
-    #  🛑 v2.2.4 - THE RESHADE ROW HAD THE SOUNDS-ROW BUG ALL ALONG.
+    #  🛑 v2.2.7 - THE ROW SAID "INSTALLED" WHILE THERE WAS NO RESHADE ON DISK.
     #
-    #  v2.2.1 made the sounds row manifest-first and left this one reading bare
-    #  file presence, so the pair contradicted each other exactly the way the
-    #  sounds pair used to. User, 2026-08-22: *"i closed the game closed the
-    #  installer re-opened the installer and it said the reshade was no longer
-    #  installed"* - with dxgi.dll sitting in bin the whole time. The row said
-    #  installed because a file was there; Remove ReShade said "no record"
-    #  because the manifest was not. Both were right and the pair was nonsense.
+    #  User, 2026-08-24: *"It even says 'reshade 6.7.3 installed', you're a liar
+    #  i opened the game no reshade anywhere to be found."* They were right, and
+    #  it was measured, not argued: the installer copied 862 files at 13:33:37,
+    #  the game ran, and %LOCALAPPDATA%\Plutonium\bin then held NO dxgi.dll, no
+    #  ReShade.ini and no presets - only the reshade-shaders FOLDER. Every
+    #  surviving loose file in there was Plutonium's own.
     #
-    #  Manifest decides whether it is OURS; a ReShade that is present but not
-    #  ours says so, and either way the row reports the VERSION, because on this
-    #  install the version is the difference between ReShade working and ReShade
-    #  never loading at all - see the note on the reshade payload.
+    #  🌟 THE MECHANISM: Plutonium's launcher clears loose files it does not own
+    #  out of bin when it updates itself. Subfolders are left alone, which is
+    #  why reshade-shaders survived and dxgi.dll did not.
+    #
+    #  🛑 SO THE MANIFEST IS NOT EVIDENCE. v2.2.4 made this row manifest-first
+    #  to fix the opposite bug (a present ReShade the installer disowned), and
+    #  went too far the other way: a record of having installed it is not the
+    #  same as it being there. THE ROW REPORTS WHAT IS ON DISK. The manifest is
+    #  only used to say whose it is.
+    #
+    #    manifest + dll   ->  ours, and present
+    #    manifest, no dll ->  ours, and Plutonium wiped it. Says so, and says
+    #                         what to do, because this is the state the user hit.
+    #    dll, no manifest ->  someone else's, left alone
+    #    neither          ->  not installed
     # -----------------------------------------------------------------------
     $rshMan = Read-Manifest 'reshade'
     $rshDll = Join-Path $BINDIR 'dxgi.dll'
+    $rshHas = Test-Path $rshDll
     $rshVer = $null
-    if (Test-Path $rshDll) {
+    if ($rshHas) {
         try { $rshVer = (Get-Item -LiteralPath $rshDll).VersionInfo.ProductVersion } catch { $rshVer = $null }
     }
     $rshTag = 'ReShade'; if ($rshVer) { $rshTag = "ReShade $rshVer" }
 
-    if ($rshMan.Count -gt 0) {
+    if ($rshMan.Count -gt 0 -and $rshHas) {
         $s.ReShade = "$rshTag installed"; $s.ReShadeOn = $true
-    } elseif (Test-Path $rshDll) {
+    } elseif ($rshMan.Count -gt 0) {
+        $s.ReShade = 'gone from Plutonium - install again'; $s.ReShadeOn = $true; $s.ReShadeGone = $true
+    } elseif ($rshHas) {
         $s.ReShade = "$rshTag already there (not mine)"; $s.ReShadeOn = $false
     } else {
         $s.ReShade = 'not installed'; $s.ReShadeOn = $false
@@ -1804,7 +1817,13 @@ function Act-InstallReShade {
         }
         Write-Host ''
         Say ("✅  {0} installed, starting on the {1} preset." -f $RESHADEVER, $RESHADEPRESETS[$startPreset].Game) $C.Good
-        Say "Press END in game to open it, Ctrl+Shift+PgUp / PgDn to change preset." $C.Dim
+        Say "In game: END opens the ReShade menu, Numpad 0 turns the effects off and on," $C.Dim
+        Say "and Ctrl+Shift+PgUp / PgDn steps through the four presets." $C.Dim
+        Write-Host ''
+        Say "Heads up: Plutonium's launcher clears loose files it does not own out of its" $C.Warn
+        Say "bin folder when it updates itself, and ReShade's dxgi.dll is a loose file" $C.Warn
+        Say "there. If ReShade stops showing up, run this option again - it is a re-copy," $C.Warn
+        Say "not a repair, and it takes a second." $C.Warn
     }
     Pause-Key
 }
@@ -2646,6 +2665,7 @@ function Remove-Menu {
         $imgColour = $C.Dim; if ($st.ImagesOn) { $imgColour = $C.Good }
         $sndColour = $C.Dim; if ($st.SoundsOn) { $sndColour = $C.Good }
         $rshColour = $C.Dim; if ($st.ReShadeOn) { $rshColour = $C.Good }
+        if ($st.ReShadeGone) { $rshColour = $C.Warn }   # v2.2.7 - a record with no files is not "installed"
         $dsColour  = $C.Dim; if ($st.ControllerOn) { $dsColour = $C.Good }
 
         $intro = @(
@@ -2715,6 +2735,7 @@ function Main-Menu {
         $imgColour = $C.Dim; if ($st.ImagesOn) { $imgColour = $C.Good }
         $sndColour = $C.Dim; if ($st.SoundsOn) { $sndColour = $C.Good }
         $rshColour = $C.Dim; if ($st.ReShadeOn) { $rshColour = $C.Good }
+        if ($st.ReShadeGone) { $rshColour = $C.Warn }   # v2.2.7 - a record with no files is not "installed"
         $dsColour  = $C.Dim; if ($st.ControllerOn) { $dsColour = $C.Good }
 
         # -------------------------------------------------------------------
@@ -2745,7 +2766,7 @@ function Main-Menu {
             @{ Key='sounds'; Section='INSTALL';   Label='Custom sounds';         Status=$st.Sounds;  StatusColour=$sndColour
                Hint='Remastered weapon audio. Optional. Your real game files are never touched.' },
             @{ Key='reshade';Section='INSTALL';   Label='ReShade + BO2 preset';  Status=$st.ReShade; StatusColour=$rshColour
-               Hint='A screen filter that makes the game look richer. Toggle it in game with the HOME key.' },
+               Hint='Post-processing that sharpens the picture and lifts the colour. END opens its menu in game.' },
             @{ Key='controller';Section='INSTALL'; Label='Controller icons';      Status=$st.Controller; StatusColour=$dsColour
                Hint='Swaps the on-screen button prompts to PlayStation, Xbox or Switch. Pick one.' },
 

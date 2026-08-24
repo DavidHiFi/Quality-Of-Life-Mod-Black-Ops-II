@@ -852,6 +852,56 @@ zmqol_claymore_wallbuy_origin()
 
 zmqol_add_claymore_wallbuy()
 {
+	// ========================================================================
+	//  🛑 v2.2.7 - THE WALL BUY IS OFF BY DEFAULT, AND THIS IS WHY.
+	//
+	//  Three placement rounds have now failed in a row (v2.2.0, v2.2.5,
+	//  v2.2.6). User, 2026-08-24: *"claymore still isn't in the correct
+	//  position and i still cant interact to buy it."*
+	//
+	//  🛑 EVERY ONE OF THOSE THREE ROUNDS DERIVED THE WALL FROM SOMETHING THAT
+	//  IS NOT THE WALL - a mantle lane's midpoint, then a post measured off a
+	//  screenshot. The shack's walls are BSP brushes. They are in NO dump:
+	//  the T6-Data-Archive "zm_transit.d3dbsp" is a TEXT ENTITY dump, not a
+	//  BSP, and the real collision lives in a clipMap_t inside zm_transit.ff
+	//  which OpenAssetTools cannot read. So the wall face, the wall thickness
+	//  and the post are all unmeasurable offline, and a fourth guess would be
+	//  a fourth guess.
+	//
+	//  🛑 WHY IT ALSO COULD NOT BE BOUGHT, MECHANISM: the use trigger stock
+	//  builds for a claymore wall buy is TINY and it requires line of sight.
+	//  _zm_weapons.gsc:924-931 sizes it from the model's own bounds -
+	//  script_length = bounds[0] * 0.25, which at model yaw 90 is
+	//  11.16 * 0.25 = 2.79 units deep - and then pushes it only
+	//  script_length * 0.4 = 1.1 units off the wall, with require_look_at = 1
+	//  (:959). A mine mounted even three or four units too deep therefore puts
+	//  that whole 2.79-unit box inside the brush, where the look-at trace
+	//  lands on the wall instead and no prompt ever appears. Seeing the model
+	//  and not being able to buy it is exactly what that produces.
+	//
+	//  🌟 SO IT IS MEASURED NOW INSTEAD OF GUESSED. zmqol_probe_shack_wall()
+	//  below fires a fan of bullettraces at the shack from inside the room and
+	//  prints the real brush face, the post's X span and the free wall height.
+	//  One boot and every number this wall buy needs is known exactly.
+	//
+	//  🛑 AND IT IS OFF UNTIL THEN, DELIBERATELY. The standing rule is
+	//  "perfect implementation with no compromises, or don't add it at all" -
+	//  a wall buy that is in the wrong place and cannot be used is a defect,
+	//  and shipping it a fourth time is shipping a known defect. It comes back
+	//  on, at the measured origin, in the build after the probe reports.
+	//
+	//  🛑 THE GATE IS SYMMETRIC OR IT IS FATAL. zm_expanded.csc reads the same
+	//  dvar with the same default. Registering this pair on one side only is
+	//  EXE_CLIENT_FIELD_MISMATCH at load, because _zm_weapons names the wall
+	//  buy's "world" clientfield from the struct (:889 server, :218 client).
+	//  If you flip this default, flip the client's in the same edit.
+	// ========================================================================
+	if ( getdvarintdefault( "zmqol_claymore_diner_enabled", 0 ) == 0 )
+	{
+		println( "[zm_qol] diner claymore: DISABLED (zmqol_claymore_diner_enabled 0) - awaiting the wall probe's numbers" );
+		return;
+	}
+
 	v_origin = zmqol_claymore_wallbuy_origin();
 	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 90 );
 
@@ -989,6 +1039,7 @@ main()
 		level.zones["zone_trans_diner2"].is_enabled = 0;
 
 	level thread zmqol_pap_visibility_probe();
+	level thread zmqol_probe_shack_wall();   // v2.2.7 - print-only, see the function
 
 	treasure_chest_init();
 	init_barriers();
@@ -1691,4 +1742,109 @@ zmqol_diner_dog_watchdog()
             println( "[zm_qol] diner dogs: STRANDED DOG rescued to (" + int( s_loc.origin[0] ) + "," + int( s_loc.origin[1] ) + "," + int( s_loc.origin[2] ) + ")" );
         }
     }
+}
+
+// ============================================================================
+//  🌟 v2.2.7 - THE SHACK WALL PROBE. PRINT ONLY. IT CHANGES NOTHING.
+//
+//  WHY IT EXISTS: the Diner claymore wall buy has been placed wrong three
+//  times, because the surface it mounts on cannot be measured offline. The
+//  shack's walls are BSP brushes; the T6-Data-Archive "zm_transit.d3dbsp" is a
+//  text ENTITY dump with no geometry in it, and the real collision is a
+//  clipMap_t inside zm_transit.ff that OpenAssetTools cannot read. Every
+//  previous number came from something adjacent to the wall - a mantle lane's
+//  midpoint, then a post measured off a screenshot - and every one was wrong.
+//
+//  The game itself knows exactly where the brush is. bullettrace asks it.
+//
+//  🛡️ IT IS SAFE BY CONSTRUCTION. It spawns nothing, registers no clientfield,
+//  touches no entity and writes no level state - it fires traces and calls
+//  println. There is no way for it to affect a match, so it carries none of
+//  the risk the placement attempts did.
+//
+//  WHAT IT PRINTS, and what each line settles:
+//    WALLX  an X sweep across the shack's south side at mount height. The hit
+//           Y is the real brush face. Where that Y jumps north, a post or a
+//           frame stands proud of the wall - that is the obstruction the
+//           v2.2.6 screenshot analysis was trying to locate.
+//    WALLZ  a Z sweep at one X, giving the wall's vertical extent and whether
+//           the face leans or steps.
+//    OUT    a trace from the CURRENT mine origin back into the room. If it
+//           starts solid, the mine is inside the brush - which is exactly what
+//           makes the 2.79-unit use trigger unreachable and the wall buy
+//           impossible to buy.
+//    FLOOR  the floor under the spot, so the 51-units-up mount height can be
+//           checked against a measured floor instead of an assumed one.
+//
+//  Read the numbers, set zmqol_claymore_diner_x/y/z/yaw from them, and set
+//  zmqol_claymore_diner_enabled 1 in the same edit on BOTH sides.
+//
+//  🛑 REMOVE THIS FUNCTION AND ITS CALL once the wall buy is landed. A probe
+//  left running is noise in every future log.
+// ============================================================================
+zmqol_probe_shack_wall()
+{
+	// The same wait the Pack-a-Punch probe in this file uses. The world's
+	// collision is up long before this, but matching the existing precedent
+	// costs nothing and keeps the print out of the load-time flood.
+	flag_wait( "initial_blackscreen_passed" );
+	wait 3;
+
+	n_z = getdvarintdefault( "zmqol_claymore_diner_z", -7 );
+
+	println( "[zm_qol] ===== SHACK WALL PROBE (print only) =====" );
+
+	// -- X sweep at mount height ---------------------------------------------
+	// From well inside the room (y -7400) southward past the wall (y -7560).
+	for ( n_x = -3664; n_x <= -3580; n_x = n_x + 4 )
+	{
+		trace = bullettrace( ( n_x, -7400, n_z ), ( n_x, -7560, n_z ), 0, undefined );
+
+		if ( trace["fraction"] >= 1 )
+		{
+			println( "[zm_qol] WALLX x " + n_x + "  NO HIT" );
+			continue;
+		}
+
+		v_hit = trace["position"];
+		v_nrm = trace["normal"];
+		println( "[zm_qol] WALLX x " + n_x + "  hit y " + int( v_hit[1] ) + "  normal (" + int( v_nrm[0] * 100 ) + "," + int( v_nrm[1] * 100 ) + "," + int( v_nrm[2] * 100 ) + ")/100" );
+	}
+
+	// -- Z sweep at the current mine X ---------------------------------------
+	n_x = getdvarintdefault( "zmqol_claymore_diner_x", -3624 );
+
+	for ( n_zz = -56; n_zz <= 44; n_zz = n_zz + 10 )
+	{
+		trace = bullettrace( ( n_x, -7400, n_zz ), ( n_x, -7560, n_zz ), 0, undefined );
+
+		if ( trace["fraction"] >= 1 )
+		{
+			println( "[zm_qol] WALLZ z " + n_zz + "  NO HIT" );
+			continue;
+		}
+
+		v_hit = trace["position"];
+		println( "[zm_qol] WALLZ z " + n_zz + "  hit y " + int( v_hit[1] ) );
+	}
+
+	// -- Is the current origin inside the brush? -----------------------------
+	// Trace from the mine's registered origin back north into the room. A
+	// fraction of 0 means the start point is already solid.
+	v_origin = zmqol_claymore_wallbuy_origin();
+	trace = bullettrace( v_origin, ( v_origin[0], v_origin[1] + 140, v_origin[2] ), 0, undefined );
+	println( "[zm_qol] OUT from (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ") northward: fraction " + int( trace["fraction"] * 1000 ) + "/1000" );
+
+	// -- Floor under the spot -------------------------------------------------
+	trace = bullettrace( ( n_x, -7440, 60 ), ( n_x, -7440, -140 ), 0, undefined );
+
+	if ( trace["fraction"] >= 1 )
+		println( "[zm_qol] FLOOR x " + n_x + " y -7440: NO HIT" );
+	else
+	{
+		v_hit = trace["position"];
+		println( "[zm_qol] FLOOR x " + n_x + " y -7440: z " + int( v_hit[2] ) );
+	}
+
+	println( "[zm_qol] ===== SHACK WALL PROBE END =====" );
 }
