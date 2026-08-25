@@ -13,6 +13,11 @@ file path and line number below was read out of that tree. Static analysis — n
 
 ---
 
+🛑 **BEFORE ANY OF THIS — you have uncommitted, unbooted work.** Your checkpoint says v2.3.3 is
+built and deployed to all three locations but nothing has been committed and nothing has been
+booted since. **Do not start new work on top of that.** First: let me boot v2.3.3, confirm the
+claymore and the installer fix, and get it committed. Then we start the list below.
+
 **Seven separate jobs. Do them ONE AT A TIME, in this order, and STOP after each one so I can
 build and boot it. Do not start the next until I say it works.**
 
@@ -30,84 +35,23 @@ build and boot it. Do not start the next until I say it works.**
 
 ---
 
-### 1. [Image #4] Diner claymore wallbuy — move it LEFT toward the window, and make it buyable
+### 1. [Image #4] Diner claymore — VERIFY ONLY, do not redo it
 
-**The position is nearly right already. It just needs to move a little further LEFT, toward the
-window. Do not redesign this, do not re-derive the wall, do not move it anywhere else.**
+⚠️ **Your own checkpoint says you already fixed this in v2.3.3: "Diner claymore wall buy —
+measured and enabled, purchasable in game." That work is NOT committed and NOT booted.**
 
-Two things, both small:
+**So do not move it, do not re-measure it, do not re-derive the wall.** This task is now three
+questions and nothing else:
 
-**1a. Move it left toward the window.**
+1. Confirm `zmqol_claymore_diner_enabled` is **1 on BOTH sides** — `zm_transit_loc_diner.gsc`
+   and `zm_expanded.csc`. A one-sided value is `EXE_CLIENT_FIELD_MISMATCH` at load.
+2. Tell me the **final x/y/z** you settled on and where it sits relative to the window.
+3. Then stop. **I boot it and tell you whether it looks right and whether I can buy it.**
 
-The origin is `zmqol_claymore_wallbuy_origin()` at
-`scripts/zm/locs/zm_transit_loc_diner.gsc:845`, currently returning
-`( -3624, -7486, -7 )` from `zmqol_claymore_diner_x/y/z`.
-
-**Left, from where the player stands facing that wall, is +X — i.e. x becomes LESS negative.**
-(The wall's outward normal is +Y, so the player looks along −Y; left of that view is +X. The
-file's own note at line 839 agrees: `-3618` is "further east, away from the post".)
-
-There is room to do it. From this file's own measurements:
-- the mine is **11.16 units wide**, so at x −3624 it spans −3629.6 … −3618.4
-- **window B's west edge is ~−3596** (line 764)
-- so anything up to about **x −3602** keeps the mine fully clear of the window opening
-
-**Try `zmqol_claymore_diner_x -3612` first** — that's 12 units left, half the available gap,
-mine spanning −3617.6 … −3606.4, still ~10 units clear of the window. If I want more we go
-further; the hard ceiling before it starts overlapping the window is about **−3602**.
-
-**Give me the live console line to try in-game before you change any default**, so I can eyeball
-it without a rebuild:
-
-```
-zmqol_claymore_diner_x -3612
-```
-
-🛑 **`zmqol_claymore_diner_x/y/z/yaw` are read with `getdvarintdefault()` and registered
-nowhere**, so that console line does nothing until they're registered. Register them the way
-every other option is — `qol_opt_dvar( "zmqol_claymore_diner_x", "-3624" );` in
-`qol_options.gsc::init()`. **Do this first**, then I can nudge it live and tell you the number I
-like, and you bake that in as the default.
-
-🛑 **The default lives in TWO files and they must change together.**
-`zmqol_claymore_wallbuy_origin()` at `scripts/zm/locs/zm_transit_loc_diner.gsc:845` and its twin
-in `zm_expanded.csc`. The clientfield name is built from the origin, so changing one side alone
-moves the trigger and leaves the visible mine behind — or drops everyone at load. Both or
-neither.
-
-**1b. It still can't be bought — no tooltip at all.**
-
-I walk up to it and there is no purchase prompt. **This mod's own comments already contain the
-diagnosis, so read them before theorising:** lines 871-880 explain that stock builds the use
-trigger from the model's bounds — `script_length = bounds[0] * 0.25` ≈ 2.79 units deep — pushes
-it only `script_length * 0.4` ≈ 1.1 units off the wall, and sets `require_look_at = 1`
-(`_zm_weapons.gsc:924-931`, `:959`). If the mine sits even a few units too deep into the brush,
-that whole trigger box ends up inside the wall, the look-at trace hits the wall, and no prompt
-appears. Line 833 adds the other candidate: a solid **post** standing in front of the mine's
-western third, which the look-at trace lands on instead.
-
-🌟 **Both of those get better as it moves LEFT**, away from the post and out toward the open
-window side — so 1a and 1b may well be the same fix. **Do 1a first and have me test whether the
-prompt appears at the new position before writing any code for 1b.**
-
-If it's still not buyable at the new spot, then in this order:
-1. Nudge **y** out of the wall a unit or two (`zmqol_claymore_diner_y`, currently −7486) so the
-   trigger box clears the brush — again, live via console first.
-2. Only if that fails, look at whether the buy struct needs `script_length`/`script_width` set
-   explicitly. **If you go there, copy the values from stock's own eight `claymore_purchase`
-   structs in the mapents dumps — do not invent numbers.**
-
-⚠️ **One thing to check before you start, and just tell me the answer:** v2.3.1 added
-`zmqol_claymore_diner_enabled` (`diner:899`, `zm_expanded.csc:444`) which defaults to **0** and
-early-returns before the wallbuy spawns. If that's still 0 in my build, the claymore shouldn't
-be appearing at all — but I can see it, so either my build predates that or something else is
-going on. **Tell me which, then set that dvar to 1 on BOTH sides in the same edit** (the comment
-at line 1780 is explicit that a one-sided flip is `EXE_CLIENT_FIELD_MISMATCH` at load) so the
-wallbuy is definitely live before we tune its position.
-
-There is also a print-only probe, `zmqol_probe_shack_wall()` at line 1785, threaded from line
-1042, that reports the real wall face and the post's X span. **Only bother with it if the nudges
-above don't get there** — I'd rather move it 12 units and look at it than run a survey.
+If — and only if — I come back saying it's still too far right, the nudge is
+`zmqol_claymore_diner_x` toward **less negative** (left, from the player facing that wall), with
+the mine's 11.16-unit width putting the hard ceiling near **x −3602** before it overlaps window
+B's west edge (~−3596). Live via console, no rebuild.
 
 ---
 
