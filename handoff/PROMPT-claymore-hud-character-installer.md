@@ -30,73 +30,84 @@ build and boot it. Do not start the next until I say it works.**
 
 ---
 
-### 1. [Image #4] Diner claymore wallbuy — no purchase prompt, and nudge it left
+### 1. [Image #4] Diner claymore wallbuy — move it LEFT toward the window, and make it buyable
 
-🛑 **READ THIS BEFORE YOU DO ANYTHING — v2.3.1 already changed this and my screenshot may be
-from an older build.**
+**The position is nearly right already. It just needs to move a little further LEFT, toward the
+window. Do not redesign this, do not re-derive the wall, do not move it anywhere else.**
 
-In v2.3.1 the claymore wallbuy is **deliberately switched OFF**. `zmqol_add_claymore_wallbuy()`
-(`scripts/zm/locs/zm_transit_loc_diner.gsc:853`) now early-returns at **line 899**:
+Two things, both small:
 
-```
-if ( getdvarintdefault( "zmqol_claymore_diner_enabled", 0 ) == 0 )
-```
+**1a. Move it left toward the window.**
 
-and prints `diner claymore: DISABLED ... - awaiting the wall probe's numbers`. The comment
-block at lines 858-898 says three previous attempts all derived the wall from something that
-is not the wall, that the shack walls are BSP brushes which cannot be measured offline, and
-that it stays off rather than shipping a fourth guess.
+The origin is `zmqol_claymore_wallbuy_origin()` at
+`scripts/zm/locs/zm_transit_loc_diner.gsc:845`, currently returning
+`( -3624, -7486, -7 )` from `zmqol_claymore_diner_x/y/z`.
 
-**It also already explains the exact bug I reported.** Lines 871-880: stock sizes the use
-trigger from the model's own bounds — `script_length = bounds[0] * 0.25` = 2.79 units deep —
-pushes it only `script_length * 0.4` = 1.1 units off the wall, and sets `require_look_at = 1`
-(`_zm_weapons.gsc:924-931`, `:959`). Mount the mine a few units too deep and that whole box is
-inside the brush, the look-at trace hits the wall, and **no prompt ever appears** — "I can see
-it but can't buy it", exactly.
+**Left, from where the player stands facing that wall, is +X — i.e. x becomes LESS negative.**
+(The wall's outward normal is +Y, so the player looks along −Y; left of that view is +X. The
+file's own note at line 839 agrees: `-3618` is "further east, away from the post".)
 
-**So the answer is a measurement, not a code change.** v2.2.7 added
-`zmqol_probe_shack_wall()` at **line 1785**, threaded from **line 1042**. It is print-only: it
-fires a fan of bullettraces at the shack from inside the room and prints the real brush face,
-the post's X span and the free wall height.
+There is room to do it. From this file's own measurements:
+- the mine is **11.16 units wide**, so at x −3624 it spans −3629.6 … −3618.4
+- **window B's west edge is ~−3596** (line 764)
+- so anything up to about **x −3602** keeps the mine fully clear of the window opening
 
-**What I want you to do, in this order:**
+**Try `zmqol_claymore_diner_x -3612` first** — that's 12 units left, half the available gap,
+mine spanning −3617.6 … −3606.4, still ~10 units clear of the window. If I want more we go
+further; the hard ceiling before it starts overlapping the window is about **−3602**.
 
-1. **Tell me which build my screenshot is from.** If the claymore is visible in-game then I was
-   NOT on v2.3.1 (on v2.3.1 it does not spawn at all). Say so and stop — everything below
-   depends on it.
-2. **Have me boot v2.3.1 on Diner survival and send you the probe output.** Tell me exactly
-   what console/log line to look for.
-3. **Only then** set the origin from the probe's real numbers and flip
-   `zmqol_claymore_diner_enabled` to 1.
-
-🛑 **The enable flag is a SYMMETRIC PAIR — flipping one side is fatal.** Both
-`scripts/zm/locs/zm_transit_loc_diner.gsc:899` and `scripts/zm/zm_expanded.csc:444` read
-`zmqol_claymore_diner_enabled` with the same default. The comment at diner line 1780 is
-explicit: set it to 1 **in the same edit on both sides**, or it is
-`EXE_CLIENT_FIELD_MISMATCH` at load, because `_zm_weapons` names the wall buy's "world"
-clientfield from the struct (`:889` server, `:218` client).
-
-🛑 **Do not re-guess the origin.** The standing rule quoted in that comment is "perfect
-implementation with no compromises, or don't add it at all". If the probe hasn't run, the
-correct action is to wait for it — not to nudge `zmqol_claymore_diner_x` by eye. **If you are
-about to pick a coordinate without probe data, stop and ask me instead.**
-
-**Once it is measured and back on, the position ask still stands:** it needs to sit slightly
-further left, toward the window. Give me the live console line rather than a rebuild:
+**Give me the live console line to try in-game before you change any default**, so I can eyeball
+it without a rebuild:
 
 ```
-zmqol_claymore_diner_x <value>
+zmqol_claymore_diner_x -3612
 ```
 
-…but note `zmqol_claymore_diner_x/y/z/yaw` are read with `getdvarintdefault()` and **registered
-nowhere**, so that console line silently does nothing today. Register them alongside the other
-options (`qol_opt_dvar( "zmqol_claymore_diner_x", "-3624" );` in `qol_options.gsc::init()`) if
-you want the nudge workflow to work at all. The defaults live in `zmqol_claymore_wallbuy_origin()`
-at **line 845** and its twin in `zm_expanded.csc` — same two-file rule.
+🛑 **`zmqol_claymore_diner_x/y/z/yaw` are read with `getdvarintdefault()` and registered
+nowhere**, so that console line does nothing until they're registered. Register them the way
+every other option is — `qol_opt_dvar( "zmqol_claymore_diner_x", "-3624" );` in
+`qol_options.gsc::init()`. **Do this first**, then I can nudge it live and tell you the number I
+like, and you bake that in as the default.
 
-**Second lead, only if the probe route somehow clears:** `include_weapon( "claymore_zm", 0 )`
-exists at `scripts/zm/zm_transit/zm_transit.csc:81` — the **client** script. I found no
-server-side twin. An unincluded weapon cannot be bought; verify whether the server needs it.
+🛑 **The default lives in TWO files and they must change together.**
+`zmqol_claymore_wallbuy_origin()` at `scripts/zm/locs/zm_transit_loc_diner.gsc:845` and its twin
+in `zm_expanded.csc`. The clientfield name is built from the origin, so changing one side alone
+moves the trigger and leaves the visible mine behind — or drops everyone at load. Both or
+neither.
+
+**1b. It still can't be bought — no tooltip at all.**
+
+I walk up to it and there is no purchase prompt. **This mod's own comments already contain the
+diagnosis, so read them before theorising:** lines 871-880 explain that stock builds the use
+trigger from the model's bounds — `script_length = bounds[0] * 0.25` ≈ 2.79 units deep — pushes
+it only `script_length * 0.4` ≈ 1.1 units off the wall, and sets `require_look_at = 1`
+(`_zm_weapons.gsc:924-931`, `:959`). If the mine sits even a few units too deep into the brush,
+that whole trigger box ends up inside the wall, the look-at trace hits the wall, and no prompt
+appears. Line 833 adds the other candidate: a solid **post** standing in front of the mine's
+western third, which the look-at trace lands on instead.
+
+🌟 **Both of those get better as it moves LEFT**, away from the post and out toward the open
+window side — so 1a and 1b may well be the same fix. **Do 1a first and have me test whether the
+prompt appears at the new position before writing any code for 1b.**
+
+If it's still not buyable at the new spot, then in this order:
+1. Nudge **y** out of the wall a unit or two (`zmqol_claymore_diner_y`, currently −7486) so the
+   trigger box clears the brush — again, live via console first.
+2. Only if that fails, look at whether the buy struct needs `script_length`/`script_width` set
+   explicitly. **If you go there, copy the values from stock's own eight `claymore_purchase`
+   structs in the mapents dumps — do not invent numbers.**
+
+⚠️ **One thing to check before you start, and just tell me the answer:** v2.3.1 added
+`zmqol_claymore_diner_enabled` (`diner:899`, `zm_expanded.csc:444`) which defaults to **0** and
+early-returns before the wallbuy spawns. If that's still 0 in my build, the claymore shouldn't
+be appearing at all — but I can see it, so either my build predates that or something else is
+going on. **Tell me which, then set that dvar to 1 on BOTH sides in the same edit** (the comment
+at line 1780 is explicit that a one-sided flip is `EXE_CLIENT_FIELD_MISMATCH` at load) so the
+wallbuy is definitely live before we tune its position.
+
+There is also a print-only probe, `zmqol_probe_shack_wall()` at line 1785, threaded from line
+1042, that reports the real wall face and the post's X span. **Only bother with it if the nudges
+above don't get there** — I'd rather move it 12 units and look at it than run a survey.
 
 ---
 
