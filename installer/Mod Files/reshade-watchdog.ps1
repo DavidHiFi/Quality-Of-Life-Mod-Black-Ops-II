@@ -41,10 +41,10 @@ $BinDir   = Join-Path $PlutoRoot 'bin'
 # Act-InstallReShade for the writer side of this path.
 $VaultDir = Join-Path $PlutoRoot 'storage\t6\_zm_qol_installer\reshade-vault'
 
-# Every executable Plutonium can put a game process behind, taken from the
-# user's own resident helper (E:\Miscallaneous\Scripts\Plutonium-ReShade.ps1,
-# Get-RunningGameCode) - already proven correct across real sessions, not
-# guessed here. One shared bin folder serves all of them.
+# Every executable Plutonium can put a game process behind, taken from a
+# separate resident ReShade helper's own process-detection list -
+# already proven correct across real sessions, not guessed here. One shared
+# bin folder serves all of them.
 $ProcNames = @('plutonium-bootstrapper-win32','t6zm','t6mp','t6sp','t5mp','t5sp','t4mp','t4sp','iw5mp')
 
 function Test-AnyProcess {
@@ -99,12 +99,52 @@ if (-not (Test-Path -LiteralPath $VaultDir)) {
     Write-Host ''
 }
 
+# -----------------------------------------------------------------------------
+#  v2.3.2 - THE WINDOW SHOWED NOTHING WHILE IT WAS WORKING.
+#
+#  User, 2026-08-25: "make it include logs in the open window, so you can see
+#  what it's actually doing." Before this it only ever wrote a line when it
+#  restored a file - which for most of a session is never, since Plutonium only
+#  clears bin on its own startup. An open window that prints nothing for an
+#  hour reads as frozen or wrong, not as "working correctly and idle".
+#
+#  Two additions, neither changing what the watchdog DOES:
+#    - a state-change line the instant Plutonium/game is first seen or is no
+#      longer seen, so the moment that matters is never buried between polls
+#    - a heartbeat line every $HeartbeatSeconds while a process IS running,
+#      so a long play session still shows the loop is alive and what its last
+#      check found, without printing every single 2-second poll.
+#  Nothing is printed on a quiet poll before the game has even started -
+#  that state already has its own message above, and repeating it every
+#  2 seconds would be the same noise problem from the other direction.
+# -----------------------------------------------------------------------------
+$lastProcState  = $null
+$lastHeartbeat  = Get-Date -Year 1970
+$HeartbeatSeconds = 15
+
 while ($true) {
-    if (Test-AnyProcess $ProcNames) {
+    $running = Test-AnyProcess $ProcNames
+
+    if ($running -ne $lastProcState) {
+        if ($running) {
+            Write-Host ("  [{0}] Plutonium/game process detected - watching bin for cleared files." -f (Get-Date -Format 'HH:mm:ss')) -ForegroundColor Cyan
+        } else {
+            Write-Host ("  [{0}] No Plutonium/game process running - standing by." -f (Get-Date -Format 'HH:mm:ss')) -ForegroundColor DarkGray
+        }
+        $lastProcState = $running
+        $lastHeartbeat = Get-Date   # the state line above already says this - don't also heartbeat immediately
+    }
+
+    if ($running) {
         $n = Restore-MissingReShade
         if ($n -gt 0) {
             Write-Host ("  [{0}] Restored {1} ReShade file(s) Plutonium had cleared." -f (Get-Date -Format 'HH:mm:ss'), $n) -ForegroundColor Green
+            $lastHeartbeat = Get-Date
+        } elseif (((Get-Date) - $lastHeartbeat).TotalSeconds -ge $HeartbeatSeconds) {
+            Write-Host ("  [{0}] Watching - bin is intact, nothing to restore." -f (Get-Date -Format 'HH:mm:ss')) -ForegroundColor DarkGray
+            $lastHeartbeat = Get-Date
         }
     }
+
     Start-Sleep -Seconds $PollSeconds
 }

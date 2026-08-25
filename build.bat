@@ -5,9 +5,11 @@ REM ------------------------------------------------------------
 REM  Display name lives in mod.json ("Quality Of Life"); the folder / mod id
 REM  stays zm_qol because that is what Plutonium keys the install off.
 REM  Edit any script under scripts\zm\ then double-click this.
-REM  Rebuilds mod.iwd and writes all 6 mod files to:
+REM  Rebuilds mod.iwd and writes all 5 mod files to:
 REM    1) a send-ready copy:  <project>\build\zm_qol\
 REM    2) your Plutonium mods folder (skipped if Plutonium isn't installed)
+REM    3) installer\Mod Files\ - so the installer can never reinstall a stale
+REM       build over a fresh one (see [6/8]'s comment for why this exists)
 REM  Needs only Windows + PowerShell (both built in) - no other tools.
 REM ============================================================
 setlocal EnableExtensions
@@ -98,7 +100,33 @@ echo        %PLUTO_DIR%
 call :deploy "%PLUTO_DIR%"
 if errorlevel 1 echo    [skip] couldn't write to Plutonium - the send-ready copy above is still good.
 echo.
-echo [6/7] Cleaning this mod's LUI out of Plutonium's raw\ folder...
+echo [6/8] Refreshing the installer's own bundled copy:
+echo        %~dp0installer\Mod Files
+REM  ============================================================================
+REM  🛑 v2.3.2 - THE INSTALLER WAS SILENTLY REVERTING EVERY FIX.
+REM
+REM  User, 2026-08-25: a claymore fix (and the last-zombie hellhound backstop)
+REM  built and deployed here, byte-verified in Plutonium's mods folder, then
+REM  came back MISSING after they used the installer for something unrelated
+REM  (testing the ReShade watchdog). Root cause, measured not guessed:
+REM  qol-installer.ps1's Act-InstallMod copies the 5 mod files FROM ITS OWN
+REM  FOLDER (installer\Mod Files\, via Find-ModSource) INTO Plutonium's mods
+REM  folder. That folder held a snapshot from an earlier real-install test,
+REM  never touched by this script - so any later run of "Install/Update the
+REM  mod" (or "EVERYTHING") quietly reinstalled OLD code over a fresh build,
+REM  and the hash of the reverted files matched that stale snapshot exactly.
+REM
+REM  So this bundled copy is now a THIRD deploy target, kept in lockstep with
+REM  the other two on every build - it can no longer go stale between here and
+REM  the next time someone runs the installer. Not tracked in git (see
+REM  .gitignore): it is a byte-for-byte copy of files already tracked at the
+REM  project root, and doubling ~115 MB of binaries in history for a copy this
+REM  script regenerates every run buys nothing.
+REM  ============================================================================
+call :deploy "%~dp0installer\Mod Files"
+if errorlevel 1 echo    [skip] couldn't write the installer's bundled copy.
+echo.
+echo [7/8] Cleaning this mod's LUI out of Plutonium's raw\ folder...
 REM  ============================================================================
 REM  🛑 v2.2.0 - THIS STEP USED TO *WRITE* INTO raw\. IT NOW UNDOES THAT.
 REM
@@ -149,7 +177,7 @@ set "RAW_DIR=%LOCALAPPDATA%\Plutonium\storage\t6\raw"
 set "PROJ_DIR=%~dp0"
 "%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$raw=$env:RAW_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $raw)){ Write-Host '    [skip] no raw\ folder'; exit 0 }; $restored=0; $left=0; @('ui_mp','ui') | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $proj $_) -Recurse -Filter *.lua -ErrorAction SilentlyContinue } | ForEach-Object { $rel=$_.FullName.Substring($proj.Length); $dst=Join-Path $raw $rel; if(-not (Test-Path -LiteralPath $dst)){ return }; $body=(Get-Content -LiteralPath $dst -Raw); if($body -eq $null -or -not ($body -match 'zm_qol')){ return }; $bak=@(Get-ChildItem -LiteralPath (Split-Path $dst -Parent) -Filter ((Split-Path $dst -Leaf) + '.bak-*') -ErrorAction SilentlyContinue | Sort-Object LastWriteTime); if($bak.Count -gt 0){ Copy-Item -LiteralPath $bak[0].FullName -Destination $dst -Force; Write-Host ('    [restored] ' + $rel + '  <- ' + $bak[0].Name); $restored++ } else { Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [gated] ' + $rel + '  no pristine backup - refreshed to the mod-aware copy'); $left++ } }; if($restored -eq 0 -and $left -eq 0){ Write-Host '    [ok] raw\ holds none of this mod''s LUI' }" 2>nul
 echo.
-echo [7/7] Reconciling Plutonium's loose scripts\ folder...
+echo [8/8] Reconciling Plutonium's loose scripts\ folder...
 REM  🛑 THIS ONE COST SIX BOOTS AND FOUR CRASHES, 2026-08-11.
 REM
 REM  %%LOCALAPPDATA%%\Plutonium\storage\t6\scripts\ is loaded GLOBALLY and takes

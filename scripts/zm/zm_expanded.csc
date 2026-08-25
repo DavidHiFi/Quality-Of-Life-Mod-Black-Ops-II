@@ -434,14 +434,18 @@ zmqol_add_claymore_wallbuy()
 	if ( getdvar( "mapname" ) != "zm_transit" || getdvar( "ui_zm_mapstartlocation" ) != "diner" )
 		return;
 
-	//  🛑 v2.2.7 - EXACT TWIN OF THE GATE ON THE SERVER COPY. Same dvar, same
-	//  default 0. The full reasoning (three failed placement rounds, why the
-	//  wall cannot be measured offline, and the tiny require_look_at trigger
-	//  that made it unbuyable) is on the server copy in
-	//  scripts\zm\locs\zm_transit_loc_diner.gsc::zmqol_add_claymore_wallbuy.
-	//  🛑 Registering this pair on one side only is EXE_CLIENT_FIELD_MISMATCH
-	//  at load. If this default changes, the server's changes in the same edit.
-	if ( getdvarintdefault( "zmqol_claymore_diner_enabled", 0 ) == 0 )
+	//  🌟 v2.3.2 - MEASURED AND ON. v2.2.7's zmqol_probe_shack_wall() (removed
+	//  from the server copy now that its job is done) fanned bullettraces at
+	//  the shack wall and printed the real brush face: flat at y -7486 across
+	//  x -3628..-3592, flat from z -56..44 at x -3624, floor at z -58 (so the
+	//  z -7 mount height is exactly 51 units up, as intended), and the OUT
+	//  trace from the current origin came back fraction 1000/1000 - not
+	//  embedded in the brush. Every existing default already matched the
+	//  measured geometry, so nothing but this gate moved.
+	//  🛑 EXACT TWIN OF THE GATE ON THE SERVER COPY. Same dvar, same default.
+	//  Registering this pair on one side only is EXE_CLIENT_FIELD_MISMATCH at
+	//  load. If this default changes, the server's changes in the same edit.
+	if ( getdvarintdefault( "zmqol_claymore_diner_enabled", 1 ) == 0 )
 	{
 		println( "[zm_qol] CLIENT diner claymore: DISABLED (zmqol_claymore_diner_enabled 0)" );
 		return;

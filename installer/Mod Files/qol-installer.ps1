@@ -1785,10 +1785,10 @@ function Act-InstallReShade {
         "!     of its own bin folder that it does not recognise, and ReShade's",
         "!     dxgi.dll and presets are exactly that. This install alone will NOT",
         "!     survive your next Plutonium launch.",
-        "~     What DOES: from now on, double-click  Play BO2 with ReShade.bat  -",
-        "~     it sits next to Windows Install.bat - and leave that window open",
-        "~     the whole time you play. It watches for Plutonium and puts ReShade",
-        "~     straight back the moment it sees Plutonium clear it out.",
+        "~     What DOES: a small watchdog, left running the whole time you play,",
+        "~     that watches for Plutonium and puts ReShade straight back the",
+        "~     moment it sees Plutonium clear it out. This install offers to",
+        "~     start it for you once it's done.",
         '',
         "!⚠️   YOUR EXISTING ReShade.ini AND PRESETS ARE KEPT AS .backup FILES",
         "~     Shader files you already have are added to, never deleted."
@@ -1852,11 +1852,131 @@ function Act-InstallReShade {
         Say "and Ctrl+Shift+PgUp / PgDn steps through the four presets." $C.Dim
         Write-Host ''
         Say "!⚠️  PLUTONIUM WILL DELETE THIS AGAIN THE NEXT TIME IT STARTS." $C.Warn
-        Say "From now on, launch with  Play BO2 with ReShade.bat  - it sits next to" $C.Warn
-        Say "Windows Install.bat - and leave that window open the whole time you play." $C.Warn
-        Say "It watches for Plutonium and puts ReShade straight back the moment it sees" $C.Warn
-        Say "Plutonium clear it out. Closing that window does not uninstall anything." $C.Warn
-        Say "Just opening Plutonium directly, like normal, will NOT keep ReShade working." $C.Warn
+        Say "A small watchdog has to stay running while you play to put it straight" $C.Warn
+        Say "back. It does not touch anything else, and closing it does not uninstall" $C.Warn
+        Say "anything - ReShade just stops being restored." $C.Warn
+
+        # -------------------------------------------------------------------
+        #  v2.3.2 - THE INSTALLER OFFERS TO START ITS OWN WATCHDOG.
+        #
+        #  User, 2026-08-25: the installer is meant to be a central
+        #  installer/configurator - after this step finished it was pointing
+        #  the player at a SECOND file to go find and double-click by hand
+        #  (`Play BO2 with ReShade.bat`) instead of just doing it. So: launch
+        #  reshade-watchdog.ps1 itself, in its own detached window, right
+        #  here - same script `Play BO2 with ReShade.bat` runs, just started
+        #  by the installer instead of by the player. Declining leaves the
+        #  original manual path intact for anyone who'd rather start it later.
+        # -------------------------------------------------------------------
+        $watchdogPS1 = Join-Path $HERE 'reshade-watchdog.ps1'
+        if (-not (Test-Path $watchdogPS1)) {
+            Say "reshade-watchdog.ps1 is missing from this folder - reinstall from the" $C.Warn
+            Say "full download, then run  Play BO2 with ReShade.bat  yourself before you play." $C.Warn
+        } elseif ($DryRun) {
+            Say "(dry run - watchdog not started)" $C.Dim
+        } else {
+            $wItems = @(
+                @{ Key='start'; Label='Start the watchdog now'; Status='recommended'; StatusColour=$C.Good;
+                   Hint='Opens a small window that keeps ReShade in place. Leave it running while you play.' },
+                @{ Key='later'; Label="I'll start it myself later";
+                   Hint='Double-click  Play BO2 with ReShade.bat  - next to Windows Install.bat - before you play.' }
+            )
+            $wSel = Show-Menu 'ReShade watchdog' $wItems -Footer '   ↑ ↓  move      ENTER  choose'
+            if ($wSel -and $wSel.Key -eq 'start') {
+                # -File's own value must be quoted here even though the array's other
+                # elements are not: Start-Process joins -ArgumentList with plain spaces
+                # and does not add quoting of its own, so an unquoted path containing a
+                # space ("Mod Files") would arrive at powershell.exe split into two args.
+                Start-Process -FilePath 'powershell.exe' `
+                    -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$watchdogPS1`"") `
+                    -WindowStyle Normal | Out-Null
+                Write-Log 'action: started reshade watchdog from installer'
+                Draw-Header 'ReShade'
+                Say ("✅  {0} installed, starting on the {1} preset." -f $RESHADEVER, $RESHADEPRESETS[$startPreset].Game) $C.Good
+                Write-Host ''
+                Say "Watchdog started in its own window - leave it open while you play." $C.Good
+                Say "Closing it later does not uninstall anything; ReShade just stops being" $C.Dim
+                Say "restored the next time Plutonium clears it out." $C.Dim
+            } else {
+                Draw-Header 'ReShade'
+                Say ("✅  {0} installed, starting on the {1} preset." -f $RESHADEVER, $RESHADEPRESETS[$startPreset].Game) $C.Good
+                Write-Host ''
+                Say "OK - start it yourself later with  Play BO2 with ReShade.bat  - next to" $C.Dim
+                Say "Windows Install.bat - before you play." $C.Dim
+            }
+        }
+    }
+    Pause-Key
+}
+
+# =============================================================================
+#  LAN LAUNCH  -  one-click straight into Zombies, mod already loaded  (v2.3.4)
+# -----------------------------------------------------------------------------
+#  User, 2026-08-25: *"add another option to the installer script for my mod,
+#  the option to boot black ops 2 through plutonium t6 in LAN mode with my mod
+#  already running ... one click and auto start into zombies on bo2 with my
+#  mod already loaded ... LAN mode with the mod, or LAN mode + ReShade
+#  watchdog".*
+#
+#  Modelled directly on Act-InstallReShade's own "start it now / I'll do it
+#  myself later" pattern above, not a new mechanism - and on the SAME
+#  deployed-.bat convention as "Play BO2 with ReShade.bat": the two .bat
+#  files this offers to run already ship as static files next to this
+#  installer (installer\Play BO2 with mod (LAN).bat and the +ReShade twin),
+#  so there is nothing to install here - this option just runs one of them
+#  for you, or tells you where they are.
+#
+#  🛑 lan-launch.ps1 reads the actual game path out of Plutonium's own
+#  config.json (t6Path) rather than assuming a folder - see that script's own
+#  header for why this had to be dynamic, not a hardcoded path.
+# =============================================================================
+function Act-PlayLan {
+    param([int] $Pick = -1)
+    $ps1 = Join-Path $HERE 'lan-launch.ps1'
+    if (-not (Test-Path $ps1)) {
+        Draw-Header 'Play (LAN)'
+        Say "lan-launch.ps1 is missing from this folder - reinstall from the full download." $C.Warn
+        Pause-Key; return
+    }
+    $intro = @(
+        "Boots BO2 Zombies straight in, with Quality Of Life already loaded - no",
+        "MODS menu, no manual pick.",
+        '',
+        "~LAN / offline only this session: no online servers, no stats. Solo and",
+        "~custom games work exactly as normal. For an online game, start Plutonium",
+        "~normally instead and pick it from Zombies -> Mods.",
+        '',
+        "~Needs 'The mod' installed first (this menu's INSTALL section)."
+    )
+    $items = @(
+        @{ Key='mod';   Label='LAN mode with the mod'; Status='recommended'; StatusColour=$C.Good
+           Hint='One click, straight into Zombies with the mod running.' },
+        @{ Key='watch'; Label='LAN mode with the mod + ReShade watchdog'
+           Hint='Same, and also starts the ReShade watchdog in its own window alongside it.' },
+        @{ Key='back';  Label='Cancel' }
+    )
+    if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'Play (LAN)' $items -Intro $intro }
+    if (-not $sel -or $sel.Key -eq 'back') { return }
+
+    Draw-Header 'Play (LAN)'
+    Write-Log "action: play lan (watchdog=$($sel.Key -eq 'watch'))"
+
+    if ($DryRun) {
+        Say "(dry run - not launched)" $C.Dim
+        Pause-Key; return
+    }
+
+    $psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$ps1`"")
+    if ($sel.Key -eq 'watch') { $psArgs += '-Watchdog' }
+
+    try {
+        Start-Process -FilePath 'powershell.exe' -ArgumentList $psArgs -WorkingDirectory $HERE -WindowStyle Normal | Out-Null
+        Say "Launching - a window will open with progress. This one can stay open too." $C.Good
+        if ($sel.Key -eq 'watch') {
+            Say "The ReShade watchdog opens in its OWN window - leave that one running while you play." $C.Dim
+        }
+    } catch {
+        Say "Couldn't start it: $($_.Exception.Message)" $C.Warn
     }
     Pause-Key
 }
@@ -2815,8 +2935,9 @@ function Main-Menu {
         #  unrecognised files out of its bin folder on every start, so a
         #  silent one-tap copy would look installed and then quietly stop
         #  working the moment the user next opened Plutonium. ReShade's own
-        #  row now deploys "Play BO2 with ReShade.bat", a helper the user has
-        #  to knowingly leave running - not something EVERYTHING should spring
+        #  row now deploys the watchdog (offering to start it on the spot -
+        #  see v2.3.2's note in Act-InstallReShade), a helper the user has to
+        #  knowingly leave running - not something EVERYTHING should spring
         #  on someone who only wanted the mod.
         # -------------------------------------------------------------------
         $items = @(
@@ -2828,10 +2949,13 @@ function Main-Menu {
                Hint='Sharper weapon, perk and world textures. Optional, and it replaces any you already had.' },
             @{ Key='sounds'; Section='INSTALL';   Label='Custom sounds';         Status=$st.Sounds;  StatusColour=$sndColour
                Hint='Remastered weapon audio. Optional. Your real game files are never touched.' },
-            @{ Key='reshade';Section='INSTALL';   Label='ReShade + BO2 preset';  Status=$st.ReShade; StatusColour=$rshColour
-               Hint='Post-processing that sharpens the picture and lifts the colour. Needs a small helper left running - see Play BO2 with ReShade.bat.' },
+            @{ Key='reshade';Section='INSTALL';   Label='ReShade';               Status=$st.ReShade; StatusColour=$rshColour
+               Hint='Post-processing that sharpens the picture and lifts the colour. Needs a small helper left running - this offers to start it for you.' },
             @{ Key='controller';Section='INSTALL'; Label='Controller icons';      Status=$st.Controller; StatusColour=$dsColour
                Hint='Swaps the on-screen button prompts to PlayStation, Xbox or Switch. Pick one.' },
+
+            @{ Key='playlan';Section='PLAY';       Label='Play now (LAN, mod already loaded)'
+               Hint='One click straight into Zombies with the mod running - offline only this session.' },
 
             @{ Key='remove';  Section='REMOVE';   Label='Uninstall something'; Status=$st.RemoveHint; StatusColour=$C.Dim
                Hint='Opens the uninstall list: everything at once, or one part on its own.' },
@@ -2857,6 +2981,7 @@ function Main-Menu {
             'sounds'   { Act-InstallSounds }
             'reshade'  { Act-InstallReShade }
             'controller' { Act-InstallController }
+            'playlan'  { Act-PlayLan }
             'remove'   { Remove-Menu }
             'backups'  { Act-Backups }
             'update'   { Act-CheckUpdate }
@@ -2878,6 +3003,7 @@ if ($Action) {
         'sounds'   { Act-InstallSounds  -Pick $Choice }
         'reshade'  { Act-InstallReShade -Pick $Choice }
         'controller' { Act-InstallController -Pick $Choice }
+        'playlan'  { Act-PlayLan -Pick $Choice }
         'rall'     { Act-RemoveEverything -Pick $Choice }
         'rimages'  { Act-RemoveImages   -Pick $Choice }
         'rsounds'  { Act-RemoveSounds   -Pick $Choice }

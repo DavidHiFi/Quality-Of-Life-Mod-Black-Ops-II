@@ -127,6 +127,18 @@ parsed/
 # history. It is written next to qol-installer.ps1, which lives in Mod Files\.
 installer/Mod Files/installer.log
 
+# v2.3.2 - build.bat now deploys the 5 built mod files into installer\Mod
+# Files\ too (Act-InstallMod copies FROM there, and a stale copy sitting there
+# silently reinstalled OLD code over a fresh build - see build.bat's [6/8]).
+# They are BUILD OUTPUT, byte-for-byte the same files already tracked at the
+# project root, so tracking a second copy here would just double ~115 MB of
+# binaries in history for something regenerated on every build.
+installer/Mod Files/mod.ff
+installer/Mod Files/mod.iwd
+installer/Mod Files/mod.json
+installer/Mod Files/mod.all.sabl
+installer/Mod Files/mod.all.sabs
+
 # ============================================================================
 #  v2.2.0 - THE FULL RESHADE SHADER COLLECTION IS NOT TRACKED.
 #

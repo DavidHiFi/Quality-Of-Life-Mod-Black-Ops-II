@@ -167,9 +167,77 @@ main()
     // (which registers the locations) before _load::main() calls struct_class_init().
     replaceFunc( common_scripts\utility::struct_class_init, scripts\zm\replaced\utility::struct_class_init );
 
+    //  v2.3.4 - hellhounds dropped from Diner. See zmqol_enable_dog_rounds()
+    //  below for why this is the right hook and why it is safe globally.
+    replaceFunc( maps\mp\zombies\_zm_ai_dogs::enable_dog_rounds, ::zmqol_enable_dog_rounds );
+
     //  🛑 POWER-UP TIMERS: the v1.99.0 replaceFunc that used to live here was
     //  REMOVED in v1.99.1 - it could never have fired. See
     //  zmqol_powerup_timer_think() below for the mechanism and the evidence.
+}
+
+// ============================================================================
+//  zmqol_enable_dog_rounds  -  HELLHOUNDS DROPPED FROM DINER, NOT NUKETOWN'S
+//  ROUTE                                                              (v2.3.4)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-25: *"because of how much of a hassle it's been to get
+//  hellhounds working on Diner survival, and Nuketown survival, just drop it
+//  at this point ... leave the regular vanilla stock game hellhound supported
+//  maps eg. bus depot, farm, town ... exactly as they are."*
+//
+//  🛑 THE LOBBY ROW COULD NOT BE REMOVED FOR DINER ALONE, AND THIS IS WHY.
+//  Nuketown's row is a mod-only addition (privategamelobby_project.lua,
+//  removed cleanly this same version). Diner's is NOT - there is no
+//  Diner-specific entry in GameTypeSettings[5].maps anywhere in that file.
+//  Every TranZit survival location (Diner, Farm, Town, Bus Depot) shares the
+//  SAME stock row, `maps[1] = "zm_transit"`, because the lobby's map
+//  whitelist works by MAP FILE, not by location - Diner has no map file of
+//  its own, it is a location inside zm_transit's. Removing that row to hide
+//  it from Diner would ALSO hide it from Bus Depot / Farm / Town, which the
+//  user explicitly wants kept exactly as they are. So the lobby option stays
+//  VISIBLE on Diner - this is a real, reported limitation, not silently
+//  dropped - and this hook is what makes it functionally inert there instead.
+//
+//  🌟 THE HOOK POINT, AND WHY zstandard_main() ITSELF CANNOT BE ONE. Every
+//  TranZit survival location runs the same shared
+//  maps\mp\gametypes_zm\zstandard.gsc::zstandard_main():
+//        level.dog_rounds_allowed = getgametypesetting( "allowdogs" );
+//        if ( level.dog_rounds_allowed )
+//            maps\mp\zombies\_zm_ai_dogs::enable_dog_rounds();
+//  zstandard_main itself is called through an UNQUALIFIED same-file pointer
+//  (`rungametypemain( "zstandard", ::zstandard_main )`), which AI_CONTEXT's
+//  replaceFunc rule 1 rules out - replaceFunc cannot see a caller that never
+//  goes through the qualified name. enable_dog_rounds() one line down IS
+//  called fully qualified, so it is the earliest hookable point in the chain.
+//
+//  🌟 THIS REPRODUCES STOCK'S ENTIRE FUNCTION BODY FOR EVERY MAP EXCEPT
+//  DINER - read from _zm_ai_dogs.gsc:49-57, copied verbatim below the Diner
+//  check, not reinvented. Bus Depot, Farm, Town, and every other hellhound
+//  map (Die Rise, Mob, Buried, Origins, Nuketown) call this exact same
+//  function and get the exact same behaviour they always have; only the
+//  Diner branch differs.
+// ============================================================================
+zmqol_enable_dog_rounds()
+{
+    if ( getdvar( "ui_zm_mapstartlocation" ) == "diner" )
+    {
+        println( "[zm_qol] diner hellhounds: dropped (enable_dog_rounds() no-op on this location)" );
+        return;
+    }
+
+    //  Stock _zm_ai_dogs::enable_dog_rounds(), unchanged - EXCEPT the ::dog_round_tracker
+    //  pointer, which has to be qualified here. Stock writes it as a bare
+    //  ::dog_round_tracker because IT lives in _zm_ai_dogs.gsc, where that
+    //  resolves to _zm_ai_dogs::dog_round_tracker by same-file default. This
+    //  function lives in quality_of_life.gsc instead, where a bare
+    //  ::dog_round_tracker would look for that name in THIS file and fail to
+    //  resolve at load - qualifying it is not a style choice, it is required.
+    level.dog_rounds_enabled = 1;
+
+    if ( !isdefined( level.dog_round_track_override ) )
+        level.dog_round_track_override = maps\mp\zombies\_zm_ai_dogs::dog_round_tracker;
+
+    level thread [[ level.dog_round_track_override ]]();
 }
 
 // ============================================================================
@@ -4152,17 +4220,33 @@ zmqol_credits_banner_print()
     //  so basically briefly guide them on how to open the chat and do
     //  .help/!help"*.
     //
-    //  🛑 THE CHAT KEY IS SEMICOLON, NOT T. That was read out of this install's
-    //  own bindings file, not assumed - %LOCALAPPDATA%\Plutonium\storage\t6\
-    //  players\bindings_zm.bdg has `bind SEMICOLON "chatmodepublic"` and
-    //  `bind Y "chatmodeteam"`, which is BO2's stock PC layout (T is not bound
-    //  to chat at all; Z is +talk, the voice key). Naming the wrong key in a
-    //  help line is worse than naming none.
+    //  🛑 v2.3.4 - "PRESS ;" NAMED THE MOD AUTHOR'S OWN KEYBIND, AND THAT IS A
+    //  PUBLIC-MOD BUG, NOT A COSMETIC ONE.
     //
-    //  It still says "default", because GSC has no way to read a client's
-    //  binds - a player who has rebound chat would be told the wrong key
-    //  otherwise. The console route is given as well precisely because it
-    //  cannot be rebound out from under the line.
+    //  User, 2026-08-25: *"it says ; but that's just my personal keybind for
+    //  opening chat and is not the default key for opening chat, so if someone
+    //  else is using my mod it's gonna be the wrong key ... make sure to
+    //  globalize everything ... no text in this mod may ever display a keybind
+    //  read from my machine."*
+    //
+    //  🌟 RE-VERIFIED, NOT JUST RE-TRUSTED. This line's own prior comment
+    //  claimed semicolon was BO2's stock PC default (not a personal rebind),
+    //  citing %LOCALAPPDATA%\Plutonium\storage\t6\players\bindings_zm.bdg. That
+    //  claim was checked again this session, live: the SAME file, the mod's own
+    //  per-profile copy in \players\mods\zm_qol\, and a separate untouched-
+    //  looking backup under \backups\mod\settings\ all agree byte-for-byte -
+    //  `bind SEMICOLON "chatmodepublic"`, `bind T "+smoke"`, `bind Y
+    //  "chatmodeteam"`. Three independent copies matching, one of them a
+    //  pre-session backup, is real evidence this IS the stock BO2 PC default
+    //  and not something the user personally rebound.
+    //
+    //  🛑 BUT THAT DOES NOT MAKE THE OLD LINE SAFE TO SHIP. "Stock default"
+    //  only means it is correct for a player who never rebound chat - any
+    //  player who did is told the wrong key regardless, and GSC has no way to
+    //  read a client's live binds to tell the two cases apart. The user's own
+    //  instruction settles which risk to take: never name a specific key at
+    //  all. The line below is now fully generic; the console route on the next
+    //  line already was (help 1 cannot be rebound out from under it).
     //
     //  Separate dvar from intro_credits so either can be turned off alone. The
     //  short wait keeps the two banners from landing in the same frame and
@@ -4172,7 +4256,7 @@ zmqol_credits_banner_print()
         return;
 
     wait 0.25;
-    self iprintln( "^5Press ^3; ^5(default chat key) and type ^3.help ^5or ^3!help" );
+    self iprintln( "^5Open your chat key and type ^3.help ^5or ^3!help" );
     wait 0.25;
     self iprintln( "^5...for every command in this mod. From the console: ^3help 1" );
 }
@@ -4380,6 +4464,36 @@ zmqol_dev_command_listener()
             }
 
             level thread zmqol_goto_round( int( tokens[1] ), player );
+        }
+        else if ( cmd == "endround" )
+        {
+            // ================================================================
+            //  .endround  -  end the CURRENT round and let it advance    (v2.3.4)
+            //
+            //  User, 2026-08-25: *"add /.!endround as a chat command so I can just
+            //  quickly open my chat in-game and do .endround and switch the round
+            //  over to the next one"*.
+            //
+            //  🛑 THIS IS NOT zmqol_goto_round( round + 1 ). That function JUMPS
+            //  to an arbitrary target round and re-derives everything for it
+            //  (see its own banner) - the right tool for ".round 30", the wrong
+            //  one for "just end this one". Ending a round is a narrower, already
+            //  -solved problem: zero what is still queued to spawn AND kill what
+            //  is already alive, then let stock's own round_think() close the
+            //  round and increment level.round_number normally - exactly what
+            //  the END ROUND cheats-tab row (end_round dvar,
+            //  zmqol_round_dvar_watch() above) already does, reusing
+            //  zmqol_kill_horde() and its magic-bullet-shield/negative-health
+            //  fixes rather than a second implementation of either.
+            //
+            //  🌟 REUSED, NOT REBUILT: setting the same dvar the existing
+            //  cheats-tab row uses is the whole command. zmqol_round_dvar_watch()
+            //  picks it up within 0.25s and does the real work; this only adds
+            //  the chat entry point and the player-facing confirmation, which
+            //  the dvar path (console-only, no player context) doesn't have.
+            // ================================================================
+            setdvar( "end_round", "1" );
+            player iprintln( "^2[zm_qol] ^7ending round ^2" + level.round_number );
         }
         else if ( cmd == "wwfx" )
         {
@@ -5918,7 +6032,10 @@ zmqol_help_lines()
     a_lines[a_lines.size] = "^3.help ^7show/hide   ^3.p <n> ^7points   ^3.where ^7coords";
     a_lines[a_lines.size] = "^3.god ^7god   ^3.ghost ^7ignored   ^3.afk ^7both   ^3.nightmode ^7on/off";
     a_lines[a_lines.size] = "^3.fly ^7noclip (WASD, jump/stance, melee stops)   ^3.fog ^7on/off";
-    a_lines[a_lines.size] = "^3.velocity ^7on/off ^8(also .vel/.speed)";
+    //  v2.3.4 - .round already existed but was never listed anywhere in this
+    //  panel; .endround is new this version. Folded onto this line rather than
+    //  a new one - the panel has a hard line budget, see the note above.
+    a_lines[a_lines.size] = "^3.velocity ^7on/off ^8(also .vel/.speed)   ^3.round <n>^7/^3.endround";
     a_lines[a_lines.size] = "^3.give <weapon> [pap] ^7every added gun ^8(.give list)";
     a_lines[a_lines.size] = "^3.brutus^7/^3.panzer^7/^3.jumpingjacks ^7(amount) ^8- Mob / Origins / Die Rise";
     a_lines[a_lines.size] = "^3.machines ^7drop every remaining machine ^8- Nuketown";
@@ -15468,6 +15585,37 @@ zmqol_teleport_dest( n )
 //  same reason - neither file references the other, and adding a cross-file
 //  call would be a new load-order dependency for six lines.
 // ============================================================================
+// ============================================================================
+//  v2.3.4 - HOW MANY DIGITS level.round_number IS, NO INVENTED BUILTIN.
+//  No T6 function measures rendered text width offline (checked GSC
+//  Documentation.md and the stock dump - neither has one), and `.size` is
+//  documented for ARRAYS only (GSC Documentation.md:351), never strings, so
+//  it is not used on a round-number string either. This is a plain numeric
+//  comparison ladder instead - twin of qol_options.gsc's copy.
+// ============================================================================
+zmqol_round_digit_count()
+{
+    n = 1;
+
+    if ( isdefined( level.round_number ) )
+        n = int( level.round_number );
+
+    if ( n < 10 )
+        return 1;
+    else if ( n < 100 )
+        return 2;
+    else if ( n < 1000 )
+        return 3;
+    else if ( n < 10000 )
+        return 4;
+    else if ( n < 100000 )
+        return 5;
+    else if ( n < 1000000 )
+        return 6;
+
+    return 7;
+}
+
 zmqol_hud_round_anchor( elem )
 {
     if ( !isdefined( elem ) )
@@ -15481,8 +15629,30 @@ zmqol_hud_round_anchor( elem )
     }
     else
     {
+        // ====================================================================
+        //  v2.3.4 - DIGIT-COUNT-AWARE INSET. User, 2026-08-25: round 10000 (5
+        //  digits) runs off the right edge at the old fixed x = 25.
+        //
+        //  🌟 THE PER-DIGIT FIGURE IS MEASURED, NOT GUESSED. timer()'s own
+        //  pixel scan just above found round 100's "100" (3 digits, this exact
+        //  font/fontscale) 33.67 hud-units wide - about 11.2 units/digit. 3
+        //  digits at x = 25 is the baseline that was never reported clipping,
+        //  so every digit beyond 3 pulls the anchor back toward screen centre
+        //  by ~12 units (11.2 rounded up for margin).
+        //
+        //  🛑 NOT YET VISUALLY CONFIRMED AT ROUND 10000. I cannot measure the
+        //  actual on-screen clearance without seeing it rendered - this is the
+        //  documented fallback for "no way to measure it": a digit-count
+        //  inset, not a text-width one. Tell me if round 10000 still clips or
+        //  now sits too far in and the per-digit constant gets tuned from that.
+        // ====================================================================
+        n_extra_digits = zmqol_round_digit_count() - 3;
+
+        if ( n_extra_digits < 0 )
+            n_extra_digits = 0;
+
         elem.horzalign = "right";
-        elem.x = 25;
+        elem.x = 25 - n_extra_digits * 12;
     }
 }
 

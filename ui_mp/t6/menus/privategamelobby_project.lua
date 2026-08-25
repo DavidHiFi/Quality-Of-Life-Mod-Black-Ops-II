@@ -118,18 +118,15 @@ if CoD.MapInfoImage ~= nil and CoD.MapInfoImage.ZmQolSizeWrapped ~= true then
 		local Width  = CoD.MapInfoImage.ZmQolStockWidth
 		local Height = CoD.MapInfoImage.ZmQolStockHeight
 
-		--  pcall for the same reason QolArchive uses one in optionssettings.lua:
-		--  a dvar read that throws must never be able to stop the lobby being
-		--  built. On a throw both stay at the stock size.
-		pcall(function ()
-			local Mapname = UIExpression.DvarString(nil, "ui_mapname")
-			local ModeGrp = UIExpression.DvarString(nil, "ui_zm_gamemodegroup")
-
-			if Mapname == "zm_nuked" and ModeGrp == "zsurvival" then
-				Width  = 242
-				Height = 112
-			end
-		end)
+		--  🛑 v2.3.4 - THE zm_nuked SPECIAL CASE IS GONE, AND WITH IT THE pcall
+		--  THAT USED TO READ ui_mapname/ui_zm_gamemodegroup HERE. It existed only to
+		--  shrink this panel for the nine-row lobby the (now removed) Nuketown
+		--  hellhound row caused - see that removal's own comment two sections
+		--  up. Nuketown survival is an eight-row lobby again, same as every
+		--  other survival location, so it now uses the same stock-sized panel
+		--  as all of them. Width/Height are left at ZmQolStockWidth/Height
+		--  unconditionally - no pcall body needed for a check that no longer
+		--  has anything to check.
 
 		CoD.MapInfoImage.MapImageWidth  = Width
 		CoD.MapInfoImage.MapImageHeight = Height
@@ -258,18 +255,24 @@ CoD.PrivateGameLobby.GameTypeSettings[5].maps[1] = "zm_transit"
 --  rather than a carved-out arena, so unlike the Diner there is no out-of-
 --  bounds zone for a dog to land in. Nothing was moved or disabled.
 --
---  🛑 THIS MAKES NUKETOWN SURVIVAL THE ONLY NINE-ROW LOBBY IN THE GAME, and
---  the preview panel had to move for it. See the measured block above
---  mapInfoImage:setTopBottom() - the ninth row pushes the hint 23.3 units
---  inside the panel, and the panel cannot simply drop a row without landing on
---  ESC Back. Change one without the other and they overlap.
+--  🛑 REMOVED v2.3.4. User, 2026-08-25: *"because of how much of a hassle it's
+--  been to get hellhounds working on Diner survival, and Nuketown survival,
+--  just drop it at this point"*. This is the mod-only Nuketown addition
+--  above (added v2.1.0, made the row conditional on ZmQolLobbyModLoaded()
+--  since v2.2.0) - `maps[1] = "zm_transit"` two blocks up is STOCK's own row
+--  and stays untouched, so Bus Depot / Farm / Town keep hellhounds exactly as
+--  they always have.
+--
+--  🛑 THE TWO PANEL-SIZE COMPENSATIONS THIS ROW NEEDED ARE ALSO REVERTED, IN
+--  THE SAME EDIT. They existed only because this row made Nuketown survival a
+--  nine-row lobby - the `Mapname == "zm_nuked" and ModeGrp == "zsurvival"`
+--  special cases in CoD.MapInfoImage.new (top of this file) and in the
+--  zmqol_lobby_panel_nudge handler below now fall through to the same `else`
+--  every other eight-row survival lobby uses. Reverting the row without also
+--  reverting those would leave Nuketown's preview panel shrunk and mispositioned
+--  for a row count it no longer has - the exact "number being wrong" failure
+--  class this file's own header warns about.
 -- ===========================================================================
--- 🛑 v2.2.0 - the Nuketown row only exists when zm_qol is loaded. Stock's
--- whitelist is zm_transit alone; with another mod loaded this file must leave it
--- that way. See ZmQolLobbyModLoaded() at the top.
-if ZmQolLobbyModLoaded() then
-	CoD.PrivateGameLobby.GameTypeSettings[5].maps[2] = "zm_nuked"
-end
 CoD.PrivateGameLobby.GameTypeSettings[6] = {}
 CoD.PrivateGameLobby.GameTypeSettings[6].id = "cleansedLoadout"
 CoD.PrivateGameLobby.GameTypeSettings[6].name = "ZMUI_CLEANSED_LOADOUT_CAPS"
@@ -1064,15 +1067,13 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 			--  it is what puts the panel's bottom 5 units clear of ESC
 			--  Back, and the wrapper only moves the top.
 			-- ============================================================
-			local Mapname  = UIExpression.DvarString(nil, "ui_mapname")
-			local ModeGrp  = UIExpression.DvarString(nil, "ui_zm_gamemodegroup")
-
-			if Mapname == "zm_nuked" and ModeGrp == "zsurvival" then
-				Element.body.mapInfoImage:setTopBottom(true, false, 480, 635)
-			else
-				--  448 + 21.5 parent offset = 469.5 on screen; height 177 preserved.
-				Element.body.mapInfoImage:setTopBottom(true, false, 448, 625)
-			end
+			--  🛑 v2.3.4 - THE zm_nuked BRANCH IS GONE, SAME REASON AS THE SIZE
+			--  WRAPPER ABOVE: the Nuketown hellhound row that made this lobby
+			--  nine rows is removed, so it no longer needs its own panel
+			--  position. Every survival lobby, Nuketown included, now takes
+			--  this one path.
+			--  448 + 21.5 parent offset = 469.5 on screen; height 177 preserved.
+			Element.body.mapInfoImage:setTopBottom(true, false, 448, 625)
 		end)
 		if CoD.useController == true and not PrivateGameLobbyButtonPane:restoreState() then
 			PrivateGameLobbyButtonPane.body.buttonList:selectElementIndex(1)

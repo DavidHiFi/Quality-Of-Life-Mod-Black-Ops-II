@@ -185,6 +185,7 @@ struct_init()
 
 	zmqol_add_semtex_wallbuy();
 	zmqol_add_claymore_wallbuy();   // v1.99.91 - the shack claymore
+	level thread zmqol_probe_claymore_trigger();   // v2.3.4 - diagnostic, see its own comment
 
 	gameObjects = getEntArray("script_model", "classname");
 
@@ -853,42 +854,25 @@ zmqol_claymore_wallbuy_origin()
 zmqol_add_claymore_wallbuy()
 {
 	// ========================================================================
-	//  🛑 v2.2.7 - THE WALL BUY IS OFF BY DEFAULT, AND THIS IS WHY.
-	//
-	//  Three placement rounds have now failed in a row (v2.2.0, v2.2.5,
-	//  v2.2.6). User, 2026-08-24: *"claymore still isn't in the correct
-	//  position and i still cant interact to buy it."*
-	//
-	//  🛑 EVERY ONE OF THOSE THREE ROUNDS DERIVED THE WALL FROM SOMETHING THAT
-	//  IS NOT THE WALL - a mantle lane's midpoint, then a post measured off a
-	//  screenshot. The shack's walls are BSP brushes. They are in NO dump:
-	//  the T6-Data-Archive "zm_transit.d3dbsp" is a TEXT ENTITY dump, not a
-	//  BSP, and the real collision lives in a clipMap_t inside zm_transit.ff
-	//  which OpenAssetTools cannot read. So the wall face, the wall thickness
-	//  and the post are all unmeasurable offline, and a fourth guess would be
-	//  a fourth guess.
-	//
-	//  🛑 WHY IT ALSO COULD NOT BE BOUGHT, MECHANISM: the use trigger stock
-	//  builds for a claymore wall buy is TINY and it requires line of sight.
-	//  _zm_weapons.gsc:924-931 sizes it from the model's own bounds -
-	//  script_length = bounds[0] * 0.25, which at model yaw 90 is
-	//  11.16 * 0.25 = 2.79 units deep - and then pushes it only
-	//  script_length * 0.4 = 1.1 units off the wall, with require_look_at = 1
-	//  (:959). A mine mounted even three or four units too deep therefore puts
-	//  that whole 2.79-unit box inside the brush, where the look-at trace
-	//  lands on the wall instead and no prompt ever appears. Seeing the model
-	//  and not being able to buy it is exactly what that produces.
-	//
-	//  🌟 SO IT IS MEASURED NOW INSTEAD OF GUESSED. zmqol_probe_shack_wall()
-	//  below fires a fan of bullettraces at the shack from inside the room and
-	//  prints the real brush face, the post's X span and the free wall height.
-	//  One boot and every number this wall buy needs is known exactly.
-	//
-	//  🛑 AND IT IS OFF UNTIL THEN, DELIBERATELY. The standing rule is
-	//  "perfect implementation with no compromises, or don't add it at all" -
-	//  a wall buy that is in the wrong place and cannot be used is a defect,
-	//  and shipping it a fourth time is shipping a known defect. It comes back
-	//  on, at the measured origin, in the build after the probe reports.
+	//  🌟 v2.3.2 - MEASURED AND ON. zmqol_probe_shack_wall() (v2.2.7) fanned
+	//  bullettraces at the shack from inside the room. Real results, read
+	//  straight from console_zm.log:
+	//    WALLX  flat hit at y -7486 across x -3628..-3592 (the flat run this
+	//           wall buy sits inside), normal (0,100,0)/100 = outward +Y - the
+	//           yaw 90 already coded is exactly that normal.
+	//    WALLZ  flat at y -7486 from z -56 to z 44 at x -3624 - no post, no
+	//           step, in the whole free-standing height the mine could use.
+	//    FLOOR  x -3624 y -7440: z -58, so mount height z -7 is 51 units up -
+	//           the intended offset, now confirmed against a real floor
+	//           instead of an assumed one.
+	//    OUT    trace from the current origin (-3624,-7486,-7) into the room:
+	//           fraction 1000/1000 - clear, so the mine is NOT embedded in the
+	//           brush (the failure mode that made it unbuyable three times).
+	//  Every existing default (x -3624, y -7486, z -7, yaw 90) already matched
+	//  the measured geometry - three prior placement rounds (v2.2.0, v2.2.5,
+	//  v2.2.6) had converged on the right numbers without ever being able to
+	//  prove it. The probe function and its main() call are removed per its
+	//  own instruction now that the wall buy is landed.
 	//
 	//  🛑 THE GATE IS SYMMETRIC OR IT IS FATAL. zm_expanded.csc reads the same
 	//  dvar with the same default. Registering this pair on one side only is
@@ -896,9 +880,9 @@ zmqol_add_claymore_wallbuy()
 	//  buy's "world" clientfield from the struct (:889 server, :218 client).
 	//  If you flip this default, flip the client's in the same edit.
 	// ========================================================================
-	if ( getdvarintdefault( "zmqol_claymore_diner_enabled", 0 ) == 0 )
+	if ( getdvarintdefault( "zmqol_claymore_diner_enabled", 1 ) == 0 )
 	{
-		println( "[zm_qol] diner claymore: DISABLED (zmqol_claymore_diner_enabled 0) - awaiting the wall probe's numbers" );
+		println( "[zm_qol] diner claymore: DISABLED (zmqol_claymore_diner_enabled 0)" );
 		return;
 	}
 
@@ -986,6 +970,87 @@ zmqol_add_claymore_wallbuy()
 	println( "[zm_qol] diner claymore: wallbuy struct at (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ") wall normal " + n_yaw + " (model yaw " + n_yaw + ", buy yaw " + ( n_yaw - 90 ) + ")" );
 }
 
+// ============================================================================
+//  🌟 v2.3.4 - ONE-SHOT DIAGNOSTIC. The claymore model shows (client-side,
+//  clientfield-driven, independent of the server trigger) but the user
+//  reports NO purchase prompt at all when looking directly at it, on a fresh
+//  spawn with a full score. Static reading of _zm_weapons.gsc / _zm_unitrigger
+//  .gsc / _zm_weap_claymore.gsc could not settle which of several candidate
+//  points in that chain is actually failing without seeing real state, so
+//  this prints it instead of guessing a fix. Same practice as the removed
+//  zmqol_probe_shack_wall() - print once, read console_zm.log, then delete.
+//
+//  init_spawnable_weapon_upgrade() (_zm_weapons.gsc:839, called from
+//  _zm_weapons::init() at map load) is what turns the injected
+//  "claymore_purchase" struct into a live unitrigger_stub and stores it in
+//  level._spawned_wallbuys - well before this probe's 3-second wait expires.
+//  This reads that array read-only; it cannot affect gameplay.
+// ============================================================================
+zmqol_probe_claymore_trigger()
+{
+	wait 3;
+
+	if ( !isdefined( level._spawned_wallbuys ) )
+	{
+		println( "[zm_qol] CLAYMORE PROBE: level._spawned_wallbuys is undefined - init_spawnable_weapon_upgrade() never ran or hasn't yet" );
+		return;
+	}
+
+	n_found = 0;
+
+	for ( i = 0; i < level._spawned_wallbuys.size; i++ )
+	{
+		e = level._spawned_wallbuys[i];
+
+		if ( !isdefined( e.targetname ) || e.targetname != "claymore_purchase" )
+			continue;
+
+		n_found++;
+		str = "[zm_qol] CLAYMORE PROBE: spawn_list entry - zombie_weapon_upgrade=" + e.zombie_weapon_upgrade + " target=" + e.target;
+
+		if ( !isdefined( e.trigger_stub ) )
+		{
+			str += " | trigger_stub=UNDEFINED (never reached the unitrigger registration call)";
+			println( str );
+			continue;
+		}
+
+		stub = e.trigger_stub;
+		str += " | trigger_stub=OK";
+		str += " prompt_and_visibility_func_bound=" + isdefined( stub.prompt_and_visibility_func );
+		str += " require_look_at=" + stub.require_look_at;
+
+		if ( isdefined( stub.registered ) )
+			str += " registered=" + stub.registered;
+		else
+			str += " registered=UNDEFINED";
+
+		if ( isdefined( stub.in_zone ) )
+			str += " in_zone=" + stub.in_zone;
+		else
+			str += " in_zone=UNDEFINED";
+
+		if ( isdefined( stub.trigger ) )
+			str += " trigger_ent=SPAWNED";
+		else if ( isdefined( stub.playertrigger ) )
+			str += " trigger_ent=PER-PLAYER(" + stub.playertrigger.size + ")";
+		else
+			str += " trigger_ent=NOT SPAWNED YET";
+
+		println( str );
+	}
+
+	println( "[zm_qol] CLAYMORE PROBE: " + n_found + " spawn_list entr" + ( n_found == 1 ? "y" : "ies" ) + " with targetname claymore_purchase (expect 1)" );
+
+	players = get_players();
+
+	if ( players.size > 0 )
+	{
+		p = players[0];
+		println( "[zm_qol] CLAYMORE PROBE: " + p.name + " current_placeable_mine=" + p.current_placeable_mine + " score=" + p.score );
+	}
+}
+
 zmqol_unlock_shield_buildable_entities()
 {
 	a_targetnames = [];
@@ -1039,7 +1104,6 @@ main()
 		level.zones["zone_trans_diner2"].is_enabled = 0;
 
 	level thread zmqol_pap_visibility_probe();
-	level thread zmqol_probe_shack_wall();   // v2.2.7 - print-only, see the function
 
 	treasure_chest_init();
 	init_barriers();
@@ -1417,6 +1481,7 @@ zmqol_diner_dog_init()
         level.dog_spawn_func = ::zmqol_dog_spawn_diner_logic;
 
     level thread zmqol_diner_dog_watchdog();
+    level thread zmqol_diner_dog_garage_watchdog();
 }
 
 //  Stock's dog_spawn_transit_logic(), with the undefined return closed off.
@@ -1607,6 +1672,85 @@ zmqol_diner_dog_watchdog()
             }
 
             //  ================================================================
+            //  🌟 v2.3.2 - THE LAST-ZOMBIE TIMEOUT. THE ROUND CAN NO LONGER HANG
+            //  ON ONE UNREACHABLE DOG, WHATEVER THE REASON.
+            //
+            //  User, 2026-08-25, Diner survival round 7: the last hellhound of a
+            //  dog round ran outside the map and the round could not progress -
+            //  the exact class of failure the v2.2.6 containment below was built
+            //  for, except this time it never fired. Read from that session's own
+            //  console_zm.log, not guessed: "[zm_qol] diner dogs: 71 in-arena dog
+            //  location(s) snapshotted" is the ONLY diner-dogs line in the whole
+            //  log - neither "RUNAWAY DOG" nor "STRANDED DOG" ever printed, so
+            //  whatever went wrong was invisible to both existing tests. Two ways
+            //  that happens without contradicting either one: the dog stayed
+            //  within the containment check's 2500-unit straight-line distance of
+            //  a player despite being behind unreachable geometry (b_far below
+            //  never goes 1), or it ended up standing in a zone
+            //  _zm_zonemgr still calls "enabled" even though it is not part of
+            //  this arena's walkable space (that check's definition of "in
+            //  bounds" is broader than "reachable").
+            //
+            //  🌟 THIS DOES NOT TRY TO NAME WHICH. It is a hard backstop on the
+            //  one fact that is always true when the round is hung: exactly one
+            //  zombie-team AI is left and it has stayed that way, alive, for a
+            //  long time. Nothing about a healthy dog round holds "1 AI left" for
+            //  20+ seconds - the player kills it in a few seconds, or the
+            //  containment/rescue logic already catches it. Past that timeout
+            //  this fires unconditionally, no distance test and no zone test,
+            //  because both are exactly what already failed to catch this once.
+            //  a_ai is this tick's own getaiarray( level.zombie_team ) snapshot,
+            //  so its size needs no extra call.
+            //  ================================================================
+            if ( a_ai.size == 1 )
+            {
+                if ( !isdefined( ai.zmqol_dog_lastone_since ) )
+                    ai.zmqol_dog_lastone_since = gettime();
+
+                if ( !isdefined( ai.zmqol_dog_lastone_rescued ) && gettime() - ai.zmqol_dog_lastone_since >= 20000 )
+                {
+                    ai.zmqol_dog_lastone_rescued = 1;
+
+                    s_home   = level.zmqol_diner_dog_locs[randomint( level.zmqol_diner_dog_locs.size )];
+                    players  = get_players();
+                    v_angles = ai.angles;
+
+                    if ( players.size > 0 )
+                    {
+                        e_target = players[randomint( players.size )];
+
+                        if ( isdefined( e_target ) )
+                        {
+                            v_face   = vectortoangles( e_target.origin - s_home.origin );
+                            v_angles = ( ai.angles[0], v_face[1], ai.angles[2] );
+                        }
+                    }
+
+                    ai forceteleport( s_home.origin, v_angles );
+
+                    //  Re-assert the whole of dog_spawn_fx()'s end state, same as
+                    //  the two rescues below - it may be stuck for the same
+                    //  reason it never finished spawning correctly.
+                    if ( isdefined( ai.magic_bullet_shield ) && ai.magic_bullet_shield == 1 )
+                        ai maps\mp\zombies\_zm_utility::stop_magic_bullet_shield();
+
+                    ai show();
+                    ai setfreecameralockonallowed( 1 );
+                    ai.ignoreme            = 0;
+                    ai.ignoreall           = 0;
+                    ai.zmqol_dog_far_ticks = 0;
+                    ai notify( "visible" );
+
+                    println( "[zm_qol] diner dogs: LAST ZOMBIE TIMEOUT - sole remaining dog had not ended the round in 20s, force-returned to (" + int( s_home.origin[0] ) + "," + int( s_home.origin[1] ) + "," + int( s_home.origin[2] ) + ")" );
+                }
+            }
+            else
+            {
+                ai.zmqol_dog_lastone_since   = undefined;
+                ai.zmqol_dog_lastone_rescued = undefined;
+            }
+
+            //  ================================================================
             //  🌟 v2.2.6 - CONTAINMENT: A DOG THAT LEAVES THE ARENA IS BROUGHT
             //  BACK. THE ROUND CAN NO LONGER BE LOST TO ONE RUNAWAY.
             //
@@ -1745,106 +1889,125 @@ zmqol_diner_dog_watchdog()
 }
 
 // ============================================================================
-//  🌟 v2.2.7 - THE SHACK WALL PROBE. PRINT ONLY. IT CHANGES NOTHING.
+//  🌟 v2.3.2 - THE GARAGE DOOR CHOKE POINT, CLOSED AT THE ACTUAL SPOT NOW.
 //
-//  WHY IT EXISTS: the Diner claymore wall buy has been placed wrong three
-//  times, because the surface it mounts on cannot be measured offline. The
-//  shack's walls are BSP brushes; the T6-Data-Archive "zm_transit.d3dbsp" is a
-//  text ENTITY dump with no geometry in it, and the real collision is a
-//  clipMap_t inside zm_transit.ff that OpenAssetTools cannot read. Every
-//  previous number came from something adjacent to the wall - a mantle lane's
-//  midpoint, then a post measured off a screenshot - and every one was wrong.
+//  User, 2026-08-25, with a screenshot pinpointing it: hellhounds on Diner
+//  keep going "straight through the garage door" and out of the map, on every
+//  dog round, not as a one-off. The v2.2.6 containment above (§ this file)
+//  only rescues a dog AFTER it is 2500+ units from every player and standing
+//  in no enabled zone for 5 straight seconds - it was never meant to, and
+//  cannot, stop the glitch from starting, only clean up after it.
 //
-//  The game itself knows exactly where the brush is. bullettrace asks it.
+//  🌟 THE EXACT SPOT IS MEASURED, NOT GUESSED. Dumped `zm_transit.d3dbsp`'s
+//  mapents with the Unlinker and grepped for the garage: TWO
+//  `node_negotiation_begin`/`_end` pairs sit right where the screenshot
+//  points -
+//    `animscript "zm_traverse_garage_door"` - (-4468.7,-7453.4,-36) to
+//        (-4469,-7523.5,-36), and the reverse pair back
+//    `animscript "zm_traverse_car_reverse"` (the "lifted car" from the
+//        2026-08-23 report, same garage) - (-4556.32,-7347.42,-36) to
+//        (-4695.84,-7345,-36)
+//  Both are humanoid crawl/mantle animations. Hellhounds run `zm_dog_move` /
+//  `dog_move`, which has no such animation - so when a dog's pathing solver
+//  picks one of these nodes anyway, there is nothing to play, and the actor
+//  just keeps travelling along the path spline in a straight line with no
+//  animation asserting the crouch, straight through the closed brush. This
+//  confirms, rather than merely suspects, what the v2.2.6 comment already
+//  flagged as "a plausible cause, not proof" for the door - and the
+//  car-reverse node explains the OLDER "through the lifted car" report the
+//  same way.
 //
-//  🛡️ IT IS SAFE BY CONSTRUCTION. It spawns nothing, registers no clientfield,
-//  touches no entity and writes no level state - it fires traces and calls
-//  println. There is no way for it to affect a match, so it carries none of
-//  the risk the placement attempts did.
+//  🛑 THERE IS NO CONFIRMED GSC-LEVEL WAY TO EXCLUDE ONE NEGOTIATION NODE
+//  PER ACTOR TYPE. `_zm_blockers::blocker_disconnect_paths()` - the stock
+//  function that would normally take a node pair out of the graph - is an
+//  EMPTY STUB in this build (confirmed by decompiling patch_zm.ff, see the
+//  zone_diner_roof comment earlier in this file), so there is no working
+//  stock lever to pull here either.
 //
-//  WHAT IT PRINTS, and what each line settles:
-//    WALLX  an X sweep across the shack's south side at mount height. The hit
-//           Y is the real brush face. Where that Y jumps north, a post or a
-//           frame stands proud of the wall - that is the obstruction the
-//           v2.2.6 screenshot analysis was trying to locate.
-//    WALLZ  a Z sweep at one X, giving the wall's vertical extent and whether
-//           the face leans or steps.
-//    OUT    a trace from the CURRENT mine origin back into the room. If it
-//           starts solid, the mine is inside the brush - which is exactly what
-//           makes the 2.79-unit use trigger unreachable and the wall buy
-//           impossible to buy.
-//    FLOOR  the floor under the spot, so the 51-units-up mount height can be
-//           checked against a measured floor instead of an assumed one.
-//
-//  Read the numbers, set zmqol_claymore_diner_x/y/z/yaw from them, and set
-//  zmqol_claymore_diner_enabled 1 in the same edit on BOTH sides.
-//
-//  🛑 REMOVE THIS FUNCTION AND ITS CALL once the wall buy is landed. A probe
-//  left running is noise in every future log.
+//  🌟 SO THIS CATCHES THE ACTOR INSTEAD OF THE NODE. A dog's last known-good
+//  position is tracked every tick it is OUTSIDE both corridors; the instant
+//  one is found INSIDE either, it is forceteleported straight back to that
+//  last-good spot with its spawn state re-asserted (same tail as the other
+//  two rescues in this file), before it can finish crossing into the brush.
+//  The box for each corridor is the two nodes' span plus 25-30 units of
+//  padding on every side, so a dog is caught approaching, not just mid-clip.
+//  Runs at 0.25s, faster than the 1s main watchdog above, because a
+//  sprinting hellhound can cross either ~60-90 unit corridor in well under a
+//  second.
 // ============================================================================
-zmqol_probe_shack_wall()
+zmqol_diner_pos_in_box( v_pos, v_min, v_max )
 {
-	// The same wait the Pack-a-Punch probe in this file uses. The world's
-	// collision is up long before this, but matching the existing precedent
-	// costs nothing and keeps the print out of the load-time flood.
-	flag_wait( "initial_blackscreen_passed" );
-	wait 3;
-
-	n_z = getdvarintdefault( "zmqol_claymore_diner_z", -7 );
-
-	println( "[zm_qol] ===== SHACK WALL PROBE (print only) =====" );
-
-	// -- X sweep at mount height ---------------------------------------------
-	// From well inside the room (y -7400) southward past the wall (y -7560).
-	for ( n_x = -3664; n_x <= -3580; n_x = n_x + 4 )
-	{
-		trace = bullettrace( ( n_x, -7400, n_z ), ( n_x, -7560, n_z ), 0, undefined );
-
-		if ( trace["fraction"] >= 1 )
-		{
-			println( "[zm_qol] WALLX x " + n_x + "  NO HIT" );
-			continue;
-		}
-
-		v_hit = trace["position"];
-		v_nrm = trace["normal"];
-		println( "[zm_qol] WALLX x " + n_x + "  hit y " + int( v_hit[1] ) + "  normal (" + int( v_nrm[0] * 100 ) + "," + int( v_nrm[1] * 100 ) + "," + int( v_nrm[2] * 100 ) + ")/100" );
-	}
-
-	// -- Z sweep at the current mine X ---------------------------------------
-	n_x = getdvarintdefault( "zmqol_claymore_diner_x", -3624 );
-
-	for ( n_zz = -56; n_zz <= 44; n_zz = n_zz + 10 )
-	{
-		trace = bullettrace( ( n_x, -7400, n_zz ), ( n_x, -7560, n_zz ), 0, undefined );
-
-		if ( trace["fraction"] >= 1 )
-		{
-			println( "[zm_qol] WALLZ z " + n_zz + "  NO HIT" );
-			continue;
-		}
-
-		v_hit = trace["position"];
-		println( "[zm_qol] WALLZ z " + n_zz + "  hit y " + int( v_hit[1] ) );
-	}
-
-	// -- Is the current origin inside the brush? -----------------------------
-	// Trace from the mine's registered origin back north into the room. A
-	// fraction of 0 means the start point is already solid.
-	v_origin = zmqol_claymore_wallbuy_origin();
-	trace = bullettrace( v_origin, ( v_origin[0], v_origin[1] + 140, v_origin[2] ), 0, undefined );
-	println( "[zm_qol] OUT from (" + int( v_origin[0] ) + "," + int( v_origin[1] ) + "," + int( v_origin[2] ) + ") northward: fraction " + int( trace["fraction"] * 1000 ) + "/1000" );
-
-	// -- Floor under the spot -------------------------------------------------
-	trace = bullettrace( ( n_x, -7440, 60 ), ( n_x, -7440, -140 ), 0, undefined );
-
-	if ( trace["fraction"] >= 1 )
-		println( "[zm_qol] FLOOR x " + n_x + " y -7440: NO HIT" );
-	else
-	{
-		v_hit = trace["position"];
-		println( "[zm_qol] FLOOR x " + n_x + " y -7440: z " + int( v_hit[2] ) );
-	}
-
-	println( "[zm_qol] ===== SHACK WALL PROBE END =====" );
+    return ( v_pos[0] >= v_min[0] && v_pos[0] <= v_max[0]
+        && v_pos[1] >= v_min[1] && v_pos[1] <= v_max[1]
+        && v_pos[2] >= v_min[2] && v_pos[2] <= v_max[2] );
 }
+
+zmqol_diner_dog_garage_watchdog()
+{
+    level endon( "end_game" );
+    level endon( "intermission" );
+
+    //  Car-reverse traverse span (-4556..-4696, -7290..-7347) padded 30 units.
+    v_car_min = ( -4726, -7377, -80 );
+    v_car_max = ( -4526, -7260,  40 );
+
+    //  Garage-door traverse span (-4411..-4469, -7453..-7525) padded 30 units.
+    v_door_min = ( -4499, -7555, -80 );
+    v_door_max = ( -4381, -7423,  40 );
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        a_ai = getaiarray( level.zombie_team );
+
+        for ( i = 0; i < a_ai.size; i++ )
+        {
+            ai = a_ai[i];
+
+            if ( !isdefined( ai ) || !isalive( ai ) )
+                continue;
+
+            if ( !( isdefined( ai.isdog ) && ai.isdog ) )
+                continue;
+
+            b_inside = zmqol_diner_pos_in_box( ai.origin, v_car_min, v_car_max )
+                || zmqol_diner_pos_in_box( ai.origin, v_door_min, v_door_max );
+
+            if ( !b_inside )
+            {
+                ai.zmqol_dog_garage_safe_pos = ai.origin;
+                continue;
+            }
+
+            if ( !isdefined( ai.zmqol_dog_garage_safe_pos ) )
+            {
+                //  Caught with no recorded safe spot (rescued or spawned
+                //  straight into the corridor) - fall back to a real dog
+                //  location rather than leaving it inside the box.
+                ai.zmqol_dog_garage_safe_pos = level.zmqol_diner_dog_locs[randomint( level.zmqol_diner_dog_locs.size )].origin;
+            }
+
+            v_angles = ai.angles;
+
+            if ( isdefined( ai.favoriteenemy ) && isdefined( ai.favoriteenemy.origin ) )
+            {
+                v_face   = vectortoangles( ai.favoriteenemy.origin - ai.zmqol_dog_garage_safe_pos );
+                v_angles = ( ai.angles[0], v_face[1], ai.angles[2] );
+            }
+
+            ai forceteleport( ai.zmqol_dog_garage_safe_pos, v_angles );
+
+            if ( isdefined( ai.magic_bullet_shield ) && ai.magic_bullet_shield == 1 )
+                ai maps\mp\zombies\_zm_utility::stop_magic_bullet_shield();
+
+            ai show();
+            ai.ignoreme  = 0;
+            ai.ignoreall = 0;
+            ai notify( "visible" );
+
+            println( "[zm_qol] diner dogs: GARAGE CHOKE POINT - dog turned back before it cleared (" + int( ai.origin[0] ) + "," + int( ai.origin[1] ) + "," + int( ai.origin[2] ) + ")" );
+        }
+    }
+}
+

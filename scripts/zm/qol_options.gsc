@@ -1446,6 +1446,48 @@ qol_opt_character()
         n_want = getdvarintdefault( "character", 0 );
         b_sees_cia_flag = isdefined( level.should_use_cia );
 
+        // ========================================================================
+        //  🛑 v2.3.5 - RESTART LEVEL RE-ROLLS should_use_cia AND THIS LOOP NEVER
+        //  NOTICED, BECAUSE "NOTHING CHANGED" FROM ITS OWN POINT OF VIEW.
+        //
+        //  User, 2026-08-25: lobby character = CIA, start Diner survival, pause
+        //  -> RESTART LEVEL, scoreboard now shows CDC. Pause -> instant exit ->
+        //  fresh start -> CIA again, correctly. So a fresh load is right and a
+        //  restart is wrong, and the difference is exactly this: a restart does
+        //  NOT disconnect the player (this thread's self endon("disconnect")
+        //  never fires, so n_last/b_last_saw_cia_flag survive it untouched), but
+        //  it DOES re-run the map's own survival_init() - zm_transit.gsc:88-92
+        //  rerolls `should_use_cia = 0; if ( randomint(100) > 50 )
+        //  should_use_cia = 1;` on every level start, restart included.
+        //
+        //  So after a restart: n_want == n_last (the dvar never changed) and
+        //  b_last_saw_cia_flag is already 1 (set the first time this ran, before
+        //  the restart) - both terms of the reapply check below are false, so
+        //  the block is skipped and should_use_cia is left at whatever the fresh
+        //  reroll produced, which is CDC roughly half the time. This is the same
+        //  race v1.99.65 already fixed once, just from a different trigger.
+        //
+        //  🌟 THE FIX WATCHES THE VALUE, NOT JUST WHETHER THE FLAG EXISTS. Every
+        //  pass, once a pick has actually been applied once (b_seen_once),
+        //  recompute what should_use_cia OUGHT to be from n_want alone (not from
+        //  self.characterindex - that field is only written inside this same
+        //  block, so on the very tick that needs to catch a reroll it would
+        //  still hold the value from before the restart) and compare it to the
+        //  live value. A mismatch reapplies exactly like a real dvar change.
+        //  🛑 DEFAULT STAYS RANDOM: gated on n_want > 0, so character 0 never
+        //  touches should_use_cia and the vanilla random roll is untouched.
+        // ========================================================================
+        b_should_use_cia_drifted = 0;
+
+        if ( n_want > 0 && b_sees_cia_flag && b_seen_once )
+        {
+            n_would_be_index = ( n_want - 1 ) % 4;
+            b_would_want_cia = ( n_would_be_index == 0 || n_would_be_index == 2 );
+
+            if ( ( level.should_use_cia == 1 ) != b_would_want_cia )
+                b_should_use_cia_drifted = 1;
+        }
+
         //  ====================================================================
         //  🛑 v1.99.65 - THIS USED TO FIRE ONCE AND LATCH, AND ON A CDC/CIA MAP
         //  THAT MADE THE LOBBY PICKER PICK THE WRONG TEAM.
@@ -1470,8 +1512,14 @@ qol_opt_character()
         //  the choice changed, OR should_use_cia has appeared since the last
         //  application. It can fire at most twice per choice and it is the same
         //  code path both times.
+        //
+        //  v2.3.5 adds a THIRD: b_should_use_cia_drifted, computed above -
+        //  catches a RESTART LEVEL reroll with no dvar change at all. See its
+        //  own comment block for the mechanism.
         //  ====================================================================
-        if ( n_want > 0 && ( n_want != n_last || ( b_sees_cia_flag && !b_last_saw_cia_flag ) ) )
+        b_real_change = n_want != n_last;
+
+        if ( n_want > 0 && ( b_real_change || ( b_sees_cia_flag && !b_last_saw_cia_flag ) || b_should_use_cia_drifted ) )
         {
             n_last = n_want;
             b_last_saw_cia_flag = b_sees_cia_flag;
@@ -1540,8 +1588,13 @@ qol_opt_character()
             //  console path says so rather than pretending. Say it once, and only
             //  for a change made after the first application, so the normal
             //  spawn-time pick stays silent.
+            //
+            //  v2.3.5 - gated on b_real_change specifically now, not just
+            //  b_seen_once, so a silent RESTART LEVEL drift-correction (the
+            //  player did nothing) does not print a message about a "change"
+            //  that, from their side, never happened.
             //  ================================================================
-            if ( b_seen_once && isdefined( level.should_use_cia ) )
+            if ( b_seen_once && b_real_change && isdefined( level.should_use_cia ) )
                 self iprintln( "^3[zm_qol] ^7character changed ^3- the scoreboard badge is fixed when the match starts and cannot follow" );
 
             b_seen_once = 1;
@@ -1777,10 +1830,21 @@ qol_opt_hud_watcher()
         //  LEFT, dragging both timers to the other side of the screen the moment
         //  the round number was switched off. OFF anchors RIGHT, the default.
         b_round_left = getdvarintdefault( "hud_round_left", 0 ) == 1;
+        //  v2.3.4 - the round counter re-anchors itself on the RIGHT-anchored
+        //  digit-count inset every round transition (round_hud() calls it on
+        //  every fly-back), but these two timers only got re-anchored above on
+        //  a LEFT/RIGHT flip - so without this they would freeze at whatever
+        //  inset was live the last time hud_round_left changed and drift out
+        //  of alignment with the round counter as the round climbs past a
+        //  digit boundary (9->10, 99->100, ...). Tracked the same way
+        //  b_round_left already is: only write on an actual change.
+        n_round_digits = zmqol_round_digit_count();
 
-        if ( !isdefined( self.qol_round_left_last ) || self.qol_round_left_last != b_round_left )
+        if ( !isdefined( self.qol_round_left_last ) || self.qol_round_left_last != b_round_left ||
+             !isdefined( self.qol_round_digits_last ) || self.qol_round_digits_last != n_round_digits )
         {
             self.qol_round_left_last = b_round_left;
+            self.qol_round_digits_last = n_round_digits;
 
             zmqol_hud_round_anchor( self.qol_hud_timer );
             zmqol_hud_round_anchor( self.qol_hud_roundtimer );
@@ -2152,6 +2216,37 @@ zmqol_minimal()
 //  same reason - neither file references the other, and adding a cross-file
 //  call would be a new load-order dependency for six lines.
 // ============================================================================
+// ============================================================================
+//  v2.3.4 - HOW MANY DIGITS level.round_number IS, NO INVENTED BUILTIN.
+//  No T6 function measures rendered text width offline (checked GSC
+//  Documentation.md and the stock dump - neither has one), and `.size` is
+//  documented for ARRAYS only (GSC Documentation.md:351), never strings, so
+//  it is not used on a round-number string either. This is a plain numeric
+//  comparison ladder instead - twin of quality_of_life.gsc's copy.
+// ============================================================================
+zmqol_round_digit_count()
+{
+    n = 1;
+
+    if ( isdefined( level.round_number ) )
+        n = int( level.round_number );
+
+    if ( n < 10 )
+        return 1;
+    else if ( n < 100 )
+        return 2;
+    else if ( n < 1000 )
+        return 3;
+    else if ( n < 10000 )
+        return 4;
+    else if ( n < 100000 )
+        return 5;
+    else if ( n < 1000000 )
+        return 6;
+
+    return 7;
+}
+
 zmqol_hud_round_anchor( elem )
 {
     if ( !isdefined( elem ) )
@@ -2165,7 +2260,30 @@ zmqol_hud_round_anchor( elem )
     }
     else
     {
+        // ====================================================================
+        //  v2.3.4 - DIGIT-COUNT-AWARE INSET. User, 2026-08-25: round 10000 (5
+        //  digits) runs off the right edge at the old fixed x = 25.
+        //
+        //  🌟 THE PER-DIGIT FIGURE IS MEASURED, NOT GUESSED. timer()'s own
+        //  pixel scan (quality_of_life.gsc, right above timer()'s body) found
+        //  round 100's "100" (3 digits, this exact font/fontscale) 33.67
+        //  hud-units wide - about 11.2 units/digit. 3 digits at x = 25 is the
+        //  baseline that was never reported clipping, so every digit beyond 3
+        //  pulls the anchor back toward screen centre by ~12 units (11.2
+        //  rounded up for margin).
+        //
+        //  🛑 NOT YET VISUALLY CONFIRMED AT ROUND 10000. I cannot measure the
+        //  actual on-screen clearance without seeing it rendered - this is the
+        //  documented fallback for "no way to measure it": a digit-count
+        //  inset, not a text-width one. Tell me if round 10000 still clips or
+        //  now sits too far in and the per-digit constant gets tuned from that.
+        // ====================================================================
+        n_extra_digits = zmqol_round_digit_count() - 3;
+
+        if ( n_extra_digits < 0 )
+            n_extra_digits = 0;
+
         elem.horzalign = "right";
-        elem.x = 25;
+        elem.x = 25 - n_extra_digits * 12;
     }
 }
