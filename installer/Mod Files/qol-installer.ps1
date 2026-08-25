@@ -52,6 +52,14 @@ $STATE    = Join-Path $T6 '_zm_qol_installer'
 # copyable by hand without this script.
 $BACKUPS    = Join-Path $T6 'backups'
 $OLDBACKUPS = Join-Path $STATE 'backups'
+# 🛑 v2.3.0, 2026-08-26 - THE RESHADE VAULT. Not the player's files (those are
+# $BACKUPS above) - this is this installer's OWN persistent copy of the
+# shipped ReShade payload, kept so "Play BO2 with ReShade.bat" (which runs
+# for as long as you're playing, restoring anything Plutonium clears out of
+# its bin on start) has something to restore from even after the downloaded
+# zip is long gone. reshade-watchdog.ps1 computes this exact same path
+# independently - the two must agree, so if you move this, move that too.
+$RESHADEVAULT = Join-Path $STATE 'reshade-vault'
 $LOGFILE  = Join-Path $HERE 'installer.log'
 
 $script:Log = New-Object System.Collections.Generic.List[string]
@@ -172,10 +180,11 @@ function Say {
 
 # --------------------------------------------------------------------- chrome -
 # ---------------------------------------------------------------------------
-#  $script:Quiet is set only while ALL-IN-ONE is running four installs back to
-#  back. It turns the screen into a transcript: no clear between steps, and no
-#  "press any key" after each one, so the four results stay on screen together
-#  and there is a single pause at the end instead of four.
+#  $script:Quiet is set only while ALL-IN-ONE is running its installs back to
+#  back (three, since v2.3.0 pulled ReShade out - see Act-InstallEverything).
+#  It turns the screen into a transcript: no clear between steps, and no
+#  "press any key" after each one, so the results stay on screen together and
+#  there is a single pause at the end instead of one per step.
 # ---------------------------------------------------------------------------
 $script:Quiet = $false
 
@@ -1771,7 +1780,15 @@ function Act-InstallReShade {
         "~preset - half of it cannot run there.",
         '',
         "~Goes to:  $BINDIR",
-        "~Nothing is left running in the background.",
+        '',
+        "!⚠️   PLUTONIUM DELETES THIS EVERY TIME IT STARTS. It clears any file out",
+        "!     of its own bin folder that it does not recognise, and ReShade's",
+        "!     dxgi.dll and presets are exactly that. This install alone will NOT",
+        "!     survive your next Plutonium launch.",
+        "~     What DOES: from now on, double-click  Play BO2 with ReShade.bat  -",
+        "~     it sits next to Windows Install.bat - and leave that window open",
+        "~     the whole time you play. It watches for Plutonium and puts ReShade",
+        "~     straight back the moment it sees Plutonium clear it out.",
         '',
         "!⚠️   YOUR EXISTING ReShade.ini AND PRESETS ARE KEPT AS .backup FILES",
         "~     Shader files you already have are added to, never deleted."
@@ -1815,15 +1832,31 @@ function Act-InstallReShade {
         if ($startPreset -and $startPreset -ne 'BO2.ini') {
             Set-ReShadeValue 'PresetPath' ".\$startPreset"
         }
+
+        # -------------------------------------------------------------------
+        #  v2.3.0 - THE VAULT. "Play BO2 with ReShade.bat" restores from here,
+        #  not from $BINDIR and not from the downloaded zip, so it keeps
+        #  working long after either of those has moved or been deleted. A
+        #  plain mirror is right for this one - unlike Copy-Payload's careful,
+        #  blocklisted sync into the player's own bin, nothing here is the
+        #  player's; it is only ever this installer's own shipped payload.
+        # -------------------------------------------------------------------
+        if (-not $DryRun) {
+            if (-not (Test-Path $RESHADEVAULT)) { New-Item -ItemType Directory -Force -Path $RESHADEVAULT | Out-Null }
+            [void](robocopy $src $RESHADEVAULT /MIR /NFL /NDL /NJH /NJS /NP)
+        }
+
         Write-Host ''
         Say ("✅  {0} installed, starting on the {1} preset." -f $RESHADEVER, $RESHADEPRESETS[$startPreset].Game) $C.Good
         Say "In game: END opens the ReShade menu, Numpad 0 turns the effects off and on," $C.Dim
         Say "and Ctrl+Shift+PgUp / PgDn steps through the four presets." $C.Dim
         Write-Host ''
-        Say "Heads up: Plutonium's launcher clears loose files it does not own out of its" $C.Warn
-        Say "bin folder when it updates itself, and ReShade's dxgi.dll is a loose file" $C.Warn
-        Say "there. If ReShade stops showing up, run this option again - it is a re-copy," $C.Warn
-        Say "not a repair, and it takes a second." $C.Warn
+        Say "!⚠️  PLUTONIUM WILL DELETE THIS AGAIN THE NEXT TIME IT STARTS." $C.Warn
+        Say "From now on, launch with  Play BO2 with ReShade.bat  - it sits next to" $C.Warn
+        Say "Windows Install.bat - and leave that window open the whole time you play." $C.Warn
+        Say "It watches for Plutonium and puts ReShade straight back the moment it sees" $C.Warn
+        Say "Plutonium clear it out. Closing that window does not uninstall anything." $C.Warn
+        Say "Just opening Plutonium directly, like normal, will NOT keep ReShade working." $C.Warn
     }
     Pause-Key
 }
@@ -2034,8 +2067,16 @@ function Act-RemoveReShade {
             Say "Your original $f was put back." $C.Good
         }
     }
+    # v2.3.0 - the vault is this installer's own infra, not the player's data,
+    # so it goes with the rest of ReShade rather than lingering as dead weight.
+    if (Test-Path $RESHADEVAULT) {
+        if (-not $DryRun) { Remove-Item -LiteralPath $RESHADEVAULT -Recurse -Force -ErrorAction SilentlyContinue }
+        Say "Its vault (used by Play BO2 with ReShade.bat) was cleared too." $C.Dim
+    }
     Write-Host ''
     Say "✅  Done." $C.Good
+    Say "Play BO2 with ReShade.bat will say so if you run it now - install ReShade" $C.Dim
+    Say "again first if you want it back." $C.Dim
     Pause-Key
 }
 
@@ -2559,11 +2600,21 @@ function Act-InstallEverything {
 
     $st = Get-Status
     $intro = @(
-        "Installs these four, one after the other:",
-        "~   the mod  ·  HD texture pack  ·  custom sounds  ·  ReShade",
+        "Installs these three, one after the other:",
+        "~   the mod  ·  HD texture pack  ·  custom sounds",
         '',
         "~Controller icons are NOT included - they are a choice between three",
         "~pads, so that row is left for you.",
+        '',
+        #  v2.3.0, 2026-08-26 - RESHADE PULLED OUT OF EVERYTHING. It used to be
+        #  a fourth step here, but a plain copy into Plutonium's bin does not
+        #  survive Plutonium's own launcher wiping unrecognised files out of
+        #  that folder on every start - see Act-InstallReShade. Fixing that
+        #  needs a helper the user has to knowingly leave running while they
+        #  play, which is not something a one-tap "install it all" row should
+        #  spring on someone silently, so it is its own row now.
+        "~ReShade is its own row below - it needs a small helper left running",
+        "~while you play, so it is not bundled into a one-tap install.",
         '',
         "~Any part whose files are not in this download - and cannot be fetched",
         "~from GitHub - is reported and skipped. Nothing else stops.",
@@ -2594,7 +2645,6 @@ function Act-InstallEverything {
         Act-InstallMod     -Pick 0
         Act-InstallImages  -Pick $subPick
         Act-InstallSounds  -Pick $subPick
-        Act-InstallReShade -Pick 0
     }
     finally { $script:Quiet = $wasQuiet }
 
@@ -2602,15 +2652,16 @@ function Act-InstallEverything {
     Draw-Header 'Install everything'
     Say 'Where things stand now:' $C.Text -NoLog
     Write-Host ''
-    #  v2.2.6 - Controller icons are NOT one of the four steps this function
-    #  runs, so listing them here made a green "installed" look like something
-    #  this action had just done - or a grey "not installed" look like it had
+    #  v2.2.6 - Controller icons are NOT one of the steps this function runs,
+    #  so listing them here made a green "installed" look like something this
+    #  action had just done - or a grey "not installed" look like it had
     #  failed. They are reported separately, below, as the choice they are.
+    #  v2.3.0 - ReShade is the same story now: it moved to its own row (see
+    #  Act-InstallEverything's intro), so it is reported the same way.
     $rows = @(
         @{ n='The mod';         v=$st.Mod;     on=$st.ModOn },
         @{ n='HD texture pack'; v=$st.Images;  on=$st.ImagesOn },
-        @{ n='Custom sounds';   v=$st.Sounds;  on=$st.SoundsOn },
-        @{ n='ReShade';         v=$st.ReShade; on=$st.ReShadeOn }
+        @{ n='Custom sounds';   v=$st.Sounds;  on=$st.SoundsOn }
     )
     foreach ($r in $rows) {
         $col = $C.Warn
@@ -2620,11 +2671,13 @@ function Act-InstallEverything {
     Write-Host ''
     if (-not $st.ControllerOn) {
         Say 'Controller icons were not part of this - pick that row if you want them.' $C.Dim -NoLog
-        Write-Host ''
     }
+    Say 'ReShade was not part of this - pick that row if you want it (it needs a' $C.Dim -NoLog
+    Say 'small helper left running while you play).' $C.Dim -NoLog
+    Write-Host ''
     if ($st.ModOn) { Say "Plutonium T6 → Zombies → Mods → $MODNAME" $C.Dim -NoLog }
     else { Say "The mod itself did not install - see Details and log." $C.Bad -NoLog }
-    Write-Log "install everything finished: mod=$($st.ModOn) images=$($st.ImagesOn) sounds=$($st.SoundsOn) reshade=$($st.ReShadeOn)"
+    Write-Log "install everything finished: mod=$($st.ModOn) images=$($st.ImagesOn) sounds=$($st.SoundsOn)"
     Pause-Key
 }
 
@@ -2752,13 +2805,23 @@ function Main-Menu {
         #    * it says plainly when something overwrites, and when it does not;
         #    * no jargon that is not already on the screen.
         #  🛑 "EVERYTHING" DOES NOT INCLUDE THE CONTROLLER ICONS and never has -
-        #  Act-InstallEverything runs mod / textures / sounds / ReShade, four
-        #  steps, and the icons are a personal choice between three pads. The row
-        #  now says so instead of leaving people to find out.
+        #  the icons are a personal choice between three pads. The row now
+        #  says so instead of leaving people to find out.
+        #
+        #  v2.3.0, 2026-08-26 - AND IT NO LONGER INCLUDES RESHADE EITHER.
+        #  Act-InstallEverything now runs mod / textures / sounds, three steps.
+        #  ReShade dropped out for the same reason a plain "run this option
+        #  again" advice was never a real fix: Plutonium's own launcher wipes
+        #  unrecognised files out of its bin folder on every start, so a
+        #  silent one-tap copy would look installed and then quietly stop
+        #  working the moment the user next opened Plutonium. ReShade's own
+        #  row now deploys "Play BO2 with ReShade.bat", a helper the user has
+        #  to knowingly leave running - not something EVERYTHING should spring
+        #  on someone who only wanted the mod.
         # -------------------------------------------------------------------
         $items = @(
-            @{ Key='all';    Section='INSTALL';   Label='EVERYTHING - the whole package'; Status='mod + textures + sounds + ReShade'; StatusColour=$C.Title
-               Hint='Runs the four installs below in order. Controller icons stay your choice.' },
+            @{ Key='all';    Section='INSTALL';   Label='EVERYTHING - the whole package'; Status='mod + textures + sounds'; StatusColour=$C.Title
+               Hint='Runs the three installs below in order. Controller icons and ReShade stay your choice.' },
             @{ Key='mod';    Section='INSTALL';   Label='The mod';               Status=$st.Mod;     StatusColour=$modColour
                Hint='The mod itself - 5 files into Plutonium. This is the only part you actually need.' },
             @{ Key='images'; Section='INSTALL';   Label='HD texture pack';       Status=$st.Images;  StatusColour=$imgColour
@@ -2766,7 +2829,7 @@ function Main-Menu {
             @{ Key='sounds'; Section='INSTALL';   Label='Custom sounds';         Status=$st.Sounds;  StatusColour=$sndColour
                Hint='Remastered weapon audio. Optional. Your real game files are never touched.' },
             @{ Key='reshade';Section='INSTALL';   Label='ReShade + BO2 preset';  Status=$st.ReShade; StatusColour=$rshColour
-               Hint='Post-processing that sharpens the picture and lifts the colour. END opens its menu in game.' },
+               Hint='Post-processing that sharpens the picture and lifts the colour. Needs a small helper left running - see Play BO2 with ReShade.bat.' },
             @{ Key='controller';Section='INSTALL'; Label='Controller icons';      Status=$st.Controller; StatusColour=$dsColour
                Hint='Swaps the on-screen button prompts to PlayStation, Xbox or Switch. Pick one.' },
 

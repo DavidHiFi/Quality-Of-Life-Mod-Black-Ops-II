@@ -370,16 +370,27 @@ LUI.createMenu.Loading = function (f6_arg0)
 	f6_local0.gametypeLabel:registerEventHandler("transition_complete_gametype_fade_in", CoD.Loading.GametypeFadeInComplete)
 	f6_local0:addElement(f6_local0.gametypeLabel)
 	f6_local5 = f6_local5 + f6_local12 + 5
+	-- 🛑 v2.3.1 - DECOMPILER BUG, NOT A STOCK BUG. GetTextDimensions returns
+	-- FOUR separate values (x, y, width, height), never a table - confirmed
+	-- against BO2-Reimagined's own working ui_mp\t6\hud\loading.lua, which
+	-- unpacks all four (its f6_local14_1..4 etc.) and reads width off the
+	-- third. The decompile this file is based on mis-reconstructed every
+	-- multi-return call here as "assign into a pre-built {} table", so the
+	-- single value Lua actually captured (the FIRST return, x) got indexed
+	-- with [3] a moment later - "attempt to index a number value", crashing
+	-- LUI_ERROR: Error processing event: addmenu the instant Loading is
+	-- created, i.e. the moment ANY match is started. User, 2026-08-26, crash
+	-- screenshot: "just clicked start game with my mod loaded for diner and
+	-- got this crash error fix it so it never happens ever again". Full
+	-- traceback measured from Plutonium\console.log, not guessed:
+	-- "ui_mp/T6/HUD/Loading.lua:382: attempt to index a number value".
 	local f6_local13 = Engine.Localize("MPUI_TITLE_CAPS") .. ":"
-	local f6_local14 = {}
-	f6_local14 = GetTextDimensions(f6_local13, f6_local11, f6_local12)
+	local f6_local14_1, f6_local14_2, f6_local14_3, f6_local14_4 = GetTextDimensions(f6_local13, f6_local11, f6_local12)
 	local f6_local15 = Engine.Localize("MPUI_DURATION_CAPS") .. ":"
-	local f6_local16 = {}
-	f6_local16 = GetTextDimensions(f6_local15, f6_local11, f6_local12)
+	local f6_local16_1, f6_local16_2, f6_local16_3, f6_local16_4 = GetTextDimensions(f6_local15, f6_local11, f6_local12)
 	local f6_local17 = Engine.Localize("MPUI_AUTHOR_CAPS") .. ":"
-	local f6_local18 = {}
-	f6_local18 = GetTextDimensions(f6_local17, f6_local11, f6_local12)
-	local f6_local19 = math.max(f6_local14[3], f6_local16[3], f6_local18[3]) + 5
+	local f6_local18_1, f6_local18_2, f6_local18_3, f6_local18_4 = GetTextDimensions(f6_local17, f6_local11, f6_local12)
+	local f6_local19 = math.max(f6_local14_3, f6_local16_3, f6_local18_3) + 5
 	local f6_local20 = 0
 	f6_local0.demoInfoContainer = LUI.UIElement.new()
 	f6_local0.demoInfoContainer:setLeftRight(true, false, f6_local6, 600)
@@ -643,9 +654,12 @@ CoD.Loading.StartLoading = function (f8_arg0, f8_arg1)
 	end
 	if CoD.isZombie == false then
 		local f8_local3 = CoD.Loading.GetDidYouKnowString()
-		local f8_local4 = {}
-		f8_local4 = GetTextDimensions(f8_local3, CoD.Loading.DYKFont, CoD.Loading.DYKFontHeight)
-		if f8_arg0.dykContainer.textAreaWidth < f8_local4[3] then
+		-- 🛑 v2.3.1 - same decompiler bug as the demo-info block above (see the
+		-- note there): GetTextDimensions returns four values, not a table.
+		-- This one only fires on a non-zombies loading screen (the isZombie
+		-- guard above), which is why the Diner crash didn't reach it first.
+		local f8_local4_1, f8_local4_2, f8_local4_3, f8_local4_4 = GetTextDimensions(f8_local3, CoD.Loading.DYKFont, CoD.Loading.DYKFontHeight)
+		if f8_arg0.dykContainer.textAreaWidth < f8_local4_3 then
 			f8_arg0.dykContainer:setTopBottom(true, false, -CoD.Loading.DYKFontHeight, f8_arg0.dykContainer.containerHeight)
 		end
 		f8_arg0.didYouKnow:setText(f8_local3)

@@ -68,15 +68,28 @@ It finds your Wine prefix on its own, and does everything the Windows version do
 
 | | |
 |---|---|
-| 📦 **EVERYTHING** | One row that installs the mod, the HD textures, the sounds and ReShade in one pass — with the same backup offer, asked once. |
+| 📦 **EVERYTHING** | One row that installs the mod, the HD textures and the sounds in one pass — with the same backup offer, asked once. **Not ReShade** — see why below. |
 | 🧟 **The mod** | Install or update it. Asks whether to **keep your menu settings** or start fresh. |
 | 🔎 **Update check** | Pulls the newest release from GitHub. Won't put an older release over a newer build without asking twice. |
 | 🖼️ **HD texture pack** | Optional. Backs up your current textures first if you want. |
 | 🔊 **Custom sound pack** | Optional. Same backup offer. |
-| 🌈 **ReShade** | Optional. Ships **ReShade 6.7.3** and its full shader collection (856 files), plus four presets — one per Plutonium game, all four currently carrying the same BO2 look. In game: **End** opens the menu, **Numpad 0** turns the effects off and on, **Ctrl+Shift+PgUp / PgDn** changes preset. Plutonium's launcher clears loose files out of its own `bin` when it updates, so if ReShade stops appearing, run this option again. |
+| 🌈 **ReShade** | Optional, and its own row — not part of EVERYTHING. Ships **ReShade 6.7.3** and its full shader collection (856 files), plus four presets — one per Plutonium game, all four currently carrying the same BO2 look. In game: **End** opens the menu, **Numpad 0** turns the effects off and on, **Ctrl+Shift+PgUp / PgDn** changes preset. |
 | 🎮 **Controller icons** | Optional, and you pick one: **PlayStation 5**, **Nintendo Switch** or **Xbox One**. The HD texture pack no longer ships any controller art, so the base install leaves the game's own prompts alone and your pick is the only thing that changes them. Same backup offer; picking a different pack swaps it over cleanly. |
 | 💾 **Backups** | Back up your **own** textures, sounds, ReShade setup or mod folder — each on its own — and put them back any time. Kept as plain folders in `storage\t6\backups\`. |
 | 🧹 **Remove any of it** | **EVERYTHING** in one row, or one piece at a time. The mod folder really goes, so it stops showing in the Mods menu. Your game logs are moved to the backups, never deleted. Only deletes what the installer put there, and offers your backup back. |
+
+> [!IMPORTANT]
+> **Plutonium deletes ReShade every time it starts.** It clears any file out of its own `bin`
+> folder that it does not recognise, and that includes ReShade's `dxgi.dll` and its presets — so
+> installing ReShade alone does not survive your next Plutonium launch. That is also why it is not
+> part of **EVERYTHING**: a one-tap install shouldn't silently leave you with something that quietly
+> breaks.
+>
+> **The fix:** the ReShade install also places **`Play BO2 with ReShade.bat`** next to
+> `Windows Install.bat`. Double-click it **instead of** opening Plutonium directly, and leave the
+> window it opens running for as long as you're playing — it watches for Plutonium and puts ReShade
+> straight back the moment it sees Plutonium clear it out. Closing that window doesn't uninstall
+> anything; it just stops watching. *(Windows only for now — see [Known issues](#-known-issues).)*
 
 The texture and sound packs are separate downloads on the [release page](https://github.com/DavidHiFi/zm_qol/releases/latest) because of their size — the installer fetches whichever you say yes to.
 
@@ -182,6 +195,7 @@ Kept here on purpose. Nothing below is hidden in the release notes.
 | 🟠 **Who's Who clone glow is TranZit-only** | The glow needs assets only the Victis crew have. The perk itself works everywhere it ships. |
 | 🟠 **Who's Who is stock on Origins** | The ballistic knife it needs does not exist in any file Origins loads. |
 | ⚪ **Bouncing Betty is not included** | Its viewmodel animations and HUD icon do not exist anywhere to ship. |
+| 🟠 **The ReShade watchdog is Windows-only** | Linux/Wine installs still get a one-shot ReShade copy with no background helper to restore it if Plutonium clears it — the installer's ReShade row says so. Re-run that option if it stops appearing. |
 
 <br>
 
@@ -214,8 +228,15 @@ yours belongs here and is missing, please open an issue and it gets added.
 
 | Who | What |
 |---|---|
-| **sehteria** — *T6-ZM-Expanded* | The mod this one started from. Most of the original root scripts now merged into `quality_of_life.gsc` came from here: BO4 Max Ammo, Instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers and counters, the area notifier, the Cold War round HUD, secret song survival. |
-| **SadSlothXL** | The **Death Machine** power-up — the drop, the weapon swap and its sounds. |
+| **sehteria** — *T6-ZM-Expanded* *(unconfirmed, see below)* | The mod this one started from. Most of the original root scripts now merged into `quality_of_life.gsc` came from here: BO4 Max Ammo, Instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers and counters, the area notifier, the Cold War round HUD, secret song survival. |
+| **SadSlothXL** *(unconfirmed, see below)* | The **Death Machine** power-up — the drop, the weapon swap and its sounds. |
+
+> [!NOTE]
+> Both names above are carried forward from this project's very first credits list, from before
+> anything here was git-tracked. Nobody has since been able to verify either name or a source URL
+> against anything in this workspace — that's a gap in this project's own records, not a claim that
+> the credit is wrong. If either of these is you, or you know the real source, please open an issue
+> so it can be fixed properly.
 
 ### 🔀 Ported or adapted from other mods
 

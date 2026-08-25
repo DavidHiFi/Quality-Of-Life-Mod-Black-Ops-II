@@ -910,6 +910,14 @@ act_reshade() {
     "~     Plutonium with:   WINEDLLOVERRIDES=\"dxgi=n,b\" <your usual command>" \
     "~     or add dxgi as a native override in Lutris / Bottles / winecfg." \
     "" \
+    "!⚠️   PLUTONIUM MAY CLEAR THIS OUT AGAIN ON A LATER START" \
+    "~     On Windows, Plutonium's launcher deletes any file in its own bin" \
+    "~     folder it does not recognise every time it starts, which includes" \
+    "~     ReShade - a background helper (Play BO2 with ReShade.bat) fixes" \
+    "~     that there. This package has no Linux/Wine equivalent of that" \
+    "~     helper yet, so if ReShade stops appearing after a Plutonium" \
+    "~     update or restart, run this option again." \
+    "" \
     "~Your existing ReShade.ini and BO2.ini are kept as .backup files."
   case "$MENU_RESULT" in ""|back) return ;; esac
   local start_preset="$MENU_RESULT"
@@ -1064,9 +1072,24 @@ act_install_everything() {
   MENU_LABELS=("Back up my files first, then install it all" "Install it all without a backup" "Cancel")
   MENU_STATUS=("recommended" "" "")
   MENU_SECTIONS=("" "" "")
+  # v2.3.0, 2026-08-26 - RESHADE PULLED OUT, matching the Windows installer.
+  # A plain copy into Plutonium's bin does not survive Plutonium's own
+  # launcher wiping unrecognised files out of that folder on every start
+  # (verified on Windows via checkpoint 103 §2.3 and the user's own resident
+  # helper script; the same plutonium-bootstrapper-win32 binary runs under
+  # Wine here too, so the same wipe should apply, though that has not been
+  # independently confirmed on Linux). Bundling it into a one-tap EVERYTHING
+  # would repeat the exact "says installed, isn't" lie that was just fixed on
+  # Windows. Windows now ships a background watchdog (Play BO2 with
+  # ReShade.bat); this script does not yet have an equivalent, so ReShade
+  # here is still the one-shot copy act_reshade always did - just no longer
+  # silently bundled into EVERYTHING.
   menu "Install everything" \
     "Installs every part of this package, one after the other:" \
-    "~   the mod  ·  HD texture pack  ·  custom sounds  ·  ReShade" \
+    "~   the mod  ·  HD texture pack  ·  custom sounds" \
+    "" \
+    "~ReShade is its own menu row, not part of this - it needs its own step" \
+    "~and is not guaranteed to survive Plutonium restarting; see that row." \
     "" \
     "~Any part whose files are not in this download - and cannot be fetched" \
     "~from GitHub - is reported and skipped. Nothing else stops." \
@@ -1083,7 +1106,6 @@ act_install_everything() {
   zmqol_pick 0     act_mod
   zmqol_pick "$sub" act_pack images "HD texture pack" "$IMGDIR" "THIS OVERWRITES ANY CUSTOM TEXTURES ALREADY IN THAT FOLDER"
   zmqol_pick "$sub" act_pack zone   "custom sounds"   "$ZONEDIR" "THIS REPLACES ANY CUSTOM SOUNDS ALREADY IN THAT FOLDER"
-  zmqol_pick 0     act_reshade
 
   header "Install everything"
   say "Where things stand now:"
@@ -1091,7 +1113,8 @@ act_install_everything() {
   say "The mod            $(mod_version "$MODDIR/mod.json" 2>/dev/null || echo 'not installed')"
   say "HD texture pack    $( [ -f "$STATE/installed-images.txt" ] && echo installed || echo 'not installed')"
   say "Custom sounds      $( [ -f "$ZONEDIR/${SOUND_FILES[0]}" ] && echo installed || echo 'not installed')"
-  say "ReShade            $( [ -f "$BINDIR/dxgi.dll" ] && echo installed || echo 'not installed')"
+  printf '\n'
+  say "ReShade was not part of this - pick that row if you want it."
   pause_key
 }
 

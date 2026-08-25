@@ -72,6 +72,22 @@ Black Ops II Zombies  ·  Plutonium T6
       effects on purpose. Do not point a DirectX 9 game at the
       BO2 preset - half of it cannot run there.
 
+      ReShade is NOT part of "EVERYTHING - the whole package" -
+      it is its own row, because it needs one more thing:
+
+   ·  PLAY BO2 WITH RESHADE.BAT, next to Windows Install.bat.
+      Plutonium deletes any file in its own bin folder it does
+      not recognise every time it starts, and that includes
+      ReShade. Installing it gets it working right away, but a
+      later Plutonium launch will clear it again on its own.
+
+      Double-click this file INSTEAD OF opening Plutonium
+      directly, and leave the window it opens running for as
+      long as you're playing - it watches for Plutonium and
+      puts ReShade straight back the moment it sees Plutonium
+      clear it out. Closing that window does not uninstall
+      anything; it just stops watching.
+
    ·  Everything can be removed again from the same menu, one
       piece at a time.
 
