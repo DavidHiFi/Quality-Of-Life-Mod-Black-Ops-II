@@ -2484,7 +2484,6 @@ deathmachine_powerup( m_powerup, e_player )
     level.deathmachine_duration = getdvarintdefault( "sv_deathmachine_duration", 30 );
     e_player notify( "end_deathmachine" );
     wait 0.05;
-    e_player playsound( "death_machine" );
     //  v1.99.2: stamp when this run ends, for the power-up timer HUD.
     //  notify_deathmachine_end() below starts its wait on the SAME dvar value in
     //  this same frame, so this end time is what actually ends the power-up -
@@ -13084,19 +13083,28 @@ zmqol_play_feedback_sound( str_dvar, a_pack )
         //  no longer silence the beep, which would be a regression for anyone
         //  who used that switch to get rid of both.
         //  🛑 v1.99.46 - spl_, NOT mpl_. THE DEFAULT ALERT HAS BEEN SILENT ALL
-        //  ALONG, and it is silent the way a missing alias always is: no error,
-        //  no log line, nothing. Dumped every soundbank a zombies map loads with
-        //  the Unlinker - zmb_common, zmb_patch, zmb_code_post_gfx, cmn_root and
-        //  Nuketown's own 10,550-row zmb_nuked_real - and `mpl_hit_alert` is in
-        //  NONE of them. It lives in mpl_common.all, which is multiplayer only.
-        //  The zombies banks carry `spl_hit_alert`, and both rows name the very
-        //  same payload:
-        //        raw\sound\mpl\hit\alert\alert_00.LN65.pc.snd
-        //  so this is a corrected reference to the identical sound, not a
-        //  substitute for it. (spl_hit_alert: bus_fx, grp_weapon, vol 60 - a good
-        //  deal quieter than the packs below, which is Treyarch's own mix.)
-        if ( ( str_dvar == "hit_sound" || str_dvar == "kill_sound" ) && getdvarintdefault( "hitmarkers", 1 ) )
-            self playlocalsound( "spl_hit_alert" );
+        //  ALONG on Mob of the Dead, Die Rise, Buried and Origins - measured
+        //  against Plutonium's own per-map alias tables, `spl_hit_alert` exists
+        //  only on zm_transit and zm_nuked. A missing alias is silent, never an
+        //  error.
+        //  🛑 v2.3.4 - CANNOT BE FIXED BY SHIPPING THE REAL PAYLOAD, AND THAT WAS
+        //  MEASURED, NOT ASSUMED. `spl_hit_alert` is Storage=loaded (its audio is
+        //  packed inside the .sabl binary itself, not a loose file), confirmed by
+        //  dumping the alias row out of both zmb_survival_transit.all and
+        //  zmb_nuked_real.all (byte-identical rows) and out of mpl_common.all
+        //  (where the comment below used to claim the payload "lives") - every
+        //  attempt to pull the actual audio out with the Unlinker returned
+        //  "Could not find data for sound raw\sound\mpl\hit\alert\alert_00...".
+        //  That is a loaded-bank limitation of OpenAssetTools, not something this
+        //  mod's build can route around; only the GUI-only Black Ops II Sound
+        //  Studio can unpack a loaded payload, and that needs a human at the tool.
+        //  So DEFAULT now plays this mod's own pack 1 instead, at the user's own
+        //  choice (2026-08-26) between shipping this behaviour change or leaving
+        //  four maps silent. Anyone who wants a different pack still picks 1..8
+        //  from the SOUND tab exactly as before - only the untouched-row default
+        //  moved.
+        if ( ( str_dvar == "hit_sound" || str_dvar == "kill_sound" ) && getdvarintdefault( "hitmarkers", 1 ) && isdefined( a_pack ) && isdefined( a_pack[1] ) )
+            self playlocalsound( a_pack[1] );
 
         return;
     }
@@ -14786,27 +14794,6 @@ zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc )
     b_perk = attacker hasperk( "specialty_deadshot" );
     b_bullet = meansofdeath == "MOD_PISTOL_BULLET" || meansofdeath == "MOD_RIFLE_BULLET";
     b_head = maps\mp\zombies\_zm_utility::is_headshot( weapon, shitloc, meansofdeath );
-
-    // ====================================================================
-    //  🔬 v1.99.75 PROBE - PRINT ONLY, NO BEHAVIOUR CHANGE.
-    //  User, 2026-08-19: the toggle was flipped through a whole round 25 and
-    //  headshots never doubled. "[zm_qol] better deadshot: damage chain
-    //  installed" IS in their log, so the wrapper runs and one of the tests
-    //  below is the one saying no. This names which instead of guessing.
-    //  Capped at 12 lines a game, and only on a shot that hit a HEAD.
-    //  🛑 DELETE THIS BLOCK once the cause is known.
-    // ====================================================================
-    if ( b_head )
-    {
-        if ( !isdefined( level.zmqol_bd_probe_n ) )
-            level.zmqol_bd_probe_n = 0;
-
-        if ( level.zmqol_bd_probe_n < 12 )
-        {
-            level.zmqol_bd_probe_n++;
-            println( "[zm_qol] bd probe: dvar=" + b_on + " perk=" + b_perk + " bullet=" + b_bullet + " mod=" + meansofdeath + " loc=" + shitloc + " wep=" + weapon + " dmg=" + damage );
-        }
-    }
 
     if ( !b_on || !b_perk || !b_bullet || !b_head )
         return damage;

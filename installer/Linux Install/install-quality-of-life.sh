@@ -122,6 +122,15 @@ BINDIR="$PLUTO/bin"
 STATE="$T6/_zm_qol_installer"
 BACKUPS="$T6/backups"
 OLDBACKUPS="$STATE/backups"
+# 🛑 v2.3.7 - THE RESHADE VAULT, ported from the Windows installer. Not the
+# player's files (those are $BACKUPS above) - this is this installer's OWN
+# persistent copy of the shipped ReShade payload, kept so reshade-watchdog.sh
+# (which runs for as long as you're playing, restoring anything Plutonium
+# clears out of its bin on start) has something to restore from even after
+# the downloaded zip is long gone. reshade-watchdog.sh computes this exact
+# same path independently - the two must agree, so if you move this, move
+# that too.
+VAULT="$STATE/reshade-vault"
 
 # ------------------------------------------------------------------- helpers -
 find_mod_source() {
@@ -875,6 +884,104 @@ set_reshade_font() {
   say "UI font found and set." "$DIM"
 }
 
+# ---------------------------------------------------------------------------
+#  Starts reshade-watchdog.sh. Shared by act_reshade's post-install offer and
+#  the standalone "Start ReShade watchdog only" menu row - one mechanism, not
+#  two copies of it drifting apart, same as the Windows installer's
+#  Start-ReShadeWatchdogProcess.
+#
+#  🛑 THERE IS NO Start-Process HERE. Windows can reliably open a new console
+#  window for any process; Linux has no single universal equivalent - which
+#  terminal emulator exists (gnome-terminal / konsole / xterm / a distro's
+#  x-terminal-emulator alias / a Wayland compositor's own) varies by desktop.
+#  So this tries the common ones in order and is HONEST about which path it
+#  actually took: a real terminal window if one could be opened, or a
+#  background process with its own log file and PID if not - never claims a
+#  window opened when it didn't.
+#
+#  Echoes exactly one of:  terminal:<name>  background:<pid>  missing
+# ---------------------------------------------------------------------------
+start_reshade_watchdog_process() {
+  local script="$HERE/reshade-watchdog.sh"
+  [ -f "$script" ] || { printf 'missing'; return 0; }
+
+  local root_args=()
+  [ -n "$ROOT_OVERRIDE" ] && root_args=(--root "$ROOT_OVERRIDE")
+
+  local term
+  for term in gnome-terminal konsole xfce4-terminal x-terminal-emulator xterm; do
+    if command -v "$term" >/dev/null 2>&1; then
+      case "$term" in
+        gnome-terminal|xfce4-terminal)
+          "$term" -- bash "$script" "${root_args[@]}" >/dev/null 2>&1 &
+          ;;
+        *)
+          "$term" -e bash "$script" "${root_args[@]}" >/dev/null 2>&1 &
+          ;;
+      esac
+      disown 2>/dev/null || true
+      printf 'terminal:%s' "$term"
+      return 0
+    fi
+  done
+
+  # No terminal emulator found - run it detached in the background instead of
+  # not running it at all. Its own log is written next to the installer's.
+  mkdir -p "$STATE"
+  nohup bash "$script" "${root_args[@]}" > "$STATE/reshade-watchdog.log" 2>&1 &
+  local pid=$!
+  disown 2>/dev/null || true
+  printf 'background:%s' "$pid"
+}
+
+act_start_watchdog() {
+  header "ReShade watchdog"
+  local script="$HERE/reshade-watchdog.sh"
+  if [ ! -f "$script" ]; then
+    say "reshade-watchdog.sh is missing from this folder - reinstall from the full download." "$YE"
+    pause_key; return
+  fi
+  say "Starts the small helper that puts ReShade straight back the moment" ""
+  say "Plutonium clears it out of its bin folder. Opens in its own terminal if" ""
+  say "one can be found, or runs in the background otherwise - leave it running" ""
+  say "for as long as you want ReShade to work." ""
+  if [ ! -d "$VAULT" ]; then
+    printf '\n'
+    say "!⚠️   ReShade has not been installed yet - run  ReShade + presets  under" "$YE"
+    say "     INSTALL first." "$YE"
+  fi
+  printf '\n'
+  if [ "$DRYRUN" -eq 1 ]; then say "(dry run - watchdog not started)" "$DIM"; pause_key; return; fi
+
+  MENU_KEYS=(start back)
+  MENU_LABELS=("Start the watchdog now" "Cancel")
+  MENU_STATUS=("recommended" "")
+  MENU_SECTIONS=("" "")
+  menu "ReShade watchdog"
+  case "$MENU_RESULT" in ""|back) return ;; esac
+
+  header "ReShade watchdog"
+  local wr
+  wr="$(start_reshade_watchdog_process)"
+  case "$wr" in
+    terminal:*)
+      log "action: started reshade watchdog standalone (${wr#terminal:})"
+      say "Watchdog started in its own terminal (${wr#terminal:}) - leave it open while you play." "$GN"
+      ;;
+    background:*)
+      log "action: started reshade watchdog standalone (background, pid ${wr#background:})"
+      say "No terminal emulator found to open a visible window, so the watchdog is" "$YE"
+      say "running in the background (pid ${wr#background:}). Its own log is at:" "$YE"
+      say "  $STATE/reshade-watchdog.log" "$DIM"
+      say "Stop it later with:  kill ${wr#background:}" "$DIM"
+      ;;
+    *)
+      say "Couldn't start it." "$RD"
+      ;;
+  esac
+  pause_key
+}
+
 act_reshade() {
   local src
   src="$(find_payload reshade)" || {
@@ -910,13 +1017,14 @@ act_reshade() {
     "~     Plutonium with:   WINEDLLOVERRIDES=\"dxgi=n,b\" <your usual command>" \
     "~     or add dxgi as a native override in Lutris / Bottles / winecfg." \
     "" \
-    "!⚠️   PLUTONIUM MAY CLEAR THIS OUT AGAIN ON A LATER START" \
-    "~     On Windows, Plutonium's launcher deletes any file in its own bin" \
-    "~     folder it does not recognise every time it starts, which includes" \
-    "~     ReShade - a background helper (Play BO2 with ReShade.bat) fixes" \
-    "~     that there. This package has no Linux/Wine equivalent of that" \
-    "~     helper yet, so if ReShade stops appearing after a Plutonium" \
-    "~     update or restart, run this option again." \
+    "!⚠️   PLUTONIUM CLEARS THIS OUT EVERY TIME IT STARTS" \
+    "~     It deletes any file in its own bin folder it does not recognise -" \
+    "~     dxgi.dll and the presets are exactly that, on Linux the same as on" \
+    "~     Windows, because it is the same plutonium-bootstrapper-win32.exe" \
+    "~     doing the clearing, just under Wine. A small watchdog left running" \
+    "~     while you play puts it straight back the moment that happens - see" \
+    "~     reshade-watchdog.sh next to this script. This install offers to" \
+    "~     start it for you once it's done." \
     "" \
     "~Your existing ReShade.ini and BO2.ini are kept as .backup files."
   case "$MENU_RESULT" in ""|back) return ;; esac
@@ -944,10 +1052,83 @@ act_reshade() {
     if [ -n "$keep_shots" ]; then set_ini_value SavePath "$keep_shots"; say "Kept your screenshot folder: $keep_shots" "$DIM"; fi
     if [ -n "$keep_font" ]; then set_ini_value Font "$keep_font"; set_ini_value EditorFont "$keep_font"; say "Kept your overlay font." "$DIM"; else set_reshade_font; fi
     [ "$start_preset" != "BO2.ini" ] && set_ini_value PresetPath ".\\$start_preset"
+
+    # -------------------------------------------------------------------
+    #  v2.3.7 - THE VAULT, ported from the Windows installer. reshade-
+    #  watchdog.sh restores from here, not from $BINDIR and not from the
+    #  downloaded zip, so it keeps working long after either of those has
+    #  moved or been deleted. A plain mirror is right for this one - unlike
+    #  copy_tree's blocklist-aware sync into the player's own bin, nothing
+    #  here is the player's; it is only ever this installer's own shipped
+    #  payload.
+    # -------------------------------------------------------------------
+    if [ "$DRYRUN" -eq 0 ]; then
+      mkdir -p "$VAULT"
+      if command -v rsync >/dev/null 2>&1; then
+        rsync -a --delete "$src"/ "$VAULT"/ >/dev/null 2>&1
+      else
+        rm -rf "${VAULT:?}"/*  2>/dev/null || true
+        cp -a "$src"/. "$VAULT"/
+      fi
+    fi
+
     printf '\n'
     say "✅  ReShade installed, starting on the $(preset_game "$start_preset") preset." "$GN"
     say "Ctrl+Shift+PgUp / PgDn steps between the four presets in game." "$DIM"
     say "Remember the WINEDLLOVERRIDES line above, or it will not load." "$YE"
+    printf '\n'
+    say "!⚠️  PLUTONIUM WILL DELETE THIS AGAIN THE NEXT TIME IT STARTS." "$YE"
+    say "A small watchdog has to stay running while you play to put it straight" "$YE"
+    say "back. It does not touch anything else, and stopping it does not" "$YE"
+    say "uninstall anything - ReShade just stops being restored." "$YE"
+
+    # ---------------------------------------------------------------------
+    #  v2.3.7 - THE INSTALLER OFFERS TO START ITS OWN WATCHDOG, matching
+    #  what Act-InstallReShade does on Windows (see that file's own note).
+    #  See start_reshade_watchdog_process below for how "start" is defined
+    #  on Linux, where there is no single universal way to open a new
+    #  terminal window the way Start-Process does on Windows.
+    # ---------------------------------------------------------------------
+    if [ "$DRYRUN" -eq 1 ]; then
+      say "(dry run - watchdog not started)" "$DIM"
+    elif [ "$HEADLESS" -eq 1 ]; then
+      : # headless / -Action tests never prompt for a second decision
+    else
+      MENU_KEYS=(start later)
+      MENU_LABELS=("Start the watchdog now" "I'll start it myself later")
+      MENU_STATUS=("recommended" "")
+      MENU_SECTIONS=("" "")
+      menu "ReShade watchdog" \
+        "Keeps ReShade in place for as long as you play." \
+        "~Double-click / run  reshade-watchdog.sh  - next to this script -" \
+        "~before you play, if you'd rather start it yourself later."
+      if [ "$MENU_RESULT" = "start" ]; then
+        local wr
+        wr="$(start_reshade_watchdog_process)"
+        header "ReShade"
+        say "✅  ReShade installed, starting on the $(preset_game "$start_preset") preset." "$GN"
+        printf '\n'
+        case "$wr" in
+          terminal:*)
+            log "action: started reshade watchdog from installer (${wr#terminal:})"
+            say "Watchdog started in its own terminal (${wr#terminal:}) - leave it open while you play." "$GN"
+            ;;
+          background:*)
+            log "action: started reshade watchdog from installer (background, pid ${wr#background:})"
+            say "No terminal emulator found to open a visible window, so the watchdog is" "$YE"
+            say "running in the background (pid ${wr#background:}). Its own log is at:" "$YE"
+            say "  $STATE/reshade-watchdog.log" "$DIM"
+            say "Stop it later with:  kill ${wr#background:}" "$DIM"
+            ;;
+          *)
+            say "Couldn't start it. Run  reshade-watchdog.sh  yourself before you play." "$YE"
+            ;;
+        esac
+      else
+        say "OK - start it yourself later with  reshade-watchdog.sh  - next to this" "$DIM"
+        say "script - before you play." "$DIM"
+      fi
+    fi
   else
     say "Copy FAILED." "$RD"
   fi
@@ -1349,17 +1530,19 @@ main_menu() {
     else
       dsst="none - the game's own"
     fi
-    MENU_KEYS=(all mod images sounds reshade controller rall rimages rsounds rreshade rcontroller rmod backups update details quit)
+    MENU_KEYS=(all mod images sounds reshade controller watchdog rall rimages rsounds rreshade rcontroller rmod backups update details quit)
     MENU_LABELS=("EVERYTHING - the whole package" \
                  "The mod" "HD texture pack" "Custom sounds" "ReShade + presets" "Controller icons" \
+                 "Start ReShade watchdog only" \
                  "EVERYTHING - the whole package" \
                  "Remove the HD textures" "Remove the custom sounds" "Remove ReShade" "Remove the controller icons" "Remove the mod" \
                  "Back up / restore my own files" \
                  "Check for a newer version" "Details and log" "Quit")
-    MENU_STATUS=("mod + textures + sounds + ReShade" "$modst" "$imgst" "$sndst" "$rshst" "$dsst" \
+    MENU_STATUS=("mod + textures + sounds + ReShade" "$modst" "$imgst" "$sndst" "$rshst" "$dsst" "" \
                  "textures + sounds + icons + ReShade + mod" "" "" "" "" "" \
                  "$bkst" "" "" "")
     MENU_SECTIONS=("INSTALL" "INSTALL" "INSTALL" "INSTALL" "INSTALL" "INSTALL" \
+                   "PLAY" \
                    "REMOVE" "REMOVE" "REMOVE" "REMOVE" "REMOVE" "REMOVE" \
                    "BACKUP" \
                    "MORE" "MORE" "MORE")
@@ -1381,6 +1564,7 @@ main_menu() {
       sounds)   act_pack zone   "custom sounds"   "$ZONEDIR" "THIS REPLACES ANY CUSTOM SOUNDS ALREADY IN THAT FOLDER" ;;
       reshade)  act_reshade ;;
       controller) act_controller ;;
+      watchdog) act_start_watchdog ;;
       rcontroller) act_remove_pack controller "controller icons" "$IMGDIR" ;;
       rimages)  act_remove_pack images "HD textures"   "$IMGDIR" ;;
       rsounds)  act_remove_pack zone   "custom sounds" "$ZONEDIR" ;;
@@ -1406,6 +1590,7 @@ if [ -n "$ACTION" ]; then
     sounds)   act_pack zone   "custom sounds"   "$ZONEDIR" "THIS REPLACES ANY CUSTOM SOUNDS ALREADY IN THAT FOLDER" ;;
     reshade)  act_reshade ;;
     controller) act_controller ;;
+    watchdog) act_start_watchdog ;;
     rcontroller) act_remove_pack controller "controller icons" "$IMGDIR" ;;
     rimages)  act_remove_pack images "HD textures"   "$IMGDIR" ;;
     rsounds)  act_remove_pack zone   "custom sounds" "$ZONEDIR" ;;

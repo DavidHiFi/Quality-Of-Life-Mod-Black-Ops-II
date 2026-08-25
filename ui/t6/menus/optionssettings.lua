@@ -1153,8 +1153,11 @@ CoD.OptionsSettings.CreateSoundTab = function (SoundTab, LocalClientIndex)
 	local C = CoD.OptionsSettings.QolChoice
 
 	--  1..8 keep the donor mod's own pack numbering so the two cannot drift.
-	--  0 = DEFAULT is this mod's own addition: the mpl_hit_alert it has
-	--  always played. 9 = NO SOUND silences the marker entirely.
+	--  0 = DEFAULT plays pack 1 (v2.3.4) - the old stock spl_hit_alert it tried
+	--  to play before was silent on four of six maps and its payload cannot be
+	--  extracted with this project's tooling; see quality_of_life.gsc's
+	--  zmqol_play_feedback_sound() for the full measurement. 9 = NO SOUND
+	--  silences the marker entirely.
 	local MarkerPacks = {
 		{ "DEFAULT",      0 },
 		{ "COLD WAR",     1 },

@@ -60,7 +60,7 @@ Same download. Open the **`Linux Install`** folder and run:
 bash "install-quality-of-life.sh"
 ```
 
-It finds your Wine prefix on its own, and does everything the Windows version does. Its own `README.txt` covers the one extra step ReShade needs there.
+It finds your Wine prefix on its own, and does everything the Windows version does — including the ReShade watchdog (`reshade-watchdog.sh`, next to the installer). Its own `README.txt` covers the one extra step ReShade needs there.
 
 <br>
 
@@ -74,6 +74,8 @@ It finds your Wine prefix on its own, and does everything the Windows version do
 | 🖼️ **HD texture pack** | Optional. Backs up your current textures first if you want. |
 | 🔊 **Custom sound pack** | Optional. Same backup offer. |
 | 🌈 **ReShade** | Optional, and its own row — not part of EVERYTHING. Ships **ReShade 6.7.3** and its full shader collection (856 files), plus four presets — one per Plutonium game, all four currently carrying the same BO2 look. In game: **End** opens the menu, **Numpad 0** turns the effects off and on, **Ctrl+Shift+PgUp / PgDn** changes preset. |
+| 🐕 **Start ReShade watchdog only** | Its own row, separate from installing ReShade — for when you launch Plutonium yourself and just want the watchdog running alongside it. Same helper the ReShade install offers to start for you. |
+| ▶️ **Play now (LAN, mod already loaded)** | One click straight into Zombies with the mod already running — no Mods menu, no manual pick. LAN/offline only for that session. |
 | 🎮 **Controller icons** | Optional, and you pick one: **PlayStation 5**, **Nintendo Switch** or **Xbox One**. The HD texture pack no longer ships any controller art, so the base install leaves the game's own prompts alone and your pick is the only thing that changes them. Same backup offer; picking a different pack swaps it over cleanly. |
 | 💾 **Backups** | Back up your **own** textures, sounds, ReShade setup or mod folder — each on its own — and put them back any time. Kept as plain folders in `storage\t6\backups\`. |
 | 🧹 **Remove any of it** | **EVERYTHING** in one row, or one piece at a time. The mod folder really goes, so it stops showing in the Mods menu. Your game logs are moved to the backups, never deleted. Only deletes what the installer put there, and offers your backup back. |
@@ -86,10 +88,12 @@ It finds your Wine prefix on its own, and does everything the Windows version do
 > breaks.
 >
 > **The fix:** the ReShade install also places **`Play BO2 with ReShade.bat`** next to
-> `Windows Install.bat`. Double-click it **instead of** opening Plutonium directly, and leave the
-> window it opens running for as long as you're playing — it watches for Plutonium and puts ReShade
-> straight back the moment it sees Plutonium clear it out. Closing that window doesn't uninstall
-> anything; it just stops watching. *(Windows only for now — see [Known issues](#-known-issues).)*
+> `Windows Install.bat` (and offers to start the watchdog for you on the spot). Double-click it
+> **instead of** opening Plutonium directly, and leave the window it opens running for as long as
+> you're playing — it watches for Plutonium and puts ReShade straight back the moment it sees
+> Plutonium clear it out. Closing that window doesn't uninstall anything; it just stops watching.
+> **On Linux**, the same helper ships as `reshade-watchdog.sh` next to the installer — run it the
+> same way, or let the ReShade install start it for you.
 
 The texture and sound packs are separate downloads on the [release page](https://github.com/DavidHiFi/zm_qol/releases/latest) because of their size — the installer fetches whichever you say yes to.
 
@@ -188,14 +192,12 @@ Kept here on purpose. Nothing below is hidden in the release notes.
 
 | Issue | Where you'll see it |
 |---|---|
-| 🟠 **Deadshot Daiquiri's head lock-on is unconfirmed on controller** | The fix shipped in 1.99.61 but has not had a gamepad on it since. The damage bonus and the aim assist both work. |
-| 🟠 **The Diner claymore wall buy is switched off** | It has been placed wrong three times and the shack's wall is not in any file that can be read outside the game. 2.2.7 measures it in game instead; it comes back once those numbers are in. |
-| 🔴 **Origins and Mob of the Dead can crash** | Roughly 20–35 s into a match. Cause never found; not currently being worked on. |
-| 🟠 **Vulture Aid is missing on Origins and TranZit** | Those two maps are out of network space — shipping it there crashes the map at load. The other 11 perks are there. |
-| 🟠 **Who's Who clone glow is TranZit-only** | The glow needs assets only the Victis crew have. The perk itself works everywhere it ships. |
-| 🟠 **Who's Who is stock on Origins** | The ballistic knife it needs does not exist in any file Origins loads. |
-| ⚪ **Bouncing Betty is not included** | Its viewmodel animations and HUD icon do not exist anywhere to ship. |
-| 🟠 **The ReShade watchdog is Windows-only** | Linux/Wine installs still get a one-shot ReShade copy with no background helper to restore it if Plutonium clears it — the installer's ReShade row says so. Re-run that option if it stops appearing. |
+| 🟠 **Deadshot Daiquiri's head lock-on is unconfirmed on controller** | The 1.99.61 fix is now independently re-checked line-for-line against stock's own client handler and matches it exactly — the only thing this mod changes is the damage multiplier, gated behind its own toggle. What's still missing is a gamepad actually on it; nobody has booted with a controller since. |
+| 🟠 **The Diner claymore wall buy has no purchase prompt** | Its *position* is confirmed correct — a real in-game bullet-trace probe measured the wall, floor and mine placement in 2.3.2 and it matches. Looking straight at it on a fresh spawn shows no buy prompt at all, which is a separate, newer bug. A diagnostic probe is already shipped and waiting on the next boot to read its output. |
+| 🔴 **Origins and Mob of the Dead can crash** | Roughly 20–35 s into a match. Four specific causes have been tested and ruled out with hard evidence. The one test that would actually settle it — booting classic Origins with the mod switched off — is designed and has never been run. |
+| 🟠 **Who's Who clone glow only draws on TranZit and Die Rise** | Both use real, unmodified stock assets — nothing invented. The other four maps are hard-blocked, each for a specific measured reason: Nuketown's and Mob's own character models have no glow-capable material anywhere in the game, Origins' has neither the material nor a free `scriptmover` clientfield bit, and Buried's `actor` clientfield set is already completely full. No lookalike is built to paper over any of that. |
+| 🟠 **Who's Who is stock on Origins and Mob of the Dead** | Confirmed again by directly reading both maps' own fastfiles: neither ships a single ballistic-knife asset, where every map that has this feature does. Porting the asset set in from another map's zone is technically possible but has never been attempted — it's a real, unproven job, not a toggle. |
+| ⚪ **Bouncing Betty is not included** | Its assets are real and do exist — in Black Ops II's multiplayer files. They are confirmed absent from every fastfile Zombies itself loads, and Zombies has no equipment-plant mechanic for it to hook into at all. Porting it would mean pulling a weapon's full asset chain across game modes for the first time in this project, plus building a new placed-explosive mechanic from scratch. |
 
 <br>
 
