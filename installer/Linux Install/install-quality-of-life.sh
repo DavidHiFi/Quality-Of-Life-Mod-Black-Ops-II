@@ -593,11 +593,25 @@ menu() {
     IFS= read -rsn1 key || return 1
     case "$key" in
       $'\x1b')
-        read -rsn2 -t 0.01 rest || rest=""
+        # Arrow keys arrive as ESC + 2 more bytes ('[A' / '[B'), not as one
+        # atomic keypress the way Windows' [Console]::ReadKey() delivers them -
+        # this script has to tell "Escape alone" from "Escape, then an arrow"
+        # itself, by racing a short read against whatever follows.
+        # 🛑 THIS WAS 0.01s (10ms) AND THAT WAS THE BUG: a real user report
+        # ("menu appears, arrow keys don't work") traced to it - on some
+        # terminals/pty setups the 2 bytes after ESC don't land inside a 10ms
+        # window, so every arrow press read as a bare Escape and silently
+        # backed out of the menu. 0.1s is still imperceptible to a human
+        # pressing a key but comfortably survives realistic latency.
+        # Also: don't force rest="" on a timeout (the old `|| rest=""`) - that
+        # discarded a partially-read sequence and misread it as plain Escape
+        # too. Only a genuine standalone Escape reads zero bytes here.
+        IFS= read -rsn2 -t 0.1 rest
         case "$rest" in
           '[A') cur=$(( (cur - 1 + n) % n )) ;;
           '[B') cur=$(( (cur + 1) % n )) ;;
           '')   MENU_RESULT=""; return 0 ;;
+          *)    : ;;   # partial/unrecognised sequence - ignore, redraw
         esac
         ;;
       "")   MENU_RESULT="${MENU_KEYS[$cur]}"; return 0 ;;
