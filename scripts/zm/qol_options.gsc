@@ -241,6 +241,20 @@ init()
     //  stock's own 30-second per-zombie loop, so it is live mid-match too.
     qol_opt_dvar( "no_bleedout", "0" );
 
+    //  v2.7.0 - NO LAVA DAMAGE, user request 2026-08-28, the PATCHES tab.
+    //  TranZit-family maps only (Classic TranZit, Diner, Farm, Town, Bus Depot -
+    //  all share mapname "zm_transit", told apart only by ui_zm_mapstartlocation).
+    //  OFF (0) = stock: lava still ignites/explodes zombies and damages players.
+    //  ON (1) = lava stays visible on the ground but does nothing - the ground
+    //  fx/material are a separate system this never touches.
+    //  Read live on every lava trigger event by
+    //  scripts\zm\zm_transit\zm_transit.gsc::qol_lava_damage_think(), which
+    //  replaces maps\mp\zm_transit_lava::lava_damage_init() - see that file for
+    //  why that is the one safe hook point (player_lava_damage/zombie_lava_damage
+    //  are both called unqualified, same file, in stock - not replaceFunc-able
+    //  directly). Live in both directions mid-match, not just at map load.
+    qol_opt_dvar( "no_lava_damage", "0" );
+
     // ------------------------------------------------------------------------
     //  v1.99.91 - NO BOX LIMITS (was BOX LIMITS, v1.99.83, queue item 30).
     //

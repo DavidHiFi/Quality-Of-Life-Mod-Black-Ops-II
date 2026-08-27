@@ -1902,9 +1902,20 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 
 	T(QolPatchesButtons, LocalClientIndex, "SLIQUIFIER PRE-NERF", "sliquifier_prenerf",  "Die Rise. Sliquifier kills to round 255, chains while put away, and leaves no extra goo.")
 
+	-- ========================================================================
+	--  v2.7.0 - NO LAVA DAMAGE. User, 2026-08-28: *"add an option ... that lets
+	--  you turn off the lava in-game, it'll still obviously be visible on the
+	--  ground and what not, but zombies wont be able to be lit on fire and
+	--  explode once shot/killed, and the player will no longer take damage from
+	--  standing on any pits of lava."* TranZit-family only (Classic TranZit,
+	--  Diner, Farm, Town, Bus Depot). Shown on every map, same as the other
+	--  map-specific rows on this tab (SLIQUIFIER PRE-NERF above).
+	-- ========================================================================
+	T(QolPatchesButtons, LocalClientIndex, "NO LAVA DAMAGE",     "no_lava_damage",      "TranZit maps. Lava stays visible but stops igniting/exploding zombies and stops damaging you.")
+
 	-- 🛑 STALE COUNT FIXED 2026-08-27 - said "9 total"; NO BLEEDOUT PATCH (v2.2.0)
 	-- was added without updating it. Recounted directly against the T() calls.
-	return QolPatchesContainer                                      -- 10 total
+	return QolPatchesContainer                                      -- 11 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)
