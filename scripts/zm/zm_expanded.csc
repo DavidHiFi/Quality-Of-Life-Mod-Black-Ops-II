@@ -1547,7 +1547,16 @@ zmqol_vulture_marker_enabled()
 {
 	map = getDvar( "mapname" );
 
-	if ( map == "zm_buried" || map == "zm_tomb" || map == "zm_transit" )
+	if ( map == "zm_buried" || map == "zm_tomb" )
+		return 0;
+
+	//  🛑 v2.7.1 - MUST MATCH THE SERVER TWIN EXACTLY, see
+	//  maps\mp\zombies\_zm_perk_vulture.gsc for the reasoning. Was
+	//  "map == zm_transit", which excluded every TranZit-family survival
+	//  location along with classic - only classic actually lacks the bits.
+	if ( map == "zm_transit" &&
+		getDvar( "ui_zm_mapstartlocation" ) == "transit" &&
+		getDvar( "ui_gametype" ) != "zstandard" && getDvar( "ui_gametype" ) != "zgrief" )
 		return 0;
 
 	return 1;

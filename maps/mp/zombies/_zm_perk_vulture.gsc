@@ -306,7 +306,21 @@ zmqol_vulture_marker_enabled()
 {
     map = getdvar( "mapname" );
 
-    if ( map == "zm_buried" || map == "zm_tomb" || map == "zm_transit" )
+    if ( map == "zm_buried" || map == "zm_tomb" )
+        return 0;
+
+    //  🛑 v2.7.1 - WAS "map == zm_transit", WHICH EXCLUDED EVERY TRANZIT-FAMILY
+    //  SURVIVAL LOCATION TOO. User, 2026-08-28: the Vulture Aid Wunderfizz icon
+    //  shows on Nuketown but not on Town. Diner/Farm/Town/Bus Depot all share
+    //  mapname "zm_transit" with classic TranZit, but the perk ITSELF is only
+    //  off on classic (see zmqol_vulture_enabled() in quality_of_life.gsc, the
+    //  same test, copied verbatim so the two can never disagree about which
+    //  locations have the perk vs. which have the marker) - the marker gate had
+    //  never been updated to match when v1.84.0/v1.89.0 narrowed the perk gate
+    //  from "all zm_transit" down to "classic only".
+    if ( map == "zm_transit" &&
+         getdvar( "ui_zm_mapstartlocation" ) == "transit" &&
+         getdvar( "ui_gametype" ) != "zstandard" && getdvar( "ui_gametype" ) != "zgrief" )
         return 0;
 
     return 1;
