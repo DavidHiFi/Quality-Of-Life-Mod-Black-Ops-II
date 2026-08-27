@@ -1237,11 +1237,10 @@ zmqol_add_claymore_wallbuy()
 //  only this one stub is moved.
 //
 //  📝 STILL MEASURED, NOT ASSUMED WORKING: this prints exactly what state the
-//  stub was in before the fix (in_zone / whether that zone was active) via
-//  BOTH println (console_zm.log) and iprintln (on the player's own screen,
-//  the same channel .where uses) - console logs on this box rotate out fast
-//  once a session ends, so the on-screen line is the one to screenshot if
-//  this still needs a second look.
+//  stub was in before the fix (in_zone / whether that zone was active) to
+//  console_zm.log. The on-screen half of this (iprintln) was removed in
+//  v2.6.7 now the fix is confirmed - see the v2.6.7 note above
+//  zmqol_fix_claymore_zone_gate().
 // ============================================================================
 // ============================================================================
 //  🌟 v2.5.5/v2.5.7 - JUGG'S CORNER, MEASURED, THEN SUPERSEDED BY THE REAL
@@ -1261,17 +1260,18 @@ zmqol_add_claymore_wallbuy()
 // ============================================================================
 zmqol_fix_claymore_zone_gate()
 {
-	// v2.4.0: was a flat "wait 3;". Boot-tested 2026-08-26 - claymore still
-	// unpurchasable, and the player saw NEITHER of this function's two
-	// iprintln banners (success or "no trigger_stub at all"). Of this
-	// function's three exit paths, exactly one has no iprintln at all: the
-	// level._spawned_wallbuys-still-undefined bailout below, println-only by
-	// design at the time. Seeing literally nothing on screen is the exact
-	// signature of THAT branch, so a fixed 3s probably isn't long enough for
-	// stock's init_spawnable_weapon_upgrade() to have run yet on this map -
-	// not re-guessing the zone theory, just giving the poll the time it needs
-	// and making every exit path visible on screen so the next boot proves
-	// which branch actually ran, instead of leaving this one silent again.
+	// v2.4.0: was a flat "wait 3;", found too short by a boot-tested case
+	// where init_spawnable_weapon_upgrade() hadn't registered the stub yet.
+	// Polls instead, up to 15s.
+	//
+	// 🛑 v2.6.7 - ALL ON-SCREEN TROUBLESHOOTING TEXT REMOVED. User, screenshot,
+	// 2026-08-27: "this weird shit keeps popping up on the screen in diner,
+	// the claymore issue is already solved so remove that, that was for
+	// troubleshooting earlier." Every iprintln() this fix and
+	// zmqol_claymore_trigger_watch() below used to show the player (the
+	// per-tick "d2d=... rad=... zd=... qual=..." readout especially) is gone;
+	// the console-only println() breadcrumbs stay, same as every other solved
+	// feature in this file (e.g. the semtex wallbuy's own struct-spawn log).
 	n_waited = 0;
 
 	while ( !isdefined( level._spawned_wallbuys ) && n_waited < 15 )
@@ -1283,12 +1283,6 @@ zmqol_fix_claymore_zone_gate()
 	if ( !isdefined( level._spawned_wallbuys ) )
 	{
 		println( "[zm_qol] CLAYMORE FIX: level._spawned_wallbuys still undefined after " + n_waited + "s - init_spawnable_weapon_upgrade() never ran" );
-
-		players = get_players();
-
-		if ( players.size > 0 )
-			players[0] iprintln( "^1[zm_qol] ^7claymore: _spawned_wallbuys never appeared after " + n_waited + "s - report this exact line" );
-
 		return;
 	}
 
@@ -1305,15 +1299,9 @@ zmqol_fix_claymore_zone_gate()
 		}
 	}
 
-	players = get_players();
-
 	if ( !isdefined( stub ) )
 	{
 		println( "[zm_qol] CLAYMORE FIX: no trigger_stub found for claymore_purchase - init_spawnable_weapon_upgrade() did not register one, this is a different bug" );
-
-		if ( players.size > 0 )
-			players[0] iprintln( "^1[zm_qol] ^7claymore: no trigger_stub at all - report this exact line" );
-
 		return;
 	}
 
@@ -1385,12 +1373,6 @@ zmqol_fix_claymore_zone_gate()
 	// the engine checks, not a proxy for it.
 	println( "[zm_qol] CLAYMORE FIX: test_radius=" + int( sqrt( stub.test_radius_sq ) ) + " (test_radius_sq=" + int( stub.test_radius_sq ) + ") stub.origin.z=" + int( stub.origin[2] ) );
 
-	if ( players.size > 0 )
-	{
-		p = players[0];
-		p iprintln( "^3[zm_qol] ^7claymore: zone " + str_zone + " active=" + b_was_active + " -> now always-live. current_placeable_mine=" + p.current_placeable_mine + " score=" + p.score + " has_powerup=" + isdefined( p.has_powerup_weapon ) );
-	}
-
 	// v2.4.0: mechanically, this SHOULD now be enough - _zm_unitrigger::main()'s
 	// own loop (:446) only requires stub.registered to be true to spawn a live
 	// per-player trigger, and reregister_unitrigger_as_dynamic() just set that.
@@ -1434,20 +1416,10 @@ zmqol_claymore_trigger_watch( stub )
 		{
 			str_line = "[zm_qol] CLAYMORE WATCH: t=" + i + "s dist3d=" + int( d ) + " dist2d=" + int( sqrt( d_2d_sq ) ) + " test_radius=" + int( sqrt( stub.test_radius_sq ) ) + " zdiff=" + int( n_zdiff ) + " would_qualify=" + b_would_qualify + " live_trigger=" + b_live + " placeable_mine=" + p is_player_placeable_mine( "claymore_zm" );
 			println( str_line );
-
-			// v2.4.5 - console_zm.log has now frozen at the same early load-time
-			// point on THREE separate boots in a row (checkpoints 115/117/118),
-			// every time before any watch tick could reach it, regardless of how
-			// long the match actually ran. Stop trusting it for anything past the
-			// first couple of seconds and put the same line on screen instead, so
-			// a screenshot is all that is needed.
-			p iprintln( "^5[zm_qol] ^7d2d=" + int( sqrt( d_2d_sq ) ) + " rad=" + int( sqrt( stub.test_radius_sq ) ) + " zd=" + int( n_zdiff ) + " qual=" + b_would_qualify );
 		}
 
 		if ( b_live )
 		{
-			p iprintln( "^2[zm_qol] ^7claymore: live trigger built, dist=" + int( d ) + " placeable_mine=" + p is_player_placeable_mine( "claymore_zm" ) );
-
 			// 🌟 v2.6.1 - THE REAL FIX. v2.5.9's diagnostic (can_buy_weapon=1,
 			// is_drinking=0, every tick, while touching_vending=
 			// specialty_armorvest persisted and mine stayed 0) ruled out every
@@ -1487,10 +1459,7 @@ zmqol_claymore_trigger_watch( stub )
 		}
 	}
 
-	players = get_players();
-
-	if ( players.size > 0 )
-		players[0] iprintln( "^1[zm_qol] ^7claymore: no live trigger ever appeared in 45s near the stub" );
+	println( "[zm_qol] CLAYMORE WATCH: no live trigger ever appeared in 45s near the stub" );
 }
 
 zmqol_claymore_manual_buy_watch( stub )
