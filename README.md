@@ -16,7 +16,7 @@ A quality-of-life overhaul for **Black Ops II Zombies** on **Plutonium T6**.
 
 <img src="https://img.shields.io/github/v/release/DavidHiFi/zm_qol?style=flat-square&label=version&color=5865F2&labelColor=161B22">
 <img src="https://img.shields.io/github/downloads/DavidHiFi/zm_qol/total?style=flat-square&label=downloads&color=5865F2&labelColor=161B22">
-<img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-5865F2?style=flat-square&labelColor=161B22">
+<img src="https://img.shields.io/badge/platform-Windows-5865F2?style=flat-square&labelColor=161B22">
 <img src="https://img.shields.io/badge/install-one%20click-5865F2?style=flat-square&labelColor=161B22">
 
 </div>
@@ -54,16 +54,10 @@ Move with the **arrow keys**, choose with **ENTER**, quit with **Q**.
 
 ### 🐧 Linux · Wine · Proton · Lutris · Bottles
 
-Same download. Open the **`Linux Install`** folder and run:
-
-```bash
-bash "install-quality-of-life.sh"
-```
-
-It finds your Wine prefix on its own and mirrors the Windows menu — install, update, texture/sound packs, ReShade, controller icons, backups — including the ReShade watchdog (`reshade-watchdog.sh`, next to the installer). Its own `README.txt` covers the one extra step ReShade needs there.
-
-> [!NOTE]
-> **One Windows-only row: "Play now (LAN, mod already loaded)".** It launches Plutonium's bootstrapper directly with a fixed set of arguments, which isn't something that can be done the same way through Wine/Proton/Lutris/Bottles without knowing which one you're running and how it expects to be launched. Pick **Quality Of Life** from the Mods menu instead — same result, one extra click.
+There is no automated installer for Linux — it was dropped, not just unmaintained, because it never
+worked reliably enough to keep supporting. Install by hand instead: see **"Rather install it by
+hand?"** below. It's the same three steps as any other Plutonium mod — copy the `zm_qol` folder into
+`storage\t6\mods\` inside your Plutonium prefix and launch from the Mods menu.
 
 <br>
 
@@ -78,7 +72,7 @@ It finds your Wine prefix on its own and mirrors the Windows menu — install, u
 | 🔊 **Custom sound pack** | Optional. Same backup offer. |
 | 🌈 **ReShade** | Optional, and its own row — not part of EVERYTHING. Ships **ReShade 6.7.3** and its full shader collection (856 files), plus four presets — one per Plutonium game, all four currently carrying the same BO2 look. In game: **End** opens the menu, **Numpad 0** turns the effects off and on, **Ctrl+Shift+PgUp / PgDn** changes preset. |
 | 🐕 **Start ReShade watchdog only** | Its own row, separate from installing ReShade — for when you launch Plutonium yourself and just want the watchdog running alongside it. Same helper the ReShade install offers to start for you. |
-| ▶️ **Play now (LAN, mod already loaded)** — *Windows only* | One click straight into Zombies with the mod already running — no Mods menu, no manual pick. LAN/offline only for that session. |
+| ▶️ **Play now (LAN, mod already loaded)** | One click straight into Zombies with the mod already running — no Mods menu, no manual pick. LAN/offline only for that session. |
 | 🎮 **Controller icons** | Optional, and you pick one: **PlayStation 5**, **Nintendo Switch** or **Xbox One**. The HD texture pack no longer ships any controller art, so the base install leaves the game's own prompts alone and your pick is the only thing that changes them. Same backup offer; picking a different pack swaps it over cleanly. |
 | 💾 **Backups** | Back up your **own** textures, sounds, ReShade setup or mod folder — each on its own — and put them back any time. Kept as plain folders in `storage\t6\backups\`. |
 | 🧹 **Remove any of it** | **EVERYTHING** in one row, or one piece at a time. The mod folder really goes, so it stops showing in the Mods menu. Your game logs are moved to the backups, never deleted. Only deletes what the installer put there, and offers your backup back. |
@@ -95,8 +89,6 @@ It finds your Wine prefix on its own and mirrors the Windows menu — install, u
 > **instead of** opening Plutonium directly, and leave the window it opens running for as long as
 > you're playing — it watches for Plutonium and puts ReShade straight back the moment it sees
 > Plutonium clear it out. Closing that window doesn't uninstall anything; it just stops watching.
-> **On Linux**, the same helper ships as `reshade-watchdog.sh` next to the installer — run it the
-> same way, or let the ReShade install start it for you.
 
 The texture and sound packs are separate downloads on the [release page](https://github.com/DavidHiFi/zm_qol/releases/latest) because of their size — the installer fetches whichever you say yes to.
 

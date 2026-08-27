@@ -93,7 +93,6 @@ Optionals/
 
 # The installer writes its own run log next to itself.
 installer/installer.log
-installer/Linux Install/installer.log
 
 # A 1.1 GB zip of Optionals\ - never belongs in git (GitHub rejects >100 MB files).
 Optionals.zip

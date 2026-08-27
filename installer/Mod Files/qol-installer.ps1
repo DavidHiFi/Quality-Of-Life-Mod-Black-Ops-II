@@ -1930,6 +1930,23 @@ function Act-InstallReShade {
         else            { Set-ReShadeFont $src }
 
         # -------------------------------------------------------------------
+        #  v2.6.9 - STRAY ADD-ON BINARIES REMOVED. Plutonium's bin folder is
+        #  shared across every game it supports (see reshade-watchdog.ps1's
+        #  own $ProcNames list), and a *.addon32/*.addon64 can land there from
+        #  something other than this installer - this mod's own shipped
+        #  'reshade' payload has never contained one (checked: dxgi.dll +
+        #  four presets + reshade-shaders, nothing else). Plutonium's ReShade
+        #  has no add-on API support regardless of source, so any that turn up
+        #  are dead weight and are cleared here rather than left to linger.
+        # -------------------------------------------------------------------
+        $strayAddons =  @(Get-ChildItem -LiteralPath $BINDIR -File -Filter '*.addon32' -ErrorAction SilentlyContinue)
+        $strayAddons += @(Get-ChildItem -LiteralPath $BINDIR -File -Filter '*.addon64' -ErrorAction SilentlyContinue)
+        foreach ($a in $strayAddons) {
+            if (-not $DryRun) { Remove-Item -LiteralPath $a.FullName -Force -ErrorAction SilentlyContinue }
+            Say "Removed unsupported ReShade add-on: $($a.Name) (Plutonium's ReShade has no add-on support)." $C.Dim
+        }
+
+        # -------------------------------------------------------------------
         #  v2.3.0 - THE VAULT. reshade-watchdog.ps1 restores from here, not
         #  from $BINDIR and not from the downloaded zip, so it keeps working
         #  long after either of those has moved or been deleted. A plain

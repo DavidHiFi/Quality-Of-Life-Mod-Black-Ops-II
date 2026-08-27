@@ -7,8 +7,11 @@ Black Ops II Zombies  ·  Plutonium T6
 
    Windows      Double-click   Windows Install.bat
 
-   Linux        Open the "Linux Install" folder and read the
-                README.txt in there.
+   Linux        No installer script - Wine/Proton/Lutris/Bottles users
+                install by hand. See "Rather install it by hand?" in
+                the README on GitHub, or just: copy the "zm_qol" folder
+                from "Mod Files" into storage\t6\mods\ inside your
+                Plutonium prefix.
 
    Then pick what you want from the menu. That is the whole thing.
 
