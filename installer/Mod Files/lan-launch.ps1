@@ -89,6 +89,21 @@ Write-Host "  Starting BO2 Zombies in LAN mode with '$Mod' loaded..." -Foregroun
 Write-Host '  Offline only this session - no online servers or stats.' -ForegroundColor Yellow
 Write-Host ''
 
+#  🛑 v2.3.8 - INVESTIGATED A CRASH HERE, ARGUMENTS TURNED OUT NOT TO BE IT.
+#  User hit exception 0x80000003 (frozen thread, no GSC ever ran) right after
+#  "bound socket to localhost:4976" in console_zm.log. Web search surfaced a
+#  differently-ordered invocation ('-lan -offline +set name ... t6zm <path>
+#  +set fs_game ...', flags before t6zm) from other Plutonium builds/tools,
+#  and it was tried here - but DIRECT TESTING on this machine (running the
+#  bootstrapper synchronously and capturing its own output) showed that
+#  reordering throws an immediate "invalid application specified" and never
+#  even starts, while THIS original order launches cleanly - confirmed with
+#  a real game window ("Plutonium T6 Zombies (r5346) (LAN)") that reached
+#  well past the socket-bind point where the crash happened, with no repeat
+#  of the crash. So the argument order/flags were never the cause - reverted
+#  to the form that is now verified to work. The original crash's real cause
+#  is still unexplained; it did not reproduce on retest and is suspected
+#  transient (see checkpoint). If it recurs, that rules out this script.
 $gameArgs = @('t6zm', ('"' + $t6Path.TrimEnd('\') + '"'), '+name', ('"' + $LanName + '"'), '-lan',
               '+set', 'fs_game', ('"mods/' + $Mod + '"'))
 

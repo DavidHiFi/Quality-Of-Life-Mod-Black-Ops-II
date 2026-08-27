@@ -1317,9 +1317,13 @@ CoD.OptionsSettings.QolNoArchive = {
 	end_round = true,
 	-- v1.99.93 - the two new CHEATS rows. set_points holds its value in a match
 	-- BY DESIGN (see the row), but an archived 1000000 would hand out a million
-	-- points on the next launch, and an archived teleport would fire on map load.
+	-- points on the next launch. teleport (v2.4.2: now a pure selector, same
+	-- shape as set_points) is kept out for the same reason as set_points -
+	-- an archived destination index means nothing on a different map anyway.
+	-- execute_teleport is the actual action - an archived 1 would fire on load.
 	set_points = true,
-	teleport = true
+	teleport = true,
+	execute_teleport = true
 }
 
 CoD.OptionsSettings.QolArchive = function (DvarName)
@@ -1642,7 +1646,11 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- Removing the last row left a TRAILING spacer, which is the same layout
 	-- fault as two spacers touching. It went with the row.
 
-	return QolContainer                              -- 11 rows + 1 spacer = 11.5
+	-- 🛑 STALE COUNT FIXED 2026-08-27 - this said "11 rows + 1 spacer = 11.5" from
+	-- v2.1.2 onward, three additions behind: BETTER SPEED COLA (v2.2.0),
+	-- NO BOX LIMITS and CUSTOM POWER-UPS (v1.99.83) never updated it. Recounted
+	-- directly against the T() calls above, not against the old comment.
+	return QolContainer                              -- 14 rows + 1 spacer = 14.5
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
@@ -1914,7 +1922,9 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 
 	T(QolPatchesButtons, LocalClientIndex, "SLIQUIFIER PRE-NERF", "sliquifier_prenerf",  "Die Rise. Sliquifier kills to round 255, chains while put away, and leaves no extra goo.")
 
-	return QolPatchesContainer                                      -- 9 total
+	-- 🛑 STALE COUNT FIXED 2026-08-27 - said "9 total"; NO BLEEDOUT PATCH (v2.2.0)
+	-- was added without updating it. Recounted directly against the T() calls.
+	return QolPatchesContainer                                      -- 10 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)
@@ -2035,8 +2045,13 @@ CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientInde
 	--  quality_of_life.gsc::zmqol_teleport_dest(), and the two lists must stay in
 	--  the same order. They are written next to each other for that reason.
 	--
-	--  📝 It is an ACTION row: GSC teleports and writes the dvar back to 0, so it
-	--  snaps to OFF and the same destination can be picked twice in a row.
+	--  🛑 v2.4.2 - NO LONGER AN ACTION ROW BY ITSELF. User, 2026-08-26: cycling
+	--  through destinations here was firing the teleport as soon as it left the
+	--  pause menu, with no separate confirm step - unlike the Strat Tester's own
+	--  menu (optionsstrattester.lua:240-293), which has this exact selector PLUS
+	--  a separate "EXECUTE TELEPORT" button. This row now only HOLDS the picked
+	--  destination (same shape as SET POINTS); the EXECUTE TELEPORT row right
+	--  below is what actually moves the player. See zmqol_teleport_watch().
 	-- ========================================================================
 	local ZmMap = UIExpression.DvarString(nil, "mapname")
 	local ZmTele = nil
@@ -2058,11 +2073,18 @@ CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientInde
 
 	if ZmTele ~= nil then
 		CoD.OptionsSettings.QolChoice(QolCheatsButtons, LocalClientIndex, "TELEPORT", "teleport",
-			"Jump to a landmark on this map. Returns to OFF once it fires.", ZmTele)
+			"Pick a landmark on this map, then use EXECUTE TELEPORT below to jump there.", ZmTele)
+
+		T(QolCheatsButtons, LocalClientIndex, "EXECUTE TELEPORT", "execute_teleport",
+			"Teleport to the destination picked above. Returns to OFF once it fires.")
 	end
 
 
-	return QolCheatsContainer                                      -- 12 total
+	-- 🛑 STALE COUNT FIXED 2026-08-27 - said "12 total"; SET POINTS (v1.99.93) was
+	-- added without updating it. Recounted directly: 11 rows always present
+	-- (GOD MODE..SET POINTS) + TELEPORT/EXECUTE TELEPORT on every map except
+	-- Nuketown, which has no landmark list (see ZmTele above).
+	return QolCheatsContainer                        -- 13 total, 11 on Nuketown
 end
 
 LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)

@@ -60,7 +60,10 @@ Same download. Open the **`Linux Install`** folder and run:
 bash "install-quality-of-life.sh"
 ```
 
-It finds your Wine prefix on its own, and does everything the Windows version does — including the ReShade watchdog (`reshade-watchdog.sh`, next to the installer). Its own `README.txt` covers the one extra step ReShade needs there.
+It finds your Wine prefix on its own and mirrors the Windows menu — install, update, texture/sound packs, ReShade, controller icons, backups — including the ReShade watchdog (`reshade-watchdog.sh`, next to the installer). Its own `README.txt` covers the one extra step ReShade needs there.
+
+> [!NOTE]
+> **One Windows-only row: "Play now (LAN, mod already loaded)".** It launches Plutonium's bootstrapper directly with a fixed set of arguments, which isn't something that can be done the same way through Wine/Proton/Lutris/Bottles without knowing which one you're running and how it expects to be launched. Pick **Quality Of Life** from the Mods menu instead — same result, one extra click.
 
 <br>
 
@@ -75,7 +78,7 @@ It finds your Wine prefix on its own, and does everything the Windows version do
 | 🔊 **Custom sound pack** | Optional. Same backup offer. |
 | 🌈 **ReShade** | Optional, and its own row — not part of EVERYTHING. Ships **ReShade 6.7.3** and its full shader collection (856 files), plus four presets — one per Plutonium game, all four currently carrying the same BO2 look. In game: **End** opens the menu, **Numpad 0** turns the effects off and on, **Ctrl+Shift+PgUp / PgDn** changes preset. |
 | 🐕 **Start ReShade watchdog only** | Its own row, separate from installing ReShade — for when you launch Plutonium yourself and just want the watchdog running alongside it. Same helper the ReShade install offers to start for you. |
-| ▶️ **Play now (LAN, mod already loaded)** | One click straight into Zombies with the mod already running — no Mods menu, no manual pick. LAN/offline only for that session. |
+| ▶️ **Play now (LAN, mod already loaded)** — *Windows only* | One click straight into Zombies with the mod already running — no Mods menu, no manual pick. LAN/offline only for that session. |
 | 🎮 **Controller icons** | Optional, and you pick one: **PlayStation 5**, **Nintendo Switch** or **Xbox One**. The HD texture pack no longer ships any controller art, so the base install leaves the game's own prompts alone and your pick is the only thing that changes them. Same backup offer; picking a different pack swaps it over cleanly. |
 | 💾 **Backups** | Back up your **own** textures, sounds, ReShade setup or mod folder — each on its own — and put them back any time. Kept as plain folders in `storage\t6\backups\`. |
 | 🧹 **Remove any of it** | **EVERYTHING** in one row, or one piece at a time. The mod folder really goes, so it stops showing in the Mods menu. Your game logs are moved to the backups, never deleted. Only deletes what the installer put there, and offers your backup back. |
@@ -119,12 +122,12 @@ All five mod files go in that one folder.
 
 ## ✨ What you get
 
-Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 49 rows — 48 on Nuketown, where the CHEATS tab has no TELEPORT row because the map has no landmark list — plus four graphics rows on the stock **ADVANCED** tab and an **AIM ASSIST** row on **CONTROLS → GAMEPAD**. No chat commands required.
+Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 50 rows — 48 on Nuketown, where the CHEATS tab has no TELEPORT row because the map has no landmark list — plus five graphics rows on the stock **ADVANCED** tab and an **AIM ASSIST** row on **CONTROLS → GAMEPAD**. No chat commands required.
 
 > [!NOTE]
 > **Confirmed in game:** **UNLOCK ALL** and **RESET STATS** (Zombies main menu → THEATER), the pause-menu rows, the **Zombie Blood** HUD icon, and the scoreboard naming your start location — "Survival - Diner", not "Survival - Green Run".
 >
-> **Built but not booted yet:** **BETTER SPEED COLA**, **NO BLEEDOUT PATCH**, **CHANGE ROUND** to 10000 with the round cap off, hellhounds on Nuketown, the Die Rise Sliquifier row, the Die Rise Semtex wall buy, the five newer PATCHES rows, **SET POINTS** / **TELEPORT**, the DSR 50 and Five-Seven recoil, and the Winter's Howl firing effects.
+> **Built but not booted yet:** **BETTER SPEED COLA**, **NO BLEEDOUT PATCH**, **CHANGE ROUND** to 10000 with the round cap off, the Die Rise Sliquifier row, the Die Rise Semtex wall buy, the five newer PATCHES rows, **SET POINTS** / **TELEPORT**, the DSR 50 and Five-Seven recoil, the Winter's Howl firing effects, and Depth Of Field actually staying off at round-end and game-over when DISABLED.
 
 <br>
 
@@ -162,7 +165,7 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 - Round summary, timers, health bar, bleedout bar, zombies remaining, zone names, **compass**, velocity meter, Cold-War round HUD (top right, or **top left like BO4** with one switch), perk pop-ups, **power-up timers**.
 - **RESTART GAME**, **INSTANT EXIT** and **QUIT TO DESKTOP** on the pause menu.
 - **Night Mode**, **Fog** and **Higher Draw Distance** on the game's own ADVANCED tab — plus a **DISABLED** step for Depth Of Field that base BO2 never gave you.
-- **Hellhounds on Nuketown survival** — Treyarch wired it and never showed the switch. · **Instant match start** — no lobby countdown. Classic intro cutscenes play again.
+- **Instant match start** — no lobby countdown. Classic intro cutscenes play again.
 
 ### 🧰 Quality of life
 

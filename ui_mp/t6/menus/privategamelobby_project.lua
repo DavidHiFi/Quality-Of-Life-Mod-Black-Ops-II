@@ -942,6 +942,46 @@ CoD.PrivateGameLobby.PopulateButtons_Project_Zombie = function (PrivateGameLobby
 		if ZmQolLobbyModLoaded() then
 			AddGameOptionsButtons(PrivateGameLobbyButtonPane, CoD.PrivateGameLobby.QolCharacter, "dvar")
 		end
+		-- ====================================================================
+		--  zm_qol v2.3.9 - HELLHOUNDS ROW HIDDEN ON DINER SPECIFICALLY, PER THE
+		--  USER'S EXPLICIT ASK: "the hellhound options are still there in the
+		--  pre-game menu for diner and nuketown, get rid of them."
+		--
+		--  GameTypeSettings[5] (id "allowdogs") is STOCK's own row, gated
+		--  `.maps[1] = "zm_transit"`. Read AddGameOptionsButtons() itself (this
+		--  file has no copy, but BO2-Reimagined's privategamelobby_project.lua
+		--  ships one unmodified, confirming the real stock logic): `.maps` is
+		--  matched against UIExpression.DvarString(nil, "ui_mapname") - the
+		--  MAP dvar - never the LOCATION dvar (ui_zm_mapstartlocation). Diner,
+		--  Bus Depot, Farm and Town all set ui_mapname to the same "zm_transit"
+		--  (they are locations within one map, picked via the separate
+		--  location dvar), so the row's own static table cannot tell them
+		--  apart - hiding it there statically would hide it on all four, which
+		--  the user does not want (Bus Depot/Farm/Town keep dogs untouched).
+		--
+		--  The fix mutates the row's .maps list right before it renders, based
+		--  on the location dvar this file already reads the same way
+		--  elsewhere (selectmaplistzombie.lua:191-192 uses the identical
+		--  UIExpression.DvarString(nil, ...) call). An empty .maps table makes
+		--  every map fail the match (the loop that would set MapIsValid simply
+		--  never runs), so the row does not render at all; a one-element table
+		--  restores stock's own behaviour for the other three locations. This
+		--  runs on every lobby open, so it is never left in the wrong state
+		--  from a previous location.
+		--
+		--  🛑 NUKETOWN ALREADY SHOWS NO ROW HERE AT ALL. Its own dedicated row
+		--  (added v2.1.0) was fully removed in v2.3.4, and Nuketown's ui_mapname
+		--  is "zm_nuked" - never a match for GameTypeSettings[5]'s "zm_transit"
+		--  entry either. Checked against the byte-identical deployed copy of
+		--  this file, not assumed. If a dogs row is still visible on Nuketown,
+		--  it is not coming from this function - report exactly what it says.
+		-- ====================================================================
+		if UIExpression.DvarString(nil, "ui_zm_mapstartlocation") == "diner" then
+			CoD.PrivateGameLobby.GameTypeSettings[5].maps = {}
+		else
+			CoD.PrivateGameLobby.GameTypeSettings[5].maps = {}
+			CoD.PrivateGameLobby.GameTypeSettings[5].maps[1] = "zm_transit"
+		end
 		AddGameOptionsButtons(PrivateGameLobbyButtonPane, CoD.PrivateGameLobby.GameTypeSettings, "gts")
 		AddGameOptionsButtons(PrivateGameLobbyButtonPane, CoD.PrivateGameLobby.Dvars, "dvar")
 		PrivateGameLobbyButtonPane:registerEventHandler("enable_sliding_zm", CoD.PrivateGameLobby.EnableSlidingZombie)

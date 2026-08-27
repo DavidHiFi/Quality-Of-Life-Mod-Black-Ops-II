@@ -177,17 +177,30 @@ main()
 }
 
 // ============================================================================
-//  zmqol_enable_dog_rounds  -  HELLHOUNDS DROPPED FROM DINER, NOT NUKETOWN'S
-//  ROUTE                                                              (v2.3.4)
+//  zmqol_enable_dog_rounds  -  HELLHOUNDS DROPPED FROM DINER AND NUKETOWN
+//                                                    (v2.3.4, fixed for real v2.3.8)
 // ----------------------------------------------------------------------------
 //  User, 2026-08-25: *"because of how much of a hassle it's been to get
 //  hellhounds working on Diner survival, and Nuketown survival, just drop it
 //  at this point ... leave the regular vanilla stock game hellhound supported
 //  maps eg. bus depot, farm, town ... exactly as they are."*
 //
+//  🛑 v2.3.4 GOT NUKETOWN WRONG: it hid the lobby row and assumed that was
+//  enough, leaving this function's stock body running unchanged for Nuketown.
+//  It was never verified against the tweakable's own default. It is not
+//  enabled=0: `_tweakables.gsc:342`, `registertweakable( "killstreak",
+//  "allowdogs", "scr_hardpoint_allowdogs", 1 )` - the trailing 1 IS the
+//  default. With the lobby row gone, nothing ever writes this setting, so
+//  `getgametypesetting( "allowdogs" )` in zstandard.gsc resolves to that
+//  default of 1 (ON) - hiding the toggle made hellhounds unconditionally ON,
+//  the opposite of "drop it". User confirmed 2026-08-26 they still see them.
+//  Fixed by folding Nuketown into this same no-op, keyed on `mapname` (its
+//  own map file, unlike Diner which is a location inside zm_transit).
+//
 //  🛑 THE LOBBY ROW COULD NOT BE REMOVED FOR DINER ALONE, AND THIS IS WHY.
-//  Nuketown's row is a mod-only addition (privategamelobby_project.lua,
-//  removed cleanly this same version). Diner's is NOT - there is no
+//  Nuketown's row WAS its own mod-only addition and its removal
+//  (privategamelobby_project.lua) is correct to keep - it just was not
+//  sufficient by itself, per above. Diner's row is NOT its own - there is no
 //  Diner-specific entry in GameTypeSettings[5].maps anywhere in that file.
 //  Every TranZit survival location (Diner, Farm, Town, Bus Depot) shares the
 //  SAME stock row, `maps[1] = "zm_transit"`, because the lobby's map
@@ -209,19 +222,28 @@ main()
 //  replaceFunc rule 1 rules out - replaceFunc cannot see a caller that never
 //  goes through the qualified name. enable_dog_rounds() one line down IS
 //  called fully qualified, so it is the earliest hookable point in the chain.
+//  Nuketown's own zstandard.gsc runs the identical three lines (verified,
+//  `Nuketown\maps\mp\gametypes_zm\zstandard.gsc:39`), so the same hook point
+//  covers it with no separate registration needed.
 //
 //  🌟 THIS REPRODUCES STOCK'S ENTIRE FUNCTION BODY FOR EVERY MAP EXCEPT
-//  DINER - read from _zm_ai_dogs.gsc:49-57, copied verbatim below the Diner
-//  check, not reinvented. Bus Depot, Farm, Town, and every other hellhound
-//  map (Die Rise, Mob, Buried, Origins, Nuketown) call this exact same
+//  DINER AND NUKETOWN - read from _zm_ai_dogs.gsc:49-57, copied verbatim
+//  below the checks, not reinvented. Bus Depot, Farm, Town, and every other
+//  hellhound map (Die Rise, Mob, Buried, Origins) call this exact same
 //  function and get the exact same behaviour they always have; only the
-//  Diner branch differs.
+//  Diner and Nuketown branches differ.
 // ============================================================================
 zmqol_enable_dog_rounds()
 {
     if ( getdvar( "ui_zm_mapstartlocation" ) == "diner" )
     {
         println( "[zm_qol] diner hellhounds: dropped (enable_dog_rounds() no-op on this location)" );
+        return;
+    }
+
+    if ( getdvar( "mapname" ) == "zm_nuked" )
+    {
+        println( "[zm_qol] nuketown hellhounds: dropped (enable_dog_rounds() no-op on this map)" );
         return;
     }
 
@@ -594,6 +616,8 @@ init()
     level thread zmqol_fire_sale_custom_gate();  // FIRE SALE under CUSTOM POWER-UPS (v2.0.5)
     level thread zmqol_register_announcer_vox();
     level thread zmqol_powerup_timer_think();   // POWER-UP TIMERS (v1.99.1)
+    level thread zmqol_dof_repoint_spawnintermission();  // DOF full fix, item 48
+    level thread zmqol_dof_onplayerconnect();            // DOF full fix, item 48
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
@@ -3289,6 +3313,135 @@ nofog_onplayerspawned()
     self endon( "disconnect" );
     for (;;)
         self waittill( "spawned_player" );
+}
+
+// ============================================================================
+//  zmqol_dof_fix  -  DEPTH OF FIELD "DISABLED" was not actually disabled
+// ----------------------------------------------------------------------------
+//  Item 48. Found via the 2026-08-26 boot report (checkpoint 110 §4): the
+//  ADVANCED tab's DEPTH OF FIELD row (dof_quality) only ever writes CLIENT
+//  dvars (r_dof_enable / r_dofHDR - see QolDofCallback in optionssettings.lua).
+//  Stock calls the engine method setdepthoffield() directly from SERVER-side
+//  GSC in several places, completely independent of those client dvars, and
+//  a scripted blur curve from the server overrides the renderer's own
+//  r_dof_enable state.
+//
+//  🌟 EVERY REAL CALLER, MEASURED against the stock dump
+//  (t6 modding starter kit\reference\gsc-dump\ZM\Core), not assumed:
+//    _zm.gsc::onplayerconnect_clientdvars() / onplayerspawned(), and
+//    _globallogic_spawn.gsc's per-player respawn path - all already call
+//        setdepthoffield( 0, 0, ... ), the "no blur" tuple. Nothing to fix.
+//    _globallogic_spawn.gsc::spawnintermission()            - REAL BLUR
+//        ( 0, 128, ... ). Every round-end / match-end intermission spawn.
+//    _globallogic_spawn.gsc::spawninterroundintermission()  - REAL BLUR, but
+//        has NO CALLER anywhere in the whole ZM script dump (an MP-gametype
+//        leftover) - confirmed by a directory-wide grep, not a single missed
+//        file. Unreachable in zombies, so left alone.
+//    _globallogic.gsc::roundenddof()                        - REAL BLUR.
+//        Threaded once per player from endgame() at round/match end - the
+//        "game-over sequence" from the checkpoint's own diagnosis.
+//    _zm.gsc::set_third_person() and
+//    _globallogic_spawn.gsc::setthirdperson()                - REAL BLUR in
+//        their "on" branches, but BOTH are unreached on this platform: the
+//        second opens with `if ( !level.console ) return;` (console-only,
+//        dead on Plutonium PC), and the first's only caller anywhere in the
+//        dump, spectator_toggle_3rd_person(), itself has NO caller anywhere
+//        in the dump either - same whole-dump grep. 🛑 NOT FIXED, and not
+//        guessed at: nothing found here justifies shipping a change for a
+//        path nothing can reach. If blur is ever seen while toggling
+//        third-person spectator view, this is the first place to look.
+//
+//  🛑 WHY NEITHER TRUE CALLER CAN BE replaceFunc'D - VERIFIED, NOT ASSUMED
+//  (starter-kit replaceFunc failure mode 1 - unqualified same-file call):
+//    - roundenddof() is invoked as `player thread roundenddof(4.0);` from
+//      INSIDE _globallogic.gsc itself (endgame(), same file, unqualified) -
+//      a replaceFunc on it would never see that call.
+//    - endgame(), the function that calls it, is ~150 lines of real,
+//      safety-critical branching (ranked-match promotion popups, next-round
+//      vs match-end, exitlevel) reached from EIGHT call sites across three
+//      files - and TWO of those eight (_globallogic.gsc:365 and :397) are
+//      themselves unqualified same-file calls. Replicating all 150 lines by
+//      hand would still only redirect 6 of 8 paths - a worse, silently
+//      partial fix - and hand-copying match-ending logic is exactly the
+//      kind of guess this project does not ship.
+//
+//  🌟 THE FIX THAT ACTUALLY COVERS EVERY PATH: `level notify( "game_ended" )`
+//  fires unconditionally inside endgame() (_globallogic.gsc:1086), BEFORE
+//  its roundenddof() calls, on every one of the eight paths that can reach
+//  endgame() - so a level-notify watcher catches all of them uniformly,
+//  where no replaceFunc could. This is a ONE-SHOT correction keyed to a real
+//  engine event, not a per-frame fight against the renderer - the earlier
+//  "not the watcher-mitigation fallback" instruction was about a continuous
+//  poll overriding the engine every frame; this fires once, after the one
+//  real event that can add the blur, with a short wait to land after it.
+//
+//  spawnintermission() IS reachable cleanly: every one of its 5 call sites
+//  goes through the `level.spawnintermission` FUNCTION POINTER, never called
+//  by name directly (failure mode 3 - re-point, don't replaceFunc), so
+//  zmqol_dof_repoint_spawnintermission() waits for stock to set that pointer
+//  (in map init) and then takes it over. The wrapper calls stock's real
+//  function FIRST, by its qualified name (not through the pointer, so no
+//  recursion), letting every branch of stock's own logic - including the
+//  ranked-match promotion popup loop - run completely untouched, then
+//  corrects only the trailing DOF call. Nothing about stock's control flow
+//  is replicated or guessed at.
+//
+//  Both fixes are additive-only when the row is not DISABLED: dof_quality
+//  != 0 skips the correction in both places and stock's blur plays exactly
+//  as before, so LOW / MEDIUM / HIGH keep working unchanged.
+// ============================================================================
+zmqol_dof_off_tuple()
+{
+    self setdepthoffield( 0, 0, 512, 4000, 4, 0 );
+}
+
+zmqol_dof_repoint_spawnintermission()
+{
+    for ( i = 0; i < 1200; i++ )
+    {
+        if ( isdefined( level.spawnintermission ) )
+        {
+            level.spawnintermission = ::zmqol_spawnintermission_dof;
+            return;
+        }
+
+        wait 0.05;
+    }
+}
+
+zmqol_spawnintermission_dof( usedefaultcallback )
+{
+    self maps\mp\gametypes_zm\_globallogic_spawn::spawnintermission( usedefaultcallback );
+
+    if ( !getdvarintdefault( "dof_quality", 0 ) )
+        self zmqol_dof_off_tuple();
+}
+
+zmqol_dof_onplayerconnect()
+{
+    for ( ;; )
+    {
+        level waittill( "connected", player );
+        player thread zmqol_dof_roundend_watch();
+    }
+}
+
+zmqol_dof_roundend_watch()
+{
+    self endon( "disconnect" );
+
+    for ( ;; )
+    {
+        level waittill( "game_ended" );
+
+        //  Lets roundenddof()'s own thread (spawned the same frame, no wait
+        //  in its body) land first, then overwrites it. 0.1s is several
+        //  server frames of margin, not a guess at exact timing.
+        wait 0.1;
+
+        if ( !getdvarintdefault( "dof_quality", 0 ) )
+            self zmqol_dof_off_tuple();
+    }
 }
 
 // ============================================================================
@@ -9437,10 +9590,13 @@ perks()
     level thread zmqol_patches_watch();
     level thread zmqol_solo_zombie_limit();
 
-    //  CHEATS tab. set_points HOLDS its value (0 is a real setting) and teleport
-    //  is an action that writes itself back to 0 - see each watcher for why.
+    //  CHEATS tab. set_points HOLDS its value (0 is a real setting); teleport
+    //  ALSO now holds its value (v2.4.2 - it is just the destination selector);
+    //  execute_teleport is the actual action row and writes itself back to 0 -
+    //  see zmqol_teleport_watch() for why.
     create_dvar( "set_points", 0 );
     create_dvar( "teleport",   0 );
+    create_dvar( "execute_teleport", 0 );
 
     //  v1.99.39 - user request 2026-08-17. The Pack-a-Punched crossbow's bolts
     //  draw zombies to them like a monkey bomb. See zmqol_awful_lawton_watch().
@@ -15409,8 +15565,22 @@ zmqol_set_points_watch()
 //  note over the Vulture gate ). ui_gametype is safe to read here for the same
 //  reason it is safe there.
 //
-//  📝 An ACTION row: the dvar is written back to 0 before the teleport, so the
-//  row snaps to OFF and the same destination can be picked twice in a row.
+//  🛑 v2.4.2 - SPLIT INTO A SELECTOR + A SEPARATE EXECUTE ROW, MATCHING THE
+//  STRAT TESTER'S OWN UX. User, 2026-08-26: *"right now you just cycle through
+//  the teleport locations... and then it automatically tp's you to the
+//  location when you exit the pause menu... there should be an option to
+//  execute teleport... underneath, same as the strat tester."* Checked against
+//  the Strat Tester's own menu (optionsstrattester.lua:240-293): it has a
+//  left-right destination selector PLUS a separate "EXECUTE TELEPORT" button -
+//  picking a destination there only ever writes a dvar, never moves the
+//  player by itself.
+//
+//  "teleport" is now a HOLDING selector, same shape as set_points (0 is a
+//  real choice - OFF/no destination picked - and picking a destination does
+//  not by itself do anything). "execute_teleport" is the new ACTION row: it
+//  writes itself back to 0 the instant it fires, same shape as kill_horde /
+//  end_round, so the CHEATS row snaps back to DISABLED and the button can be
+//  pressed again for the same destination without having to reselect it.
 // ============================================================================
 zmqol_teleport_watch()
 {
@@ -15422,13 +15592,14 @@ zmqol_teleport_watch()
 
     for ( ;; )
     {
-        n_want = getdvarintdefault( "teleport", 0 );
-
-        if ( n_want > 0 )
+        if ( getdvarintdefault( "execute_teleport", 0 ) )
         {
-            setdvar( "teleport", "0" );
+            setdvar( "execute_teleport", "0" );
+            n_want = getdvarintdefault( "teleport", 0 );
 
-            if ( getdvar( "ui_gametype" ) != "zclassic" )
+            if ( n_want <= 0 )
+                self iprintln( "^3[zm_qol] teleport: ^7pick a destination first" );
+            else if ( getdvar( "ui_gametype" ) != "zclassic" )
                 self iprintln( "^3[zm_qol] teleport is classic-only ^7- these landmarks sit outside a survival or grief arena" );
             else
             {

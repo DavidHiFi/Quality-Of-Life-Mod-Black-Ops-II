@@ -79,7 +79,16 @@ try {
         foreach ($folder in $folders) {
             $folderPath = Join-Path $rootPath $folder
             if (-not (Test-Path -LiteralPath $folderPath)) { continue }
-            Get-ChildItem -Path $folderPath -Recurse -File | ForEach-Object {
+            # v2.4.2 - a `gsc-tool -m parse` check run from inside scripts\ drops a
+            # decompiled byproduct copy at <cwd>\parsed\t6\<file>.gsc. It is already
+            # .gitignored (build artifact, not source) but this loop doesn't consult
+            # .gitignore, so one had been silently shipping inside mod.iwd since a
+            # past session's parse-check - found when the file count crept from 593
+            # to 594 with no new source file added. Excluded structurally so a stray
+            # `parsed\` anywhere under a packed folder can never leak in again.
+            Get-ChildItem -Path $folderPath -Recurse -File | Where-Object {
+                $_.FullName -notmatch '\\parsed\\'
+            } | ForEach-Object {
                 # entry path relative to project root, forward slashes
                 $rel   = $_.FullName.Substring($rootPath.Length + 1) -replace '\\','/'
 

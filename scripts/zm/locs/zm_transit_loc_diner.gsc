@@ -185,7 +185,8 @@ struct_init()
 
 	zmqol_add_semtex_wallbuy();
 	zmqol_add_claymore_wallbuy();   // v1.99.91 - the shack claymore
-	level thread zmqol_probe_claymore_trigger();   // v2.3.4 - diagnostic, see its own comment
+	level thread zmqol_fix_claymore_zone_gate();   // v2.3.9 - the actual fix, see its own comment
+	level thread zmqol_probe_jugg_flat_wall();   // v2.5.0 - measuring the flat panel vs the trim piece, see its own comment
 
 	gameObjects = getEntArray("script_model", "classname");
 
@@ -843,12 +844,124 @@ zmqol_add_semtex_wallbuy()
 //  same edit; the client is what spawns the visible model, so changing one alone
 //  moves the trigger and leaves the mine behind.
 // ============================================================================
+//  🌟 v2.4.7 - THE SHACK CLAYMORE MOVED TO THE JUGG WALL, FOR REAL THIS TIME.
+//
+//  The root cause was never the wall - it was bear 1 of the 3-teddy-bear
+//  easter egg (quality_of_life.gsc:3926) sitting 70 units away with its own
+//  50-unit trigger_radius, overlapping the claymore's measured 33-unit
+//  interact radius by 13 units and winning every interact press (checkpoint
+//  120). zmqol_probe_jugg_wall() (v2.4.3, then v2.4.6) measured the new spot
+//  before committing to it - anchored on Juggernog's own known-correct wall
+//  mount (yaw -45) rather than a guessed angle, walked candidates along that
+//  wall, and cross-checked against the user's own `.where` reading taken
+//  standing there. Removed now that its job is done; the numbers it produced
+//  are what zmqol_claymore_wallbuy_origin() below uses.
+// ============================================================================
 zmqol_claymore_wallbuy_origin()
 {
 	// Twin of zm_expanded.csc::zmqol_claymore_wallbuy_origin(). Same dvars, same
 	// defaults - if these ever disagree the two sides register different
 	// clientfield names and everyone is dropped at load.
-	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3624 ), getdvarintdefault( "zmqol_claymore_diner_y", -7486 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+	//
+	// v2.4.7 - MOVED OFF THE OLD WALL ENTIRELY, NOT REPOSITIONED ON IT. The old
+	// spot (-3624,-7486,-7) was never actually broken - checkpoint 120 measured
+	// the real cause: one of the 3 teddy-bear easter egg props (bear 1,
+	// quality_of_life.gsc:3926, at -3685,-7452,-21 with its own 50-unit
+	// trigger_radius) sits only 70 units away, close enough to overlap the
+	// claymore's own 33-unit interact radius (50+33=83 > 70) and win every
+	// interact press.
+	//
+	// 🛑 v2.4.8 - v2.4.7's FIRST TRY FLOATED IN OPEN FLOOR, NOT ON A WALL. That
+	// position anchored on Juggernog's own origin plus a tangent offset, which
+	// assumed Jugg's model origin sits ON the wall plane - it doesn't (machine
+	// origins commonly sit forward of the wall they're mounted on), so the
+	// offset carried that same gap outward with it. User confirmed: purchase
+	// itself worked perfectly at that spot (proves the bear-overlap fix was
+	// correct) - only the visual placement was wrong, so this was a position
+	// nudge, not a re-diagnosis.
+	//
+	// Fixed with a direct reading instead of a second computed offset: user
+	// stood with their BACK AGAINST the actual wall next to Jugg and ran
+	// `.where`: (-3577,-7195,-58) facing yaw 269. Floor read -58, same as every
+	// other measurement in this shack, so mount height stays -7 (51 up).
+	//
+	// 🛑 v2.4.9 - THE NORMAL WAS BACKWARDS. Standing with your BACK against a
+	// wall and facing into the room means your OWN facing direction already
+	// IS the wall's outward normal - a wall can only push you away from
+	// itself, never toward it. v2.4.8 subtracted 180 from that reading, which
+	// pointed the model's front face INTO the wall instead of out into the
+	// room - invisible/embedded, exactly what the user reported ("facing
+	// towards the wall, can't even see it"). Corrected: normal = 269, rounded
+	// to 270 - the SAME clean angle the original south wall used, which is a
+	// coincidence worth noting but not a sign this is actually that wall; it
+	// is a separate, nearby segment, confirmed by Jugg's own very different
+	// registered angle (-45) a short distance from here.
+	//
+	// Also moved 25 units along the wall toward Jugg (x -3577 -> -3552,
+	// closing the gap from 55 to 30 units) per the user's own follow-up -
+	// still comfortably clear of bear 1 (220+ units either way).
+	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3552 ), getdvarintdefault( "zmqol_claymore_diner_y", -7195 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+}
+
+// ============================================================================
+//  🌟 v2.5.0 - MEASURING THE FLAT PANEL, NOT GUESSING FROM A SCREENSHOT.
+//
+//  User, 2026-08-26, with two more screenshots at this exact spot: yaw is now
+//  right (v2.4.9 fixed the sign), but the mine sits ON the vertical trim piece
+//  next to Jugg, not on the flat wood panel to its left, between the two
+//  pillars - "floating", needs to move left and seat onto the wall. Rather
+//  than eyeball a pixel offset (the failure mode that cost checkpoints
+//  106-119), this fires a fan of bullettraces at match start, from a known-
+//  open room point (near the player's own `.where` reading in the second
+//  screenshot, (-3557,-7255,-58)) toward the wall (+Y - the same direction
+//  established as the wall's outward normal in v2.4.9), at 8-unit steps
+//  walking left (more negative x) from the current default. A flat panel
+//  reads the SAME hit_y across a contiguous run of x values; the trim piece
+//  reads a different (shorter) hit_y wherever it's in the way. That boundary,
+//  read directly off the log/screen, is what picks the new x and y - not an
+//  assumption about player capsule radius or screen pixels.
+//
+//  Print-only. Removed once its job is done, same as every prior probe here.
+// ============================================================================
+zmqol_probe_jugg_flat_wall()
+{
+	wait 3;
+
+	v_z      = -7;
+	n_y_from = -7250;
+	n_reach  = 90;
+	n_x0     = -3552;
+
+	players = get_players();
+
+	for ( n_dx = 0; n_dx <= 56; n_dx += 8 )
+	{
+		n_x    = n_x0 - n_dx;
+		v_from = ( n_x, n_y_from, v_z );
+		v_to   = ( n_x, n_y_from + n_reach, v_z );
+
+		trace = bullettrace( v_from, v_to, 0, undefined );
+
+		if ( trace[ "fraction" ] >= 1 )
+		{
+			str_line = "[zm_qol] JUGG FLAT CAND x=" + n_x + " NO HIT within " + n_reach;
+		}
+		else
+		{
+			v_hit = trace[ "position" ];
+			str_line = "[zm_qol] JUGG FLAT CAND x=" + n_x + " hit_y=" + int( v_hit[1] ) + " dist=" + int( distance( v_from, v_hit ) );
+		}
+
+		println( str_line );
+
+		if ( players.size > 0 )
+			players[0] iprintln( str_line );
+
+		wait 0.3;
+	}
+
+	if ( players.size > 0 )
+		players[0] iprintln( "^2[zm_qol] ^7JUGG FLAT probe done - 8 candidates printed above" );
 }
 
 zmqol_add_claymore_wallbuy()
@@ -887,7 +1000,12 @@ zmqol_add_claymore_wallbuy()
 	}
 
 	v_origin = zmqol_claymore_wallbuy_origin();
-	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 90 );
+	// v2.4.9 - CORRECTED SIGN: back-to-the-wall facing direction IS the wall's
+	// outward normal directly (269, rounded to 270) - v2.4.8 wrongly
+	// subtracted 180 from it, see zmqol_claymore_wallbuy_origin() above for
+	// the full explanation. The buy-yaw-is-normal-minus-90 relationship a few
+	// lines below is unchanged.
+	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 270 );
 
 	// ========================================================================
 	//  🛑 v2.2.5 - THE PAIR WAS 90 DEGREES OUT AND THE MINE WAS EDGE-ON IN THE
@@ -971,84 +1089,211 @@ zmqol_add_claymore_wallbuy()
 }
 
 // ============================================================================
-//  🌟 v2.3.4 - ONE-SHOT DIAGNOSTIC. The claymore model shows (client-side,
-//  clientfield-driven, independent of the server trigger) but the user
-//  reports NO purchase prompt at all when looking directly at it, on a fresh
-//  spawn with a full score. Static reading of _zm_weapons.gsc / _zm_unitrigger
-//  .gsc / _zm_weap_claymore.gsc could not settle which of several candidate
-//  points in that chain is actually failing without seeing real state, so
-//  this prints it instead of guessing a fix. Same practice as the removed
-//  zmqol_probe_shack_wall() - print once, read console_zm.log, then delete.
+//  🌟 v2.3.9 - THE ROOT CAUSE, READ OUT OF THE STOCK UNITRIGGER SYSTEM, NOT
+//  GUESSED. "Model visible, crosshair on it, no purchase prompt" (checkpoint
+//  106, re-reported 2026-08-26 as the position looking wrong) is exactly the
+//  signature of a trigger that never got a live server-side trigger spawned,
+//  while its CLIENT-side visual (a clientfield, entirely separate system)
+//  shows regardless. Read start to finish this session, not inferred:
 //
-//  init_spawnable_weapon_upgrade() (_zm_weapons.gsc:839, called from
-//  _zm_weapons::init() at map load) is what turns the injected
-//  "claymore_purchase" struct into a live unitrigger_stub and stores it in
-//  level._spawned_wallbuys - well before this probe's 3-second wait expires.
-//  This reads that array read-only; it cannot affect gameplay.
+//  init_spawnable_weapon_upgrade() (_zm_weapons.gsc:839) builds our injected
+//  "claymore_purchase" struct into a unitrigger_stub and hands it to
+//  _zm_unitrigger::register_static_unitrigger() (_zm_weapons.gsc:978). THAT
+//  function (_zm_unitrigger.gsc:198) finds which of the map's TranZit bus-
+//  route ZONES the stub's origin falls inside and files it under
+//  level.zones[key].unitrigger_stubs - it does NOT make the trigger live.
+//
+//  _zm_unitrigger::main() (_zm_unitrigger.gsc:352) is what actually spawns
+//  live triggers near a player, and every frame it only considers stubs
+//  belonging to a zone in level.active_zone_names (:376-383), PLUS a second,
+//  always-included bucket: level._unitriggers.dynamic_stubs. TranZit's zone
+//  set is the bus-route progression system - it exists to gate the story
+//  mode's travel, and Diner survival never drives a bus through it, so
+//  whichever zone this shack's origin geometrically falls inside may simply
+//  never be marked active for the whole match. If so, the stub sits in a
+//  zone list that main()'s loop never looks at, forever - not a timing race,
+//  not a one-off, a permanent gate. The model still shows because its
+//  clientfield truth is unrelated to any of this.
+//
+//  🌟 THE FIX USES STOCK'S OWN ESCAPE HATCH, NOT A WORKAROUND.
+//  _zm_unitrigger::reregister_unitrigger_as_dynamic() (:246) is what the
+//  engine itself uses for pickups that must stay interactive independent of
+//  zone state (dropped weapons, etc.) - it unregisters the stub from
+//  whatever zone list it landed in and re-adds it to dynamic_stubs, which
+//  main()'s loop includes unconditionally every frame regardless of which
+//  zones are active. That is exactly the property a custom survival-only
+//  wall buy needs, since survival never drives the zone system the normal
+//  way. Applying it here does not touch the zone system for anything else -
+//  only this one stub is moved.
+//
+//  📝 STILL MEASURED, NOT ASSUMED WORKING: this prints exactly what state the
+//  stub was in before the fix (in_zone / whether that zone was active) via
+//  BOTH println (console_zm.log) and iprintln (on the player's own screen,
+//  the same channel .where uses) - console logs on this box rotate out fast
+//  once a session ends, so the on-screen line is the one to screenshot if
+//  this still needs a second look.
 // ============================================================================
-zmqol_probe_claymore_trigger()
+zmqol_fix_claymore_zone_gate()
 {
-	wait 3;
+	// v2.4.0: was a flat "wait 3;". Boot-tested 2026-08-26 - claymore still
+	// unpurchasable, and the player saw NEITHER of this function's two
+	// iprintln banners (success or "no trigger_stub at all"). Of this
+	// function's three exit paths, exactly one has no iprintln at all: the
+	// level._spawned_wallbuys-still-undefined bailout below, println-only by
+	// design at the time. Seeing literally nothing on screen is the exact
+	// signature of THAT branch, so a fixed 3s probably isn't long enough for
+	// stock's init_spawnable_weapon_upgrade() to have run yet on this map -
+	// not re-guessing the zone theory, just giving the poll the time it needs
+	// and making every exit path visible on screen so the next boot proves
+	// which branch actually ran, instead of leaving this one silent again.
+	n_waited = 0;
+
+	while ( !isdefined( level._spawned_wallbuys ) && n_waited < 15 )
+	{
+		wait 0.5;
+		n_waited += 0.5;
+	}
 
 	if ( !isdefined( level._spawned_wallbuys ) )
 	{
-		println( "[zm_qol] CLAYMORE PROBE: level._spawned_wallbuys is undefined - init_spawnable_weapon_upgrade() never ran or hasn't yet" );
+		println( "[zm_qol] CLAYMORE FIX: level._spawned_wallbuys still undefined after " + n_waited + "s - init_spawnable_weapon_upgrade() never ran" );
+
+		players = get_players();
+
+		if ( players.size > 0 )
+			players[0] iprintln( "^1[zm_qol] ^7claymore: _spawned_wallbuys never appeared after " + n_waited + "s - report this exact line" );
+
 		return;
 	}
 
-	n_found = 0;
+	stub = undefined;
 
 	for ( i = 0; i < level._spawned_wallbuys.size; i++ )
 	{
 		e = level._spawned_wallbuys[i];
 
-		if ( !isdefined( e.targetname ) || e.targetname != "claymore_purchase" )
-			continue;
-
-		n_found++;
-		str = "[zm_qol] CLAYMORE PROBE: spawn_list entry - zombie_weapon_upgrade=" + e.zombie_weapon_upgrade + " target=" + e.target;
-
-		if ( !isdefined( e.trigger_stub ) )
+		if ( isdefined( e.targetname ) && e.targetname == "claymore_purchase" && isdefined( e.trigger_stub ) )
 		{
-			str += " | trigger_stub=UNDEFINED (never reached the unitrigger registration call)";
-			println( str );
-			continue;
+			stub = e.trigger_stub;
+			break;
 		}
-
-		stub = e.trigger_stub;
-		str += " | trigger_stub=OK";
-		str += " prompt_and_visibility_func_bound=" + isdefined( stub.prompt_and_visibility_func );
-		str += " require_look_at=" + stub.require_look_at;
-
-		if ( isdefined( stub.registered ) )
-			str += " registered=" + stub.registered;
-		else
-			str += " registered=UNDEFINED";
-
-		if ( isdefined( stub.in_zone ) )
-			str += " in_zone=" + stub.in_zone;
-		else
-			str += " in_zone=UNDEFINED";
-
-		if ( isdefined( stub.trigger ) )
-			str += " trigger_ent=SPAWNED";
-		else if ( isdefined( stub.playertrigger ) )
-			str += " trigger_ent=PER-PLAYER(" + stub.playertrigger.size + ")";
-		else
-			str += " trigger_ent=NOT SPAWNED YET";
-
-		println( str );
 	}
 
-	println( "[zm_qol] CLAYMORE PROBE: " + n_found + " spawn_list entr" + ( n_found == 1 ? "y" : "ies" ) + " with targetname claymore_purchase (expect 1)" );
-
 	players = get_players();
+
+	if ( !isdefined( stub ) )
+	{
+		println( "[zm_qol] CLAYMORE FIX: no trigger_stub found for claymore_purchase - init_spawnable_weapon_upgrade() did not register one, this is a different bug" );
+
+		if ( players.size > 0 )
+			players[0] iprintln( "^1[zm_qol] ^7claymore: no trigger_stub at all - report this exact line" );
+
+		return;
+	}
+
+	str_zone = "none";
+	b_was_active = 0;
+
+	if ( isdefined( stub.in_zone ) )
+	{
+		str_zone = stub.in_zone;
+
+		if ( isdefined( level.zones[stub.in_zone] ) && is_true( level.zones[stub.in_zone].is_active ) )
+			b_was_active = 1;
+	}
+
+	println( "[zm_qol] CLAYMORE FIX: before - in_zone=" + str_zone + " was_active=" + b_was_active + " require_look_at=" + stub.require_look_at + " registered=" + isdefined( stub.registered ) );
+
+	// The actual fix - see the block comment above.
+	maps\mp\zombies\_zm_unitrigger::reregister_unitrigger_as_dynamic( stub );
+
+	println( "[zm_qol] CLAYMORE FIX: reregistered as dynamic - now always live regardless of zone state" );
+	println( "[zm_qol] CLAYMORE FIX: dynamic_stubs.size=" + level._unitriggers.dynamic_stubs.size );
+
+	// v2.4.4 - the ACTUAL gate _zm_unitrigger::get_closest_unitriggers() (:674)
+	// applies, read line by line rather than assumed: a candidate only counts
+	// if distance2dsquared(stub_origin, player_origin+(0,0,35)) < stub.test_radius_sq
+	// (HORIZONTAL only) AND abs(z-diff) <= 42. test_radius_sq comes from the
+	// model's own small bounding box (script_width/length/height, set in
+	// init_spawnable_weapon_upgrade()) - a claymore is ~11x4x12, nowhere near
+	// the 40-90 unit radius most wall buys get from bigger models. The last
+	// boot's "dist=74, live_trigger=0 for 20+ seconds standing still" used
+	// distance() - a 3D figure that conflates the horizontal and vertical
+	// components this check keeps separate - so it never actually proved the
+	// player was within the real, much smaller window. Printing exactly what
+	// the engine checks, not a proxy for it.
+	println( "[zm_qol] CLAYMORE FIX: test_radius=" + int( sqrt( stub.test_radius_sq ) ) + " (test_radius_sq=" + int( stub.test_radius_sq ) + ") stub.origin.z=" + int( stub.origin[2] ) );
 
 	if ( players.size > 0 )
 	{
 		p = players[0];
-		println( "[zm_qol] CLAYMORE PROBE: " + p.name + " current_placeable_mine=" + p.current_placeable_mine + " score=" + p.score );
+		p iprintln( "^3[zm_qol] ^7claymore: zone " + str_zone + " active=" + b_was_active + " -> now always-live. current_placeable_mine=" + p.current_placeable_mine + " score=" + p.score + " has_powerup=" + isdefined( p.has_powerup_weapon ) );
 	}
+
+	// v2.4.0: mechanically, this SHOULD now be enough - _zm_unitrigger::main()'s
+	// own loop (:446) only requires stub.registered to be true to spawn a live
+	// per-player trigger, and reregister_unitrigger_as_dynamic() just set that.
+	// But "should" is a theory, not a measurement, and the last boot still
+	// showed no purchase prompt after this exact fix ran. So watch for the one
+	// fact that actually settles it: does a live per-player trigger
+	// (stub.playertrigger[entnum], since _zm_weapons.gsc:966 marks every
+	// spawnable wallbuy trigger_per_player) ever get built when a player is
+	// standing near it? If yes, the unitrigger system is fine and the gap is in
+	// claymore_unitrigger_update_prompt or is_player_placeable_mine. If a live
+	// trigger never appears even at close range, the registration fix did not
+	// do what this session assumed, and that needs re-reading, not re-guessing.
+	level thread zmqol_claymore_trigger_watch( stub );
+}
+
+zmqol_claymore_trigger_watch( stub )
+{
+	for ( i = 0; i < 45; i++ )
+	{
+		wait 1;
+
+		players = get_players();
+
+		if ( players.size == 0 )
+			continue;
+
+		p = players[0];
+		d = distance( p.origin, stub.origin );
+
+		// The exact two-part test get_closest_unitriggers() runs (:695-701) -
+		// horizontal distance squared against test_radius_sq, height difference
+		// against a flat 42, checked SEPARATELY, not the 3D distance() above.
+		v_eye = p.origin + ( 0, 0, 35 );
+		d_2d_sq = distance2dsquared( v_eye, stub.origin );
+		n_zdiff = abs( stub.origin[2] - v_eye[2] );
+		b_would_qualify = ( d_2d_sq < stub.test_radius_sq ) && ( n_zdiff <= 42 );
+
+		b_live = isdefined( stub.trigger ) || ( isdefined( stub.playertrigger ) && isdefined( stub.playertrigger[ p getentitynumber() ] ) );
+
+		if ( i % 5 == 0 || b_live )
+		{
+			str_line = "[zm_qol] CLAYMORE WATCH: t=" + i + "s dist3d=" + int( d ) + " dist2d=" + int( sqrt( d_2d_sq ) ) + " test_radius=" + int( sqrt( stub.test_radius_sq ) ) + " zdiff=" + int( n_zdiff ) + " would_qualify=" + b_would_qualify + " live_trigger=" + b_live + " placeable_mine=" + p is_player_placeable_mine( "claymore_zm" );
+			println( str_line );
+
+			// v2.4.5 - console_zm.log has now frozen at the same early load-time
+			// point on THREE separate boots in a row (checkpoints 115/117/118),
+			// every time before any watch tick could reach it, regardless of how
+			// long the match actually ran. Stop trusting it for anything past the
+			// first couple of seconds and put the same line on screen instead, so
+			// a screenshot is all that is needed.
+			p iprintln( "^5[zm_qol] ^7d2d=" + int( sqrt( d_2d_sq ) ) + " rad=" + int( sqrt( stub.test_radius_sq ) ) + " zd=" + int( n_zdiff ) + " qual=" + b_would_qualify );
+		}
+
+		if ( b_live )
+		{
+			p iprintln( "^2[zm_qol] ^7claymore: live trigger built, dist=" + int( d ) + " placeable_mine=" + p is_player_placeable_mine( "claymore_zm" ) );
+			return;
+		}
+	}
+
+	players = get_players();
+
+	if ( players.size > 0 )
+		players[0] iprintln( "^1[zm_qol] ^7claymore: no live trigger ever appeared in 45s near the stub" );
 }
 
 zmqol_unlock_shield_buildable_entities()

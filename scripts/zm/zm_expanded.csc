@@ -426,7 +426,11 @@ zmqol_claymore_wallbuy_origin()
 	//  (_zm_weapons.csc:218), so a single unit of drift between these two
 	//  functions renames the field on one side only and drops every player at
 	//  load with EXE_CLIENT_FIELD_MISMATCH.
-	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3624 ), getdvarintdefault( "zmqol_claymore_diner_y", -7486 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+	//  v2.4.9 - EXACT TWIN of the server copy's fix: v2.4.8 subtracted 180 from
+	//  a back-to-the-wall facing reading it should have used directly (the
+	//  model was mounted facing INTO the wall, invisible from the room), and
+	//  moved 25 units along the wall toward Jugg per the user's follow-up.
+	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3552 ), getdvarintdefault( "zmqol_claymore_diner_y", -7195 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
 }
 
 zmqol_add_claymore_wallbuy()
@@ -452,7 +456,9 @@ zmqol_add_claymore_wallbuy()
 	}
 
 	v_origin = zmqol_claymore_wallbuy_origin();
-	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 90 );
+	// v2.4.9 - corrected sign: the reading (269) IS the outward normal
+	// directly, rounded to 270. EXACT TWIN of the server copy's default.
+	n_yaw    = getdvarintdefault( "zmqol_claymore_diner_yaw", 270 );
 
 	//  🛑 v2.2.5 - n_yaw IS THE WALL'S OUTWARD NORMAL, AND THE MODEL TAKES IT
 	//  DIRECTLY. It used to take normal + 90, which stood the mine edge-on and
