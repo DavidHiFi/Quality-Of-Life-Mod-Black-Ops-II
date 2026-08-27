@@ -983,34 +983,14 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 	T(AdvancedTabButtonList, LocalClientIndex, "FOG",                 "fog_enabled","World fog. Off shows the map edge.")
 	T(AdvancedTabButtonList, LocalClientIndex, "HIGHER DRAW DISTANCE","lod_fix",    "Stops foreground textures popping in and out at high FOV.")
 
-	-- ========================================================================
-	--  v2.1.2 - GRAPHICS BOOST MOVED HERE FROM THE PATCHES TAB. User request,
-	--  2026-08-21: *"put the graphics boost option in the advanced tab"*.
-	--
-	--  It belongs with this group and not with the patches: every dvar it writes
-	--  is an image-quality setting (r_aaSamples, r_texFilter*, r_picmip*, r_ssao,
-	--  sm_*, r_bloomHiQuality, r_lodScale*) - see qol_opt_graphics_boost() in
-	--  scripts\zm\qol_options.gsc. Three of the rows it now sits under
-	--  (ANTI-ALIASING, TEXTURE QUALITY, AMBIENT OCCLUSION) are the very dvars it
-	--  overrides, so this is also where a player would look for it.
-	--
-	--  🛑 BOTH HALF-SPACERS ARE GONE AND THAT IS WHAT PAYS FOR THIS ROW. This tab
-	--  was 14 rows + 2 half-spacers = exactly 15.0 pitches, the proven ceiling
-	--  (see the note that used to sit here, and CreateSoundTab). 15 rows + 1.0 of
-	--  spacer is 16.0, which is precisely the fault the user reported on the HUD
-	--  tab in this same message - measured off their screenshot: rows run on a
-	--  50 px pitch from y=234, the hint line draws one full pitch below the last
-	--  row, and the ESC prompt is anchored at y=1036 regardless. 16.0 pitches put
-	--  the hint at y=1034, on top of it. 15 rows + no spacers is 15.0 again.
-	--
-	--  🛑 ITS DESCRIPTION WAS SHORTENED, AND NOT FOR TIDINESS. The old text was
-	--  100 characters and WRAPPED TO TWO LINES - measured on the user's PATCHES
-	--  screenshot, line 1 spanning x=346..1538 and line 2 sitting 46 px below it.
-	--  A two-line hint needs the tab at 14.5 pitches or less, because the second
-	--  line lands at y=1030 on a 15.0 tab and hits the ESC prompt. One line at
-	--  15.0 clears it by 24 px. Keep this string under ~95 characters.
-	CoD.OptionsSettings.QolToggle(AdvancedTabButtonList, LocalClientIndex, "GRAPHICS BOOST", "graphics_boost", "Sharper textures, shadows, SSAO and 16x anti-aliasing. Needs a good GPU and a restart.")
-	-- ========================================================================
+	-- 🛑 v2.6.6 - GRAPHICS BOOST REMOVED FROM THIS TAB, user request. It sat
+	-- here from v2.1.2 to v2.6.5 - see git history for the row and its layout
+	-- reasoning if it's ever added back. Removing it drops this tab to 14
+	-- rows with no spacers (14.0 pitches), comfortably under the 15.0
+	-- collision ceiling documented below, so no spacer changes were needed
+	-- to compensate. The dvar (graphics_boost) and its GSC logic
+	-- (qol_opt_graphics_boost() in scripts\zm\qol_options.gsc) are untouched -
+	-- this only removes the UI toggle, not the underlying capability.
 
 	-- ========================================================================
 	--  🛑 v2.2.0 - THE SIX STOCK DESCRIPTIONS BELOW ARE REPLACED WITH SHORT

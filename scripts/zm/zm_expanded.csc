@@ -430,7 +430,26 @@ zmqol_claymore_wallbuy_origin()
 	//  a back-to-the-wall facing reading it should have used directly (the
 	//  model was mounted facing INTO the wall, invisible from the room), and
 	//  moved 25 units along the wall toward Jugg per the user's follow-up.
-	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3552 ), getdvarintdefault( "zmqol_claymore_diner_y", -7195 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+	//  v2.5.4 - EXACT TWIN of the server copy's fix: pulled 3 units off the
+	//  wall (measured off the model's own mesh depth, -2.51..1.63 local X)
+	//  so the back face clears the surface instead of embedding in it, and
+	//  moved one further step left per the user's own live in-game read.
+	//  See the server copy's comment for the full reasoning.
+	//  v2.5.5 - EXACT TWIN: nudged 1 unit back toward the wall (-7175 ->
+	//  -7174) per the user's live report of a slight gap. See server copy.
+	//  v2.5.7 (RETRACTED) - moved x to -3620 on a theory disproven by reading
+	//  get_closest_unitriggers() itself - Jugg's classic trigger was never
+	//  part of that candidate array. See server copy's v2.5.8 comment.
+	//  v2.5.8 - EXACT TWIN: x reverted -3620 -> -3560 per the user's direct
+	//  instruction. y kept at -7173 (unrelated, not contested). See server copy.
+	//  v2.6.3 - EXACT TWIN: y -7173 -> -7180, an explicit experiment for more
+	//  standing room per the user's own request. See server copy's v2.6.3 comment.
+	//  v2.6.4 - EXACT TWIN: y -7180 -> -7177, bisecting toward the wall while
+	//  still purchasable. See server copy's v2.6.4 comment - also live-testable
+	//  via `/set zmqol_claymore_diner_y <value>` without a rebuild.
+	//  v2.6.5 - EXACT TWIN: y -7177 -> -7176, one more unit toward the wall
+	//  per the user's request. See server copy.
+	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3560 ), getdvarintdefault( "zmqol_claymore_diner_y", -7176 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
 }
 
 zmqol_add_claymore_wallbuy()

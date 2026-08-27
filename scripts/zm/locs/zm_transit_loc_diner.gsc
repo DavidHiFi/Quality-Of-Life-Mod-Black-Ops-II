@@ -6,7 +6,47 @@
 
 struct_init()
 {
-	scripts\zm\replaced\utility::register_perk_struct("specialty_armorvest", "zombie_vending_jugg", (-3522, -7198, -59), (0, -45, 0));
+	// 🌟 v2.5.6 - JUGG SQUARED TO THE CLAYMORE'S WALL. User confirmed this
+	// spot is correct ("that spot is good") - not touched again since.
+	//   yaw -45 -> 270: CONFIRMED. Same wall the claymore mounts to (v2.5.0/
+	//                   v2.5.3: flat at y=-7172, outward normal 270), same
+	//                   "model yaw = wall outward normal" convention already
+	//                   proven for the claymore and the roof PaP.
+	//   y -7198 kept, x -3522 -> -3508, z -59 kept: visually correct per the
+	//                   user - see v2.5.7 below for the one thing this
+	//                   position broke and why it was fixed on the
+	//                   CLAYMORE's side, not here.
+	//
+	// 🛑 v2.5.6's own distance claim below was WRONG and is corrected here,
+	// not left to rot per this file's own rule: "~77 units, comfortably
+	// clear of its 33-unit interact radius" compared bare origins and
+	// ignored two things - Jugg's trigger spawns at origin+30z (stock
+	// _zm_perks.gsc), not at origin, and the relevant threshold isn't
+	// claymore's own 33-unit radius but Jugg's own 70-unit one. The real
+	// trigger-to-trigger distance is 61.4, well inside the 103 (70+33)
+	// needed to clear - this is what broke claymore purchasing.
+	//
+	// 🛑 v2.6.2 - BRUTE-FORCE SEPARATION, PER THE USER'S OWN EXPLICIT
+	// INSTRUCTION AFTER THREE SOFTWARE-SIDE FIXES (v2.5.7's move, v2.6.0's
+	// require_look_at removal, v2.6.1's direct-notify bypass) each failed to
+	// make it purchasable. User: "try moving the juggernog perk machine off
+	// to the right some more... whatever it takes." Re-litigating this
+	// position IS warranted now - it wasn't when v2.5.7 first ran into this,
+	// but three targeted fixes at the actual mechanisms that would explain
+	// it (radius overlap, look-at trace, native dispatch) not working means
+	// something about the overlap itself, not any one theory about it, is
+	// the problem. Moving x -3508 -> -3440 (68 further right) puts the two
+	// trigger centers 124 apart - clear of the 103 (70+33) threshold with
+	// ~21 units of real margin, comfortably more than the bare minimum this
+	// file settled for on v2.5.7's attempt.
+	// 🛑 v2.6.2's own risk landed: no wall at x=-3440, Jugg simply didn't
+	// render there. User confirmed the move made zero difference to
+	// purchasability anyway - PROOF, not just suspicion now, that Jugg's
+	// proximity was never the actual cause across all of v2.5.7/v2.6.0/
+	// v2.6.1/v2.6.2. Reverted to the last confirmed-good spot. Do not
+	// re-litigate Jugg's position again without new evidence pointing at it
+	// specifically - four attempts have now spent that theory.
+	scripts\zm\replaced\utility::register_perk_struct("specialty_armorvest", "zombie_vending_jugg", (-3508, -7198, -59), (0, 270, 0));
 	scripts\zm\replaced\utility::register_perk_struct("specialty_quickrevive", "zombie_vending_quickrevive", (-6207, -6541, -46), (0, 60, 0));
 	scripts\zm\replaced\utility::register_perk_struct("specialty_fastreload", "zombie_vending_sleight", (-5470, -7859.5, 0), (0, 270, 0));
 	scripts\zm\replaced\utility::register_perk_struct("specialty_rof", "zombie_vending_doubletap2", (-4170, -7592, -63), (0, 270, 0));
@@ -184,9 +224,8 @@ struct_init()
 	scripts\zm\locs\loc_common::enable_wallbuys( a_wallbuys );
 
 	zmqol_add_semtex_wallbuy();
-	zmqol_add_claymore_wallbuy();   // v1.99.91 - the shack claymore
+	zmqol_add_claymore_wallbuy();   // v1.99.91 - the shack claymore, moved to the jugg wall in v2.4.7, pushed clear of Jugg's own trigger in v2.5.7
 	level thread zmqol_fix_claymore_zone_gate();   // v2.3.9 - the actual fix, see its own comment
-	level thread zmqol_probe_jugg_flat_wall();   // v2.5.0 - measuring the flat panel vs the trim piece, see its own comment
 
 	gameObjects = getEntArray("script_model", "classname");
 
@@ -900,69 +939,140 @@ zmqol_claymore_wallbuy_origin()
 	// Also moved 25 units along the wall toward Jugg (x -3577 -> -3552,
 	// closing the gap from 55 to 30 units) per the user's own follow-up -
 	// still comfortably clear of bear 1 (220+ units either way).
-	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3552 ), getdvarintdefault( "zmqol_claymore_diner_y", -7195 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
+	//
+	// 🌟 v2.5.4 - FLUSH, NOT EMBEDDED, AND RECENTERED BETWEEN THE PILLARS.
+	// User, 2026-08-27, live in-game: "ever so slightly clipped into the wall,
+	// pull it forward a few pixels" + "move it left a bit to center between
+	// the 2 wooden pillars."
+	//
+	// The forward pull is a measured correction, not a guess: v2.2.5's own
+	// mesh-export analysis above (t6_wpn_claymore_world_LOD_0) gives the
+	// model's local-X (depth) span as -2.51 (back) .. 1.63 (front), and model
+	// yaw 270 maps local +X to world -Y, so local -X (the back) sits at
+	// world y = origin + 2.51 - i.e. 2.51 units on the WALL side of whatever
+	// y the origin sits at. Origin at the measured wall surface (-7172, from
+	// v2.5.3) therefore embeds the back ~2.5 units into the wall - exactly
+	// the "slightly clipped" the user just reported. Pulled the origin 3
+	// units further into the room (-7172 -> -7175) so the back face clears
+	// the surface with a hair of margin instead of sitting past it.
+	//
+	// The left move is the user's own live read of the room (only they can
+	// see the model against the pillars in real time) - moved one step
+	// further into the already-probed-clear x range from v2.5.3 (-3552 ->
+	// -3560, i.e. further from Jugg / away from bear 1), still 32 units
+	// clear of the -3592 trim post on the far side and 32 units clear of
+	// Jugg's approach on the near side. Not re-derived from a screenshot;
+	// if it isn't centered yet, it needs another live read, not a bigger
+	// guess from here.
+	//
+	// 🌟 v2.5.5 - ONE UNIT BACK TOWARD THE WALL. User, 2026-08-27, live
+	// in-game: x is now right ("nearly perfect"), but -7175 left a very
+	// slight gap - "every so slightly floating off the wall." v2.5.4's
+	// mesh-based pull (2.51 rounded up to 3) overshot by about that same
+	// margin. Nudged 1 unit closer (-7175 -> -7174, 2 units off the -7172
+	// measured surface instead of 3) - the mesh math and the two live reads
+	// ("every so slightly clipped" at -7172 before v2.5.4, "every so
+	// slightly floating" at -7175 now) bracket the true value inside a
+	// 1-unit band. If -7174 isn't it, the only remaining candidate in that
+	// band is -7173.
+	//
+	// 🛑 v2.5.7 (RETRACTED, v2.5.8 below) - moved x -3560 -> -3620 on a theory
+	// that get_closest_unitriggers() was arbitrating between the claymore's
+	// unitrigger and Jugg's classic trigger_radius_use and picking whichever
+	// was closer. User: "why did you move the claymore over to the left?? i
+	// never asked for you to do that put it back" + still not purchasable
+	// without noclipping through the wall at the NEW spot either - proving
+	// the theory wrong twice over, not just unwanted.
+	//
+	// 🛑 v2.5.8 - THE THEORY WAS WRONG. VERIFIED BY ACTUALLY READING
+	// get_closest_unitriggers() (ZM Core/_zm_unitrigger.gsc:674), not
+	// assuming from the bear-1 precedent again. Its `array` argument is a
+	// candidate list of UNITRIGGER STUBS ONLY - the same system the
+	// claymore, teddy bears, shield pieces and craftables use. Jugg's use
+	// trigger is spawned by a completely different, older stock system
+	// (perk_machine_spawn_init(), ZM Core/_zm_perks.gsc:2877,
+	// spawn("trigger_radius_use", ...)) that never enters that candidate
+	// array at all. Jugg cannot be "closer" and win a comparison it was
+	// never entered into. Moving the claymore relative to Jugg was never
+	// going to change this outcome, which is exactly what the second boot
+	// showed - x -3620 failed identically to x -3560.
+	//
+	// x REVERTED to -3560 per the user's direct instruction - no reason left
+	// to have moved it, and the pillar-centered spot was never the problem.
+	//
+	// The real mechanism is still open. What's confirmed from the logs
+	// (both boots): the unitrigger DOES reach would_qualify=1 and DOES build
+	// a live trigger (stub.trigger becomes defined) at a normal standing
+	// distance - so the unitrigger system itself is not the blocker. What's
+	// NOT yet confirmed: what happens after that point that still requires
+	// noclipping through the wall to actually purchase. Two live candidates,
+	// not yet distinguished:
+	//   (a) a shared single-slot "hold to use" prompt where Jugg's classic
+	//       trigger (built once at map load, always present) wins over the
+	//       claymore's dynamically-built one whenever the player is close
+	//       enough to touch both - independent of the unitrigger system.
+	//   (b) something physically blocking the floor space in front of the
+	//       claymore (Jugg's own zm_collision_perks1 clip mesh, now mounted
+	//       right next to it) that only noclip bypasses.
+	// zmqol_claymore_trigger_watch() below now logs directly for this
+	// instead of guessing between them - see its own v2.5.8 comment.
+	//
+	// Kept the user's own "still floating, a tiny bit closer" report from
+	// last round: y -7174 -> -7173, the last untried candidate in the
+	// v2.5.5 bracket (-7172 clipped / -7175 floated). Not contested this
+	// round, no reason to revert it.
+	//
+	// 🛑 v2.6.3 - JUGG REVERTED (see struct_init() above - proven not the
+	// cause). User, direct: "try moving the claymore a tiny bit forward so
+	// i could buy it." This is an explicit experiment, not a re-measured
+	// fix - four attempts at the trigger/dispatch layer (v2.5.7, v2.6.0,
+	// v2.6.1, v2.6.2) didn't move the needle, so this tries the one
+	// remaining untested variable: physical standing room. y -7173 -> -7180,
+	// 7 units further into the room (8 off the measured wall surface,
+	// versus 1 before) - more clearance to actually stand and aim at it,
+	// at the cost of reopening the "floating" look v2.5.5 fixed. Functional
+	// over cosmetic, per the user's own priority this round.
+	//
+	// 🌟 v2.6.4 - FINDING THE SWEET SPOT. User: purchasable at -7180, "but
+	// it's too far off the wall... gotta get that sweet spot." Confirms the
+	// real variable all along was physical standing room, not any trigger/
+	// dispatch mechanism - -7173/-7174 (1-2 off the wall) failed every time,
+	// -7180 (8 off) works. The true minimum is somewhere in that 6-unit gap.
+	// Bisecting rather than guessing from an end: -7177, the midpoint.
+	//
+	// 🌟 v2.6.5 - User: -7177 still noticeably off the wall, wants a small
+	// nudge back. Moved 1 unit closer (-7177 -> -7176) - still 2 units clear
+	// of the -7174 line that was confirmed unpurchasable every time it was
+	// tried, so purchasing shouldn't be at risk from this one-unit step.
+	return ( getdvarintdefault( "zmqol_claymore_diner_x", -3560 ), getdvarintdefault( "zmqol_claymore_diner_y", -7176 ), getdvarintdefault( "zmqol_claymore_diner_z", -7 ) );
 }
 
 // ============================================================================
-//  🌟 v2.5.0 - MEASURING THE FLAT PANEL, NOT GUESSING FROM A SCREENSHOT.
+//  🌟 v2.5.3 - THE FLAT PANEL, MEASURED. Y MOVED FROM -7195 TO -7172.
 //
-//  User, 2026-08-26, with two more screenshots at this exact spot: yaw is now
-//  right (v2.4.9 fixed the sign), but the mine sits ON the vertical trim piece
-//  next to Jugg, not on the flat wood panel to its left, between the two
-//  pillars - "floating", needs to move left and seat onto the wall. Rather
-//  than eyeball a pixel offset (the failure mode that cost checkpoints
-//  106-119), this fires a fan of bullettraces at match start, from a known-
-//  open room point (near the player's own `.where` reading in the second
-//  screenshot, (-3557,-7255,-58)) toward the wall (+Y - the same direction
-//  established as the wall's outward normal in v2.4.9), at 8-unit steps
-//  walking left (more negative x) from the current default. A flat panel
-//  reads the SAME hit_y across a contiguous run of x values; the trim piece
-//  reads a different (shorter) hit_y wherever it's in the way. That boundary,
-//  read directly off the log/screen, is what picks the new x and y - not an
-//  assumption about player capsule radius or screen pixels.
+//  v2.5.0's zmqol_probe_jugg_flat_wall() shipped in v2.5.2 and its output was
+//  read from a real boot: C:\Users\localuser\AppData\Local\Plutonium\storage\
+//  t6\main\console_zm.log, lines 4780-4791, from the same session the user's
+//  two `.where` screenshots (-3602,-7199,-58 / -3553,-7255,-58) came from -
+//  the one where they confirmed the claymore was purchasable. Full result:
+//        x=-3552  hit_y=-7172  dist=77      x=-3584  hit_y=-7172  dist=77
+//        x=-3560  hit_y=-7172  dist=77      x=-3592  hit_y=-7180  dist=70  <- trim post
+//        x=-3568  hit_y=-7172  dist=77      x=-3600  hit_y=-7172  dist=77
+//        x=-3576  hit_y=-7172  dist=77      x=-3608  hit_y=-7172  dist=77
+//  Seven of eight candidates agree on hit_y -7172 to the unit - a real flat
+//  plane, not noise. x=-3592 alone is short (dist 70, hit_y -7180): the trim
+//  post, exactly as the v2.5.0 comment predicted, sitting narrow enough that
+//  the flat panel resumes on both sides of it.
 //
-//  Print-only. Removed once its job is done, same as every prior probe here.
+//  The existing default x=-3552 was ALREADY clear of the post - only y was
+//  wrong. It was -7195, i.e. 23 units short of the measured wall (-7172):
+//  the mine's origin sat in open room air in front of the panel, which is
+//  exactly the "floating off the wall" the user's screenshots showed. Moved
+//  to -7172, the measured surface itself - same convention v2.3.2 used for
+//  the original shack wall (WALLX -7486 taken directly off its own flat-hit
+//  reading, no added offset), so this isn't a new rule, just this file's
+//  existing one applied with real data instead of a guess.
 // ============================================================================
-zmqol_probe_jugg_flat_wall()
-{
-	wait 3;
-
-	v_z      = -7;
-	n_y_from = -7250;
-	n_reach  = 90;
-	n_x0     = -3552;
-
-	players = get_players();
-
-	for ( n_dx = 0; n_dx <= 56; n_dx += 8 )
-	{
-		n_x    = n_x0 - n_dx;
-		v_from = ( n_x, n_y_from, v_z );
-		v_to   = ( n_x, n_y_from + n_reach, v_z );
-
-		trace = bullettrace( v_from, v_to, 0, undefined );
-
-		if ( trace[ "fraction" ] >= 1 )
-		{
-			str_line = "[zm_qol] JUGG FLAT CAND x=" + n_x + " NO HIT within " + n_reach;
-		}
-		else
-		{
-			v_hit = trace[ "position" ];
-			str_line = "[zm_qol] JUGG FLAT CAND x=" + n_x + " hit_y=" + int( v_hit[1] ) + " dist=" + int( distance( v_from, v_hit ) );
-		}
-
-		println( str_line );
-
-		if ( players.size > 0 )
-			players[0] iprintln( str_line );
-
-		wait 0.3;
-	}
-
-	if ( players.size > 0 )
-		players[0] iprintln( "^2[zm_qol] ^7JUGG FLAT probe done - 8 candidates printed above" );
-}
 
 zmqol_add_claymore_wallbuy()
 {
@@ -1133,6 +1243,22 @@ zmqol_add_claymore_wallbuy()
 //  once a session ends, so the on-screen line is the one to screenshot if
 //  this still needs a second look.
 // ============================================================================
+// ============================================================================
+//  🌟 v2.5.5/v2.5.7 - JUGG'S CORNER, MEASURED, THEN SUPERSEDED BY THE REAL
+//  BUG. zmqol_probe_jugg_corner() (removed here, job done) fired two fans of
+//  bullettraces to map the corner before Jugg moved into it. By the time it
+//  actually ran (v2.5.6 had already relocated Jugg per the user's explicit
+//  instruction to proceed without waiting), its own traces mostly just hit
+//  JUGG'S OWN NEW MODEL instead of the underlying wall/corner brushes - e.g.
+//  "JUGG WALLY x=-3522 hit_y=-7205 dist=44" where the earlier flat run had
+//  read -7172 - useless for mapping the room, but it incidentally confirmed
+//  Jugg's model footprint sits right where its new origin says it does, and
+//  more importantly the session's log made the REAL problem obvious: the
+//  claymore stopped being purchasable. That turned out to be a use-trigger
+//  radius conflict, not a corner/wall geometry problem at all - see the
+//  v2.5.7 comment on zmqol_claymore_wallbuy_origin() for the full,
+//  log-verified diagnosis and fix.
+// ============================================================================
 zmqol_fix_claymore_zone_gate()
 {
 	// v2.4.0: was a flat "wait 3;". Boot-tested 2026-08-26 - claymore still
@@ -1203,6 +1329,41 @@ zmqol_fix_claymore_zone_gate()
 	}
 
 	println( "[zm_qol] CLAYMORE FIX: before - in_zone=" + str_zone + " was_active=" + b_was_active + " require_look_at=" + stub.require_look_at + " registered=" + isdefined( stub.registered ) );
+
+	// ========================================================================
+	//  🌟 v2.6.0 - THE ACTUAL BLOCKER, FOUND BY READING THE ENGINE CALL, NOT
+	//  GUESSED. User clipped through the wall with `.fly` and showed the real
+	//  "Hold F for Claymore" prompt appears fine from a position basically ON
+	//  TOP OF the model - proving the unitrigger itself works (qualify and
+	//  registration were never the problem, matching every prior boot's
+	//  would_qualify=1/live_trigger=1) and narrowing this to something about
+	//  the APPROACH, not the trigger.
+	//
+	//  init_spawnable_weapon_upgrade() (_zm_weapons.gsc:959) sets
+	//  unitrigger_stub.require_look_at = 1 UNCONDITIONALLY for every
+	//  weapon_upgrade struct in the game, no exceptions, claymore included.
+	//  _zm_unitrigger.gsc:585-586 turns that into a real engine call on the
+	//  built trigger: `trigger usetriggerrequirelookat()` - the player's
+	//  crosshair has to have a clear trace to the object, not just be in
+	//  range. This wallbuy sits essentially flush against a large flat wall
+	//  (v2.5.3 onward pulled it to within 1-3 units of the measured surface,
+	//  y=-7173) with Jugg's own bulk nearby - from most normal standing
+	//  angles in this cramped corner, a crosshair trace aimed at the model's
+	//  origin very plausibly grazes the wall or Jugg first instead of
+	//  clearing to the small model. Clipping through the wall puts the
+	//  player's eye right next to the target, where that trace trivially
+	//  succeeds - exactly what the user's screenshot showed.
+	//
+	//  Every other wallbuy in this file (semtex, the roof weapons) has this
+	//  same stock requirement and hasn't been reported broken, so removing it
+	//  isn't a general "fix" - it's scoped to this ONE stub, the one placed
+	//  in the one corner tight enough for the requirement to actually bite.
+	//  Set BEFORE reregister_unitrigger_as_dynamic() below builds the live
+	//  per-player trigger, so usetriggerrequirelookat() never gets called on
+	//  it in the first place - not fighting the check after the fact.
+	// ========================================================================
+	stub.require_look_at = 0;
+	println( "[zm_qol] CLAYMORE FIX: require_look_at forced to 0 (was 1) - crosshair-aim requirement removed for this wallbuy only" );
 
 	// The actual fix - see the block comment above.
 	maps\mp\zombies\_zm_unitrigger::reregister_unitrigger_as_dynamic( stub );
@@ -1286,6 +1447,42 @@ zmqol_claymore_trigger_watch( stub )
 		if ( b_live )
 		{
 			p iprintln( "^2[zm_qol] ^7claymore: live trigger built, dist=" + int( d ) + " placeable_mine=" + p is_player_placeable_mine( "claymore_zm" ) );
+
+			// 🌟 v2.6.1 - THE REAL FIX. v2.5.9's diagnostic (can_buy_weapon=1,
+			// is_drinking=0, every tick, while touching_vending=
+			// specialty_armorvest persisted and mine stayed 0) ruled out every
+			// GSC-level gate - can_buy_weapon() itself says yes, every time,
+			// and v2.6.0's require_look_at removal didn't fix it either. What's
+			// left is the one thing GSC can't directly observe: the ENGINE'S
+			// OWN native dispatch of the "use" button press to a touched
+			// trigger_radius entity. With two overlapping trigger volumes
+			// (Jugg's stock one, radius 70, and this stub's dynamically-built
+			// one), stock has no reason to have ever handled that case
+			// gracefully - wall buys are normally placed far enough apart that
+			// it never comes up. The likely behavior: only one trigger per
+			// press gets the native notify, and Jugg's (spawned first, at map
+			// load) wins it every time, so buy_claymores()'s own
+			// `self waittill("trigger", who)` (Tranzit Diner/_zm_weap_claymore
+			// .gsc:55) never fires at all near Jugg - explaining every
+			// symptom: the gates all pass, the notify itself just never
+			// arrives.
+			//
+			// Fixed by not depending on that native dispatch for THIS wallbuy.
+			// zmqol_claymore_manual_buy_watch() below polls the player's raw
+			// button state directly with usebuttonpressed() (ZM Core/
+			// _zm_craftables.gsc:1817 - the same builtin the modern buildable
+			// system already uses for exactly this, so it's a proven pattern,
+			// not a new one) and, when the player independently qualifies,
+			// fires `trigger notify("trigger", player)` on the REAL live
+			// trigger entity itself (stub.playertrigger[entnum], the same one
+			// b_live already confirms exists). That is the exact notify
+			// buy_claymores() is waiting on - this doesn't reimplement the
+			// purchase (cost, sound, hint, weapon_show, clientfield all stay
+			// stock's own code, called the normal way), it only stops relying
+			// on the engine to deliver the notify when Jugg is also touched.
+			// Jugg's own trigger is never touched by this - it keeps working
+			// however it already does.
+			level thread zmqol_claymore_manual_buy_watch( stub );
 			return;
 		}
 	}
@@ -1294,6 +1491,57 @@ zmqol_claymore_trigger_watch( stub )
 
 	if ( players.size > 0 )
 		players[0] iprintln( "^1[zm_qol] ^7claymore: no live trigger ever appeared in 45s near the stub" );
+}
+
+zmqol_claymore_manual_buy_watch( stub )
+{
+	// Runs for the rest of the match, not just the first 45s - a player can
+	// walk up and try to buy this at any round, not only right after load.
+	n_printed_once = 0;
+
+	for (;;)
+	{
+		wait 0.1;
+
+		players = get_players();
+
+		foreach ( p in players )
+		{
+			if ( !isdefined( p ) || !is_player_valid( p ) )
+				continue;
+
+			if ( !isdefined( stub.playertrigger ) || !isdefined( stub.playertrigger[ p getentitynumber() ] ) )
+				continue;
+
+			v_eye = p.origin + ( 0, 0, 35 );
+			d_2d_sq = distance2dsquared( v_eye, stub.origin );
+			n_zdiff = abs( stub.origin[2] - v_eye[2] );
+
+			if ( d_2d_sq >= stub.test_radius_sq || n_zdiff > 42 )
+				continue;
+
+			if ( !p usebuttonpressed() )
+				continue;
+
+			// Half-second debounce per player - buy_claymores() re-checks cost
+			// and ownership on every notify so repeat firing wouldn't corrupt
+			// anything, this just avoids spamming the same purchase attempt
+			// dozens of times a second while the button is held.
+			if ( isdefined( p.zmqol_claymore_buy_cooldown ) && gettime() < p.zmqol_claymore_buy_cooldown )
+				continue;
+
+			p.zmqol_claymore_buy_cooldown = gettime() + 500;
+
+			e_trigger = stub.playertrigger[ p getentitynumber() ];
+			e_trigger notify( "trigger", p );
+
+			if ( !n_printed_once )
+			{
+				println( "[zm_qol] CLAYMORE MANUAL BUY: fired trigger notify directly (bypassing native dispatch) for " + p.name );
+				n_printed_once = 1;
+			}
+		}
+	}
 }
 
 zmqol_unlock_shield_buildable_entities()
