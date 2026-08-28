@@ -93,6 +93,9 @@ init_vulture()
     level.perk_vulture.clientfields.scriptmovers["vulture_powerup_drop"] = 3;
     level.perk_vulture.clientfields.actors = [];
     level.perk_vulture.clientfields.actors["vulture_stink_trail_fx"] = 0;
+    //  v2.7.3 - INERT. Nothing sets or clears this field any more (Vulture Aid
+    //  no longer changes zombie eye colour); the index map entry stays only so
+    //  the name remains valid for vulture_clientfield_actor_set/clear's assert.
     level.perk_vulture.clientfields.actors["vulture_eye_glow"] = 1;
     level.perk_vulture.clientfields.toplayer = [];
     level.perk_vulture.clientfields.toplayer["vulture_perk_active"] = 0;
@@ -1298,7 +1301,15 @@ _decrement_network_slots_after_time()
 vulture_zombie_spawn_func()
 {
     self endon( "death" );
-    self thread add_zombie_eye_glow();
+    //  v2.7.3 - VULTURE AID NO LONGER TOUCHES ZOMBIE EYE COLOUR. The
+    //  `self thread add_zombie_eye_glow();` that stood here set actor
+    //  clientfield bit 1 (vulture_eye_glow) on every zombie, which the client
+    //  renders as misc/fx_zombie_eye_vulture - the blue eye. Cutting the WRITE
+    //  is the root-cause fix: with the bit never set, the client's
+    //  actors_eye_glow array stays empty, so vulture_vision_enable()'s
+    //  "foreach zombie ... _zombie_eye_glow_enable()" pass on perk pickup has
+    //  nothing to enable. The clientfield REGISTRATION is deliberately left
+    //  alone on both sides - symmetry and the 2-bit actor budget are unchanged.
     self waittill( "completed_emerging_into_playable_area" );
 
     if ( self should_zombie_have_stink() )
@@ -1319,17 +1330,8 @@ vulture_zombie_spawn_func()
     }
 }
 
-add_zombie_eye_glow()
-{
-    self endon( "death" );
-    self waittill( "risen" );
-    self vulture_clientfield_actor_set( "vulture_eye_glow" );
-}
-
 zombies_drop_stink_on_death()
 {
-    self vulture_clientfield_actor_clear( "vulture_eye_glow" );
-
     if ( isdefined( self.attacker ) && isplayer( self.attacker ) && self.attacker hasperk( "specialty_nomotionsensor" ) )
         self thread do_vulture_death( self.attacker );
     else if ( isdefined( self.is_stink_zombie ) && self.is_stink_zombie && isdefined( self.stink_ent ) )
