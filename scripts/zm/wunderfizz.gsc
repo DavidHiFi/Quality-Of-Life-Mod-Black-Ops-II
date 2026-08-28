@@ -2952,8 +2952,19 @@ zmqol_wf_vulture_marker_watch()
 	self endon( "death" );
 	level endon( "end_game" );
 
+	//  🔬 v2.7.2 DIAGNOSTIC - User, 2026-08-28: the v2.7.1 marker_enabled() fix
+	//  did NOT put the icon on Bus Depot's Wunderfizz, despite every offline
+	//  check (registration gate, .location assignment, currentWunderfizzLocation
+	//  default) reading correct. Rather than ship a second guess, this prints
+	//  every branch this thread can take, so the next test names the exact break
+	//  point instead of theorising about it again.
 	if ( !maps\mp\zombies\_zm_perk_vulture::zmqol_vulture_marker_enabled() )
+	{
+		println( "[zm_qol] wunderfizz vulture marker: gate returned 0 for machine at location " + self.location + ", watcher exiting" );
 		return;
+	}
+
+	println( "[zm_qol] wunderfizz vulture marker: gate passed for machine at location " + self.location + ", waiting on level.perk_vulture" );
 
 	//  level.perk_vulture is created in init_vulture() in the same synchronous
 	//  block as its registerclientfield calls, so once it exists the field is
@@ -2973,6 +2984,8 @@ zmqol_wf_vulture_marker_watch()
 		return;
 	}
 
+	println( "[zm_qol] wunderfizz vulture marker: level.perk_vulture ready after " + n_tries + " tries, machine at location " + self.location + " entering watch loop" );
+
 	n_last = -1;
 
 	for ( ;; )
@@ -2986,6 +2999,7 @@ zmqol_wf_vulture_marker_watch()
 		{
 			n_last = n_want;
 			self setclientfield( "zmqol_vulture_marker", n_want );   //  1 = Wunderfizz, see zmqol_vulture_marker_code()
+			println( "[zm_qol] wunderfizz vulture marker: machine at location " + self.location + " wrote " + n_want + " (currentWunderfizzLocation=" + level.currentWunderfizzLocation + ")" );
 		}
 
 		wait 0.25;

@@ -114,12 +114,12 @@ All five mod files go in that one folder.
 
 ## ✨ What you get
 
-Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 50 rows — 48 on Nuketown, where the CHEATS tab has no TELEPORT row because the map has no landmark list — plus five graphics rows on the stock **ADVANCED** tab and an **AIM ASSIST** row on **CONTROLS → GAMEPAD**. No chat commands required.
+Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 51 rows — 49 on Nuketown, where the CHEATS tab has no TELEPORT row because the map has no landmark list — plus five graphics rows on the stock **ADVANCED** tab and an **AIM ASSIST** row on **CONTROLS → GAMEPAD**. No chat commands required.
 
 > [!NOTE]
 > **Confirmed in game:** **UNLOCK ALL** and **RESET STATS** (Zombies main menu → THEATER), the pause-menu rows, the **Zombie Blood** HUD icon, and the scoreboard naming your start location — "Survival - Diner", not "Survival - Green Run".
 >
-> **Built but not booted yet:** **BETTER SPEED COLA**, **NO BLEEDOUT PATCH**, **CHANGE ROUND** to 10000 with the round cap off, the Die Rise Sliquifier row, the Die Rise Semtex wall buy, the five newer PATCHES rows, **SET POINTS** / **TELEPORT**, the DSR 50 and Five-Seven recoil, the Winter's Howl firing effects, and Depth Of Field actually staying off at round-end and game-over when DISABLED.
+> **Built but not booted yet:** **BETTER SPEED COLA**, **NO BLEEDOUT PATCH**, **CHANGE ROUND** to 10000 with the round cap off, the Die Rise Sliquifier row, the Die Rise Semtex wall buy, the six newer PATCHES rows (including **3 HIT DOWN**), **SET POINTS** / **TELEPORT**, the DSR 50 and Five-Seven recoil, the Winter's Howl firing effects, and Depth Of Field actually staying off at round-end and game-over when DISABLED.
 
 <br>
 

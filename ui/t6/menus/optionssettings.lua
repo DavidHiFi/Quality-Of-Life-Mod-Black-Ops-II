@@ -1913,9 +1913,18 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	-- ========================================================================
 	T(QolPatchesButtons, LocalClientIndex, "NO LAVA DAMAGE",     "no_lava_damage",      "TranZit maps. Lava stays visible but stops igniting/exploding zombies and stops damaging you.")
 
+	-- ========================================================================
+	--  v2.7.2 - 3 HIT DOWN. User, 2026-08-28: *"add '3 HIT DOWN' which as the
+	--  name suggests, makes the player have the same kinda health as black ops
+	--  3 zombies and onwards"*. Caps a single zombie melee hit's damage at
+	--  maxhealth/3, so no round's melee scaling can down you in fewer than 3
+	--  hits. See zmqol_three_hit_down_install() in quality_of_life.gsc.
+	-- ========================================================================
+	T(QolPatchesButtons, LocalClientIndex, "3 HIT DOWN",         "three_hit_down",      "Zombie melee hits can never down you in fewer than 3 hits, like BO3+.")
+
 	-- 🛑 STALE COUNT FIXED 2026-08-27 - said "9 total"; NO BLEEDOUT PATCH (v2.2.0)
 	-- was added without updating it. Recounted directly against the T() calls.
-	return QolPatchesContainer                                      -- 11 total
+	return QolPatchesContainer                                      -- 12 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)

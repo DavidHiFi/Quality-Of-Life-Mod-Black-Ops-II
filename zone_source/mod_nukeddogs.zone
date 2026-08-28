@@ -47,3 +47,33 @@ fx,maps/zombie/fx_zombie_dog_eyes
 fx,maps/zombie/fx_zombie_dog_explosion
 fx,maps/zombie/fx_zombie_dog_fire_trail
 fx,maps/zombie/fx_zombie_dog_ash_trail
+
+// ============================================================================
+//  🛑 v2.7.2 - THE UNLOAD FREEZE REGRESSED THROUGH HERE, MEASURED NOT GUESSED.
+//  fx_zombie_dog_explosion's own internal dependency chain pulls in TWO xmodels
+//  that common_zm.ff ALSO owns under the identical name - fx_char_gib_chunk_fat
+//  and fx_char_gib_chunk_meat02 - and because ww_donor/mod.ff and pro7_donor/
+//  mod.ff (both --load'ed ahead of common_zm.ff in build_ff.bat) carry their own
+//  baked copies too, the Linker had real data to bake a SECOND copy into mod.ff
+//  regardless of mod_wonderweapons.zone's own (correct, but only advisory for
+//  EXPLICIT top-level declarations) comment-out of these same two names.
+//
+//  This is exactly the asset-class collision checkpoint 85 (v1.99.82) traced the
+//  original mod-unload freeze to and removed - confirmed by a class-by-class
+//  audit against common_zm.ff finding these as the ONLY two xmodel collisions in
+//  the whole build (zero script collisions, unlike back then). Verified with a
+//  scratch relink (mod_base+locations+wonderweapons+freezefx+xpr50+titus6, then
+//  adding nukeddogs alone) that mod_nukeddogs is what reintroduces them - none of
+//  the other zones added since v1.99.82 touch them.
+//
+//  Bare-declaring them here (no data after the second comma) does NOT drop the
+//  dog explosion's gib visual - fx_zombie_dog_explosion still references them by
+//  name and the engine resolves that name from common_zm.ff at runtime, exactly
+//  like fx_flesh_hit_splat did before common_mp.ff supplied real data for it (see
+//  build_ff.bat's own load-order comment block). Confirmed with the same scratch
+//  relink: with these two lines added, Unlinker --list shows
+//  "xmodel, ,fx_char_gib_chunk_fat" / "xmodel, ,fx_char_gib_chunk_meat02" - a
+//  bare reference, not a second copy of the mesh.
+// ============================================================================
+xmodel,,fx_char_gib_chunk_fat
+xmodel,,fx_char_gib_chunk_meat02

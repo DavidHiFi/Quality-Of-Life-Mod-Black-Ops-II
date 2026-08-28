@@ -1324,7 +1324,13 @@ get_pack_a_punch_weapon_options( weapon )
     //  v1.99.83, queue item 11 - ANIMATED CAMO PATCH on the GAME tab. The
     //  master dvar anim_pap_camo gates all three maps at once; the per-map
     //  dvars are untouched and still work from the console, so anyone who had
-    //  set one keeps it. Master OFF = camo 39 everywhere = exact stock.
+    //  set one keeps it.
+    //
+    //  🛑 v2.7.2 - "Master OFF = camo 39 everywhere = exact stock" WAS WRONG,
+    //  and it is what let the Origins bug below ship unnoticed. Stock's own
+    //  camo_index is NOT 39 everywhere - see _zm_weapons.gsc:2286-2291 in the
+    //  gsc-dump: 39 default, 40 on zm_prison, 45 on zm_tomb. Origins now uses
+    //  45 when the option is off, matching stock exactly.
     //
     //  🛑 THE ROW AFFECTS THE NEXT PACK-A-PUNCH, NOT GUNS ALREADY UPGRADED, and
     //  that is stock's own doing, not a shortcut here: the four lines above
@@ -1351,6 +1357,19 @@ get_pack_a_punch_weapon_options( weapon )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_origins", 1 ) )
             camo_index = 40;
+        //  🛑 v2.7.2 - User, 2026-08-28: with the option OFF on Origins, the PaP
+        //  camo was the green TranZit/Nuketown/Buried one, when Origins should
+        //  show its own blue camo. VERIFIED against the real stock function
+        //  (t6 modding starter kit\reference\gsc-dump\ZM\Core\maps\mp\zombies\
+        //  _zm_weapons.gsc:2286-2291): stock is camo 39 by default, 40 on
+        //  zm_prison (Mob), and 45 on zm_tomb (Origins) - never 39 on Origins.
+        //  This function's initial `camo_index = 39` (line ~1318) is the generic
+        //  fallback and was never being overridden for Origins' OFF path, so it
+        //  silently kept the wrong stock default. The comment below claiming
+        //  "Master OFF = camo 39 everywhere = exact stock" was itself wrong for
+        //  this exact reason - fixed here, not just the behaviour.
+        else
+            camo_index = 45;
     }
     lens_index = randomintrange( 0, 6 );
     reticle_index = randomintrange( 0, 16 );
@@ -9514,6 +9533,12 @@ perks()
     create_dvar( "better_deadshot", 0 );
     level thread zmqol_better_deadshot_install();
 
+    //  v2.7.2 - 3 HIT DOWN, user request 2026-08-28, the PATCHES tab. Off by
+    //  default - new behaviour must not change what the mod already does until
+    //  it is thrown. See zmqol_three_hit_down_install() for the whole mechanism.
+    create_dvar( "three_hit_down", 0 );
+    level thread zmqol_three_hit_down_install();
+
     //  v1.99.74 - AIM ASSIST, user request 2026-08-19. Default 1 = stock.
     //  See the banner over zmqol_aim_assist_watch() for exactly what this can
     //  and cannot reach - it is measured, and it is narrower than the label.
@@ -14968,6 +14993,110 @@ zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc )
         return damage;
 
     return damage * 2;
+}
+
+// ============================================================================
+//  3 HIT DOWN  -  v2.7.2, user request 2026-08-28, the PATCHES tab
+// ----------------------------------------------------------------------------
+//  *"add '3 HIT DOWN' which as the name suggests, makes the player have the
+//  same kinda health as black ops 3 zombies and onwards"*.
+//
+//  🌟 THE HOOK: `self.overrideplayerdamage` / `level.overrideplayerdamage`, A
+//  STOCK EXTENSION POINT - NOT A REPLACEFUNC, NOT A RE-POINT OF THE MAIN
+//  CALLBACK. Verified straight from _zm.gsc:1054-1057
+//  (callback_playerdamage()):
+//        if ( isdefined( self.overrideplayerdamage ) )
+//            idamage = self [[ self.overrideplayerdamage ]]( einflictor,
+//                eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint,
+//                vdir, shitloc, psoffsettime );
+//        else if ( isdefined( level.overrideplayerdamage ) )
+//            idamage = self [[ level.overrideplayerdamage ]]( ... same args );
+//  This is stock's OWN designed-in seam for exactly this kind of thing - the
+//  function is called for every point of player damage and must RETURN the
+//  (possibly modified) damage, unlike callbackplayerdamage/callbackactordamage
+//  which are void.
+//
+//  🛑 CHAINED, NOT CLOBBERED. `level.overrideplayerdamage` is not free ground -
+//  the CLEANSED gametype sets it (Buried/Diner: maps\mp\gametypes_zm\
+//  zcleansed.gsc:100, `level.overrideplayerdamage = ::cleanseddamagechecks`).
+//  Overwriting it outright would silently break that gametype's own damage
+//  rules for anyone who selects it. level.zmqol_prev_overrideplayerdamage
+//  captures whatever is already installed - stock's nothing-at-all in the
+//  ordinary case, or Cleansed's function - and this wrapper calls through to
+//  it FIRST, then applies the 3-hit cap to whatever damage value comes back.
+//
+//  🛑 INSTALLED AFTER initial_blackscreen_passed, same reasoning as
+//  zmqol_better_deadshot_install() directly above: stock/gametype init runs
+//  during map load, before any zombie can deal damage, so installing after
+//  that flag guarantees this sees whatever the map's own init already set
+//  rather than racing it.
+//
+//  🌟 THE CAP, NOT A FULL REIMPLEMENTATION OF BO3+'S HEALTH MODEL. BO2 has no
+//  "hits to down" counter to hook - health is a plain number and downing is
+//  whatever reduces self.health to 0 (self.maxhealth in _zm.gsc:1063-1065's own
+//  magic_bullet_shield code, confirmed the real field name). Capping a single
+//  hit's damage at self.maxhealth / 3 makes it IMPOSSIBLE for fewer than 3 hits
+//  to empty a full health bar, on every round, regardless of how far zombie
+//  melee damage has scaled - which is the BO3+ behaviour being asked for: you
+//  are never one- or two-shot by a claw at a high round the way BO2 stock will
+//  do to you. Natural regen between hits can only make it take MORE than 3,
+//  never fewer.
+//
+//  🛑 SCOPED TO ZOMBIE MELEE ONLY, MEASURED: real zombie basic-attack damage is
+//  dealt with meansofdeath the literal string "melee" (lowercase - confirmed at
+//  _zm.gsc:587, `self.enemy dodamage( getdvarint( #"ai_meleeDamage" ), ...,
+//  "melee" )`), which is NOT the same string as the unrelated "MOD_MELEE" used
+//  elsewhere for player-facing classification. Explosives, fire, fall damage,
+//  hellhound bites and every other means of death are untouched - the request
+//  was specifically about zombie hits, not a general damage-reduction cheat.
+// ============================================================================
+zmqol_three_hit_down_install()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    flag_wait( "initial_blackscreen_passed" );
+
+    //  Guarded so a second call can never chain the wrapper to itself.
+    if ( isdefined( level.zmqol_prev_overrideplayerdamage_set ) )
+        return;
+
+    level.zmqol_prev_overrideplayerdamage_set = 1;
+    level.zmqol_prev_overrideplayerdamage = level.overrideplayerdamage;
+    level.overrideplayerdamage = ::zmqol_three_hit_down_wrapper;
+
+    println( "[zm_qol] 3 hit down: damage chain installed" );
+}
+
+zmqol_three_hit_down_wrapper( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime )
+{
+    if ( isdefined( level.zmqol_prev_overrideplayerdamage ) )
+        idamage = self [[ level.zmqol_prev_overrideplayerdamage ]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime );
+
+    return zmqol_three_hit_down_scale( idamage, smeansofdeath );
+}
+
+//  Returns the damage unchanged unless every condition holds.
+zmqol_three_hit_down_scale( idamage, smeansofdeath )
+{
+    if ( !getdvarintdefault( "three_hit_down", 0 ) )
+        return idamage;
+
+    if ( !isdefined( idamage ) || !isdefined( smeansofdeath ) || smeansofdeath != "melee" )
+        return idamage;
+
+    if ( !isdefined( self.maxhealth ) || self.maxhealth <= 0 )
+        return idamage;
+
+    n_cap = int( self.maxhealth / 3 );
+
+    if ( n_cap < 1 )
+        n_cap = 1;
+
+    if ( idamage > n_cap )
+        idamage = n_cap;
+
+    return idamage;
 }
 
 // ============================================================================

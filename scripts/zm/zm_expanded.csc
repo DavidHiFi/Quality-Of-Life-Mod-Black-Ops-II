@@ -1571,6 +1571,12 @@ zmqol_vulture_marker_enabled()
 //  are marked only as they land - which is exactly the late case this handles.
 zmqol_vulture_marker_cf( localclientnumber, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
 {
+	//  🔬 v2.7.2 DIAGNOSTIC - see the matching one in wunderfizz.gsc::
+	//  zmqol_wf_vulture_marker_watch(). Confirms the CLIENT actually receives
+	//  the code-1 (Wunderfizz) write the server makes.
+	if ( newval == 1 || oldval == 1 )
+		println( "[zm_qol] client vulture marker_cf: oldval=" + oldval + " newval=" + newval + " binitialsnap=" + binitialsnap );
+
 	if ( !isDefined( level.zmqol_marker_ents ) )
 	{
 		level.zmqol_marker_ents = [];

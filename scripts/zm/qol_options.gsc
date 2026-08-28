@@ -255,6 +255,14 @@ init()
     //  directly). Live in both directions mid-match, not just at map load.
     qol_opt_dvar( "no_lava_damage", "0" );
 
+    //  v2.7.2 - 3 HIT DOWN, user request 2026-08-28, the PATCHES tab. OFF =
+    //  stock. Read on every zombie melee hit by
+    //  quality_of_life.gsc::zmqol_three_hit_down_scale(), chained through the
+    //  stock overrideplayerdamage extension point - see
+    //  zmqol_three_hit_down_install() for the whole mechanism. Live mid-match
+    //  in both directions, same as the other PATCHES rows.
+    qol_opt_dvar( "three_hit_down", "0" );
+
     // ------------------------------------------------------------------------
     //  v1.99.91 - NO BOX LIMITS (was BOX LIMITS, v1.99.83, queue item 30).
     //
