@@ -1,4 +1,3 @@
-#include maps\mp_utility;
 #include common_scripts\utility;
 #include maps\mp\zombies\_zm_utility;
 #include maps\mp\zombies\_zm_weapons;
@@ -9,8 +8,7 @@
 #include maps\mp\zombies\_zm_perk_divetonuke;
 #include maps\mp\animscripts\zm_death;
 #include maps\mp\zombies\_zm_game_module;
-#include maps\mp\_zm_nuked_perks;
-#include maps\mp\_zm_nuked;
+#include maps\mp\zm_nuked_perks;
 
 main()
 {
