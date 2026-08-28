@@ -723,8 +723,15 @@ init()
     precacheshader( "specialty_chugabud_zombies" );
     precacheshader( "specialty_electric_cherry_zombie" );
     precacheshader( "specialty_vulture_zombies" );
-    precacheshader( "minimap_icon_chugabud" );
-    precacheshader( "minimap_icon_electric_cherry" );
+    //  v2.8.1 - two precacheshader() calls were removed here:
+    //      precacheshader( "minimap_icon_chugabud" );
+    //      precacheshader( "minimap_icon_electric_cherry" );
+    //  NO material called minimap_icon_* exists anywhere - not in any of the 132
+    //  retail fastfiles and not in mod.ff (Unlinker --list over the whole
+    //  zone\all set: 28,263 game materials + 920 mod materials, zero matches).
+    //  Nothing else in the mod referenced either name, so they precached two
+    //  assets that could never resolve and were never drawn. The three
+    //  specialty_* icons above them are real and are kept.
     precacheshader( "damage_feedback" );
     precacheshader( "zm_riotshield_tomb_icon" );
     precacheshader( "zm_riotshield_hellcatraz_icon" );
