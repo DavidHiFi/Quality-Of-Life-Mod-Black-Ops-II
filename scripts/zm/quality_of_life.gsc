@@ -9891,10 +9891,13 @@ zmqol_bm_should_drop()
 //  the Blood Money block above documents for Origins. This only re-points the
 //  predicate on the two maps where this mod is the reason Fire Sale exists.
 //
-//  📝 STOCK'S OWN TEST IS KEPT, not replaced. func_should_drop_fire_sale()
-//  refuses while a Fire Sale is already running, while level.chest_moves < 1
-//  (so the box must have moved at least once) and while level.disable_firesale_drop
-//  is set. All three still apply; the row is ANDed on top.
+//  📝 v2.7.3 - THIS PARAGRAPH USED TO SAY ALL THREE OF STOCK'S REFUSALS STILL
+//  APPLY. Two of them do. func_should_drop_fire_sale() refuses while a Fire Sale
+//  is already running, while level.chest_moves < 1, and while
+//  level.disable_firesale_drop is set - and the middle one is now deliberately
+//  NOT applied, because on a static-box survival location chest_moves can never
+//  reach 1 and it blocked the drop for the whole game. See the banner over
+//  zmqol_fs_should_drop() for the measurement.
 // ============================================================================
 // ============================================================================
 //  zmqol_wait_network_frame  -  NETWORK FRAME PATCH                 (v2.0.6)
@@ -9977,12 +9980,65 @@ zmqol_wait_network_frame()
         wait 0.1;
 }
 
+// ============================================================================
+//  zmqol_fs_should_drop  -  FIRE SALE ON EVERY MAP, INCLUDING THE STATIC-BOX
+//                           SURVIVAL LOCATIONS                      (v2.7.3)
+//
+//  User, 2026-08-29: *"when my 'custom power-ups' setting is enabled, fire sale
+//  must be able to drop on EVERY zombies map - including Town and the other
+//  Green Run / Tranzit survival maps that don't get fire sales by default."*
+//
+//  -- WHY TOWN NEVER GOT ONE, root-caused rather than guessed -----------------
+//  This used to delegate straight to stock's predicate, which is
+//  (_zm_powerups.gsc:2705, from the Core dump):
+//
+//      if ( level.zombie_vars["zombie_powerup_fire_sale_on"] == 1 ||
+//           level.chest_moves < 1 ||
+//           isdefined( level.disable_firesale_drop ) && level.disable_firesale_drop )
+//          return false;
+//
+//  🌟 `level.chest_moves < 1` is the whole bug. chest_moves is incremented in
+//  exactly one place - _zm_magicbox.gsc:1388, inside the "joker" branch that
+//  flies the box away - and the box only flies to a chest whose
+//  script_noteworthy is "move<n+1>" (:787). Town, Farm, Bus Depot and Diner have
+//  ONE box location, so the box can never move, so chest_moves is 0 for the whole
+//  game, so stock's predicate returns false forever. The include and the powerup
+//  registration were both already correct; the drop could simply never fire.
+//
+//  So the chest_moves clause is dropped here and stock's other two refusals are
+//  kept verbatim. A box that never moves is not a reason to withhold a Fire Sale
+//  - it just means the one box goes to 10 points, which is the whole point of the
+//  power-up on a single-box map.
+//
+//  📝 `level.chests` is still required to be non-empty: a Fire Sale on a map with
+//  no mystery box at all would be a dud drop, and that IS worth refusing.
+//
+//  🛑 NATIVE FIRE SALE MAPS ARE NOT TOUCHED BY ANY OF THIS, which is the
+//  constraint the user set. zmqol_fire_sale_custom_gate() only re-points
+//  func_should_drop_with_regular_powerups on zm_transit and zm_highrise - the two
+//  maps where this mod is the reason Fire Sale exists at all. zm_nuked,
+//  zm_prison, zm_buried and zm_tomb keep stock's predicate byte-for-byte, so
+//  turning CUSTOM POWER-UPS off cannot delete vanilla behaviour there.
+//
+//  Setting OFF -> returns false on those two maps -> vanilla exactly.
+// ============================================================================
 zmqol_fs_should_drop()
 {
     if ( !zmqol_custom_powerups_enabled() )
         return false;
 
-    return maps\mp\zombies\_zm_powerups::func_should_drop_fire_sale();
+    //  ---- stock's refusals, minus the static-box trap ----
+    if ( level.zombie_vars[ "zombie_powerup_fire_sale_on" ] == 1 )
+        return false;
+
+    if ( isdefined( level.disable_firesale_drop ) && level.disable_firesale_drop )
+        return false;
+
+    //  no box, no point
+    if ( !isdefined( level.chests ) || level.chests.size < 1 )
+        return false;
+
+    return true;
 }
 
 zmqol_fire_sale_custom_gate()
