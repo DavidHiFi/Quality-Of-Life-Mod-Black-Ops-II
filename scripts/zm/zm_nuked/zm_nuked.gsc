@@ -352,6 +352,62 @@ bring_perk( machine, trigger, b_no_flight )
         offset = vectorscale( forward_dir * -1, 20 );
         is_phd = 1;
     }
+    // ========================================================================
+    //  🌟 v2.7.3 - PACK-A-PUNCH, THE ONE MACHINE THAT NEVER HAD AN OFFSET.
+    //
+    //  User, 2026-08-29, with two screenshots: at one Nuketown spawn the
+    //  Pack-a-Punch buy prompt never appears in normal play, but noclipping into
+    //  the machine makes it appear - so the machine works and only the prompt is
+    //  unreachable.
+    //
+    //  -- WHAT THE SCREENSHOTS MEASURE ------------------------------------
+    //  The .where readout gives both positions exactly:
+    //      blocked, standing   x -426  y 675  z -63   -> no prompt
+    //      noclip, inside      x -437  y 649  z -73   -> prompt shown
+    //  The pad is pf15_auto2907 at (-455, 617, -68), read out of zm_nuked.ff's
+    //  own mapents with OpenAssetTools - 50 units from the reported spot, and the
+    //  nearest of all ten. So the player could reach 65 units from the pad on
+    //  foot and needed about 37 to trigger it.
+    //
+    //  🛑 IT IS NOT THE SUNKEN-PAD BUG. All ten pads were re-audited against
+    //  their crate blockers the same way zmqol_nuked_fix_sunken_spot() did.
+    //  pf15_auto2907 sits +0.48 from its crate, which is normal - only
+    //  pf15_auto2900 is an outlier at -11.84, and that one is already corrected.
+    //  The pad geometry here is fine.
+    //
+    //  🌟 THE REAL CAUSE IS THIS CHAIN, and it is pad-independent. Every machine
+    //  above is displaced 5-20 units off the pad centre; Pack-a-Punch has no case
+    //  at all - not here and not in stock (zm_nuked_perks.gsc:184-210 has only
+    //  doubletap/sleight/revive/jugger). So PaP alone lands EXACTLY on the pad
+    //  origin, which is where its own use trigger sits, and the machine's
+    //  collision then occupies the volume the player has to stand in. Noclip
+    //  ignores collision, which is precisely why noclip reaches the prompt.
+    //
+    //  That makes the bug latent at ALL TEN pads, not special to this one. It
+    //  only shows where the surroundings leave no room to stand off to the side -
+    //  pf15_auto2907 backs onto rubble, which is visible in the screenshot. It
+    //  surfaces now because stock fills 5 pads of ten and this mod fills 9, the
+    //  same reason the sunken pad started showing up (see that note above).
+    //
+    //  Fixing the missing case therefore fixes every pad at once, rather than
+    //  patching one coordinate.
+    //
+    //  📝 targetname is "vending_packapunch", read from _zm_perks.gsc:3028 where
+    //  the machine is spawned and named - not guessed from the perk name. 20 is
+    //  the magnitude already used for the other physically large machines
+    //  (doubletap, mule kick, PhD), and the direction is the identical formula
+    //  every case above uses, so this is the working precedent rather than a new
+    //  rule. It frees ~20 units, bringing the closest standing point from ~65 to
+    //  ~45 and inside the trigger.
+    //
+    //  📝 No is_pap flag: the is_* chain below only picks a perk_fx light, and
+    //  Pack-a-Punch has none.
+    // ========================================================================
+    else if ( issubstr( machine.targetname, "packapunch" ) )
+    {
+        forward_dir = anglestoforward( machine.original_angles + vectorscale( ( 0, -1, 0 ), 90.0 ) );
+        offset = vectorscale( forward_dir * -1, 20 );
+    }
 
     if ( !is_revive )
     {
