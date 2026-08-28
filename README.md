@@ -122,6 +122,8 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 > **Built but not booted yet:** **BETTER SPEED COLA**, **NO BLEEDOUT PATCH**, **CHANGE ROUND** to 10000 with the round cap off, the Die Rise Sliquifier row, the Die Rise Semtex wall buy, the six newer PATCHES rows (including **3 HIT DOWN**), **SET POINTS** / **TELEPORT**, the DSR 50 and Five-Seven recoil, the Winter's Howl firing effects, and Depth Of Field actually staying off at round-end and game-over when DISABLED.
 >
 > **v2.7.3, built and deployed, none of it booted yet:** the custom **Fire Sale icon** now actually applies (mod.ff owned the image and was shipping the stock art over the top of it); the Wunderfizz **interact-spam softlock** is fixed; **Fire Sale can drop on every map** with CUSTOM POWER-UPS on, including the static-box survival locations like Town; **3 HIT DOWN** now fires at all (it was testing the wrong means-of-death string and never once ran); **Pack-a-Punch** is reachable at every Nuketown spawn; Vulture Aid no longer changes zombie eye colour; and the mod no longer shadows custom sounds in your `storage\t6\zone` folder (the M1911 and Olympia shoot sounds among them).
+>
+> **v2.8.0, built and deployed, not booted yet:** a **PERMA-PERKS** toggle on the GAME tab — off by default; on, every persistent upgrade *that map already has* is active from the start, with no challenge progress needed. It never adds a perma-perk to a map that was not meant to have one, so Perma-PhD stays a Buried perk, and only TranZit, Die Rise and Buried have any at all. Classic only, as in the base game. Also: the Diner claymore's own fix is finally **armed** — the watchdog that switches it on gave up 45 seconds into a match, long before anyone walks to the shack, so it had never once run.
 
 <br>
 
@@ -163,7 +165,7 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 
 ### 🧰 Quality of life
 
-Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-round fix · animated camos · **prone at a perk machine for +100 points** · full backwards and sideways movement speed · **network frame patch** · **graphics boost** on the ADVANCED tab · **remove round cap**, **24-zombie solo cap**, **instakill rounds**, **Double Tap 1.0**, **no barrier attacks**, **no bleedout** on the PATCHES tab · **better Speed Cola** on the GAME tab · **SET POINTS** and **TELEPORT** on the CHEATS tab · **your settings are remembered** between sessions.
+Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-round fix · animated camos · **prone at a perk machine for +100 points** · full backwards and sideways movement speed · **network frame patch** · **graphics boost** on the ADVANCED tab · **remove round cap**, **24-zombie solo cap**, **instakill rounds**, **Double Tap 1.0**, **no barrier attacks**, **no bleedout** on the PATCHES tab · **better Speed Cola** and **perma-perks** on the GAME tab · **SET POINTS** and **TELEPORT** on the CHEATS tab · **your settings are remembered** between sessions.
 
 <br>
 
