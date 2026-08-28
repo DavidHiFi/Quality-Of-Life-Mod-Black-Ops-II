@@ -177,8 +177,39 @@ REM  re-appending the whole group is the only shape that is right in both cases.
 REM
 REM  If you would rather start clean, deleting the cached CSV also works - but that
 REM  should be a convenience, not the only way an edit can take.
+REM ---------------------------------------------------------------------------
+REM  v2.7.3 - mod.all NOW CARRIES ONLY THIS MOD'S OWN ALIASES.
+REM
+REM  User, 2026-08-29: custom sounds in storage\t6\zone (M1911 and Olympia shoot
+REM  sounds among them) play fine WITHOUT the mod and go missing WITH it, while
+REM  most other custom sounds still work.
+REM
+REM  THE CAUSE, measured off the two CSVs rather than guessed:
+REM    mod.all declared 1681 aliases. This mod OWNS 519 of them (the additions
+REM    file). The other 1162 were INHERITED from the donor bank the cache is
+REM    seeded from - rows nothing here ever asked for, including 67 belonging to
+REM    wpn_m1911_* and wpn_rottweil72_* (Olympia's internal name). mod.all loads
+REM    after the stock banks, so every one of those 1162 names shadowed whatever
+REM    the zone folder had customised under the same name. That is exactly the
+REM    reported shape: only SOME custom sounds go missing - the ones the donor
+REM    table happens to mention.
+REM
+REM  🛑 VERIFIED SAFE BEFORE CHANGING IT, not assumed. Every alias string this
+REM  mod's own .gsc/.csc actually plays was extracted and cross-checked:
+REM      37 distinct aliases played
+REM      19 owned by the additions file  -> still shipped, unaffected
+REM       0 donor-only                   -> nothing this mod plays can break
+REM      18 in mod.all at all            -> already resolved from the stock banks
+REM  That last group is the proof: 18 aliases this mod plays every match are not
+REM  in mod.all and work regardless, so a name resolving from a stock bank is the
+REM  normal case, not a risk.
+REM
+REM  Idempotent: the cache is reseeded from the donor only when missing, and this
+REM  step trims it back to the additions either way. To revert, restore the
+REM  'else { $out += $rows[$i] }' branch that used to keep the donor rows.
+REM ---------------------------------------------------------------------------
 echo   Staging this mod's own sounds ...
-"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$p='%PROJ%'; $base=Join-Path $p 'zone_assets\soundbank\mod.all.aliases.csv'; $add=Join-Path $p 'soundbank\mod.all.aliases.additions.csv'; $rows=@(Get-Content $base); $out=@($rows[0]); $mine=@(); $own=@{}; if(Test-Path $add){ $ar=@(Get-Content $add); foreach($r in $ar[1..($ar.Count-1)]){ if($r.Trim() -eq ''){continue}; $mine += $r; $own[($r -split ',')[0]]=$true } }; $drop=0; for($i=1;$i -lt $rows.Count;$i++){ if($own.ContainsKey((($rows[$i]) -split ',')[0])){ $drop++ } else { $out += $rows[$i] } }; $out += $mine; Set-Content -LiteralPath $base -Value $out -Encoding ASCII; Write-Host ('    ' + $mine.Count + ' alias row(s) from this mod (' + $own.Count + ' distinct names, ' + $drop + ' cached row(s) replaced), ' + ($out.Count-1) + ' total'); $m=0; $src=Join-Path $p 'sound'; if(Test-Path $src){ Get-ChildItem -LiteralPath $src -Recurse -File | ForEach-Object { $rel=$_.FullName.Substring($p.Length+1); $dst=Join-Path (Join-Path $p 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; $m++ } }; Write-Host ('    ' + $m + ' sound payload(s) staged')"
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "$p='%PROJ%'; $base=Join-Path $p 'zone_assets\soundbank\mod.all.aliases.csv'; $add=Join-Path $p 'soundbank\mod.all.aliases.additions.csv'; $rows=@(Get-Content $base); $out=@($rows[0]); $mine=@(); $own=@{}; if(Test-Path $add){ $ar=@(Get-Content $add); foreach($r in $ar[1..($ar.Count-1)]){ if($r.Trim() -eq ''){continue}; $mine += $r; $own[($r -split ',')[0]]=$true } }; $shadow=0; for($i=1;$i -lt $rows.Count;$i++){ if(-not $own.ContainsKey((($rows[$i]) -split ',')[0])){ $shadow++ } }; $out += $mine; Set-Content -LiteralPath $base -Value $out -Encoding ASCII; Write-Host ('    ' + $mine.Count + ' alias row(s) from this mod (' + $own.Count + ' distinct names); ' + $shadow + ' inherited donor row(s) DROPPED - mod.all no longer shadows zone-folder sounds; ' + ($out.Count-1) + ' total'); $m=0; $src=Join-Path $p 'sound'; if(Test-Path $src){ Get-ChildItem -LiteralPath $src -Recurse -File | ForEach-Object { $rel=$_.FullName.Substring($p.Length+1); $dst=Join-Path (Join-Path $p 'zone_assets') $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }; Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; $m++ } }; Write-Host ('    ' + $m + ' sound payload(s) staged')"
 if errorlevel 1 ( echo   ERROR: could not stage this mod's sounds. & exit /b 1 )
 
 REM --- stage the sound bank's DUCKS -------------------------------------------
