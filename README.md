@@ -120,6 +120,8 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 > **Confirmed in game:** **UNLOCK ALL** and **RESET STATS** (Zombies main menu → THEATER), the pause-menu rows, the **Zombie Blood** HUD icon, and the scoreboard naming your start location — "Survival - Diner", not "Survival - Green Run".
 >
 > **Built but not booted yet:** **BETTER SPEED COLA**, **NO BLEEDOUT PATCH**, **CHANGE ROUND** to 10000 with the round cap off, the Die Rise Sliquifier row, the Die Rise Semtex wall buy, the six newer PATCHES rows (including **3 HIT DOWN**), **SET POINTS** / **TELEPORT**, the DSR 50 and Five-Seven recoil, the Winter's Howl firing effects, and Depth Of Field actually staying off at round-end and game-over when DISABLED.
+>
+> **v2.7.3, built and deployed, none of it booted yet:** the custom **Fire Sale icon** now actually applies (mod.ff owned the image and was shipping the stock art over the top of it); the Wunderfizz **interact-spam softlock** is fixed; **Fire Sale can drop on every map** with CUSTOM POWER-UPS on, including the static-box survival locations like Town; **3 HIT DOWN** now fires at all (it was testing the wrong means-of-death string and never once ran); **Pack-a-Punch** is reachable at every Nuketown spawn; Vulture Aid no longer changes zombie eye colour; and the mod no longer shadows custom sounds in your `storage\t6\zone` folder (the M1911 and Olympia shoot sounds among them).
 
 <br>
 
