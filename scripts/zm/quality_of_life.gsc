@@ -15098,12 +15098,12 @@ zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc )
 //  do to you. Natural regen between hits can only make it take MORE than 3,
 //  never fewer.
 //
-//  🛑 SCOPED TO ZOMBIE MELEE ONLY, MEASURED: real zombie basic-attack damage is
-//  dealt with meansofdeath the literal string "melee" (lowercase - confirmed at
-//  _zm.gsc:587, `self.enemy dodamage( getdvarint( #"ai_meleeDamage" ), ...,
-//  "melee" )`), which is NOT the same string as the unrelated "MOD_MELEE" used
-//  elsewhere for player-facing classification. Explosives, fire, fall damage,
-//  hellhound bites and every other means of death are untouched - the request
+//  🛑 SCOPED TO ZOMBIE MELEE ONLY. This paragraph used to say the string was the
+//  lowercase "melee" from _zm.gsc:587 and that "MOD_MELEE" was unrelated. THAT
+//  WAS BACKWARDS and it is why the feature never worked - see the corrected note
+//  over zmqol_three_hit_down_scale(). The real swipe is MOD_MELEE
+//  (_zm_spawner.gsc:895); _zm.gsc:587 is the turret-miss path. Explosives, fire,
+//  fall damage and every other means of death are still untouched - the request
 //  was specifically about zombie hits, not a general damage-reduction cheat.
 // ============================================================================
 zmqol_three_hit_down_install()
@@ -15129,22 +15129,67 @@ zmqol_three_hit_down_wrapper( einflictor, eattacker, idamage, idflags, smeansofd
     if ( isdefined( level.zmqol_prev_overrideplayerdamage ) )
         idamage = self [[ level.zmqol_prev_overrideplayerdamage ]]( einflictor, eattacker, idamage, idflags, smeansofdeath, sweapon, vpoint, vdir, shitloc, psoffsettime );
 
-    return zmqol_three_hit_down_scale( idamage, smeansofdeath );
+    return zmqol_three_hit_down_scale( idamage, smeansofdeath, eattacker );
 }
 
+// ----------------------------------------------------------------------------
+//  🛑 v2.7.3 - THIS FUNCTION NEVER FIRED ONCE. Two independent defects, both
+//  measured against the stock dump rather than reasoned about:
+//
+//  1. THE MEANS-OF-DEATH STRING WAS WRONG. The banner above claimed real zombie
+//     melee arrives as the lowercase literal "melee", citing _zm.gsc:587. That
+//     line is `zombiemode_melee_miss()`, which only runs
+//     `if ( isdefined( self.enemy.curr_pay_turret ) )` - the player-on-a-turret
+//     MISS case. It is not the normal swipe at all.
+//
+//     Real zombie melee damage is dealt in _zm_spawner.gsc:895:
+//         self.player_targets[i] dodamage( self.meleedamage, self.origin,
+//                                          self, self, "none", "MOD_MELEE" );
+//     (self.meleedamage = 60, _zm_spawner.gsc:257). _zm_ai_faller.gsc:495 and
+//     _zm_ffotd.gsc:205 use "MOD_MELEE" too. So `smeansofdeath != "melee"`
+//     rejected every genuine zombie hit and the cap was never applied - which is
+//     exactly the report: 3 HIT DOWN on, still downed in 2 hits on Diner.
+//
+//  2. THE CAP WAS OFF BY ONE AND WOULD HAVE GIVEN FOUR HITS, NOT THREE.
+//     int( 100 / 3 ) = 33, and 3 x 33 = 99 < 100 - so a full-health player
+//     survived the third hit and went down on the fourth. To down on exactly the
+//     third hit the cap must be the CEILING: 2d < maxhealth <= 3d. ceil(100/3)
+//     = 34 gives 68 < 100 <= 102. Integer ceiling here is ( n + 2 ) / 3.
+//
+//  Now gated on the attacker being a zombie, which is the actual semantic the
+//  request asks for ("3 zombie hits"), with the means-of-death test kept as a
+//  narrowing filter so player explosives, fire, fall damage and traps stay
+//  untouched. Both melee strings are accepted so the turret-miss path is covered
+//  too.
+//
+//  📝 WHAT THIS DOES TO JUGGERNOG - checked, not left to chance. Jugg is 160 in
+//  BO2, not BO1's 250 (_zm_perks.gsc:69, zombie_perk_juggernaut_health). Stock
+//  zombie melee of 60 already downs a Jugg player in 3 (60/120/180). ceil(160/3)
+//  = 54 binds slightly below 60 and keeps it at exactly 3, so the perk's feel is
+//  unchanged while the guarantee now holds at every health value.
+//
 //  Returns the damage unchanged unless every condition holds.
-zmqol_three_hit_down_scale( idamage, smeansofdeath )
+// ----------------------------------------------------------------------------
+zmqol_three_hit_down_scale( idamage, smeansofdeath, eattacker )
 {
     if ( !getdvarintdefault( "three_hit_down", 0 ) )
         return idamage;
 
-    if ( !isdefined( idamage ) || !isdefined( smeansofdeath ) || smeansofdeath != "melee" )
+    if ( !isdefined( idamage ) || !isdefined( smeansofdeath ) )
+        return idamage;
+
+    //  the real swipe is MOD_MELEE; "melee" is _zm.gsc:587's turret-miss case
+    if ( smeansofdeath != "MOD_MELEE" && smeansofdeath != "melee" )
+        return idamage;
+
+    if ( !isdefined( eattacker ) || !isdefined( eattacker.is_zombie ) || !eattacker.is_zombie )
         return idamage;
 
     if ( !isdefined( self.maxhealth ) || self.maxhealth <= 0 )
         return idamage;
 
-    n_cap = int( self.maxhealth / 3 );
+    //  CEILING, not int() - see the note above. ( n + 2 ) / 3 for positive n.
+    n_cap = int( ( self.maxhealth + 2 ) / 3 );
 
     if ( n_cap < 1 )
         n_cap = 1;
