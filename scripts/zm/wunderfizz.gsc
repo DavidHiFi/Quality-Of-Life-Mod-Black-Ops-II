@@ -2078,7 +2078,11 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 				trig SetHintString("Press ^3&&1^7 to buy Perk-a-Cola [Cost: " + cost + "]");
 				trig waittill("trigger", player);
 				player zmqol_wf_use_watch();
-				if(player zmqol_wf_use_tapped() && player.score >= cost && player.isDrinkingPerk == 0)
+				//  v2.7.3 - re-entry rejected while a hand-over is in flight. The
+				//  isDrinkingPerk test is now isdefined-safe: nothing ever
+				//  initialises that field, so on a first ever purchase it was
+				//  comparing undefined against 0. See zmqol_wf_drink_guard().
+				if(player zmqol_wf_use_tapped() && player.score >= cost && !( player zmqol_wf_busy() ))
 				{
 					if(player.num_perks < level.perk_purchase_limit)
 					{
@@ -2255,7 +2259,11 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 										n_fx_beat = 0;
 										while(time > 0)
 										{
-											if(player zmqol_wf_use_tapped() && distance(player.origin, trig.origin) < 65)
+											//  v2.7.3 - the latch is tested HERE as well as inside
+											//  givePerk(). Spamming the use key drove this loop and
+											//  the outer trigger loop at once, and two overlapping
+											//  hand-overs are what left the player locked.
+											if(player zmqol_wf_use_tapped() && !( player zmqol_wf_busy() ) && distance(player.origin, trig.origin) < 65)
 											{
 												player thread givePerk(perklist[j]);
 												break;
@@ -2868,21 +2876,155 @@ wunderfizzSounds()
 	sound_ent Delete();
 }
 
+// ============================================================================
+//  🛑 v2.7.3 - THE INTERACT-SPAM SOFTLOCK. GAME BREAKING, NOW FIXED.
+//
+//  User, 2026-08-29 (Nuketown survival): *"I spam F to grab the perk bottle from
+//  the Wunderfizz machine. After that I cannot interact with anything or switch
+//  weapons - I can only shoot my current weapon. I had to get downed by a zombie
+//  to recover."*
+//
+//  -- THE MECHANISM, traced through stock rather than guessed ------------------
+//  perk_give_bottle_begin() (_zm_perks.gsc:2349) does two things that TAKE
+//  CONTROL AWAY from the player:
+//        self increment_is_drinking();       -> _zm_utility.gsc:3108, and on the
+//                                               0 -> 1 edge that calls
+//                                               disableoffhandweapons() and
+//                                               disableweaponcycling()
+//        self disable_player_move_states(1); -> _zm_utility.gsc:4706
+//  Both are undone only by perk_give_bottle_end() (:2408), through
+//  enable_player_move_states() and decrement_is_drinking().
+//
+//  disableweaponcycling() IS the reported symptom exactly: you keep the weapon
+//  you are holding and can still fire it, and nothing else responds.
+//
+//  🌟 SO THE BUG IS ANY PATH THAT REACHES begin() AND NOT end(). The old code
+//  had three, and spamming the use key hits them:
+//
+//    1. NO RE-ENTRANCY GUARD. givePerk() was `player thread`-ed from the grab
+//       loop while the outer `trig waittill("trigger")` loop was still live, so
+//       a fast second press could start a SECOND hand-over. is_drinking then
+//       reaches 2, and perk_give_bottle_end()'s is_multiple_drinking() branch
+//       decrements once and returns early - so one increment is never undone and
+//       weapon cycling is never re-enabled.
+//
+//    2. waittill_any_return("fake_death","death","player_downed",
+//       "weapon_change_complete") CAN HANG FOREVER. With two overlapping
+//       hand-overs the weapon changes race and only one "weapon_change_complete"
+//       is delivered; the loser waits for a notify that will never come, so its
+//       perk_give_bottle_end() never runs at all. This is also precisely why
+//       BEING DOWNED RECOVERED IT - "player_downed" is one of the four events,
+//       so dying released the stuck wait. That detail in the report is what
+//       confirms this mechanism rather than merely fitting it.
+//
+//    3. perk_give_bottle_end() OPENS WITH `self endon("perk_abort_drinking")`.
+//       endon applies to the whole calling thread, so if that notify fires,
+//       givePerk() is destroyed mid-way and every flag it owns stays set.
+//
+//  -- THE FIX -----------------------------------------------------------------
+//  A single-shot latch makes a second hand-over impossible (kills 1, and with it
+//  the race that causes 2), and a watchdog thread guarantees recovery from 2 and
+//  3 even so. The watchdog is a SEPARATE thread precisely because case 3 can
+//  destroy this one - a cleanup written at the bottom of givePerk() cannot be
+//  relied on, which is the whole reason the old code failed.
+//
+//  🌟 clear_is_drinking() IS STOCK'S OWN RECOVERY PRIMITIVE (_zm_utility.gsc:3153)
+//  - it sets is_drinking to 0 and calls enableoffhandweapons() and
+//  enableweaponcycling() - so the watchdog restores state with the game's own
+//  function rather than a hand-rolled guess at which flags matter.
+// ============================================================================
+//  True while a Wunderfizz hand-over is in flight for this player. isdefined-safe
+//  on both fields: nothing ever initialises isDrinkingPerk, so the original
+//  `player.isDrinkingPerk == 0` compared undefined against 0 on a first purchase.
+zmqol_wf_busy()
+{
+	if( isdefined( self.zmqol_wf_giving ) && self.zmqol_wf_giving )
+		return true;
+
+	if( isdefined( self.isDrinkingPerk ) && self.isDrinkingPerk )
+		return true;
+
+	return false;
+}
+
 givePerk(perk)
 {
-	if(!(self hasPerk(perk) || (self maps\mp\zombies\_zm_perks::has_perk_paused(perk))))
+	//  ---- single shot. Everything below runs at most once per hand-over. ----
+	if( self zmqol_wf_busy() )
+		return;
+
+	if( self hasPerk( perk ) || self maps\mp\zombies\_zm_perks::has_perk_paused( perk ) )
+		return;
+
+	self.zmqol_wf_giving = 1;
+	self.isDrinkingPerk = 1;
+	self thread zmqol_wf_drink_guard();
+
+	gun = self maps\mp\zombies\_zm_perks::perk_give_bottle_begin(perk);
+	evt = self waittill_any_return("fake_death", "death", "player_downed", "weapon_change_complete");
+
+	if (evt == "weapon_change_complete")
+		self thread maps\mp\zombies\_zm_perks::wait_give_perk(perk, 1);
+
+	self maps\mp\zombies\_zm_perks::perk_give_bottle_end(gun, perk);
+
+	//  Cleared here for the normal path; the watchdog covers the paths that
+	//  never reach this line.
+	self.isDrinkingPerk = 0;
+	self.zmqol_wf_giving = 0;
+	self notify( "zmqol_wf_give_done" );
+
+	if (self maps\mp\zombies\_zm_laststand::player_is_in_laststand() || isDefined(self.intermission) && self.intermission)
+		return;
+
+	self notify("burp");
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_wf_drink_guard  -  NO PATH MAY LEAVE THE PLAYER LOCKED     (v2.7.3)
+//
+//  Started by givePerk() alongside the hand-over. It returns immediately and
+//  silently on the normal path; it only acts if the latch is still set after a
+//  ceiling comfortably longer than any real bottle animation.
+//
+//  🛑 It must NOT endon anything givePerk() endons, and must not be a child of
+//  it, or case 3 above would kill the watchdog together with the thread it
+//  exists to rescue. Only "disconnect" ends it.
+//
+//  📝 The laststand check is deliberate: when the player is down, _zm_laststand
+//  owns weapon and move state and re-grants it on revive. Forcing the flags back
+//  there would fight it. That path is not the bug - being downed is what USED to
+//  be the only way out.
+// ----------------------------------------------------------------------------
+zmqol_wf_drink_guard()
+{
+	self endon( "disconnect" );
+
+	n_waited = 0;
+
+	while( n_waited < 8 )
 	{
-		self.isDrinkingPerk = 1;
-		gun = self maps\mp\zombies\_zm_perks::perk_give_bottle_begin(perk);
-        evt = self waittill_any_return("fake_death", "death", "player_downed", "weapon_change_complete");
-        if (evt == "weapon_change_complete")
-        self thread maps\mp\zombies\_zm_perks::wait_give_perk(perk, 1);
-       	self maps\mp\zombies\_zm_perks::perk_give_bottle_end(gun, perk);
-       	self.isDrinkingPerk = 0;
-    	if (self maps\mp\zombies\_zm_laststand::player_is_in_laststand() || isDefined(self.intermission) && self.intermission)
-        	return;
-    	self notify("burp");
+		if( !isdefined( self.zmqol_wf_giving ) || !self.zmqol_wf_giving )
+			return;					//  finished cleanly
+
+		wait 0.05;
+		n_waited += 0.05;
 	}
+
+	//  Still latched after the ceiling: givePerk() stalled or was destroyed.
+	self.zmqol_wf_giving = 0;
+	self.isDrinkingPerk = 0;
+
+	if( self maps\mp\zombies\_zm_laststand::player_is_in_laststand() )
+		return;
+
+	if( isdefined( self.intermission ) && self.intermission )
+		return;
+
+	self maps\mp\zombies\_zm_utility::clear_is_drinking();
+	self maps\mp\zombies\_zm_utility::enable_player_move_states();
+
+	println( "[zm_qol] wunderfizz: drink guard recovered a stalled perk hand-over" );
 }
 
 // ============================================================================
