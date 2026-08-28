@@ -238,28 +238,45 @@ custom_vending_precaching()
     {
         precacheitem( "zombie_perk_bottle_deadshot" );
         precacheshader( "specialty_ads_zombies" );
-        precachemodel( "zombie_vending_ads" );
-        precachemodel( "zombie_vending_ads_on" );
+        //  v2.8.1 - WAS zombie_vending_ads / _ads_on. Those two names are stock
+        //  Treyarch's and they resolve to NOTHING: neither is an xmodel in any of
+        //  the 132 retail fastfiles, nor in mod.ff (measured with Unlinker --list
+        //  over the whole zone\all set). Stock never noticed because stock never
+        //  sets level.zombiemode_using_deadshot_perk on Die Rise - quality_of_life
+        //  .gsc::perks() does, so this branch runs here and only here. The mod's
+        //  own default_vending_precaching() has always used the real Alcatraz
+        //  cabinet, and so does stock Mob of the Dead; Die Rise was the one copy
+        //  that never got the correction.
+        precachemodel( "p6_zm_al_vending_ads_on" );
         precachestring( &"ZOMBIE_PERK_DEADSHOT" );
         level._effect["deadshot_light"] = loadfx( "misc/fx_zombie_cola_dtap_on" );
         level.machine_assets["deadshot"] = spawnstruct();
         level.machine_assets["deadshot"].weapon = "zombie_perk_bottle_deadshot";
-        level.machine_assets["deadshot"].off_model = "zombie_vending_ads";
-        level.machine_assets["deadshot"].on_model = "zombie_vending_ads_on";
+        level.machine_assets["deadshot"].off_model = "p6_zm_al_vending_ads_on";
+        level.machine_assets["deadshot"].on_model = "p6_zm_al_vending_ads_on";
+        //  🛑 NOT ADDED, DELIBERATELY. default_vending_precaching() also sets
+        //  .power_on_callback / .power_off_callback here (the machine's neon
+        //  toggle). Those two functions live in scripts\zm\quality_of_life.gsc,
+        //  and this file has no precedent anywhere in the mod for a
+        //  scripts\zm\...:: qualified reference. Qualified refs resolve at SCRIPT
+        //  LOAD, so getting the form wrong does not misbehave - it stops Die Rise
+        //  loading at all. Left for a deliberate, booted change rather than
+        //  smuggled in with an asset fix. See the sweep report, finding #4b.
     }
 
     if ( isdefined( level.zombiemode_using_divetonuke_perk ) && level.zombiemode_using_divetonuke_perk )
     {
         precacheitem( "zombie_perk_bottle_nuke" );
         precacheshader( "specialty_divetonuke_zombies" );
-        precachemodel( "zombie_vending_nuke" );
-        precachemodel( "zombie_vending_nuke_on" );
+        //  v2.8.1 - WAS zombie_vending_nuke / _nuke_on; same measurement, same
+        //  cause as the deadshot block above. Neither name exists in any fastfile.
+        precachemodel( "p6_zm_al_vending_nuke_on" );
         precachestring( &"ZOMBIE_PERK_DIVETONUKE" );
         level._effect["divetonuke_light"] = loadfx( "misc/fx_zombie_cola_dtap_on" );
         level.machine_assets["divetonuke"] = spawnstruct();
         level.machine_assets["divetonuke"].weapon = "zombie_perk_bottle_nuke";
-        level.machine_assets["divetonuke"].off_model = "zombie_vending_nuke";
-        level.machine_assets["divetonuke"].on_model = "zombie_vending_nuke_on";
+        level.machine_assets["divetonuke"].off_model = "p6_zm_al_vending_nuke_on";
+        level.machine_assets["divetonuke"].on_model = "p6_zm_al_vending_nuke_on";
     }
 
     if ( isdefined( level.zombiemode_using_doubletap_perk ) && level.zombiemode_using_doubletap_perk )
