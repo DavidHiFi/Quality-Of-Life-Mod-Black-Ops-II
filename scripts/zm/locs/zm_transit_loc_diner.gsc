@@ -1390,7 +1390,47 @@ zmqol_fix_claymore_zone_gate()
 
 zmqol_claymore_trigger_watch( stub )
 {
-	for ( i = 0; i < 45; i++ )
+	// ========================================================================
+	// 🛑 v2.8.0 - THIS LOOP USED TO GIVE UP AFTER 45 SECONDS, AND THAT IS WHY
+	// EVERY FIX SINCE v2.6.1 LOOKED LIKE IT DID NOTHING.
+	//
+	// 🌟 MEASURED, NOT GUESSED, out of the user's own 29 Aug 04:45 boot
+	// (storage\t6\main\console_zm.log). The watch printed nine samples and then
+	// gave up:
+	//     t=0s  dist3d=1681 ... live_trigger=0
+	//     t=10s dist3d=1088 ... live_trigger=0
+	//     t=40s dist3d=1848 ... live_trigger=0
+	//     CLAYMORE WATCH: no live trigger ever appeared in 45s near the stub
+	// The CLOSEST the player ever got inside the window was 554 units, against
+	// a test_radius of 33.85 (box_radius 18.85 + 15, _zm_unitrigger.gsc:101).
+	// The player was simply nowhere near the shack in the first 45 seconds of
+	// the match - which is the normal way anyone plays Diner, since the shack
+	// is across the arena from spawn.
+	//
+	// 🛑 SO THE HAND-OFF BELOW NEVER HAPPENED. b_live never went true, so
+	// zmqol_claymore_manual_buy_watch() - the v2.6.1 fix that is what actually
+	// makes this wall buy purchasable next to Jugg - WAS NEVER STARTED, in any
+	// boot. Every "still can't buy it" report since v2.6.1 is explained by the
+	// fix not being armed rather than by the fix being wrong. Nothing about
+	// v2.6.1's mechanism is re-litigated here; it has simply never run.
+	//
+	// The bootstrap now runs for the whole match, exactly like the manual-buy
+	// watch it hands off to already does ("a player can walk up and try to buy
+	// this at any round, not only right after load" - its own comment). It
+	// still returns the instant it hands off, so this costs one cheap test per
+	// second until the player first walks up, and nothing after that.
+	//
+	// 📝 Printing is throttled instead of the loop being bounded: a line
+	// every 5s only while the player is within 300 units of the stub (plus
+	// always on b_live, and one line at 45s so the old log signature does not
+	// silently vanish). Far-away samples were the only thing the old window
+	// ever captured and they carry no information.
+	// ========================================================================
+	level endon( "game_ended" );
+
+	n_far_note = 0;
+
+	for ( i = 0; ; i++ )
 	{
 		wait 1;
 
@@ -1412,10 +1452,19 @@ zmqol_claymore_trigger_watch( stub )
 
 		b_live = isdefined( stub.trigger ) || ( isdefined( stub.playertrigger ) && isdefined( stub.playertrigger[ p getentitynumber() ] ) );
 
-		if ( i % 5 == 0 || b_live )
+		if ( b_live || ( i % 5 == 0 && d < 300 ) )
 		{
 			str_line = "[zm_qol] CLAYMORE WATCH: t=" + i + "s dist3d=" + int( d ) + " dist2d=" + int( sqrt( d_2d_sq ) ) + " test_radius=" + int( sqrt( stub.test_radius_sq ) ) + " zdiff=" + int( n_zdiff ) + " would_qualify=" + b_would_qualify + " live_trigger=" + b_live + " placeable_mine=" + p is_player_placeable_mine( "claymore_zm" );
 			println( str_line );
+		}
+
+		// One line at the old 45s mark so a log can still be told apart from a
+		// watch that never started at all. Not a give-up any more - the loop
+		// carries on until the player actually walks up.
+		if ( i == 45 && !n_far_note )
+		{
+			n_far_note = 1;
+			println( "[zm_qol] CLAYMORE WATCH: 45s elapsed, no live trigger yet - STILL WATCHING for the rest of the match (dist3d=" + int( d ) + ")" );
 		}
 
 		if ( b_live )
@@ -1459,7 +1508,6 @@ zmqol_claymore_trigger_watch( stub )
 		}
 	}
 
-	println( "[zm_qol] CLAYMORE WATCH: no live trigger ever appeared in 45s near the stub" );
 }
 
 zmqol_claymore_manual_buy_watch( stub )
