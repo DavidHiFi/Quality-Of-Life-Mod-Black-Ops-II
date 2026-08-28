@@ -518,6 +518,33 @@ xmodel,zombie_firesale
 //  (add_zombie_powerup precaches it) while the icon is named only in LUI - so a
 //  script-side audit could never have caught it. 📝 Audit the LUI's
 //  RegisterMaterial list too whenever a power-up is enabled on a new map.
+//
+//  🌟 v2.7.3 - AND THIS IS WHY THE USER'S CUSTOM FIRE SALE ICON NEVER APPLIED.
+//  Reported: the HD icon at storage	6\images\specialty_firesale_zombies.iwi
+//  "is not being applied", suspected to be an installer texture-pack bug.
+//
+//  THE INSTALLER IS NOT AT FAULT - measured. Optionals\images\ (the texture
+//  pack payload) and the copy sitting in storage	6\images are byte-identical,
+//  md5 76ecc6d4, 131136 bytes: Copy-Payload put the right file in the right
+//  place. The override is THIS LINE. mod.ff OWNS image+material
+//  specialty_firesale_zombies (Unlinker --list confirms both), so the game reads
+//  the mod's own header and the mod's own loose pixels out of mod.iwd and never
+//  consults storage	6\images for that name at all. mod.iwd was shipping the
+//  64x64 DXT5 STOCK art (4160 bytes, md5 602b3941) - which is what was on screen.
+//
+//  Fixed by making the user's file the mod's own source: the 512x512 DXT1 icon
+//  now lives in zone_assets\images\ (link-time header) and images\ (mod.iwd
+//  pixels), so header and pixels come from one file.
+//
+//  🛑 build_ff.bat IS MANDATORY for this change, not optional. The old header
+//  said 64x64 fmt 0x0d; the new pixels are 512x512 fmt 0x0b. Swapping only the
+//  .iwi leaves header and pixels disagreeing, which is the measured m1911
+//  purple/green failure documented in zm_qol - dev\VULTURE_TODO.md.
+//
+//  📝 Alpha checked before shipping rather than assumed: DXT1 carries only 1-bit
+//  alpha, so a black-box render was the risk. 3163 of the 16384 blocks (19.3%)
+//  are in punchthrough mode, i.e. the silhouette is really there - it will read
+//  as a hard-edged icon rather than the stock soft-edged one, not as a box.
 material,specialty_firesale_zombies
 
 // ============================================================================
