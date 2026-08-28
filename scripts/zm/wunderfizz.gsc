@@ -3043,31 +3043,13 @@ zmqol_wf_drink_guard()
 //  v1.99.91 - takes the value now: 1 on arrival, 0 on departure. The wait for
 //  level.perk_vulture only ever costs anything on the first call of the match;
 //  after that it is defined and this writes on the next frame.
-zmqol_wf_vulture_marker( n_code )
-{
-	self endon( "death" );
-	level endon( "end_game" );
-
-	if ( !maps\mp\zombies\_zm_perk_vulture::zmqol_vulture_marker_enabled() )
-		return;
-
-	n_tries = 0;
-
-	while ( !isdefined( level.perk_vulture ) && n_tries < 1200 )
-	{
-		wait 0.05;
-		n_tries++;
-	}
-
-	if ( !isdefined( level.perk_vulture ) )
-	{
-		println( "[zm_qol] wunderfizz vulture marker: perk never initialised, marker skipped" );
-		return;
-	}
-
-	wait 0.05;
-	self setclientfield( "zmqol_vulture_marker", n_code );   //  1 = Wunderfizz, see zmqol_vulture_marker_code()
-}
+//  🛑 v2.7.3 - zmqol_wf_vulture_marker() USED TO LIVE HERE AND IS DELETED.
+//  It was the old one-shot writer, and nothing had called it since v2.2.0 gave
+//  the marker a single owner (zmqol_wf_vulture_marker_watch(), started per
+//  machine from wunderfizzSetup). Leaving a second writer lying around is how
+//  the "icon on the wrong machine" bug happened in the first place - two owners
+//  for one piece of state - so the dead copy goes rather than waiting to be
+//  wired back up by accident.
 
 // ============================================================================
 //  zmqol_wf_vulture_marker_watch  -  ONE OWNER FOR THE VULTURE MARKER (v2.2.0)
@@ -3129,6 +3111,7 @@ zmqol_wf_vulture_marker_watch()
 	println( "[zm_qol] wunderfizz vulture marker: level.perk_vulture ready after " + n_tries + " tries, machine at location " + self.location + " entering watch loop" );
 
 	n_last = -1;
+	n_beat = 0;
 
 	for ( ;; )
 	{
@@ -3137,11 +3120,33 @@ zmqol_wf_vulture_marker_watch()
 		if ( isdefined( level.currentWunderfizzLocation ) && level.currentWunderfizzLocation == self.location )
 			n_want = 1;
 
-		if ( n_want != n_last )
+		n_beat++;
+
+		//  ====================================================================
+		//  v2.7.3 - RE-ASSERT ON A HEARTBEAT, NOT ONLY ON CHANGE.
+		//
+		//  This used to write only when n_want != n_last, which makes the very
+		//  first write a ONE SHOT: n_last latches immediately and the value is
+		//  never sent again for the rest of the match. Every other link in this
+		//  chain was verified sound, so the one remaining way for a machine to
+		//  end up unmarked is that single write not reaching a client - the
+		//  machines are spawned during map setup, which is the least settled
+		//  moment of the match for entity relevance.
+		//
+		//  Re-writing the same value every 2s makes that self-healing. It costs
+		//  nothing on the wire: setclientfield stores the field state and the
+		//  networking layer sends deltas, so an unchanged value produces no
+		//  traffic. The println still fires only on a real change, so the log
+		//  stays readable.
+		//  ====================================================================
+		if ( n_want != n_last || n_beat >= 8 )
 		{
+			if ( n_want != n_last )
+				println( "[zm_qol] wunderfizz vulture marker: machine at location " + self.location + " wrote " + n_want + " (currentWunderfizzLocation=" + level.currentWunderfizzLocation + ")" );
+
 			n_last = n_want;
+			n_beat = 0;
 			self setclientfield( "zmqol_vulture_marker", n_want );   //  1 = Wunderfizz, see zmqol_vulture_marker_code()
-			println( "[zm_qol] wunderfizz vulture marker: machine at location " + self.location + " wrote " + n_want + " (currentWunderfizzLocation=" + level.currentWunderfizzLocation + ")" );
 		}
 
 		wait 0.25;
