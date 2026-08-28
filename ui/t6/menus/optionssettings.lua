@@ -1217,8 +1217,9 @@ end
 --  in this build's dump and inventing one would be a guess. The other three
 --  standard entries are all here.
 --
---  📝 PERMA-PERKS ARE NOT HERE EITHER - this mod has no perma-perk system at
---  all (zero matches in the whole tree), so there is nothing to toggle.
+--  📝 PERMA-PERKS WAS ABSENT HERE UNTIL v2.8.0 for the reason stated at the
+--  time - the mod had no perma-perk system at all. It has one now: the
+--  PERMA-PERKS row further down this file, dvar perma_perks, queue item 29.
 --
 --  🛑 DESCRIPTIONS ARE SHORT ON PURPOSE. The v1.93.0 text ran off the right
 --  edge of the screen; the hint line does not wrap.
@@ -1493,8 +1494,9 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- notes in CreateAdvancedTab and QolAddDepthOfFieldRow.
 	--
 	-- Removing them left two spacers touching again, exactly as removing HOLD TO
-	-- SPRINT did in v1.99.51. Collapsed back to one. Do not re-add the second.
-	QolButtons:addSpacer(CoD.CoD9Button.Height / 2)
+	-- SPRINT did in v1.99.51. Collapsed back to one, then removed outright in
+	-- v2.8.0 to pay for the PERMA-PERKS row - see the note over that row for the
+	-- pitch arithmetic. Do not re-add a spacer here without removing a row.
 
 	-- Gameplay rules.                                                 6 rows
 	-- v1.99.26, user request 2026-08-17.
@@ -1598,6 +1600,31 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- 📝 Takes effect on the next map: these are registrations that happen once
 	-- at load, not per drop.
 	T(QolButtons, LocalClientIndex, "CUSTOM POWER-UPS",   "custom_powerups",    "The mod's extra drops. Off leaves the stock power-ups only.")
+
+	-- ========================================================================
+	--  v2.8.0 - PERMA-PERKS, queue item 29. User, 2026-08-20, settled the same
+	--  day: ENABLED = every perma-perk the map has is active immediately with no
+	--  challenge progress needed; DISABLED = stock, earned normally, and is the
+	--  default, so the switch changes nothing until it is thrown.
+	--
+	--  🛑 IT NEVER REGISTERS AN UPGRADE, which is what keeps the user's own
+	--  scope rule (*"don't add perma perks that aren't meant to be on other
+	--  maps, like perma phd"*). Only TranZit, Die Rise and Buried register any at
+	--  all, and Perma-PhD is Buried's alone; the GSC zeroes the threshold of
+	--  names already in level.pers_upgrades and adds none.
+	--
+	--  📝 Classic only - stock gates the whole perma-perk system on is_classic(),
+	--  so the row does nothing in Survival or Grief. Said in the GSC too.
+	--
+	--  🛑 THE HALF-SPACER ABOVE INSTANT PAP WENT TO PAY FOR THIS ROW. GAME was
+	--  14 rows + 1 half-spacer = 14.5 pitches; a 15th row would have made it
+	--  15.5, which is the exact figure the v1.99.33 report measured colliding
+	--  with the ESC prompt. 15 rows + no spacer = 15.0, the proven ceiling the
+	--  SOUND tab already ships at. The cost is the visual break between the
+	--  client/session rows and the gameplay rows - restore the spacer and move
+	--  this row to CHEATS if that grouping matters more.
+	-- ========================================================================
+	T(QolButtons, LocalClientIndex, "PERMA-PERKS",        "perma_perks",        "Every perma-perk this map has, active from the start.")
 
 	-- ========================================================================
 	--  v2.1.2 - THE TWO MATCH-START FLASH ROWS MOVED HERE FROM THE HUD TAB.

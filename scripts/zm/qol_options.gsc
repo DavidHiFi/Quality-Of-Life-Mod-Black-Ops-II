@@ -294,6 +294,16 @@ init()
     //  quality_of_life::zmqol_custom_powerups_enabled().
     qol_opt_dvar( "custom_powerups", "1" );
 
+    //  v2.8.0 - PERMA-PERKS, queue item 29. OFF (0) by default, and that is the
+    //  user's own settled call: DISABLED is stock, earned normally. ENABLED
+    //  makes every persistent upgrade the MAP ITSELF registers active
+    //  immediately. It never registers an upgrade, so Perma-PhD stays a Buried
+    //  perk; it only zeroes the threshold of names already in
+    //  level.pers_upgrades. Live both ways - flip it mid-game and the next
+    //  second applies or restores it. Classic only, which is stock's own gate.
+    //  See quality_of_life::zmqol_perma_perks_watch() for the full derivation.
+    qol_opt_dvar( "perma_perks", "0" );
+
     //  v1.99.74 - AIM ASSIST, its own row on CONTROLS > GAMEPAD. Default 1 =
     //  stock. 🛑 It can only take assist AWAY - see the banner over
     //  quality_of_life.gsc::zmqol_aim_assist_watch() for the measurement behind

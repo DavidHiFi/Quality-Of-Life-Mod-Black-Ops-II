@@ -618,6 +618,7 @@ init()
     level thread zmqol_powerup_timer_think();   // POWER-UP TIMERS (v1.99.1)
     level thread zmqol_dof_repoint_spawnintermission();  // DOF full fix, item 48
     level thread zmqol_dof_onplayerconnect();            // DOF full fix, item 48
+    level thread zmqol_perma_perks_watch();              // PERMA-PERKS, queue item 29
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
@@ -16298,4 +16299,265 @@ zmqol_do_post_chunk_repair_delay( has_perk )
     }
 
     wait 1;
+}
+
+// ============================================================================
+//  zmqol_perma_perks  -  PERMA-PERKS on the GAME tab           (queue item 29)
+//
+//  User, 2026-08-20: one on/off switch covering every persistent upgrade the
+//  base game already gives a map, and nothing more - *"don't add perma perks
+//  that aren't meant to be on other maps, like perma phd for instance is a
+//  buried only perma perk."*  Settled by them the same day: ENABLED means every
+//  perma-perk the map has is active immediately, with no challenge progress
+//  needed; DISABLED is stock, earned normally, and is the default.
+//
+//  SCOPE IS CORRECT BY CONSTRUCTION - NOTHING HERE REGISTERS AN UPGRADE.
+//  level.pers_upgrades holds only what the map itself registered in its own
+//  init_persistent_abilities(): TranZit and Die Rise set 13 each, Buried sets
+//  the same 13 plus pers_upgrade_flopper (Perma-PhD), and Mob, Origins and
+//  Nuketown set none at all, so level.pers_upgrades is never even created
+//  there. Perma-PhD therefore cannot leak off Buried - this only satisfies the
+//  threshold of names that are already in that table.
+//
+//  THE MECHANISM, AND WHY IT IS NOT THE SHORTCUT CHECKPOINT 125 REFUSED.
+//  That shortcut was to set player.pers_upgrades_awarded[name] = 1 directly and
+//  call the activation function by hand. It has a real race:
+//  pers_upgrades_monitor() (_zm_pers_upgrades_system.gsc:44) re-tests every
+//  upgrade whose own stat ticks during play, and when the real stat is still
+//  below its threshold it takes the DOWNGRADE branch at :125 - awarded flag
+//  back to 0 and "evt_player_downgrade" in the player's ear, mid-match.
+//
+//  AND THE DOWNGRADE DOES REVOKE THE EFFECT. That was checkpoint 125's open
+//  question; it is now answered by grep, not by reasoning. Every perma-perk
+//  effect reads self.pers_upgrades_awarded[<name>] AT THE POINT OF USE, not
+//  once at activation - _zm_blockers.gsc:1481/1530 ("board"),
+//  _zm_magicbox.gsc:1116 ("box_weapon"), _zm.gsc:1960/4136/4182/4372/4395
+//  ("perk_lose", "flopper"), _zm_weapons.gsc:1165/2128 ("nube"),
+//  _zm_laststand.gsc:1025 - and the pers_upgrade_*_active() watchers re-check
+//  the same flag every iteration (_zm_pers_upgrades_functions.gsc:22, :43, :60,
+//  :266, :299, :431, :607, :748, :1194). The flag IS the live authority, so a
+//  downgrade silently switches the perk off. The shortcut was correctly refused.
+//
+//  WHAT THIS DOES INSTEAD: MOVE THE THRESHOLD, NOT THE FLAG.
+//  check_pers_upgrade_stat() (_zm_pers_upgrades_system.gsc:214) is one
+//  comparison,  current_stat_value < stat_desired_value -> not awarded,  and
+//  stat_desired_value is read out of
+//  level.pers_upgrades[name].stat_desired_values[i], which is ordinary level
+//  DATA this script may write. Set every entry to 0 and the comparison can
+//  never fail - a stat is never negative - so:
+//    - should_award is always 1, which makes the DOWNGRADE BRANCH UNREACHABLE.
+//      The race is closed by construction, not mitigated.
+//    - the award runs through STOCK'S OWN PATH at :82-119 - evt_player_upgrade,
+//      the announcer VO, the "upgrade_aquired" fx, and
+//      player thread [[ pers_upgrade.upgrade_active_func ]]() - so all six axes
+//      of the completeness audit are stock's own, not this mod's imitation.
+//    - NOTHING PERSISTENT IS WRITTEN. The obvious alternative was stock's own
+//      grant path (_zm_devgui.gsc:172 zombie_devgui_ability_give), which calls
+//      set_global_stat -> setdstat( "PlayerStatsList", ... ). That is the
+//      player's SAVED PROFILE: it would hand out real permanent challenge
+//      progress, and switching the row back to DISABLED could never undo it.
+//      Rejected for that reason. Moving the threshold touches level state only,
+//      so OFF restores stock exactly and immediately.
+//
+//  IMMEDIATE, VIA STOCK'S OWN TRIGGER. The monitor only looks at a player
+//  whose stats moved this frame - unless self.pers_upgrade_force_test is set,
+//  which short-circuits both the outer gate (:65) and
+//  is_any_pers_upgrade_stat_updated() (:196). That is exactly how stock kicks
+//  the first evaluation (_zm_stats.gsc:194) and how its own devgui grants one,
+//  so this sets the same flag rather than inventing a trigger.
+//
+//  CLASSIC ONLY, AND THAT IS STOCK'S GATE, NOT ONE ADDED HERE.
+//  pers_upgrades_monitor() returns early unless is_classic() (:48), and all
+//  three init_persistent_abilities() are themselves wrapped in is_classic().
+//  Survival and Grief have never had perma-perks; the row does nothing there.
+//
+//  ONE STOCK SIDE EFFECT, HANDLED RATHER THAN LEFT. wait_for_game_end()
+//  (:145) zeroes the stats of any upgrade registered with
+//  game_end_reset_if_not_achieved = 1 that the player did NOT achieve. Exactly
+//  one is registered that way - "revive" (_zm_pers_upgrades.gsc:83) - and with
+//  this row ON it always reads as achieved, so stock would skip that reset and
+//  quietly preserve partial revive progress the player never earned.
+//  zmqol_perma_perks_end_game() performs the reset itself against the REAL
+//  threshold, so the row changes no saved stat in either direction.
+// ============================================================================
+zmqol_perma_perks_enabled()
+{
+    return getdvarintdefault( "perma_perks", 0 );
+}
+
+zmqol_perma_perks_watch()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    level endon( "game_ended" );
+
+    //  Stock's own gate on this whole system - see the banner.
+    if ( !is_classic() )
+        return;
+
+    //  level.pers_upgrades is created by the map's own pers_upgrade_init(), so
+    //  wait for it rather than assume an ordering against this script's init().
+    //  On Mob, Origins and Nuketown it is never created at all, so give up
+    //  rather than spin for the whole match.
+    n_waited = 0;
+
+    while ( !isdefined( level.pers_upgrades ) || !isdefined( level.pers_upgrades_keys ) )
+    {
+        if ( n_waited >= 30 )
+            return;
+
+        wait 0.5;
+        n_waited += 0.5;
+    }
+
+    //  SNAPSHOT THE REAL THRESHOLDS BEFORE ANYTHING IS CHANGED. This is what
+    //  DISABLED restores and what the end-of-game reset is measured against.
+    //  Copied element by element on purpose - never by assigning the array
+    //  wholesale - so it cannot end up aliasing the live one.
+    level.zmqol_pp_real = [];
+
+    for ( i = 0; i < level.pers_upgrades_keys.size; i++ )
+    {
+        str_name = level.pers_upgrades_keys[i];
+        a_real = [];
+
+        for ( j = 0; j < level.pers_upgrades[str_name].stat_desired_values.size; j++ )
+            a_real[j] = level.pers_upgrades[str_name].stat_desired_values[j];
+
+        level.zmqol_pp_real[str_name] = a_real;
+    }
+
+    level thread zmqol_perma_perks_end_game();
+
+    b_applied = 0;
+
+    for ( ;; )
+    {
+        b_want = zmqol_perma_perks_enabled();
+
+        if ( b_want && !b_applied )
+        {
+            zmqol_perma_perks_set_thresholds( 1 );
+            b_applied = 1;
+            zmqol_perma_perks_kick();
+            println( "[zm_qol] perma_perks: ON, " + level.pers_upgrades_keys.size + " upgrade(s) on " + level.script );
+        }
+        else if ( !b_want && b_applied )
+        {
+            //  Put the real numbers back and let stock re-evaluate honestly,
+            //  including its own downgrade, which is the correct outcome here.
+            zmqol_perma_perks_set_thresholds( 0 );
+            b_applied = 0;
+            zmqol_perma_perks_kick();
+            println( "[zm_qol] perma_perks: OFF, thresholds restored" );
+        }
+        else if ( b_want )
+        {
+            //  A player who connected or respawned after the apply has never
+            //  been through the monitor with the thresholds down. Only kick one
+            //  that still has something outstanding, so this costs nothing once
+            //  everybody is topped up.
+            players = getplayers();
+
+            for ( i = 0; i < players.size; i++ )
+            {
+                if ( isdefined( players[i].pers_upgrades_awarded ) && !players[i] zmqol_perma_perks_all_awarded() )
+                    players[i].pers_upgrade_force_test = 1;
+            }
+        }
+
+        wait 1;
+    }
+}
+
+zmqol_perma_perks_set_thresholds( b_zero )
+{
+    for ( i = 0; i < level.pers_upgrades_keys.size; i++ )
+    {
+        str_name = level.pers_upgrades_keys[i];
+
+        for ( j = 0; j < level.pers_upgrades[str_name].stat_desired_values.size; j++ )
+        {
+            if ( b_zero )
+                level.pers_upgrades[str_name].stat_desired_values[j] = 0;
+            else
+                level.pers_upgrades[str_name].stat_desired_values[j] = level.zmqol_pp_real[str_name][j];
+        }
+    }
+}
+
+//  Stock's own "re-evaluate this player now" flag - _zm_stats.gsc:194 sets it
+//  at stat init and _zm_devgui.gsc:185 sets it after a grant. The monitor
+//  clears it itself (:138), so this is a one-shot, not a state to maintain.
+zmqol_perma_perks_kick()
+{
+    players = getplayers();
+
+    for ( i = 0; i < players.size; i++ )
+    {
+        if ( isdefined( players[i].stats_this_frame ) )
+            players[i].pers_upgrade_force_test = 1;
+    }
+}
+
+zmqol_perma_perks_all_awarded()
+{
+    for ( i = 0; i < level.pers_upgrades_keys.size; i++ )
+    {
+        str_name = level.pers_upgrades_keys[i];
+
+        if ( !( isdefined( self.pers_upgrades_awarded[str_name] ) && self.pers_upgrades_awarded[str_name] ) )
+            return 0;
+    }
+
+    return 1;
+}
+
+zmqol_perma_perks_end_game()
+{
+    //  Stock's wait_for_game_end() (_zm_pers_upgrades_system.gsc:145) waits on
+    //  this same notify. Running the reset here as well is order-free and safe:
+    //  zero_client_stat is idempotent, and with the row OFF stock's own pass has
+    //  already done exactly this, so the second pass is a no-op.
+    level waittill( "end_game" );
+
+    if ( !isdefined( level.zmqol_pp_real ) || !isdefined( level.pers_upgrades_keys ) )
+        return;
+
+    players = getplayers();
+
+    for ( p = 0; p < players.size; p++ )
+    {
+        player = players[p];
+
+        for ( i = 0; i < level.pers_upgrades_keys.size; i++ )
+        {
+            str_name = level.pers_upgrades_keys[i];
+
+            if ( !is_true( level.pers_upgrades[str_name].game_end_reset_if_not_achieved ) )
+                continue;
+
+            //  Measured against the REAL threshold, never the lowered one -
+            //  that is the whole point of keeping the snapshot.
+            b_earned = 1;
+
+            for ( j = 0; j < level.pers_upgrades[str_name].stat_names.size; j++ )
+            {
+                n_have = player maps\mp\zombies\_zm_stats::get_global_stat( level.pers_upgrades[str_name].stat_names[j] );
+
+                if ( n_have < level.zmqol_pp_real[str_name][j] )
+                {
+                    b_earned = 0;
+                    break;
+                }
+            }
+
+            if ( !b_earned )
+            {
+                for ( j = 0; j < level.pers_upgrades[str_name].stat_names.size; j++ )
+                    player maps\mp\zombies\_zm_stats::zero_client_stat( level.pers_upgrades[str_name].stat_names[j], 0 );
+            }
+        }
+    }
 }
