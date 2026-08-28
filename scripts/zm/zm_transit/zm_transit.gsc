@@ -11,7 +11,14 @@
 #include maps\mp\zm_transit;
 #include maps\mp\zm_transit_standard_station;
 #include maps\mp\_utility;
-#include maps\mp\zombies\_zm_race_utility;
+// zm_qol v2.8.1: "#include maps\mp\zombies\_zm_race_utility;" used to sit here. That
+// script does not exist in ANY of the 132 retail fastfiles (Unlinker --list over the
+// whole zone\all set) nor in mod.ff, so it resolved to nothing and printed
+// "Could not load scriptparsetree maps/mp/zombies/_zm_race_utility.gsc" on every
+// TranZit load - see the user's 29 Aug console_zm.log lines 1076 and 5281. Nothing in
+// this file called through it (checked: no unresolved bare calls remain). DELETED, not
+// corrected, for the same reason as the maps\mp_utility line above: there is no real
+// script to correct it to.
 #include maps\mp\zombies\_zm_magicbox;
 #include maps\mp\gametypes_zm\_zm_gametype;
 #include maps\mp\zombies\_zm_perks;

@@ -1,4 +1,11 @@
-#include common_scripts\utility;
+// zm_qol v2.8.1: "#include common_scripts\utility;" used to sit here. common_scripts/
+// utility exists ONLY as a .gsc - there is no .csc build of it in any of the 132 retail
+// fastfiles - so on a CLIENT script it resolved to nothing and printed "Could not load
+// scriptparsetree common_scripts/utility.csc" every load (user's 29 Aug console_zm.log,
+// lines 4667 and 9134). Verified before removal: every bare call in this file is
+// satisfied by its own definitions or by the clientscripts\... includes below, so
+// nothing resolved through it. The only other mention of common_scripts in this file is
+// a comment on line ~287.
 #include clientscripts\mp\_utility;
 #include clientscripts\mp\zombies\_zm_utility;
 #include clientscripts\mp\zombies\_zm_perks;
