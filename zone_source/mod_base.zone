@@ -1110,6 +1110,56 @@ xanim,viewmodel_zomb_mauser_ads_down
 image,menu_zm_weapons_mc96
 material,menu_zm_weapons_mc96
 camo,camo_mc96
+// ============================================================================
+//  v2.8.3 - THESE FOUR ARE OWNED AGAIN. REMOVING THEM CRASHED THE GAME.
+//
+//  ROOT CAUSE OF THE SILENT M1911 (user report, 2026-08-29). The donor mod.ff
+//  these were inherited from renamed their fire-sound aliases:
+//
+//      donor / this mod            retail BO2
+//      wpn_m1911_fire_plr    ->    wpn_1911_fire_plr      (no 'm')
+//      wpn_m1911_fire_npc    ->    wpn_1911_fire_npc
+//      wpn_m1911_*_pap       ->    wpn_1911_*_pap
+//      wpn_m1911_dryfire_*   ->    wpn_1911_dryfire_*
+//      wpn_mc96_fire_plr     ->    wpn_1911_fire_plr      (the C96 shares them)
+//
+//  Those wpn_m1911_* / wpn_mc96_* names exist ONLY in the donor's alias table.
+//  While mod.all inherited the whole donor table they resolved, so the guns made
+//  a noise - the DONOR's noise. The user's own sound pack in storage\t6\zone
+//  replaces the payload behind retail's wpn_1911_*, which this mod's weapon then
+//  never asked for, so their custom M1911 could never be heard. When v2.7.3
+//  trimmed mod.all to additions-only the donor names stopped resolving at all
+//  and the gun went completely silent. Same story for the C96.
+//
+//  🛑 WHY NOT JUST FIX THE ALIAS IN A RAW weapons\zm\ FILE? Because the Linker is
+//  FIRST-LOAD-WINS and zone_source\base\mod.ff is the first --load. A raw source
+//  file cannot outrank an asset the donor already supplies - measured: the
+//  corrected files were written, mod.ff was relinked, and the rebuilt asset
+//  still carried wpn_m1911_*. Raw only wins for names no loaded zone provides
+//  (which is why the 47 files in weapons\zm\ do work - none are in the donor).
+//
+//  🛑 REVERTED 2026-08-29 12:00 PM - EXCEPTION 0xC0000005 LOADING NUKETOWN.
+//  Dropping the four weapon lines left `camo,camo_m1911` and `camo,camo_mc96`
+//  still declared in this zone, pointing at weapon assets mod.ff no longer
+//  carried. A weaponcamo holds a reference to its weapon, so the pointer
+//  dangled and the game took an access violation part-way through the load,
+//  right after `CSC Executed "scripts/zm/zm_nuked/zm_nuked::main()"`.
+//  🛑 ANY future attempt to un-own these MUST drop camo_m1911 and camo_mc96 in
+//  the same edit - and the 1911/C96 lose their animated camo as a result, which
+//  is a feature decision for the user, not a silent side effect.
+//
+//  The idea below was: unowned means the game loads its own
+//  copy, which asks for retail's alias names, which is what the user's zone pack
+//  replaces - the mod becomes invisible to these sounds, which is the whole
+//  requirement. Verified nothing is lost: m1911_zm and c96_zm differed from
+//  retail in NOTHING BUT those alias strings (21955 vs 21953 bytes = the two
+//  extra 'm' characters). The two _upgraded variants also carried a donor
+//  viewmodel_m1911_dw_pullout/putaway that retail spells *_empty, and one
+//  numeric field - both donor quirks, neither authored here.
+//
+//  📝 c96_upgraded_zm is left declared on purpose: it is byte-identical to
+//  retail, so owning it changes nothing.
+// ============================================================================
 weapon,c96_zm
 techniqueset,,effect_775wj8ww
 image,,fxt_light_hot

@@ -391,6 +391,25 @@ freezegun_do_damage( upgraded, player, dist_ratio )
     self.no_gib = true;
     
     damage = Int( LerpFloat( freezegun_get_outer_damage( upgraded ), freezegun_get_inner_damage( upgraded ), dist_ratio ) );
+
+    // ========================================================================
+    //  v2.8.2 - WINTER'S HOWL INFINITE DAMAGE (PATCHES tab), the direct hit.
+    //
+    //  🌟 RAISED TO EXACTLY self.health, NOT TO A BIG CONSTANT. self is the
+    //  enemy this thread is damaging, so its health is known here. Stock's
+    //  ai_calculate_health() ( _zm.gsc:3572 ) only stops growing zombie health
+    //  when the value overflows a 32-bit int, so at a high round no fixed
+    //  number is reliably "infinite" - and one big enough to be would overflow
+    //  when an actor_damage_func multiplies it. self.health is the exact amount
+    //  and can do neither.
+    //
+    //  🛑 Bosses keep their own rules for the same reason ONE SHOT ONE KILL
+    //  leaves them alone: level.zmqol_ww_boss_hit has already had its say a few
+    //  lines above, and self.actor_damage_func still runs after this.
+    // ========================================================================
+    if ( getdvarintdefault( "winters_howl_infinite", 0 ) && isdefined( self.health ) && self.health > damage )
+        damage = self.health;
+
     self DoDamage( damage, player.origin, player, player, "none", "MOD_PROJECTILE" );
     
 //  self freezegun_debug_print( damage, (0, 1, 0) );
@@ -501,7 +520,39 @@ freezegun_do_shatter( player, weap, shatter_trigger, crumple_trigger )
     self freezegun_cleanup_freezegun_triggers( shatter_trigger, crumple_trigger );
 
     upgraded = (weap == "freezegun_upgraded_zm");
-    self radiusDamage( self.origin, freezegun_get_shatter_range( upgraded ), freezegun_get_shatter_inner_damage( upgraded ), freezegun_get_shatter_outer_damage( upgraded ), player, "MOD_EXPLOSIVE", weap );
+
+    // ========================================================================
+    //  v2.8.2 - WINTER'S HOWL INFINITE DAMAGE (PATCHES tab), the shatter AoE.
+    //
+    //  🛑 A CONSTANT HERE, NOT self.health, AND THAT IS FORCED: radiusDamage
+    //  has no single target, so there is no health to read. 999999999 is under
+    //  the 2147483647 int ceiling with room for the engine's own falloff maths.
+    //  📝 THE ONE PLACE THIS IS NOT LITERALLY INFINITE: past roughly round 163
+    //  zombie health overflows upward beyond this number (the same mechanism
+    //  the INSTAKILL ROUNDS row uses), so the AoE stops being a guaranteed kill
+    //  there while the direct hit above still is. Stated rather than hidden.
+    //
+    //  📝 The range is left alone deliberately - "infinite damage" was the
+    //  request, not infinite reach, and widening the blast would change where
+    //  the gun kills as well as how hard.
+    //
+    //  🌟 PLAYERS ARE NO MORE AT RISK THAN THEY ALREADY WERE. This call is
+    //  unchanged in every argument but the two damage figures, and the shipped
+    //  ones are already 500/1000 against a player health of 100 (160 with
+    //  Juggernog) - so if own-explosive damage reached players at all they
+    //  would already be going down to every shatter. It does not, and scaling
+    //  a number that is multiplied by zero changes nothing.
+    // ========================================================================
+    n_sh_inner = freezegun_get_shatter_inner_damage( upgraded );
+    n_sh_outer = freezegun_get_shatter_outer_damage( upgraded );
+
+    if ( getdvarintdefault( "winters_howl_infinite", 0 ) )
+    {
+        n_sh_inner = 999999999;
+        n_sh_outer = 999999999;
+    }
+
+    self radiusDamage( self.origin, freezegun_get_shatter_range( upgraded ), n_sh_inner, n_sh_outer, player, "MOD_EXPLOSIVE", weap );
 
     // The radiusDamage above still lands -- the shatter kills as normal. What is skipped is the
     // gib/ragdoll, which would destroy a body that a MotD soul catcher is mid-way through

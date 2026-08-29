@@ -15,6 +15,9 @@ main()
     replaceFunc (maps\mp\zm_nuked_perks::init_nuked_perks, ::init_nuked_perks );
     replaceFunc (maps\mp\zm_nuked_perks::bring_perk, ::bring_perk );
     replaceFunc (maps\mp\zm_nuked_perks::perks_from_the_sky, ::perks_from_the_sky );
+    //  v2.8.2 - Pack-a-Punch use trigger 40 -> 64. Nuketown only; see
+    //  zmqol_perk_machine_spawn_init() at the bottom of this file.
+    replaceFunc (maps\mp\zombies\_zm_perks::perk_machine_spawn_init, ::zmqol_perk_machine_spawn_init );
 }
 
 
@@ -351,61 +354,48 @@ bring_perk( machine, trigger, b_no_flight )
         is_phd = 1;
     }
     // ========================================================================
-    //  🌟 v2.7.3 - PACK-A-PUNCH, THE ONE MACHINE THAT NEVER HAD AN OFFSET.
+    //  🛑 v2.8.2 - THE v2.7.3 PACK-A-PUNCH OFFSET IS REVERTED. It was built on
+    //  a wrong mechanism and it caused a worse bug than the one it targeted.
     //
-    //  User, 2026-08-29, with two screenshots: at one Nuketown spawn the
-    //  Pack-a-Punch buy prompt never appears in normal play, but noclipping into
-    //  the machine makes it appear - so the machine works and only the prompt is
-    //  unreachable.
+    //  User, 2026-08-29, standing at x 1442 y 622 z -57 yaw 215: the machine
+    //  "has moved, clips into the fireplace/rubble, and shows no purchase
+    //  prompt". That reference point looks straight at pad pf15_auto2899
+    //  (1353.63, 584.12, -64), 96 units away - the pad PaP had landed on.
     //
-    //  -- WHAT THE SCREENSHOTS MEASURE ------------------------------------
-    //  The .where readout gives both positions exactly:
-    //      blocked, standing   x -426  y 675  z -63   -> no prompt
-    //      noclip, inside      x -437  y 649  z -73   -> prompt shown
-    //  The pad is pf15_auto2907 at (-455, 617, -68), read out of zm_nuked.ff's
-    //  own mapents with OpenAssetTools - 50 units from the reported spot, and the
-    //  nearest of all ten. So the player could reach 65 units from the pad on
-    //  foot and needed about 37 to trigger it.
+    //  -- WHY THE OFFSET CANNOT WORK, MEASURED ----------------------------
+    //  _zm_perks.gsc:2879-2901 spawns THREE things and all three sit at the
+    //  pad origin:
+    //      use_trigger  = spawn( "trigger_radius_use", pos.origin + (0,0,30), 0, 40, 70 )
+    //      perk_machine = spawn( "script_model", pos.origin )
+    //      collision    = spawn( "script_model", pos.origin, 1 )   <- zm_collision_perks1
+    //  Only the MACHINE is ever moved afterwards. The use trigger and the
+    //  zm_collision_perks1 clip stay on the pad origin for the whole match, so
+    //  displacing the machine cannot free the volume the player has to stand
+    //  in - it only walks the visible machine away from its own prompt. At pad
+    //  2899 (yaw 195) the offset resolves to (+5.18, -19.32, 0), which is what
+    //  put the machine in the rubble.
     //
-    //  🛑 IT IS NOT THE SUNKEN-PAD BUG. All ten pads were re-audited against
-    //  their crate blockers the same way zmqol_nuked_fix_sunken_spot() did.
-    //  pf15_auto2907 sits +0.48 from its crate, which is normal - only
-    //  pf15_auto2900 is an outlier at -11.84, and that one is already corrected.
-    //  The pad geometry here is fine.
+    //  🌟 THE ACTUAL CAUSE, measured off the models themselves. The collision
+    //  LOD bounds were read out of zm_nuked.ff with OpenAssetTools
+    //  (xmodel "collLod": 3, glTF POSITION min/max, glTF y = game z):
+    //      p6_anim_zm_buildable_pap   x -39.42 .. +39.42   ->  78.8 wide
+    //      zombie_vending_jugg        x -14.70 .. +14.68   ->  29.4 wide
+    //  Pack-a-Punch is 2.7x wider than a perk machine and it is solid. With a
+    //  player half-width of ~15, the closest standing point beside PaP is ~54
+    //  units from the pad origin and the front is ~42 - both OUTSIDE the
+    //  40-unit use trigger. A perk machine needs only ~30, which is why every
+    //  other machine works. PaP is reachable only from its back (~32), so it
+    //  works wherever the back is open and fails wherever it is not: pad 2907
+    //  backs onto rubble, pad 2899 onto the fireplace.
     //
-    //  🌟 THE REAL CAUSE IS THIS CHAIN, and it is pad-independent. Every machine
-    //  above is displaced 5-20 units off the pad centre; Pack-a-Punch has no case
-    //  at all - not here and not in stock (zm_nuked_perks.gsc:184-210 has only
-    //  doubletap/sleight/revive/jugger). So PaP alone lands EXACTLY on the pad
-    //  origin, which is where its own use trigger sits, and the machine's
-    //  collision then occupies the volume the player has to stand in. Noclip
-    //  ignores collision, which is precisely why noclip reaches the prompt.
-    //
-    //  That makes the bug latent at ALL TEN pads, not special to this one. It
-    //  only shows where the surroundings leave no room to stand off to the side -
-    //  pf15_auto2907 backs onto rubble, which is visible in the screenshot. It
-    //  surfaces now because stock fills 5 pads of ten and this mod fills 9, the
-    //  same reason the sunken pad started showing up (see that note above).
-    //
-    //  Fixing the missing case therefore fixes every pad at once, rather than
-    //  patching one coordinate.
-    //
-    //  📝 targetname is "vending_packapunch", read from _zm_perks.gsc:3028 where
-    //  the machine is spawned and named - not guessed from the perk name. 20 is
-    //  the magnitude already used for the other physically large machines
-    //  (doubletap, mule kick, PhD), and the direction is the identical formula
-    //  every case above uses, so this is the working precedent rather than a new
-    //  rule. It frees ~20 units, bringing the closest standing point from ~65 to
-    //  ~45 and inside the trigger.
-    //
-    //  📝 No is_pap flag: the is_* chain below only picks a perk_fx light, and
-    //  Pack-a-Punch has none.
+    //  The fix therefore belongs on the TRIGGER, not the machine - see
+    //  zmqol_perk_machine_spawn_init() at the bottom of this file, which is
+    //  stock's own perk_machine_spawn_init with the Pack-a-Punch use trigger
+    //  widened 40 -> 64. Stock and BO2-Reimagined both ship NO PaP offset here
+    //  (Reimagined scripts\zm\replaced\zm_nuked_perks.gsc:207-235 has only
+    //  doubletap/sleight/revive/jugger), so removing the case restores the
+    //  working precedent rather than inventing a new rule.
     // ========================================================================
-    else if ( issubstr( machine.targetname, "packapunch" ) )
-    {
-        forward_dir = anglestoforward( machine.original_angles + vectorscale( ( 0, -1, 0 ), 90.0 ) );
-        offset = vectorscale( forward_dir * -1, 20 );
-    }
 
     if ( !is_revive )
     {
@@ -936,4 +926,299 @@ zmqol_nuked_drop_all_at_once()
     //  down so a scheduled trip cannot overlap the tail of it.
     wait 4.0;
     level.zmqol_nuked_dropping = 0;
+}
+
+// ============================================================================
+//  zmqol_perk_machine_spawn_init  -  the Pack-a-Punch use trigger is too small
+//                                    for the Pack-a-Punch machine     (v2.8.2)
+//
+//  Stock's maps\mp\zombies\_zm_perks::perk_machine_spawn_init(), verbatim,
+//  with exactly ONE change: the use trigger spawned for specialty_weapupgrade
+//  gets radius 64 instead of 40. Everything else - the switch, the bump
+//  trigger, the zm_collision_perks1 clip, the pack_flag, the _custom_perks
+//  kvp callback - is untouched.
+//
+//  🌟 WHY 64, MEASURED. See the long note in bring_perk() above for the full
+//  derivation. Short version, from the collision LODs dumped out of zm_nuked.ff
+//  with OpenAssetTools:
+//
+//      model                       collision half-width   closest stand   trigger
+//      zombie_vending_jugg              14.7                  ~30          40 ok
+//      p6_anim_zm_buildable_pap         39.4                  ~54-61       40 NO
+//
+//  A player bounding box is 30x30, so add ~15 flat / ~21 at the corner to the
+//  machine half-width to get the nearest reachable point. Every perk machine
+//  clears 40 comfortably. Pack-a-Punch is 2.7x wider and clears it on NO side
+//  except its back (~32), so on Nuketown it works only where the back happens
+//  to be open - and fails silently everywhere else. 64 covers the worst case
+//  (39.4 + 21.2 = 60.6) with margin while reaching only ~25 units past the
+//  side of the machine.
+//
+//  🛑 RESIDUAL RISK, stated rather than hidden: a radius trigger has no line of
+//  sight, so behind the machine the volume now reaches ~47 units past the model
+//  instead of ~23. Against a thin wall a player in the next room could get the
+//  prompt. That is a convenience, not a break, and it is the price of the
+//  machine being usable at all. If it shows up in play the alternative is to
+//  move the trigger toward the open side per pad, which needs ten measurements.
+//
+//  🛑 SCOPE: this replaceFunc lives in the Nuketown map script only, so no other
+//  map's perk machines are touched. Nuketown is the only map where the machines
+//  are placed by random drop rather than by the level designer, which is why it
+//  is the only map where PaP can land somewhere with no open back.
+//
+//  📝 Cross-checked against two independent copies of the stock body: the
+//  starter kit dump (Core\maps\mp\zombies\_zm_perks.gsc:2832-3080) and
+//  BO2-Reimagined's hand-maintained scripts\zm\replaced\_zm_perks.gsc:7 - they
+//  agree line for line except for Reimagined's is_encounter()/grief gametype
+//  override, which is NOT carried over here.
+// ============================================================================
+zmqol_perk_machine_spawn_init()
+{
+    match_string = "";
+    location = level.scr_zm_map_start_location;
+
+    if ( ( location == "default" || location == "" ) && isdefined( level.default_start_location ) )
+        location = level.default_start_location;
+
+    match_string = level.scr_zm_ui_gametype + "_perks_" + location;
+    pos = [];
+
+    if ( isdefined( level.override_perk_targetname ) )
+        structs = getstructarray( level.override_perk_targetname, "targetname" );
+    else
+        structs = getstructarray( "zm_perk_machine", "targetname" );
+
+    foreach ( struct in structs )
+    {
+        if ( isdefined( struct.script_string ) )
+        {
+            tokens = strtok( struct.script_string, " " );
+
+            foreach ( token in tokens )
+            {
+                if ( token == match_string )
+                    pos[pos.size] = struct;
+            }
+
+            continue;
+        }
+
+        pos[pos.size] = struct;
+    }
+
+    if ( !isdefined( pos ) || pos.size == 0 )
+        return;
+
+    precachemodel( "zm_collision_perks1" );
+
+    for ( i = 0; i < pos.size; i++ )
+    {
+        perk = pos[i].script_noteworthy;
+
+        if ( isdefined( perk ) && isdefined( pos[i].model ) )
+        {
+            //  ---- THE ONE CHANGE FROM STOCK ---------------------------------
+            n_use_radius = 40;
+
+            if ( perk == "specialty_weapupgrade" )
+                n_use_radius = 64;
+            //  ----------------------------------------------------------------
+
+            use_trigger = spawn( "trigger_radius_use", pos[i].origin + vectorscale( ( 0, 0, 1 ), 30.0 ), 0, n_use_radius, 70 );
+            use_trigger.targetname = "zombie_vending";
+            use_trigger.script_noteworthy = perk;
+            use_trigger triggerignoreteam();
+            perk_machine = spawn( "script_model", pos[i].origin );
+            perk_machine.angles = pos[i].angles;
+            perk_machine setmodel( pos[i].model );
+
+            if ( isdefined( level._no_vending_machine_bump_trigs ) && level._no_vending_machine_bump_trigs )
+                bump_trigger = undefined;
+            else
+            {
+                bump_trigger = spawn( "trigger_radius", pos[i].origin, 0, 35, 64 );
+                bump_trigger.script_activated = 1;
+                bump_trigger.script_sound = "zmb_perks_bump_bottle";
+                bump_trigger.targetname = "audio_bump_trigger";
+
+                if ( perk != "specialty_weapupgrade" )
+                    bump_trigger thread thread_bump_trigger();
+            }
+
+            collision = spawn( "script_model", pos[i].origin, 1 );
+            collision.angles = pos[i].angles;
+            collision setmodel( "zm_collision_perks1" );
+            collision.script_noteworthy = "clip";
+            collision disconnectpaths();
+            use_trigger.clip = collision;
+            use_trigger.machine = perk_machine;
+            use_trigger.bump = bump_trigger;
+
+            if ( isdefined( pos[i].blocker_model ) )
+                use_trigger.blocker_model = pos[i].blocker_model;
+
+            if ( isdefined( pos[i].script_int ) )
+                perk_machine.script_int = pos[i].script_int;
+
+            if ( isdefined( pos[i].turn_on_notify ) )
+                perk_machine.turn_on_notify = pos[i].turn_on_notify;
+            switch ( perk )
+            {
+                case "specialty_quickrevive":
+                case "specialty_quickrevive_upgrade":
+                    use_trigger.script_sound = "mus_perks_revive_jingle";
+                    use_trigger.script_string = "revive_perk";
+                    use_trigger.script_label = "mus_perks_revive_sting";
+                    use_trigger.target = "vending_revive";
+                    perk_machine.script_string = "revive_perk";
+                    perk_machine.targetname = "vending_revive";
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "revive_perk";
+
+                    break;
+                case "specialty_fastreload":
+                case "specialty_fastreload_upgrade":
+                    use_trigger.script_sound = "mus_perks_speed_jingle";
+                    use_trigger.script_string = "speedcola_perk";
+                    use_trigger.script_label = "mus_perks_speed_sting";
+                    use_trigger.target = "vending_sleight";
+                    perk_machine.script_string = "speedcola_perk";
+                    perk_machine.targetname = "vending_sleight";
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "speedcola_perk";
+
+                    break;
+                case "specialty_longersprint":
+                case "specialty_longersprint_upgrade":
+                    use_trigger.script_sound = "mus_perks_stamin_jingle";
+                    use_trigger.script_string = "marathon_perk";
+                    use_trigger.script_label = "mus_perks_stamin_sting";
+                    use_trigger.target = "vending_marathon";
+                    perk_machine.script_string = "marathon_perk";
+                    perk_machine.targetname = "vending_marathon";
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "marathon_perk";
+
+                    break;
+                case "specialty_armorvest":
+                case "specialty_armorvest_upgrade":
+                    use_trigger.script_sound = "mus_perks_jugganog_jingle";
+                    use_trigger.script_string = "jugg_perk";
+                    use_trigger.script_label = "mus_perks_jugganog_sting";
+                    use_trigger.longjinglewait = 1;
+                    use_trigger.target = "vending_jugg";
+                    perk_machine.script_string = "jugg_perk";
+                    perk_machine.targetname = "vending_jugg";
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "jugg_perk";
+
+                    break;
+                case "specialty_scavenger":
+                case "specialty_scavenger_upgrade":
+                    use_trigger.script_sound = "mus_perks_tombstone_jingle";
+                    use_trigger.script_string = "tombstone_perk";
+                    use_trigger.script_label = "mus_perks_tombstone_sting";
+                    use_trigger.target = "vending_tombstone";
+                    perk_machine.script_string = "tombstone_perk";
+                    perk_machine.targetname = "vending_tombstone";
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "tombstone_perk";
+
+                    break;
+                case "specialty_rof":
+                case "specialty_rof_upgrade":
+                    use_trigger.script_sound = "mus_perks_doubletap_jingle";
+                    use_trigger.script_string = "tap_perk";
+                    use_trigger.script_label = "mus_perks_doubletap_sting";
+                    use_trigger.target = "vending_doubletap";
+                    perk_machine.script_string = "tap_perk";
+                    perk_machine.targetname = "vending_doubletap";
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "tap_perk";
+
+                    break;
+                case "specialty_finalstand":
+                case "specialty_finalstand_upgrade":
+                    use_trigger.script_sound = "mus_perks_whoswho_jingle";
+                    use_trigger.script_string = "tap_perk";
+                    use_trigger.script_label = "mus_perks_whoswho_sting";
+                    use_trigger.target = "vending_chugabud";
+                    perk_machine.script_string = "tap_perk";
+                    perk_machine.targetname = "vending_chugabud";
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "tap_perk";
+
+                    break;
+                case "specialty_additionalprimaryweapon":
+                case "specialty_additionalprimaryweapon_upgrade":
+                    use_trigger.script_sound = "mus_perks_mulekick_jingle";
+                    use_trigger.script_string = "tap_perk";
+                    use_trigger.script_label = "mus_perks_mulekick_sting";
+                    use_trigger.target = "vending_additionalprimaryweapon";
+                    perk_machine.script_string = "tap_perk";
+                    perk_machine.targetname = "vending_additionalprimaryweapon";
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "tap_perk";
+
+                    break;
+                case "specialty_weapupgrade":
+                    use_trigger.target = "vending_packapunch";
+                    use_trigger.script_sound = "mus_perks_packa_jingle";
+                    use_trigger.script_label = "mus_perks_packa_sting";
+                    use_trigger.longjinglewait = 1;
+                    perk_machine.targetname = "vending_packapunch";
+                    flag_pos = getstruct( pos[i].target, "targetname" );
+
+                    if ( isdefined( flag_pos ) )
+                    {
+                        perk_machine_flag = spawn( "script_model", flag_pos.origin );
+                        perk_machine_flag.angles = flag_pos.angles;
+                        perk_machine_flag setmodel( flag_pos.model );
+                        perk_machine_flag.targetname = "pack_flag";
+                        perk_machine.target = "pack_flag";
+                    }
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "perks_rattle";
+
+                    break;
+                case "specialty_deadshot":
+                case "specialty_deadshot_upgrade":
+                    use_trigger.script_sound = "mus_perks_deadshot_jingle";
+                    use_trigger.script_string = "deadshot_perk";
+                    use_trigger.script_label = "mus_perks_deadshot_sting";
+                    use_trigger.target = "vending_deadshot";
+                    perk_machine.script_string = "deadshot_vending";
+                    perk_machine.targetname = "vending_deadshot_model";
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "deadshot_vending";
+
+                    break;
+                default:
+                    use_trigger.script_sound = "mus_perks_speed_jingle";
+                    use_trigger.script_string = "speedcola_perk";
+                    use_trigger.script_label = "mus_perks_speed_sting";
+                    use_trigger.target = "vending_sleight";
+                    perk_machine.script_string = "speedcola_perk";
+                    perk_machine.targetname = "vending_sleight";
+
+                    if ( isdefined( bump_trigger ) )
+                        bump_trigger.script_string = "speedcola_perk";
+
+                    break;
+            }
+
+            if ( isdefined( level._custom_perks[perk] ) && isdefined( level._custom_perks[perk].perk_machine_set_kvps ) )
+                [[ level._custom_perks[perk].perk_machine_set_kvps ]]( use_trigger, perk_machine, bump_trigger, collision );
+        }
+    }
 }

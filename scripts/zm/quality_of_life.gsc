@@ -1130,9 +1130,37 @@ round_hud()
     //  by everyone, so it is stashed on level rather than on a player - the
     //  per-player watcher in qol_options cannot own it.
     level.zmqol_roundcounter = roundcounter;
+
+    //  ========================================================================
+    //  v2.8.3 - WHY THIS LOOP WATCHES THE NUMBER INSTEAD OF THE NOTIFY.
+    //
+    //  It used to open with `level waittill( "end_of_round" )`. The body below
+    //  it is an ANIMATION that takes about 4 seconds ( 0.3 + 0.4 + 2.5 + 0.3 ),
+    //  and a waittill only catches a notify while it is actually waiting. With
+    //  ROUND DELAY OFF the next round can begin and end inside those 4 seconds,
+    //  so "end_of_round" fired with nothing listening, the loop then blocked on
+    //  a "between_round_over" that had ALREADY passed, and the counter sat a
+    //  full round behind for the rest of the match - exactly what the user saw
+    //  on 2026-08-29: round 3 displayed as 2, then a jump straight to 4.
+    //
+    //  🌟 A missed notify is gone forever; a changed NUMBER is still true when
+    //  we get round to looking. Polling level.round_number therefore cannot
+    //  drop a round no matter how fast rounds turn over, and it needs no
+    //  cooperation from round_think(). The 0.05s tick is only the resync
+    //  latency, not a delay - the animation below is unchanged.
+    //
+    //  🛑 This is NOT setroundsplayed(). That call drives STOCK's round HUD and
+    //  putting it back gave the user two counters on screen at once; see the
+    //  note in round_think(). This mod's counter is the one drawn here.
+    //  ========================================================================
+    n_shown = level.round_number;
+
     while ( true )
     {
-        level waittill( "end_of_round" );
+        while ( level.round_number == n_shown )
+            wait 0.05;
+
+        n_shown = level.round_number;
         roundcounter.color = ( 1, 1, 0.25 );
         roundcounter moveovertime( 0.3 );
         roundcounter scaleovertime( 0.3, 80, 80 );
@@ -1181,7 +1209,11 @@ round_hud()
         roundcounter moveovertime( 0.3 );
         zmqol_hud_round_anchor( roundcounter );   // v2.0.8 - twin of the resting anchor above
         roundcounter.hidewheninmenu = 1;
-        level waittill( "between_round_over" );
+
+        //  v2.8.3 - the trailing `level waittill( "between_round_over" )` is
+        //  gone with the notify it partnered. It is what actually wedged the
+        //  loop for a round when the notify was missed, and the number-watch at
+        //  the top now paces the loop on its own.
     }
 }
 
@@ -1190,6 +1222,7 @@ round_think( restart )
     if ( !isdefined( restart ) )
         restart = 0;
     level endon( "end_round_think" );
+
     if ( !is_true( restart ) )
     {
         if ( isdefined( level.initial_round_wait_func ) )
@@ -1215,7 +1248,29 @@ round_think( restart )
         else
         {
             level thread maps\mp\zombies\_zm_audio::change_zombie_music( "round_start" );
-            round_one_up();
+
+            //  ================================================================
+            //  v2.8.2 - ROUND DELAY OFF (PATCHES tab), half one of two.
+            //
+            //  🌟 round_one_up() is stock's round-announce beat and everything
+            //  it does after the announcer is a WAIT: 2.5s on an ordinary round,
+            //  6.25 + 2 on the very first one, then reportmtu() ( _zm.gsc,
+            //  round_one_up ). Nothing downstream reads a value it produces.
+            //  Threading it therefore removes the pause from the round loop
+            //  while keeping the announcer line, the music cue and the round
+            //  HUD exactly as they are - nothing is skipped, it just stops
+            //  blocking the spawner.
+            //
+            //  🛑 NEVER ON THE FIRST ROUND. That path is the map intro and it is
+            //  the one that fires level notify( "intro_hud_done" ), which the
+            //  intro HUD waits on. Threading it there would start the game
+            //  underneath the intro sequence.
+            //  ================================================================
+
+            if ( getdvarintdefault( "round_delay_off", 0 ) && !level.first_round )
+                level thread round_one_up();
+            else
+                round_one_up();
         }
         maps\mp\zombies\_zm_powerups::powerup_round_start();
         players = get_players();
@@ -1274,13 +1329,21 @@ round_think( restart )
         //  so ON is exactly what the mod has always done and OFF is the switch
         //  that changes something: it puts stock's clamp back.
         //
-        //  📝 Stock's two setroundsplayed() calls are missing from this copy as
-        //  well and are deliberately NOT restored here - that is a separate
-        //  stat call, not the cap, and adding it under this row would be a
-        //  second change hiding inside one switch.
+        //  🛑 setroundsplayed() STAYS OUT, and here is the measured reason.
+        //  Stock's round_think() calls it twice ( _zm.gsc:3428 and :3519 ) and
+        //  this copy carries neither. v2.8.3 restored both, on the theory that
+        //  it was what fed the round display - and the user immediately got TWO
+        //  round counters on screen, which is the proof that it drives STOCK's
+        //  own round HUD. This mod draws its own chalk counter in round_hud()
+        //  above, so stock's must stay switched off. Reverted the same session.
+        //  📝 The round-counter LAG that sent us here was never this call. It is
+        //  round_hud()'s ~4s end-of-round animation missing "end_of_round"
+        //  notifies once ROUND DELAY OFF makes rounds change faster than the
+        //  animation runs - fixed with a resync at the bottom of that loop.
         //  ====================================================================
         if ( !getdvarintdefault( "remove_round_cap", 1 ) && level.round_number > 255 )
             level.round_number = 255;
+
         matchutctime = getutc();
         players = get_players();
         foreach ( player in players )
@@ -1291,7 +1354,30 @@ round_think( restart )
             player maps\mp\zombies\_zm_stats::update_playing_utc_time( matchutctime );
         }
         check_quickrevive_for_hotjoin();
+
+        //  ====================================================================
+        //  v2.8.2 - ROUND DELAY OFF (PATCHES tab), half two of two.
+        //
+        //  🌟 Stock's round_over() reads level.zombie_vars["zombie_between_
+        //  round_time"] into a LOCAL and only then waits on it ( _zm.gsc:3369
+        //  and :3391 ). So zeroing the var immediately before the call and
+        //  putting it back immediately after removes the ten-second gap and
+        //  leaves the shared variable exactly as the map or gametype set it -
+        //  the restore cannot race the wait, because the wait already holds its
+        //  own copy of the number.
+        //
+        //  📝 Together with the round_one_up() half above this is the whole of
+        //  the between-round pause. What remains is round_wait()'s 1.0s poll
+        //  interval ( _zm.gsc, round_wait ), which is not a delay - it is how
+        //  often the last-zombie check runs.
+        //  ====================================================================
+        n_zmqol_brt = level.zombie_vars[ "zombie_between_round_time" ];
+
+        if ( getdvarintdefault( "round_delay_off", 0 ) )
+            level.zombie_vars[ "zombie_between_round_time" ] = 0;
+
         level round_over();
+        level.zombie_vars[ "zombie_between_round_time" ] = n_zmqol_brt;
         level notify( "between_round_over" );
         restart = 0;
     }
@@ -5090,6 +5176,62 @@ zmqol_dev_command_listener()
             player setclientdvar( "zmqol_testsound", str_alias + " " + level.zmqol_testsound_n );
             player iprintln( "^2[zm_qol] testsound ^7" + str_alias + " ^2-> 2D, then 3D, then the control" );
         }
+        //  ====================================================================
+        //  v2.8.3 PROBE B - ".snd"  the SERVER half of the silent-gun question.
+        //
+        //  WHY THIS EXISTS. Every offline check says the sound chain is intact:
+        //  the shipped mod.all declares 581 aliases over 368 payloads, the count
+        //  the alias table needs is exactly 368, wpn_ak47_fire_plr is declared
+        //  WITH its audio in the bank, and the ak47_zm weapon asset inside
+        //  mod.ff references that exact alias string. Two theories were killed
+        //  by measurement (a filename-extension mismatch, and the shared duck) -
+        //  the known-WORKING Death Machine alias has the identical shape to the
+        //  silent AK-47. So the break is at runtime and cannot be reached from
+        //  disk.
+        //
+        //  .testsound already covers the CLIENT half. This is the server half,
+        //  plus the one fact no dump can give: which weapon def is actually in
+        //  the player's hands when the gun sounds silent.
+        //
+        //  HOW TO READ IT - run all three:
+        //      .snd                      -> names the gun you are holding
+        //      .snd wpn_vulcan_fire_loop_plr   (the CONTROL - known audible)
+        //      .snd wpn_ak47_fire_plr          (a silent gun)
+        //
+        //    control plays, ak47 silent  -> the alias does not resolve at
+        //        runtime even though it is in mod.all: a bank load-order or
+        //        shadowing problem, NOT the alias table.
+        //    both play                   -> the aliases are fine and the weapon
+        //        asset's own fireSound binding is what is broken.
+        //    neither plays               -> mod.all is not being loaded at all.
+        //
+        //  🛑 One-shot, on demand only - ERROR_CATALOGUE §7b is about sustained
+        //  emitters. Remove once the cause is named.
+        //  ====================================================================
+        else if ( cmd == "snd" )
+        {
+            str_cur = player getcurrentweapon();
+
+            if ( tokens.size < 2 )
+            {
+                player iprintln( "^3[zm_qol] holding: ^7" + str_cur );
+                player iprintln( "^3[zm_qol] usage ^7.snd <alias>  ^3control ^7.snd wpn_vulcan_fire_loop_plr" );
+            }
+            else
+            {
+                str_alias = tokens[1];
+
+                //  Both server routes, because they fail differently: playsound
+                //  is entity-attached and playsoundatposition is world-placed,
+                //  and an alias with a bad 3D curve can be inaudible on one and
+                //  fine on the other.
+                player playsound( str_alias );
+                playsoundatposition( str_alias, player.origin );
+
+                player iprintln( "^2[zm_qol] .snd ^7" + str_alias + "  ^2(holding ^7" + str_cur + "^2)" );
+                println( "[zm_qol] PROBE B .snd alias=" + str_alias + " holding=" + str_cur );
+            }
+        }
         else if ( cmd == "give" || cmd == "giveweapon" || cmd == "gun" )
         {
             //  v1.93.0 - user, 2026-08-14: "make sure that all the added weapons
@@ -6215,7 +6357,7 @@ zmqol_help_lines()
     //  panel; .endround is new this version. Folded onto this line rather than
     //  a new one - the panel has a hard line budget, see the note above.
     a_lines[a_lines.size] = "^3.velocity ^7on/off ^8(also .vel/.speed)   ^3.round <n>^7/^3.endround";
-    a_lines[a_lines.size] = "^3.give <weapon> [pap] ^7every added gun ^8(.give list)";
+    a_lines[a_lines.size] = "^3.give <weapon> [pap] ^7any gun on this map ^8(.give list)";
     a_lines[a_lines.size] = "^3.brutus^7/^3.panzer^7/^3.jumpingjacks ^7(amount) ^8- Mob / Origins / Die Rise";
     a_lines[a_lines.size] = "^3.machines ^7drop every remaining machine ^8- Nuketown";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
@@ -7667,6 +7809,285 @@ zmqol_give_row( str_keys, str_base, str_name )
     return s;
 }
 
+// ============================================================================
+//  .give  -  v2.8.2: EVERY weapon on THIS map, equipment included
+// ----------------------------------------------------------------------------
+//  User, 2026-08-29: *".give for every weapon, not the current partial list.
+//  Must be map-aware: only weapons that exist on the current map (no staffs on
+//  Diner), and must include tactical/lethal equipment."*
+//
+//  🌟 THE MAP-AWARENESS IS NOT A TABLE THIS FILE MAINTAINS - IT IS THE GAME'S
+//  OWN REGISTRY, READ AT RUNTIME. level.zombie_weapons is built by
+//  maps\mp\zombies\_zm_weapons::add_zombie_weapon() (_zm_weapons.gsc:521-564),
+//  keyed by weapon name, and that function opens with
+//        if ( isdefined( level.zombie_include_weapons ) &&
+//             !isdefined( level.zombie_include_weapons[weapon_name] ) ) return;
+//  so the array contains EXACTLY the weapons this map included and nothing
+//  else. No static per-map list can drift out of date against it, and the mod's
+//  own added guns are in there too because zmqol_wallbuy_box_add() registers
+//  them the same way.
+//
+//  🌟 EQUIPMENT IS ALREADY IN THAT SAME REGISTRY - measured, not assumed.
+//  zm_transit.gsc:2011-2017 registers frag_grenade_zm, sticky_grenade_zm,
+//  claymore_zm, cymbal_monkey_zm and emp_grenade_zm through add_zombie_weapon()
+//  exactly like a gun, and every other map does the same with whichever subset
+//  it ships. Cross-checked against the retail fastfiles themselves
+//  (zm_qol - dev\parsed\sound_alias_universe\ff_weapons.txt):
+//        zm_transit    frag claymore cymbal_monkey emp_grenade sticky
+//        zm_nuked      frag claymore cymbal_monkey sticky
+//        zm_highrise   frag claymore cymbal_monkey sticky
+//        zm_prison     frag claymore willy_pete
+//        zm_buried     frag claymore cymbal_monkey
+//        zm_tomb       frag claymore cymbal_monkey sticky
+//  So ".give monkey" works on Origins and correctly refuses on Mob, with no
+//  per-map branch written here at all.
+//
+//  🌟 AND weapon_give() ALREADY KNOWS WHAT TO DO WITH EQUIPMENT. Stock's
+//  weapon_give() (_zm_weapons.gsc) branches on is_lethal_grenade /
+//  is_tactical_grenade / is_placeable_mine / is_equipment and swaps out the old
+//  one, calls set_player_lethal_grenade(), gives start ammo and plays the
+//  pickup. Nothing about handing over a grenade needs writing here.
+//
+//  🛑 THE UPGRADE NAME COMES FROM THE REGISTRY, NOT FROM STRING SURGERY.
+//  zmqol_give_row() derives it by splicing "_upgraded" before "_zm", which is
+//  right for the mod's own rows and WRONG for anything that breaks the pattern.
+//  level.zombie_weapons[name].upgrade_name is what add_zombie_weapon was handed,
+//  so it is the authority - and it is undefined for equipment, which is exactly
+//  how ".give monkey pap" learns to say so instead of asking for a weapon that
+//  does not exist.
+//
+//  📝 The curated alias table is kept and is tried BEFORE the loose match, so
+//  every name that worked before still works ("swat", "msmc", "ms", "mk2"...).
+//  What is new is that unknown names now fall through to the registry instead
+//  of being rejected.
+// ============================================================================
+
+//  Lower-case, and with every underscore removed, so "ray_gun_zm", "ray gun"
+//  and "raygun" all compare equal. Written as a character loop because GSC has
+//  no string replace.
+zmqol_give_squash( str_in )
+{
+    str_out = "";
+
+    for ( i = 0; i < str_in.size; i++ )
+    {
+        c = str_in[i];
+
+        if ( c != "_" && c != "-" )
+            str_out = str_out + c;
+    }
+
+    return tolower( str_out );
+}
+
+//  Returns the registered weapon name, or "" when this map has nothing by that
+//  name. Every return value is a key of level.zombie_weapons, so the caller
+//  never has to re-check.
+zmqol_give_resolve( str_arg )
+{
+    if ( !isdefined( level.zombie_weapons ) )
+        return "";
+
+    //  1. the exact registered name -   .give ray_gun_zm
+    if ( isdefined( level.zombie_weapons[ str_arg ] ) )
+        return str_arg;
+
+    //  2. the name without its suffix - .give ray_gun
+    if ( isdefined( level.zombie_weapons[ str_arg + "_zm" ] ) )
+        return str_arg + "_zm";
+
+    //  3. the curated aliases, so every name that worked before still does.
+    a_rows = zmqol_weapon_give_table();
+
+    foreach ( row in a_rows )
+    {
+        foreach ( key in row.keys )
+        {
+            if ( key == str_arg && isdefined( level.zombie_weapons[ row.base ] ) )
+                return row.base;
+        }
+    }
+
+    //  4. loose match against the registry -  .give raygunmark2, .give cymbalmonkey
+    str_want = zmqol_give_squash( str_arg );
+    a_keys = getarraykeys( level.zombie_weapons );
+
+    for ( i = 0; i < a_keys.size; i++ )
+    {
+        str_name = a_keys[i];
+
+        if ( zmqol_give_squash( str_name ) == str_want )
+            return str_name;
+
+        //  ...and again with the trailing "zm" dropped, so ".give raygunmark2"
+        //  matches "raygun_mark2_zm" as well as ".give raygunmark2zm" would.
+        str_squashed = zmqol_give_squash( str_name );
+
+        if ( str_squashed.size > 2 && getsubstr( str_squashed, str_squashed.size - 2, str_squashed.size ) == "zm" )
+        {
+            if ( getsubstr( str_squashed, 0, str_squashed.size - 2 ) == str_want )
+                return str_name;
+        }
+    }
+
+    //  5. THE ART NAME.  v2.8.3, user report 2026-08-29: ".give olympia" failed
+    //     while ".give m14" worked.  Cause: a BO2 weapon's DEF name and its ART
+    //     name disagree for 17 guns, and the four rules above only ever see the
+    //     def name.  The Olympia is the worst case - the def is rottweil72_zm
+    //     and nothing about it contains the string the player actually knows.
+    //
+    //  🌟 THE TABLE IS MEASURED, NOT WRITTEN.  Every pair below was read out of
+    //     the built mod.ff with
+    //         Unlinker --include-assets weapon ... mod.ff
+    //     and then each weapon asset's own viewmodel field, stripped of its
+    //     t6_wpn_ prefix, its class infix (ar/smg/lmg/shotty/sniper/pistol/
+    //     launch/zmb/minigun) and its _view suffix.  No name here was typed from
+    //     memory - see zmqol_give_art_table() for the generated list.
+    //
+    //  📝 It still resolves THROUGH level.zombie_weapons, so a name only works
+    //     on a map that actually registered the gun - which is the behaviour the
+    //     rest of this function already has, and why ".give list" stays honest.
+    str_art = zmqol_give_art_resolve( str_arg );
+
+    if ( str_art != "" )
+        return str_art;
+
+    return "";
+}
+
+// ============================================================================
+//  zmqol_give_art_resolve  -  ART NAME -> registered def name
+// ----------------------------------------------------------------------------
+//  Walks the measured art-name table and returns the first def this map has
+//  actually registered.  Two art names are ambiguous by construction and both
+//  are handled by that "this map registered it" test rather than by a rule:
+//
+//      minigun -> deathmachine_zm  AND  minigun_alcatraz_zm
+//      x95l    -> tar21_zm         AND  gl_tar21_zm
+//
+//  Only one of each pair is ever in level.zombie_weapons on a given map, so the
+//  loop below picks the right one without needing to know which map it is on.
+// ============================================================================
+zmqol_give_art_resolve( str_arg )
+{
+    if ( !isdefined( level.zombie_weapons ) )
+        return "";
+
+    a_rows = zmqol_give_art_table();
+
+    for ( i = 0; i < a_rows.size; i++ )
+    {
+        if ( a_rows[i].art != str_arg )
+            continue;
+
+        if ( isdefined( level.zombie_weapons[ a_rows[i].def ] ) )
+            return a_rows[i].def;
+    }
+
+    return "";
+}
+
+zmqol_give_art_row( str_art, str_def )
+{
+    o = spawnstruct();
+    o.art = str_art;
+    o.def = str_def;
+    return o;
+}
+
+// ============================================================================
+//  zmqol_give_art_table  -  GENERATED, do not hand-edit a name into this list
+// ----------------------------------------------------------------------------
+//  Regenerate after adding a weapon to mod.ff:
+//
+//    Unlinker --include-assets weapon --search-path <proj> -o <out> mod.ff
+//    for each weapons/<name> that is not *_upgraded_zm:
+//        art = first (t6_)?wpn_*_view field, minus prefix/class/suffix
+//        emit the pair when art != <name minus _zm>
+//
+//  17 pairs at v2.8.3.  Names that already equal their def (ak47, an94, ksg,
+//  lsat, svu, uzi, rnma, hamr, judge, kard, python, rpd, ...) are absent on
+//  purpose: rules 1 and 2 in zmqol_give_resolve() already reach those.
+// ============================================================================
+zmqol_give_art_table()
+{
+    a = [];
+
+    a[a.size] = zmqol_give_art_row( "ak74u",     "ak74u_extclip_zm" );
+    a[a.size] = zmqol_give_art_row( "m82",       "barretm82_zm" );
+    a[a.size] = zmqol_give_art_row( "b2023r",    "beretta93r_extclip_zm" );
+    a[a.size] = zmqol_give_art_row( "mc96",      "c96_zm" );
+    a[a.size] = zmqol_give_art_row( "minigun",   "deathmachine_zm" );
+    a[a.size] = zmqol_give_art_row( "minigun",   "minigun_alcatraz_zm" );
+    a[a.size] = zmqol_give_art_row( "scorpion",  "evoskorpion_zm" );
+    a[a.size] = zmqol_give_art_row( "x95l",      "tar21_zm" );
+    a[a.size] = zmqol_give_art_row( "x95l",      "gl_tar21_zm" );
+    a[a.size] = zmqol_give_art_row( "type95",    "gl_type95_zm" );
+    a[a.size] = zmqol_give_art_row( "xm8",       "gl_xm8_zm" );
+    a[a.size] = zmqol_give_art_row( "m16a2",     "m16_zm" );
+    a[a.size] = zmqol_give_art_row( "mp40",      "mp40_stalker_zm" );
+    a[a.size] = zmqol_give_art_row( "stg44",     "mp44_zm" );
+    a[a.size] = zmqol_give_art_row( "mp5",       "mp5k_zm" );
+    a[a.size] = zmqol_give_art_row( "chicom",    "qcw05_zm" );
+    a[a.size] = zmqol_give_art_row( "olympia",   "rottweil72_zm" );
+    a[a.size] = zmqol_give_art_row( "saiga",     "saiga12_zm" );
+    a[a.size] = zmqol_give_art_row( "scarh",     "scar_zm" );
+
+    return a;
+}
+
+//  Prints this map's registry, eight names to a line. This is the whole point
+//  of the rewrite: the list is what the MAP has, so it is different on Origins
+//  and on the Diner and neither is written down anywhere.
+zmqol_give_print_list()
+{
+    //  Threaded and it waits, so the player can leave underneath it.
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    if ( !isdefined( level.zombie_weapons ) )
+    {
+        self iprintln( "^1[zm_qol] this map registered no weapons" );
+        return;
+    }
+
+    a_keys = getarraykeys( level.zombie_weapons );
+    self iprintln( "^3[zm_qol] .give ^7- " + a_keys.size + " on this map, add ^3pap ^7for upgraded" );
+
+    str_line = "";
+    n_on_line = 0;
+
+    for ( i = 0; i < a_keys.size; i++ )
+    {
+        //  The "_zm" is noise on every single name, so it is dropped for
+        //  display - and ".give <shown name>" resolves through rule 2 above.
+        str_show = a_keys[i];
+
+        if ( str_show.size > 3 && getsubstr( str_show, str_show.size - 3, str_show.size ) == "_zm" )
+            str_show = getsubstr( str_show, 0, str_show.size - 3 );
+
+        if ( n_on_line == 0 )
+            str_line = str_show;
+        else
+            str_line = str_line + " " + str_show;
+
+        n_on_line++;
+
+        if ( n_on_line >= 8 )
+        {
+            self iprintln( "^7" + str_line );
+            str_line = "";
+            n_on_line = 0;
+            //  Spaced so a long map's list cannot outrun the print ring - the
+            //  same reason zmqol_give_all_perks() spaces its grants.
+            wait 0.05;
+        }
+    }
+
+    if ( n_on_line > 0 )
+        self iprintln( "^7" + str_line );
+}
+
 zmqol_give_named_weapon( str_arg, b_pap )
 {
     if ( !isdefined( str_arg ) )
@@ -7697,48 +8118,48 @@ zmqol_give_named_weapon( str_arg, b_pap )
         return;
     }
 
-    a_rows = zmqol_weapon_give_table();
-
     if ( str_arg == "list" || str_arg == "help" || str_arg == "?" )
     {
-        self iprintln( "^3[zm_qol] .give ^7swat fal mk48 qbb mp7 vector msmc peacekeeper" );
-        self iprintln( "^3[zm_qol] .give ^7crossbow xpr titus thundergun wunderwaffe wintershowl" );
-        //  v1.99.25 - the six stock guns added to the table. Flagged as stock so
-        //  it is clear why they can fail on a map that never included them.
-        self iprintln( "^3[zm_qol] .give ^7galil an94 ms raygun mk2 monkeys ^8(stock - map must have them)" );
-        self iprintln( "^3[zm_qol] add ^7pap ^3for the upgraded one, e.g. ^7.give titus pap" );
+        self thread zmqol_give_print_list();
         return;
     }
 
-    foreach ( row in a_rows )
+    str_weapon = zmqol_give_resolve( str_arg );
+
+    if ( str_weapon == "" )
     {
-        foreach ( key in row.keys )
+        self iprintln( "^1[zm_qol] this map has no weapon called ^7" + str_arg + " ^1- try ^7.give list" );
+        return;
+    }
+
+    str_base = str_weapon;
+
+    if ( b_pap )
+    {
+        //  🛑 The registry's own upgrade_name, never a derived string. It is
+        //  undefined for equipment and for anything the map registered without
+        //  an upgrade, which is the honest answer rather than a missing weapon.
+        if ( isdefined( level.zombie_weapons[ str_weapon ].upgrade_name ) )
+            str_weapon = level.zombie_weapons[ str_weapon ].upgrade_name;
+        else
         {
-            if ( key != str_arg )
-                continue;
-
-            if ( b_pap )
-                str_weapon = row.upgraded;
-            else
-                str_weapon = row.base;
-
-            //  🛑 Same reasoning as zmqol_give_wonder_weapon(): weapon_give(),
-            //  never giveweapon(). It honours the zombies weapon limit, takes
-            //  the current gun when you are at it, gives start ammo, switches
-            //  and plays the pickup sound - i.e. it behaves exactly like pulling
-            //  the weapon out of the box, which is the point of the command.
-            self maps\mp\zombies\_zm_weapons::weapon_give( str_weapon );
-
-            if ( b_pap )
-                self iprintln( "^2[zm_qol] gave ^7" + row.name + " ^5(Pack-a-Punched)" );
-            else
-                self iprintln( "^2[zm_qol] gave ^7" + row.name );
-
-            return;
+            self iprintln( "^3[zm_qol] ^7" + str_base + " ^3has no Pack-a-Punched version - giving the base one" );
+            b_pap = 0;
         }
     }
 
-    self iprintln( "^1[zm_qol] no weapon called ^7" + str_arg + " ^1- try ^7.give list" );
+    //  🛑 Same reasoning as zmqol_give_wonder_weapon(): weapon_give(), never
+    //  giveweapon(). It honours the zombies weapon limit, takes the current gun
+    //  when you are at it, gives start ammo, switches and plays the pickup
+    //  sound - and for a grenade or a mine it swaps out the one you are already
+    //  carrying and updates the player's lethal/tactical slot. That is exactly
+    //  what pulling the thing out of the box does, which is the point.
+    self maps\mp\zombies\_zm_weapons::weapon_give( str_weapon );
+
+    if ( b_pap )
+        self iprintln( "^2[zm_qol] gave ^7" + str_weapon + " ^5(Pack-a-Punched)" );
+    else
+        self iprintln( "^2[zm_qol] gave ^7" + str_weapon );
 }
 
 // ============================================================================
@@ -15021,6 +15442,9 @@ zmqol_better_deadshot_install()
 zmqol_actor_damage_wrapper( inflictor, attacker, damage, flags, meansofdeath, weapon, vpoint, vdir, shitloc, psoffsettime, boneindex )
 {
     damage = zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc );
+    //  v2.8.2 - ONE SHOT ONE KILL (CHEATS tab). Last, so it wins over any
+    //  multiplier above it. See zmqol_one_shot_scale() below.
+    damage = zmqol_one_shot_scale( damage, attacker, meansofdeath );
 
     self [[ level.zmqol_prev_actordamage ]]( inflictor, attacker, damage, flags, meansofdeath, weapon, vpoint, vdir, shitloc, psoffsettime, boneindex );
 }
@@ -15057,6 +15481,58 @@ zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc )
         return damage;
 
     return damage * 2;
+}
+
+// ============================================================================
+//  ONE SHOT ONE KILL  -  v2.8.2, user request 2026-08-29, the CHEATS tab
+// ----------------------------------------------------------------------------
+//  🌟 NO NEW HOOK AND NO NEW RISK. It rides the level.callbackactordamage chain
+//  zmqol_better_deadshot_install() already owns - the same chain, the same
+//  single install, the same chaining to whatever Origins or a gametype put
+//  there first. Nothing else about the damage path changes.
+//
+//  🛑 IT RAISES THE DAMAGE TO EXACTLY self.health, NOT TO A BIG NUMBER.
+//  Zombie health is grown 10% a round and stock's own ai_calculate_health()
+//  (_zm.gsc:3572) only stops when the value OVERFLOWS a 32-bit int - which is
+//  the whole basis of the INSTAKILL ROUNDS row on the PATCHES tab. So at a high
+//  round self.health can sit near 2^31, and any fixed constant is either too
+//  small to kill there or large enough to overflow when a boss damage func
+//  multiplies it. self.health is the exact amount needed and can never do
+//  either.
+//
+//  🛑 BOSSES KEEP THEIR OWN RULES, and that is deliberate rather than a gap.
+//  Stock runs self.actor_damage_func BEFORE the final damage is applied
+//  (_zm.gsc:4435), and that is where the Panzer's faceplate, Brutus's helmet,
+//  the Ghost's phase state and the Avogadro's EMP-only immunity live. A func
+//  that SCALES damage still receives self.health here and still kills; a func
+//  that returns 0 for the wrong weapon - the Avogadro's - correctly keeps its
+//  immunity. Forcing those open would not be a cheat, it would be deleting the
+//  boss fights.
+//
+//  📝 Never applied when the damaged entity is a player: stock's own
+//  actor_damage_override() guards with isplayer( self ), so the case exists.
+// ============================================================================
+zmqol_one_shot_scale( damage, attacker, meansofdeath )
+{
+    if ( !getdvarintdefault( "one_shot_one_kill", 0 ) )
+        return damage;
+
+    if ( !isdefined( damage ) || !isdefined( attacker ) || !isplayer( attacker ) )
+        return damage;
+
+    if ( !isdefined( meansofdeath ) || meansofdeath == "" )
+        return damage;
+
+    if ( isdefined( self ) && isplayer( self ) )
+        return damage;
+
+    if ( !isdefined( self.health ) || self.health <= 0 )
+        return damage;
+
+    if ( damage >= self.health )
+        return damage;
+
+    return self.health;
 }
 
 // ============================================================================

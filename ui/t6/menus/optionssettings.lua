@@ -527,6 +527,42 @@ CoD.OptionsSettings.AntiAliasingChangeCallback = function (AntiAliasingChosen, f
 		Engine.SetHardwareProfileValue("r_txaa", 0)
 		Engine.SetHardwareProfileValue("r_fxaa", 0)
 	end
+	-- ========================================================================
+	--  v2.8.2 - ARCHIVE THE THREE AA DVARS. User, 2026-08-29: anti-aliasing set
+	--  to 4X TXAA with FXAA YES in the pre-game ADVANCED tab comes back as MSAA
+	--  with FXAA off once in game.
+	--
+	--  🌟 THE MEASURED GAP: their plutonium_zm.cfg carries
+	--        seta r_aaSamples "4"
+	--        seta r_fxaa      "1"
+	--  and carries NO r_txaa line at all. Every branch above writes r_txaa, but
+	--  only two of the three names come back on the next launch - so a TXAA
+	--  choice is the one that cannot survive.
+	--
+	--  🛑 AND THE LOSS IS ACTIVELY DESTRUCTIVE, not merely forgetful.
+	--  AdjustAntiAliasingSettings() a few lines above runs every time this tab
+	--  is built and its else-branch writes r_txaa 0 whenever it does not read
+	--  back "1" - so one unarchived launch does not just forget the setting, it
+	--  overwrites it.
+	--
+	--  Writing all three through the mod's existing archiver closes that gap.
+	--  It is purely additive: the game already archives two of these names, so
+	--  this adds one config line and changes no behaviour otherwise.
+	--
+	--  🛑 WHAT THIS DOES NOT YET EXPLAIN, stated rather than papered over: the
+	--  user reported MSAA *x8*, while their saved r_aaSamples is 4. The row
+	--  reads Engine.GetHardwareProfileValueAsString(), i.e. the auto-detected
+	--  HARDWARE PROFILE, not the dvar - and r_aaSamplesMax on this install is 8.
+	--  If the profile is what wins in game, archiving alone will not be enough
+	--  and the next step is a per-launch re-apply. The console readings of
+	--  r_aaSamples / r_txaa / r_fxaa taken IN a match are what tell the two
+	--  apart, which is why they were asked for.
+	-- ========================================================================
+	pcall(function ()
+		CoD.OptionsSettings.QolArchive("r_aaSamples")
+		CoD.OptionsSettings.QolArchive("r_txaa")
+		CoD.OptionsSettings.QolArchive("r_fxaa")
+	end)
 end
 
 CoD.OptionsSettings.Button_AddChoices_AntiAliasing = function (AntiAliasingChoices)
@@ -1304,7 +1340,10 @@ CoD.OptionsSettings.QolNoArchive = {
 	-- execute_teleport is the actual action - an archived 1 would fire on load.
 	set_points = true,
 	teleport = true,
-	execute_teleport = true
+	execute_teleport = true,
+	-- v2.8.2 - ONE SHOT ONE KILL. An archived 1 would arm the cheat on the next
+	-- launch before the player had touched anything, same as god mode.
+	one_shot_one_kill = true
 }
 
 CoD.OptionsSettings.QolArchive = function (DvarName)
@@ -1407,8 +1446,9 @@ end
 --  past both ends of its container, over the tab strip above and the ESC
 --  prompt below. That is the whole of the reported "scuffed-ness".
 --
---  The mod's own tabs, as of v2.1.3: GAME 13.5, HUD 13.0, PATCHES 11.0,
---  CHEATS 7. The stock tabs this file also builds: ADVANCED 15.0 (full).
+--  The mod's own tabs, as of v2.8.2: GAME 13.5, HUD 13.0, PATCHES 15.0,
+--  CHEATS 14.0. The stock tabs this file also builds: ADVANCED 15.0 (full).
+--  🛑 PATCHES IS NOW AT THE 15.0 CEILING - the next row has to displace one.
 --  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTEST TAB IT HONESTLY BELONGS IN.
 --
 --  🌟 v1.99.61 - THE CEILING IS 15.0 PITCHES, NOT 14.5, AND IT IS MEASURED.
@@ -1949,9 +1989,39 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	-- ========================================================================
 	T(QolPatchesButtons, LocalClientIndex, "3 HIT DOWN",         "three_hit_down",      "Zombie melee hits can never down you in fewer than 3 hits, like BO3+.")
 
+	-- ========================================================================
+	--  v2.8.2 - WINTER'S HOWL INFINITE. User request 2026-08-29, for the BO1
+	--  port this mod already ships. OFF = the gun's shipped damage numbers.
+	--
+	--  🌟 The direct hit is raised to the target's own health, so it is a kill
+	--  at any round; the shatter blast uses a constant, because radiusDamage has
+	--  no single target to read a health off. 📝 The blast therefore stops being
+	--  a guaranteed kill past roughly round 163, where zombie health overflows
+	--  past it - the direct hit still is. Stated rather than hidden.
+	--
+	--  📝 Range is deliberately untouched: the request was infinite damage, not
+	--  infinite reach, and widening the blast would change WHERE the gun kills.
+	--  Does nothing on a map without the gun.
+	-- ========================================================================
+	T(QolPatchesButtons, LocalClientIndex, "WINTERS HOWL BUFF", "winters_howl_infinite", "The Winter's Howl kills anything it hits. Its blast range is unchanged.")
+
+	-- ========================================================================
+	--  v2.8.2 - ROUND DELAY OFF. User request 2026-08-29: no wait between
+	--  rounds. Two waits make up that gap and this row removes both:
+	--    · round_over()'s wait on zombie_between_round_time - 10 seconds
+	--    · round_one_up()'s round-announce beat - 2.5 seconds
+	--  The announcer, the music cue and the round HUD all still play; the second
+	--  one is simply threaded instead of blocking the spawner. 🛑 Never on the
+	--  first round, which is the map intro. See this mod's round_think().
+	-- ========================================================================
+	T(QolPatchesButtons, LocalClientIndex, "ROUND DELAY OFF",    "round_delay_off",     "No pause between rounds. Removes the 10 second gap and the round announce wait.")
+
 	-- 🛑 STALE COUNT FIXED 2026-08-27 - said "9 total"; NO BLEEDOUT PATCH (v2.2.0)
 	-- was added without updating it. Recounted directly against the T() calls.
-	return QolPatchesContainer                                      -- 12 total
+	-- v2.8.2 - two rows added (WINTER'S HOWL INFINITE, ROUND DELAY OFF).
+	-- 14 rows + 2 half spacers = 15.0 pitches, which is the measured ceiling in
+	-- the note above. Do not add a 15th row to this tab without moving one off.
+	return QolPatchesContainer                                      -- 14 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)
@@ -1974,6 +2044,24 @@ CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientInde
 	T(QolCheatsButtons, LocalClientIndex, "FLY MODE",        "fly",            "Noclip. Melee to stop.")
 	T(QolCheatsButtons, LocalClientIndex, "RAPID FIRE",      "rapid_fire",     "Faster firing on every weapon.")
 	T(QolCheatsButtons, LocalClientIndex, "NO POWER NEEDED", "no_power",       "Perks and doors work without power.")
+	-- ========================================================================
+	--  v2.8.2 - ONE SHOT ONE KILL. User request 2026-08-29.
+	--
+	--  🌟 It rides the level.callbackactordamage chain the mod already installs
+	--  for BETTER DEADSHOT - no second hook, no new failure mode. GSC raises the
+	--  damage to exactly the target's own health rather than to a big constant,
+	--  because zombie health keeps doubling up to a 32-bit overflow at high
+	--  rounds and no fixed number is both large enough there and safe from
+	--  overflowing when a boss damage func multiplies it.
+	--
+	--  🛑 BOSSES KEEP THEIR OWN RULES. The Panzer's faceplate, Brutus's helmet
+	--  and the Avogadro's EMP-only immunity all live in self.actor_damage_func,
+	--  which stock runs after this. Forcing those open would delete the boss
+	--  fights rather than cheat them.
+	--
+	--  🛑 In QolNoArchive, like every other CHEATS row.
+	-- ========================================================================
+	T(QolCheatsButtons, LocalClientIndex, "ONE SHOT ONE KILL", "one_shot_one_kill", "Every hit you land kills a zombie outright. Bosses keep their own armour rules.")
 
 	-- ========================================================================
 	--  v1.99.86, queue item 32 - three ACTION rows, user request 2026-08-19.
@@ -2111,7 +2199,8 @@ CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientInde
 	-- added without updating it. Recounted directly: 11 rows always present
 	-- (GOD MODE..SET POINTS) + TELEPORT/EXECUTE TELEPORT on every map except
 	-- Nuketown, which has no landmark list (see ZmTele above).
-	return QolCheatsContainer                        -- 13 total, 11 on Nuketown
+	-- v2.8.2 - ONE SHOT ONE KILL added to the always-present block.
+	return QolCheatsContainer                        -- 14 total, 12 on Nuketown
 end
 
 LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)

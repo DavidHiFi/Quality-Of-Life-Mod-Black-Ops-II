@@ -263,6 +263,30 @@ init()
     //  in both directions, same as the other PATCHES rows.
     qol_opt_dvar( "three_hit_down", "0" );
 
+    //  v2.8.2 - ONE SHOT ONE KILL, user request 2026-08-29, the CHEATS tab.
+    //  OFF (0) = stock. Read on every point of damage a player deals, inside
+    //  the level.callbackactordamage chain this mod already owns - see
+    //  quality_of_life.gsc::zmqol_one_shot_scale(). Live mid-match in both
+    //  directions. 🛑 It is in QolNoArchive on the LUI side, like every other
+    //  CHEATS row: an archived 1 would arm the cheat on the next launch.
+    qol_opt_dvar( "one_shot_one_kill", "0" );
+
+    //  v2.8.2 - WINTER'S HOWL INFINITE DAMAGE, user request 2026-08-29, the
+    //  PATCHES tab. OFF (0) = the gun's shipped damage numbers. ON (1) makes
+    //  all four of its damage figures effectively unbounded. Read per shot by
+    //  the four freezegun_get_*_damage() accessors in
+    //  maps\mp\zombies\_zm_weap_freezegun.gsc, so it is live mid-match in both
+    //  directions. Does nothing on a map without the gun, and nothing at all
+    //  while the zmqol_ww gate has the wonder weapons switched off.
+    qol_opt_dvar( "winters_howl_infinite", "0" );
+
+    //  v2.8.2 - ROUND DELAY OFF, user request 2026-08-29, the PATCHES tab.
+    //  OFF (0) = stock's 10-second gap plus the 2.5-second round-announce beat.
+    //  ON (1) removes both. Read once per round inside this mod's own
+    //  round_think() - see the note there for exactly which two waits are
+    //  removed and why the first round is deliberately left alone.
+    qol_opt_dvar( "round_delay_off", "0" );
+
     // ------------------------------------------------------------------------
     //  v1.99.91 - NO BOX LIMITS (was BOX LIMITS, v1.99.83, queue item 30).
     //

@@ -114,7 +114,7 @@ All five mod files go in that one folder.
 
 ## ✨ What you get
 
-Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 51 rows — 49 on Nuketown, where the CHEATS tab has no TELEPORT row because the map has no landmark list — plus five graphics rows on the stock **ADVANCED** tab and an **AIM ASSIST** row on **CONTROLS → GAMEPAD**. No chat commands required.
+Nearly all of it is a **switch** in the in-game menu — **Options → Settings**, tabs **GAME / PATCHES / HUD / CHEATS**. 54 rows — 52 on Nuketown, where the CHEATS tab has no TELEPORT row because the map has no landmark list — plus five graphics rows on the stock **ADVANCED** tab and an **AIM ASSIST** row on **CONTROLS → GAMEPAD**. No chat commands required.
 
 > [!NOTE]
 > **Confirmed in game:** **UNLOCK ALL** and **RESET STATS** (Zombies main menu → THEATER), the pause-menu rows, the **Zombie Blood** HUD icon, and the scoreboard naming your start location — "Survival - Diner", not "Survival - Green Run".
@@ -124,6 +124,10 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 > **v2.7.3, built and deployed, none of it booted yet:** the custom **Fire Sale icon** now actually applies (mod.ff owned the image and was shipping the stock art over the top of it); the Wunderfizz **interact-spam softlock** is fixed; **Fire Sale can drop on every map** with CUSTOM POWER-UPS on, including the static-box survival locations like Town; **3 HIT DOWN** now fires at all (it was testing the wrong means-of-death string and never once ran); **Pack-a-Punch** is reachable at every Nuketown spawn; Vulture Aid no longer changes zombie eye colour; and the mod no longer shadows custom sounds in your `storage\t6\zone` folder (the M1911 and Olympia shoot sounds among them).
 >
 > **v2.8.0, built and deployed, not booted yet:** a **PERMA-PERKS** toggle on the GAME tab — off by default; on, every persistent upgrade *that map already has* is active from the start, with no challenge progress needed. It never adds a perma-perk to a map that was not meant to have one, so Perma-PhD stays a Buried perk, and only TranZit, Die Rise and Buried have any at all. Classic only, as in the base game. Also: the Diner claymore's own fix is finally **armed** — the watchdog that switches it on gave up 45 seconds into a match, long before anyone walks to the shack, so it had never once run.
+>
+> **v2.8.3, built and deployed, not booted yet.** The **silent M1911 is fixed at its root**: `mod.ff` had inherited four weapon assets from its donor that renamed their fire-sound aliases (`wpn_m1911_fire_plr` where retail says `wpn_1911_fire_plr`, and the C96's `wpn_mc96_*`). Those names exist only in the donor's table, so the sound pack in your `storage\t6\zone` was never asked for. The mod now **stops owning `m1911_zm`, `m1911_upgraded_zm`, `m1911lh_upgraded_zm` and `c96_zm`** so the game loads its own and your pack is heard. **63 more gun sounds restored** — the Barrett/XPR-50, HAMR, Judge, M16, M32, Python, RPD, RPG, Saiga-12, Saritch, TAR-21, Type 95 and XM8 were silenced by v2.8.2's over-cautious restore rule. `.give` now reaches the **17 guns whose in-game name differs from their code name** (`.give olympia`, `scorpion`, `chicom`, `stg44`, `saiga`, `minigun` …). **WINTER'S HOWL INFINITE** is renamed **WINTERS HOWL BUFF**. And the **round counter tracks correctly with ROUND DELAY OFF** — its animation was missing `end_of_round` notifies once rounds turned over faster than the animation ran.
+>
+> **Still open:** the game-over scoreboard shows **CDC for a CIA player**. Mob of the Dead's starting-weapon row is **not shipped** — the snub-nose Python it needs exists in no file in this workspace. The Winter's Howl **freeze-and-shatter** death is inert on every map: its animstatedefs are not linked into `mod.ff`, so the gun kills without ever freezing anything.
 
 <br>
 
@@ -165,7 +169,7 @@ Nearly all of it is a **switch** in the in-game menu — **Options → Settings*
 
 ### 🧰 Quality of life
 
-Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-round fix · animated camos · **prone at a perk machine for +100 points** · full backwards and sideways movement speed · **network frame patch** · **graphics boost** on the ADVANCED tab · **remove round cap**, **24-zombie solo cap**, **instakill rounds**, **Double Tap 1.0**, **no barrier attacks**, **no bleedout** on the PATCHES tab · **better Speed Cola** and **perma-perks** on the GAME tab · **SET POINTS** and **TELEPORT** on the CHEATS tab · **your settings are remembered** between sessions.
+Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-round fix · animated camos · **prone at a perk machine for +100 points** · full backwards and sideways movement speed · **network frame patch** · **graphics boost** on the ADVANCED tab · **remove round cap**, **24-zombie solo cap**, **instakill rounds**, **Double Tap 1.0**, **no barrier attacks**, **no bleedout**, **Winters Howl buff** and **round delay off** on the PATCHES tab · **better Speed Cola** and **perma-perks** on the GAME tab · **SET POINTS**, **TELEPORT** and **ONE SHOT ONE KILL** on the CHEATS tab · **your settings are remembered** between sessions.
 
 <br>
 
@@ -174,7 +178,7 @@ Instant Pack-a-Punch · BO4 Max Ammo · wall buys refill your magazine · high-r
 Every one works in chat with `.`, `!` or `/`, and every one can be bound to a key. Type **`.help`** in game for the live list.
 
 ```
-.round 30          jump to a round              .give <weapon> [pap]   spawn a gun
+.round 30          jump to a round              .give <weapon> [pap]   any gun on the map
 .fly  .god  .ghost  .hud  .velocity             .killall  .bring       crowd control
 .brutus / .panzer / .jumpingjacks <n>           .pay <player> <n>      send points
 .shield            the map's buildable shield   .staff <element>       Origins staffs

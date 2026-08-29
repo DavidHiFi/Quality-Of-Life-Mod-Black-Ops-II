@@ -178,6 +178,47 @@ REM
 REM  If you would rather start clean, deleting the cached CSV also works - but that
 REM  should be a convenience, not the only way an edit can take.
 REM ---------------------------------------------------------------------------
+REM  ###########################################################################
+REM  # v2.8.3 - HOW MANY DONOR ALIASES COME BACK, AND WHY. Read this before    #
+REM  # trimming or restoring anything in mod.all.aliases.additions.csv.        #
+REM  ###########################################################################
+REM
+REM  THE HISTORY IN THREE STEPS.
+REM    v2.7.3  mod.all inherited the whole 1681-row donor table while the mod
+REM            owns 519. It loads AFTER the stock banks, so 1162 inherited names
+REM            shadowed the user's own sounds in storage\t6\zone. Trimmed to
+REM            additions-only. Correct fix - and it made some guns SILENT,
+REM            because a handful of mod-added guns had no other source.
+REM    v2.8.2  restored 62 aliases by a '<=4 of the 8 map bank sets' rule.
+REM            Helped 15 guns. LEFT MOST OF THE REST SILENT.
+REM    v2.8.3  the 4-map rule is RETIRED. 63 more rows, 581 -> 644 names.
+REM
+REM  WHY THE 4-MAP RULE FAILED. It assumed 'defined on many map banks' meant
+REM  'the user's pack provides it'. It does not. The 71 aliases it excluded
+REM  included the Barrett/XPR-50, HAMR, Judge, M16, M32, Python, RPD, RPG,
+REM  Saiga-12, Saritch, TAR-21, Type 95 and XM8 - every one with no source of a
+REM  fire sound anywhere, so every one silent.
+REM
+REM  THE ASYMMETRY THAT DECIDES THE RULE. The two errors are not equal:
+REM      restore an alias the pack owns  ->  the pack's sound is shadowed by the
+REM                                          donor's. AUDIBLE, wrong flavour,
+REM                                          reversible in one line.
+REM      miss one nothing else owns      ->  SILENCE. Unusable.
+REM  Silence is strictly worse, so the rule errs toward restoring.
+REM
+REM  THE RULE NOW: restore every dropped alias a shipped weapon asks for, MINUS
+REM  the names the user has confirmed BY EAR belong to their own pack.
+REM  Confirmed-theirs (2026-08-29), the ONLY names held back:
+REM      wpn_mp5k_fire_*        (MP5)
+REM      wpn_rottweil72_fire_*  (Olympia)
+REM  All 63 added rows were checked for their source WAV under zone_assets\sound\
+REM  before being appended - 63 of 63 present.
+REM
+REM  HOW TO CORRECT IT. This list grows BY EAR, never by heuristic. If a gun
+REM  starts playing a stock sound instead of the user's, add its wpn_*_fire_*
+REM  names to the held-back list above and drop those rows from
+REM  soundbank\mod.all.aliases.additions.csv. Never guess a name onto that list.
+REM
 REM  v2.7.3 - mod.all NOW CARRIES ONLY THIS MOD'S OWN ALIASES.
 REM
 REM  User, 2026-08-29: custom sounds in storage\t6\zone (M1911 and Olympia shoot
