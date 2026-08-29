@@ -1697,7 +1697,10 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- v2.1.2 onward, three additions behind: BETTER SPEED COLA (v2.2.0),
 	-- NO BOX LIMITS and CUSTOM POWER-UPS (v1.99.83) never updated it. Recounted
 	-- directly against the T() calls above, not against the old comment.
-	return QolContainer                              -- 14 rows + 1 spacer = 14.5
+	-- 🛑 STALE AGAIN, FIXED 2026-08-30 - said "14 rows + 1 spacer = 14.5";
+	-- PERMA-PERKS (v2.8.0) was added and the spacer had already gone. Recounted
+	-- against the T() calls: 15 rows, no spacer - also at the 15.0 ceiling.
+	return QolContainer                              -- 15 rows + 0 spacers = 15.0
 end
 
 CoD.OptionsSettings.CreateQolHudTab = function (QolHudTab, LocalClientIndex)
@@ -1909,7 +1912,6 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	-- + 2 half-spacers = 11.0 pitches.
 	T(QolPatchesButtons, LocalClientIndex, "ANIMATED CAMO PATCH", "anim_pap_camo",       "Animated Pack-a-Punch camo on Mob, Buried and Origins.")
 
-	QolPatchesButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
 	-- The legacy / pre-patch restorations.                            5 rows
 	T(QolPatchesButtons, LocalClientIndex, "REMOVE ROUND CAP",    "remove_round_cap",    "Rounds carry on past 255. Off puts the stock cap back.")
@@ -1918,7 +1920,6 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	T(QolPatchesButtons, LocalClientIndex, "DOUBLE TAP 1.0",      "double_tap_1",        "Double Tap only makes you shoot faster, like World at War and Black Ops 1. No extra damage.")
 	T(QolPatchesButtons, LocalClientIndex, "NO BARRIER ATTACKS",  "no_barrier_attacks",  "Zombies cannot reach through boarded windows.")
 
-	QolPatchesButtons:addSpacer(CoD.CoD9Button.Height / 2)
 
 	-- ========================================================================
 	--  v1.99.96 - THE TWO DIE RISE ROWS. User request 2026-08-20, from
@@ -2015,13 +2016,15 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	--  first round, which is the map intro. See this mod's round_think().
 	-- ========================================================================
 	T(QolPatchesButtons, LocalClientIndex, "ROUND DELAY OFF",    "round_delay_off",     "No pause between rounds. Removes the 10 second gap and the round announce wait.")
+	T(QolPatchesButtons, LocalClientIndex, "NO WALKERS",         "no_walkers",          "From round 10 on every zombie sprints. No walkers to break up a train.")
 
 	-- 🛑 STALE COUNT FIXED 2026-08-27 - said "9 total"; NO BLEEDOUT PATCH (v2.2.0)
 	-- was added without updating it. Recounted directly against the T() calls.
 	-- v2.8.2 - two rows added (WINTER'S HOWL INFINITE, ROUND DELAY OFF).
-	-- 14 rows + 2 half spacers = 15.0 pitches, which is the measured ceiling in
-	-- the note above. Do not add a 15th row to this tab without moving one off.
-	return QolPatchesContainer                                      -- 14 total
+	-- v2.8.6 - NO WALKERS added, and BOTH half-spacers removed to pay for it:
+	-- 15 rows + 0 spacers = 15.0 pitches, exactly the measured ceiling in the
+	-- note above. This tab is FULL. Do not add a 16th row without moving one off.
+	return QolPatchesContainer                                      -- 15 total
 end
 
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)

@@ -413,6 +413,7 @@ REM  cmd does not treat them as comments there - they are passed to the Linker a
 REM  arguments, and it fails with: Could not find zone definition file for
 REM  target "REM".
 "%OAT_BASE%\Linker.exe" ^
+  --load "%PROJ%\zone_source\wpnfix_donor\mod.ff" ^
   --load "%PROJ%\zone_source\base\mod.ff" ^
   --load "%BO2_DIR%\zone\all\ui_zm.ff" ^
   --load "%BO2_DIR%\zone\all\zm_prison.ff" ^

@@ -877,6 +877,28 @@ ScoreboardUpdateTeamElement = function(TeamElement, FactionTeam, FactionColorR, 
 				end
 			end
 
+			-- ============================================================
+			-- zm_qol v2.8.5 - CDC/CIA SCOREBOARD EMBLEM
+			--
+			-- Stock derives the emblem from the TEAM: Engine.GetFactionForTeam()
+			-- returns "cdc" for Allies on every survival map, so a player who chose
+			-- CIA in the lobby still got a CDC badge. Setting g_TeamIcon_Allies
+			-- server-side does nothing, because this widget never reads that dvar -
+			-- which is why the GSC fix logged the right value and changed nothing
+			-- on screen.
+			--
+			-- zmqol_team_emblem_watch() publishes the real answer (level.should_use_cia)
+			-- into g_TeamIcon_Allies; this reads it back. Guarded on the cdc/cia pair
+			-- so the zclassic per-map crew emblems set just above are left alone.
+			-- ============================================================
+			if FactionTeam == "cdc" or FactionTeam == "cia" then
+				local QolWantIcon = UIExpression.DvarString(nil, "g_TeamIcon_Allies")
+				if QolWantIcon == "faction_cia" or QolWantIcon == "faction_cdc" then
+					TeamElement.factionIcon:setImage(RegisterMaterial(QolWantIcon))
+					TeamElement.factionIcon:setupUIImage()
+				end
+			end
+
 			if GamemodeGroup == CoD.Zombie.GAMETYPEGROUP_ZENCOUNTER then
 				TeamElement.factionName:setAlpha(1)
 			else

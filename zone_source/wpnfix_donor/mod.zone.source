@@ -1,0 +1,16 @@
+// ============================================================================
+//  zm_qol wpnfix donor  -  built by build_wpnfix.bat, loaded FIRST by build_ff.
+//
+//  Sole purpose: supply the 1911/C96 weapon defs from RETAIL instead of from
+//  zone_source\base\mod.ff. The donor's copies name fire aliases that exist
+//  nowhere in BO2 (wpn_m1911_*, wpn_mc96_*), so the guns were silent; retail's
+//  copies name wpn_1911_*, which every map bank declares and which the user's
+//  sound pack replaces. The Linker is first-load-wins, so the only way to beat
+//  the donor is to supply the name from a zone loaded ahead of it.
+// ============================================================================
+>game,T6
+
+weapon,m1911_zm
+weapon,m1911_upgraded_zm
+weapon,m1911lh_upgraded_zm
+weapon,c96_zm

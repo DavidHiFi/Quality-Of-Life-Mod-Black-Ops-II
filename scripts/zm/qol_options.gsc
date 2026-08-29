@@ -354,15 +354,19 @@ init()
     //  v2.0.7 - GRAPHICS BOOST, user request (REZ's "Vanilla+" config). OFF by
     //  default: REZ's own documentation targets modern dedicated GPUs with
     //  1.5-2 GB of VRAM headroom, so it must not be forced on everyone who
-    //  updates. See qol_opt_graphics_boost() for what was taken, what was
+    //  updates. See qol_opt_aa_selfheal() below for the one part that survived,
     //  dropped, and the four dvars in that config that do not exist.
-    qol_opt_dvar( "graphics_boost", "0" );
+    //  v2.8.6 - graphics_boost REMOVED ENTIRELY at the user's request. The UI
+    //  row went in v2.6.6; the dvar and its thread lingered, so the console
+    //  command still existed. Both are gone now. The r_aaSamples SELF-HEAL it
+    //  used to carry survives as qol_opt_aa_selfheal(), which is the only part
+    //  that ever needed to run.
 
     //  v2.0.8 - ROUND COUNTER LEFT (HUD tab). 0 = top right, the Cold War
     //  placement the mod has always shipped, so nobody's HUD moves on update.
     qol_opt_dvar( "hud_round_left", "0" );
 
-    level thread qol_opt_graphics_boost();
+    qol_opt_aa_selfheal();
     level thread qol_opt_coop_pause();
     level thread qol_opt_round_clock();
     level thread qol_opt_no_power();
@@ -622,253 +626,49 @@ qol_opt_move_speed()
 
 
 // ============================================================================
-//  qol_opt_graphics_boost  -  GRAPHICS BOOST                        (v2.0.7)
+//  qol_opt_aa_selfheal  -  the r_aaSamples repair                    (v2.8.6)
 //
-//  User, 2026-08-21, pointing at "T6-BO2 Vanilla+ by REZ": *"what I mainly want
-//  you to include is the cfg optimizations ... so the game has the best
-//  graphical fidelity possible, best anti-aliasing that you can achieve better
-//  than using the games' txaa x4 and fxaa with the best sharpness or whatever,
-//  and best optimization for performance in general."*
+//  🛑 THIS IS ALL THAT REMAINS OF GRAPHICS BOOST. The whole feature - the dvar,
+//  the 21-key apply/restore thread and the menu row - was removed at the user's
+//  request, 2026-08-30: *"the graphics_boost console command for some reason
+//  still exists??? I told you ages ago to get rid of that from my mod"*. The UI
+//  row went in v2.6.6 but the dvar and its thread stayed, so the console command
+//  was still there and still force-wrote render dvars on every load.
 //
-//  🛑 REZ's plutonium_zm.cfg WAS NOT APPLIED WHOLESALE, AND IT MUST NOT BE. It
-//  is a complete 230-line config, not a list of optimisations: it also carries
-//  cg_fov 110, the aim_turnrate_* curve, every HUD element size,
-//  snd_speakerConfiguration "5.1 No Center 3D", and the display block
-//  ( r_mode "1920x1080", r_fullscreen, r_monitor, r_aspectRatio, r_customMode,
-//  r_resolution ). Shipping those would silently overwrite the player's own
-//  resolution, monitor, audio layout and field of view. Only the rendering
-//  dvars were taken, and every one below is verified to EXIST in t6zm.exe's
-//  string table before being written.
+//  What could NOT be dropped is the self-heal, because it repairs a config that
+//  kills the game before any script runs:
 //
-//  🛑 FOUR OF REZ's DVARS DO NOT EXIST IN THIS GAME. Checked against both
-//  t6zm.exe's string table and Plutonium's dvar_descriptions.json, neither of
-//  which contains:
-//        r_aaalpha            <- REZ's claimed "Alpha-to-Coverage (A2C)"
-//        com_busyWait         <- part of the "smoothness" claim
-//        r_fog_settings
-//        r_skinnedCacheScale
-//  setdvar on any of them creates a user dvar nothing reads - a dead switch -
-//  so all four are dropped. The A2C anti-aliasing feature in particular does
-//  not exist on T6 at all.
+//  Every build from v2.0.7 to v2.2.3 wrote r_aaSamples 16 the moment GRAPHICS
+//  BOOST was thrown. That dvar is ARCHIVED and LATCHED, so the 16 sits in
+//  plutonium_zm.cfg afterwards and is applied by the renderer restart that runs
+//  as the mod loads. 16x MSAA is a sample count D3D cannot create, so device
+//  creation returns E_INVALIDARG and the game dies at the frontend:
 //
-//  🛑 cl_maxppf IS NOT A PERFORMANCE DVAR. Plutonium's own description reads
-//  "Maximum servers to ping per frame in server browser". Dropped.
+//      Reading stats... / Reading backup stats...
+//      COM_ERROR (0) E_INVALIDARG ... @ 0x74C0E0
 //
-//  🛑 r_bloomTweaks IS DELIBERATELY NOT SET. Its description is "enbale bloom
-//  tweaks" [sic] and it is the same family as r_filmUseTweaks, whose
-//  description is "Overide film effects with tweak dvar values" - the dvar this
-//  project has already documented as making the renderer ignore every
-//  visionset. Overriding bloom from tweak dvars would fight every map's own
-//  grade and this mod's visionsets. Not worth the risk for a bloom nudge.
+//  Writing the dvar re-archives it, so one launch on a poisoned config cleans it
+//  permanently. Anyone who never threw the boost never had 16 written, and this
+//  function does nothing for them.
 //
-//  🛑 r_lodBiasRigid / r_lodBiasSkinned ARE NOT TOUCHED HERE. The LOD FIX row
-//  above already owns them and already writes -1000, which holds full model
-//  detail at every distance - strictly better than REZ's 0. Two writers on one
-//  dvar is how a setting starts flickering between two owners. The other four
-//  LOD dvars are unowned and are set here.
+//  🛑 17 AND 18 ARE THE TXAA SENTINELS, NOT SAMPLE COUNTS - hence the <= 16.
+//  User report 2026-08-30: *"I set TXAA X4 ... started the new game and the
+//  settings didn't save"*. TXAA x2/x4 write r_aaSamples 17/18, both above the
+//  hardware max of 8, so an unbounded heal fired every load and stamped the
+//  value back to 8. <= 16 is exactly the bound stock's own
+//  AntiAliasingChangeCallback uses to separate real MSAA values from TXAA.
 //
-//  🛑 THE ANTI-ALIASING FIGURE WAS WRONG UNTIL v2.2.4, AND IT WAS FATAL.
-//  This block used to argue that because AntiAliasingChangeCallback accepts
-//  `AntiAliasingChosen.value <= 16`, sixteen must be a real MSAA level. It is
-//  not. That comparison only separates MSAA values from the TXAA sentinels 17
-//  and 18; the authority on what is real is Button_AddChoices_AntiAliasing a
-//  few lines below it, which offers 1 / 2 / 4 / 8 and nothing else. Writing 16
-//  made the renderer ask D3D for a 16x MSAA target on the latched restart that
-//  runs when the mod loads, which returns E_INVALIDARG and kills the game at
-//  the frontend before a single line of GSC executes. The value now comes from
-//  r_aaSamplesMax, which is the engine reporting its own ceiling - "8" on the
-//  install this was found on. r_txaa and r_fxaa still go to 0 with it, the same
-//  pairing that callback does.
-//
-//  🛑 TWO OF THESE ARE LATCHED AND CANNOT APPLY MID-GAME. The console log for
-//  this install prints "r_aaSamples will be changed upon restarting." and
-//  "r_texFilterQuality will be changed upon restarting.", and the game's own
-//  menu flags exactly those two with NeedVidRestart. They are still written -
-//  they simply take effect the next time the game starts. Everything else in
-//  the list applies immediately. This is the engine's behaviour, not a
-//  shortcut: the stock menu shows an Apply prompt for the same two.
-//
-//  🛑 OFF IS A REAL RESTORE, NOT A GUESS. Every value is read ONCE before
-//  anything is written and put back verbatim when the row is switched off -
-//  the same discipline qol_opt_move_speed() uses. Nothing here invents a
-//  "default".
-//
-//  📝 OFF BY DEFAULT. REZ's own documentation targets "Modern Dedicated
-//  Graphics (AMD RX / NVIDIA RTX)" with "~1.5 GB - 2 GB Peak" VRAM overhead and
-//  a 144Hz+ monitor. Forcing 16x MSAA, 16x anisotropic and full shadow maps on
-//  every player who updates the mod would make the game slower for anyone below
-//  that, so the row ships off and changes nothing until it is thrown.
+//  Not a thread and not a loop: it runs once, at init, and returns.
 // ============================================================================
-qol_opt_graphics_boost()
+qol_opt_aa_selfheal()
 {
-    //  ========================================================================
-    //  🛑 THE SELF-HEAL RUNS FIRST, AND IT RUNS EVEN IN MINIMAL MODE, AND EVEN
-    //  WITH GRAPHICS BOOST SWITCHED OFF.                            (v2.2.5)
-    //
-    //  Every build from v2.0.7 to v2.2.3 wrote r_aaSamples 16 the moment
-    //  GRAPHICS BOOST was thrown. That dvar is ARCHIVED and LATCHED, so the 16
-    //  is still sitting in plutonium_zm.cfg afterwards and is applied by the
-    //  renderer restart that runs as the mod loads - before a single line of
-    //  GSC executes. A fixed mod cannot rescue a config that kills the game
-    //  before any script runs, so turning the boost off was never enough:
-    //  the value had to be taken back out of the file.
-    //
-    //  This is the in-mod half of that repair (the installer does the other
-    //  half, for the case where the game cannot start at all). Writing the
-    //  dvar re-archives it, so one launch on a poisoned config is enough to
-    //  clean it permanently.
-    //
-    //  🛑 THE TEST IS AGAINST THE ENGINE'S OWN CEILING, NEVER A FIXED NUMBER.
-    //  r_aaSamplesMax is what the renderer reports this GPU can actually do
-    //  ("8" on this install); 16 is inside r_aaSamples' declared domain, which
-    //  is exactly why no domain check ever caught it.
-    //  ========================================================================
     n_aa_max_heal = getdvarintdefault( "r_aaSamplesMax", 0 );
     n_aa_now      = getdvarintdefault( "r_aaSamples", 0 );
 
-    if ( n_aa_max_heal > 0 && n_aa_now > n_aa_max_heal )
+    if ( n_aa_max_heal > 0 && n_aa_now > n_aa_max_heal && n_aa_now <= 16 )
     {
         setdvar( "r_aaSamples", "" + n_aa_max_heal );
         println( "[zm_qol] SELF-HEAL: r_aaSamples was " + n_aa_now + " with a hardware max of " + n_aa_max_heal + " - written back to " + n_aa_max_heal + ". That value black-screens the game at load." );
-    }
-
-    if ( zmqol_minimal() )
-        return;
-
-    level endon( "end_game" );
-
-    //  Cached before the first write, so OFF restores this install's real
-    //  values rather than a number this file invented.
-    a_keys = [];
-    a_keys[ a_keys.size ] = "r_aaSamples";
-    a_keys[ a_keys.size ] = "r_txaa";
-    a_keys[ a_keys.size ] = "r_fxaa";
-    a_keys[ a_keys.size ] = "r_texFilterQuality";
-    a_keys[ a_keys.size ] = "r_texFilterAnisoMin";
-    a_keys[ a_keys.size ] = "r_texFilterAnisoMax";
-    a_keys[ a_keys.size ] = "r_texFilterMipMode";
-    a_keys[ a_keys.size ] = "r_picmip_manual";
-    a_keys[ a_keys.size ] = "r_picmip";
-    a_keys[ a_keys.size ] = "r_picmip_bump";
-    a_keys[ a_keys.size ] = "r_picmip_spec";
-    a_keys[ a_keys.size ] = "r_ssao";
-    a_keys[ a_keys.size ] = "sm_enable";
-    a_keys[ a_keys.size ] = "sm_maxLights";
-    a_keys[ a_keys.size ] = "sm_spotQuality";
-    a_keys[ a_keys.size ] = "sm_sunQuality";
-    a_keys[ a_keys.size ] = "r_bloomHiQuality";
-    a_keys[ a_keys.size ] = "r_autoLodScale";
-    a_keys[ a_keys.size ] = "r_lodScaleRigid";
-    a_keys[ a_keys.size ] = "r_lodScaleSkinned";
-    a_keys[ a_keys.size ] = "com_maxfps";
-
-    a_on = [];
-    //  🛑 CLAMPED TO WHAT THE ENGINE ITSELF REPORTS, NEVER A FIXED NUMBER.
-    //
-    //  v2.2.4. This line used to write a hard "16", and that one value is what
-    //  black-screened and hard-froze the mod on EVERY launch from v2.0.7
-    //  onward, for anyone who ever switched GRAPHICS BOOST on:
-    //
-    //      Reading stats... / Reading backup stats...
-    //      COM_ERROR (0) E_INVALIDARG ... @ 0x74C0E0
-    //
-    //  r_aaSamples is LATCHED, so it is applied by the renderer restart that
-    //  happens when the mod loads - before any GSC runs. 16x MSAA is a sample
-    //  count D3D cannot create, so the device creation returns E_INVALIDARG and
-    //  the game dies at the frontend. Measured, not reasoned:
-    //
-    //    · the boot-time dvar dump in console_zm.log reports r_aaSamplesMax "8"
-    //    · optionssettings.lua Button_AddChoices_AntiAliasing offers exactly
-    //      1 / 2 / 4 / 8 - there is no 16 choice anywhere in the stock menu
-    //    · every mod on this install that boots has r_aaSamples "4" in its
-    //      config; zm_qol was the only one carrying "16", and the only one
-    //      that crashed - five loads out of five
-    //
-    //  🛑 THE "<= 16" IN AntiAliasingChangeCallback WAS MISREAD. It is the bound
-    //  that separates real MSAA values from the TXAA sentinels 17 and 18. It
-    //  was never a claim that 16 is a valid sample count, and the choice list a
-    //  few lines below it is the authority on what is.
-    n_aa_max = getdvarintdefault( "r_aaSamplesMax", 4 );
-
-    if ( n_aa_max < 1 )
-        n_aa_max = 4;
-
-    a_on[ "r_aaSamples" ]          = "" + n_aa_max;   // latched - next launch
-    a_on[ "r_txaa" ]               = "0";
-    a_on[ "r_fxaa" ]               = "0";
-    //  🛑 v2.2.5 - THIS WAS "0" AND "0" IS LOW, NOT HIGH. A "boost" row was
-    //  downgrading texture filtering every time it was thrown. The mapping is
-    //  the game's OWN, read out of the stock menu builder this mod overrides
-    //  (ui\t6\menus\optionssettings.lua, Button_AddChoices_TextureFiltering):
-    //        addChoice( PLATFORM_LOW_CAPS,    0 )
-    //        addChoice( PLATFORM_MEDIUM_CAPS, 1 )
-    //        addChoice( PLATFORM_HIGH_CAPS,   2 )
-    //  and the user's own boot dump in console_zm.log.000 confirms the damage:
-    //  r_texFilterQuality "2" at map load, "0" in the dump taken after the
-    //  boost had run. 2 is the ceiling the game offers, so that is what a boost
-    //  writes. Latched, so it takes effect on the next launch either way.
-    a_on[ "r_texFilterQuality" ]   = "2";    // 2 = HIGH. latched - next launch
-    a_on[ "r_texFilterAnisoMin" ]  = "16";
-    a_on[ "r_texFilterAnisoMax" ]  = "16";
-    a_on[ "r_texFilterMipMode" ]   = "Force Trilinear";
-    //  🛑 REZ set r_picmip_manual 0, which is "picmip is set automatically" -
-    //  so their four r_picmip 0 lines did nothing at all. 1 is what makes them
-    //  count, and it is the whole reason the texture lines are worth setting.
-    a_on[ "r_picmip_manual" ]      = "1";
-    a_on[ "r_picmip" ]             = "0";
-    a_on[ "r_picmip_bump" ]        = "0";
-    a_on[ "r_picmip_spec" ]        = "0";
-    //  🛑 v2.2.5 - WAS "3", AND THE ENGINE NEVER TOOK IT. Measured, not
-    //  reasoned: console_zm.log.000 dumps r_ssao TWICE - once at map load and
-    //  once after a fast_restart, by which point GRAPHICS BOOST had provably
-    //  run (r_aaSamples reads 16 and r_texFilterQuality reads 0 in that same
-    //  dump) - and r_ssao reads "1" in BOTH. r_ssao is not in the "will be
-    //  changed upon restarting" list either, so it is not latched and the dump
-    //  is the live value. The 3 simply did not stick.
-    //  Writing 1 changes nothing on screen; it makes the code say what the
-    //  engine actually does, so the next reader does not re-derive this.
-    a_on[ "r_ssao" ]               = "1";
-    a_on[ "sm_enable" ]            = "1";
-    a_on[ "sm_maxLights" ]         = "4";
-    a_on[ "sm_spotQuality" ]       = "2";
-    a_on[ "sm_sunQuality" ]        = "2";
-    a_on[ "r_bloomHiQuality" ]     = "1";
-    a_on[ "r_autoLodScale" ]       = "0";
-    a_on[ "r_lodScaleRigid" ]      = "1";
-    a_on[ "r_lodScaleSkinned" ]    = "1";
-    a_on[ "com_maxfps" ]           = "250";
-
-    a_off = [];
-    for ( i = 0; i < a_keys.size; i++ )
-        a_off[ a_keys[i] ] = getdvar( a_keys[i] );
-
-    n_prev = -1;
-
-    for ( ;; )
-    {
-        n_on = getdvarintdefault( "graphics_boost", 0 );
-
-        if ( n_on != n_prev )
-        {
-            n_prev = n_on;
-
-            for ( i = 0; i < a_keys.size; i++ )
-            {
-                str_key = a_keys[i];
-
-                if ( n_on )
-                    setdvar( str_key, a_on[ str_key ] );
-                else if ( a_off[ str_key ] != "" )
-                    setdvar( str_key, a_off[ str_key ] );
-            }
-
-            if ( n_on )
-                println( "[zm_qol] GRAPHICS BOOST on  - " + a_keys.size + " render dvars set (r_aaSamples " + a_on[ "r_aaSamples" ] + " of max " + n_aa_max + ", latched to next launch)" );
-            else
-                println( "[zm_qol] GRAPHICS BOOST off - restored" );
-        }
-
-        wait 0.5;
     }
 }
 //  setdvar only when the dvar has never been set, so a value already in the

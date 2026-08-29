@@ -106,6 +106,7 @@ main()
     //  the others; the target only ever runs when a nuke is picked up, long
     //  after either entry point would have registered.
     replaceFunc( maps\mp\zombies\_zm_powerups::nuke_powerup, ::zmqol_nuke_powerup );
+    replaceFunc( maps\mp\zombies\_zm_powerups::bonus_points_player_powerup, ::zmqol_bonus_points_player_powerup );  // BLOOD MONEY's announcer line (v2.8.8)
 
     // --- INSTAKILL ROUNDS  (v1.99.93, PATCHES tab) ---
     //  ONE function with TWO branches: with the row OFF it is byte-exact stock
@@ -619,6 +620,7 @@ init()
     level thread zmqol_dof_repoint_spawnintermission();  // DOF full fix, item 48
     level thread zmqol_dof_onplayerconnect();            // DOF full fix, item 48
     level thread zmqol_perma_perks_watch();              // PERMA-PERKS, queue item 29
+    level thread zmqol_no_walkers_watch();               // NO WALKERS, user request 2026-08-30
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
@@ -8118,6 +8120,21 @@ zmqol_give_named_weapon( str_arg, b_pap )
         return;
     }
 
+    //  v2.8.6 - THE DEATH MACHINE. User report 2026-08-30: ".give deathmachine
+    //  didn't give me the deathmachine minigun". It never could: zmqol_give_resolve()
+    //  only looks in level.zombie_weapons, and deathmachine_zm is a POWER-UP weapon -
+    //  precacheitem'd in init() but never include_weapon'd, so it is not in that
+    //  table. Measured: it is the only real gun in that gap; everything else
+    //  precached-but-not-included is a perk bottle or the knuckle-crack prop.
+    if ( str_arg == "deathmachine" || str_arg == "dm" || str_arg == "minigun" )
+    {
+        //  NOT via zmqol_give_wonder_weapon() - that gates on zmqol_ww, and the
+        //  Death Machine is a power-up, not one of the three wonder weapons.
+        self maps\mp\zombies\_zm_weapons::weapon_give( "deathmachine_zm" );
+        self iprintln( "^2[zm_qol] gave ^7Death Machine" );
+        return;
+    }
+
     if ( str_arg == "list" || str_arg == "help" || str_arg == "?" )
     {
         self thread zmqol_give_print_list();
@@ -10008,6 +10025,7 @@ perks()
     create_dvar( "instakill_rounds",   0 );
     create_dvar( "double_tap_1",       0 );
     create_dvar( "no_barrier_attacks", 0 );
+    create_dvar( "no_walkers",        0 );   // v2.8.6 - see zmqol_no_walkers_watch()
     create_dvar( "network_frame_patch", 0 );   // v2.0.6 - see zmqol_wait_network_frame()
 
     //  ========================================================================
@@ -10279,6 +10297,97 @@ zmqol_zb_should_drop()
 zmqol_bm_should_drop()
 {
     return zmqol_custom_powerups_enabled();
+}
+
+// ============================================================================
+//  zmqol_bonus_points_player_powerup  -  BLOOD MONEY'S ANNOUNCER LINE, PLAYED
+//  BY THIS MOD RATHER THAN THROUGH STOCK'S QUEUE                     (v2.8.8)
+//
+//  User, 2026-08-30: the Blood Money line was silent on Nuketown while Zombie
+//  Blood's played, and both go through the same stock path.
+//
+//  🌟 WHAT WAS RULED OUT FIRST, by measurement, not by reading:
+//    - the alias exists under BOTH announcer prefixes -
+//      vox_zmba_qol_powerup_blood_money and vox_zmba_sam_qol_powerup_blood_money,
+//      each in the bare and the _0 form;
+//    - the payload is really in the shipped bank - id 0x87bbb7b9, 64106 bytes,
+//      inside mod.all.sabs (dumped from the built file, not assumed);
+//    - the registration runs, and it runs to completion - Zombie Blood's line
+//      is audible on Nuketown, and its createvox is the statement immediately
+//      before Blood Money's, so both executed.
+//
+//  So the alias half is provably fine and the fault is in the trigger, which is
+//  stock's own path: _zm_powerups.gsc:1147 threads leaderdialog( powerup_name ),
+//  and leaderdialogonplayer() drops the line outright when self.zmbdialogactive
+//  is already 1 (no queue flag is passed). Nothing offline pins down which
+//  earlier line sets it, so this stops depending on that path at all.
+//
+//  🛑 THIS IS A replaceFunc OF A 9-LINE STOCK FUNCTION, and the stock body is
+//  copied verbatim above the new call - the points award must stay identical.
+//  See _zm_powerups.gsc:2062.
+// ============================================================================
+zmqol_bonus_points_player_powerup( item, player )
+{
+    //  --- stock body, verbatim (_zm_powerups.gsc:2062-2071) ---
+    points = randomintrange( 1, 25 ) * 100;
+
+    if ( isdefined( level.bonus_points_powerup_override ) )
+        points = [[ level.bonus_points_powerup_override ]]();
+
+    if ( !player maps\mp\zombies\_zm_laststand::player_is_in_laststand() && !( player.sessionstate == "spectator" ) )
+        player maps\mp\zombies\_zm_score::player_add_points( "bonus_points_powerup", points );
+
+    //  --- the half stock never reaches ---
+    level thread zmqol_play_announcer_line( "qol_powerup_blood_money" );
+}
+
+// ============================================================================
+//  zmqol_play_announcer_line  -  the announcer, without stock's drop-if-busy
+//
+//  Builds the alias exactly as _zm_audio_announcer::playleaderdialogonplayer
+//  does - game["zmbdialog"]["prefix"] + "_" + suffix - so it follows Nuketown's
+//  vox_zmba_sam prefix on its own, and takes the _0 variant when one exists,
+//  which is the shape every other announcer line in the game uses.
+//
+//  playlocalsound() is stock's own call for this (announcer lines are 2D, per
+//  player); get_players() rather than a team filter because these are this mod's
+//  own power-ups and every player hears them.
+// ============================================================================
+zmqol_play_announcer_line( str_suffix )
+{
+    if ( !isdefined( level.allowzmbannouncer ) || !level.allowzmbannouncer )
+        return;
+
+    if ( !isdefined( game[ "zmbdialog" ] ) || !isdefined( game[ "zmbdialog" ][ "prefix" ] ) )
+        return;
+
+    str_alias = game[ "zmbdialog" ][ "prefix" ] + "_" + str_suffix;
+
+    if ( soundexists( str_alias + "_0" ) )
+        str_alias = str_alias + "_0";
+    else if ( !soundexists( str_alias ) )
+        return;
+
+    a_players = get_players();
+
+    for ( i = 0; i < a_players.size; i++ )
+    {
+        a_players[ i ] playlocalsound( str_alias );
+
+        //  Mirror stock's own book-keeping so the next announcer line does not
+        //  talk over this one. playleaderdialogonplayer() sets the same flag and
+        //  clears it after the same 4 seconds.
+        a_players[ i ].zmbdialogactive = 1;
+        a_players[ i ] thread zmqol_announcer_line_clear();
+    }
+}
+
+zmqol_announcer_line_clear()
+{
+    self endon( "disconnect" );
+    wait 4.0;
+    self.zmbdialogactive = 0;
+    self.zmbdialoggroup = "";
 }
 
 // ============================================================================
@@ -11205,7 +11314,14 @@ zmqol_register_announcer_vox()
             if ( zmqol_zombie_blood_enabled() )
                 maps\mp\zombies\_zm_audio_announcer::createvox( "zombie_blood", "qol_powerup_zombie_blood" );
 
-            maps\mp\zombies\_zm_audio_announcer::createvox( "bonus_points_player", "qol_powerup_blood_money" );
+            //  🛑 BLOOD MONEY IS DELIBERATELY NOT REGISTERED HERE ANY MORE
+            //  (v2.8.8). It is played by zmqol_bonus_points_player_powerup()
+            //  instead - see that function for why. Leaving the createvox in
+            //  place as well would give the line twice, because stock's
+            //  _zm_powerups.gsc:1147 leaderdialog( self.powerup_name ) fires on
+            //  the same grab; with no vox registered for the key,
+            //  playleaderdialogonplayer() returns before it plays anything and
+            //  the mod's own call is the only one left.
             maps\mp\zombies\_zm_audio_announcer::createvox( "deathmachine", "qol_powerup_death_machine" );
 
             //  ================================================================
@@ -17041,6 +17157,77 @@ zmqol_perma_perks_end_game()
                 for ( j = 0; j < level.pers_upgrades[str_name].stat_names.size; j++ )
                     player maps\mp\zombies\_zm_stats::zero_client_stat( level.pers_upgrades[str_name].stat_names[j], 0 );
             }
+        }
+    }
+}
+
+// ============================================================================
+//  zmqol_no_walkers_watch  -  NO WALKERS                            (v2.8.6)
+//
+//  User request, 2026-08-30: *"add an option into the patches tab NO WALKERS
+//  which when set to enabled, from round 10 and onwards there will be no
+//  walking zombies they will all be sprinters so that way people can train the
+//  zombies up more efficiently without the awkward walkers spoiling the train"*.
+//
+//  🛑 DELIBERATELY A WATCHER, NOT A replaceFunc. Stock picks a speed in THREE
+//  places and two of them are same-file unqualified calls, which replaceFunc
+//  does not reliably intercept (AI_CONTEXT rule 3):
+//
+//      _zm_utility::set_run_speed        randomintrange -> walk / run / sprint
+//      _zm_utility::set_run_speed_easy   easy difficulty, walk / run only
+//      _zm_utility::change_zombie_run_cycle   forces "walk" outright on any
+//                                             difficulty above easy - this is
+//                                             the one that makes the walkers
+//                                             that break a train
+//
+//  Polling covers all three, plus anything a map script sets on its own, and it
+//  is self-correcting: a zombie that somehow ends up walking is fixed within a
+//  second rather than staying wrong for its whole life.
+//
+//  🌟 IT CALLS STOCK'S OWN PRIMITIVE. set_zombie_run_cycle() is what does the
+//  real work - assigning zombie_move_speed alone would leave the ANIMATION on
+//  the old cycle, because the anim only re-reads it via zm_run::needsupdate(),
+//  which that function calls (_zm_utility.gsc:210). It also refreshes
+//  .deathanim, so gibbed-leg deaths stay correct.
+// ============================================================================
+zmqol_no_walkers_watch()
+{
+    level endon( "end_game" );
+
+    str_team = "axis";
+
+    if ( isdefined( level.zombie_team ) )
+        str_team = level.zombie_team;
+
+    for ( ;; )
+    {
+        wait 1;
+
+        if ( getdvarintdefault( "no_walkers", 0 ) == 0 )
+            continue;
+
+        if ( !isdefined( level.round_number ) || level.round_number < 10 )
+            continue;
+
+        a_zombies = getaispeciesarray( str_team, "all" );
+
+        if ( !isdefined( a_zombies ) )
+            continue;
+
+        for ( i = 0; i < a_zombies.size; i++ )
+        {
+            zombie = a_zombies[i];
+
+            if ( !isdefined( zombie ) || !isalive( zombie ) )
+                continue;
+
+            //  Only the ones that are actually walking. Leaving "run" alone
+            //  keeps the horde looking natural - the request was about walkers
+            //  spoiling a train, not about making everything identical.
+            if ( !isdefined( zombie.zombie_move_speed ) || zombie.zombie_move_speed != "walk" )
+                continue;
+
+            zombie maps\mp\zombies\_zm_utility::set_zombie_run_cycle( "sprint" );
         }
     }
 }
