@@ -16,10 +16,22 @@
 //      level.zombie_weapons_callbacks (_zm_weapons.gsc:2448) - the
 //      data-driven form of the hardcoded claymore_zm case right above it -
 //      so the generic give path never runs for this weapon at all.
-//    - Betties bind to D-pad 2, measured free (stock ZM uses only 1 and 4).
-//    - Your guns are safe by stock's own rules regardless: the def is
-//      inventoryType "item", so weapon_give's at-limit takeweapon sits inside
-//      `if ( !is_offhand_weapon( weapon ) )` and can never fire for it.
+//    - Betties bind to D-pad 2 (also key `2` on PC - read out of the user's own
+//      bindings_zm.bdg: actionslot 1/2/3/4 = DPAD_UP/DOWN/LEFT/RIGHT = 8/2/5/X).
+//      🛑 CORRECTED v2.9.11: slot 2 is NOT free on every map. Stock binds it on
+//      Buried (_zm_weap_time_bomb.gsc:2043,2055 - the Time Bomb and its
+//      detonator) and on Origins (zm_tomb_craftables.gsc:1075 - the Maxis
+//      drone). See zmqol_betty_slot_free() for how that is handled without
+//      breaking either of those stock items.
+//    - 🛑 CORRECTED v2.9.11: the old claim that "the def is inventoryType item
+//      so weapon_give's takeweapon can never fire for it" was BACKWARDS.
+//      is_offhand_weapon() (_zm_utility.gsc:3523) reads nothing off the def -
+//      it is five list lookups (lethal / tactical / placeable mine / melee /
+//      equipment), and this weapon is deliberately in none of them, so it
+//      returned FALSE and the at-limit `takeweapon( current_weapon )` at
+//      _zm_weapons.gsc:2414 DID fire: boxing a Betty on two guns cost you a
+//      gun. main() now replaces is_offhand_weapon so it answers truthfully for
+//      this weapon, which is what the safety argument assumed all along.
 //
 //  Every mechanism below is a measured clone, not a design:
 //    - the plant/watch flow is stock's _zm_weap_claymore::claymore_watch/
@@ -51,6 +63,38 @@
 #include maps\mp\_utility;
 #include maps\mp\zombies\_zm_utility;
 #include maps\mp\zombies\_zm_weapons;
+
+//  🛑 v2.9.11 - THE ONE HOOK THIS FEATURE NEEDS, and why it is safe.
+//
+//  is_offhand_weapon() is not a property of the weapon def - it is five list
+//  lookups, and a weapon that is deliberately in none of those lists (which is
+//  exactly what keeps claymores untouched) answers "no". weapon_give then
+//  treats the Betty as a gun: it takes your held weapon at the 2-gun limit
+//  (:2414), takes your fallback weapon (:2404), and switches you to it (:2470).
+//  All three are wrong for a piece of equipment.
+//
+//  Every stock caller was read before replacing it - there are only eight:
+//    _zm_weapons.gsc:2359 2404 2414 2470   the four above, all now correct
+//    _zm_weapons.gsc:2531  ammo_give       Max Ammo skips it, as it does claymores
+//    _zm_magicbox.gsc:238                  box prompt reads "swap for EQUIPMENT" ✅
+//    _zm_laststand.gsc:244                 going down mid-plant matches the claymore
+//    _zm_devgui.gsc:89                     dev only
+//  Answering "yes" is the truthful answer at all eight.
+//
+//  📝 In main(), not init(), per CLAUDE.md section 4 failure mode 4.
+main()
+{
+    replaceFunc( maps\mp\zombies\_zm_utility::is_offhand_weapon, ::zmqol_is_offhand_weapon );
+}
+
+zmqol_is_offhand_weapon( weaponname )
+{
+    if ( isdefined( weaponname ) && weaponname == "bouncingbetty_zm" )
+        return 1;
+
+    //  stock _zm_utility.gsc:3523, verbatim
+    return is_lethal_grenade( weaponname ) || is_tactical_grenade( weaponname ) || is_placeable_mine( weaponname ) || is_melee_weapon( weaponname ) || is_equipment( weaponname );
+}
 
 init()
 {
@@ -93,9 +137,43 @@ init()
 //  also plays the weapon vo and returns before the generic give.
 zmqol_betty_setup()
 {
+    //  Stock's claymore_setup threads its own watcher on every give rather than
+    //  relying on a connect loop, and for a good reason: the host is already
+    //  "connected" before a root script's init() runs, so the loop below can
+    //  miss them. The notify/endon pair at the top of the watch makes a second
+    //  thread cancel the first, so this is idempotent.
+    self thread zmqol_betty_watch();
+
     self giveweapon( "bouncingbetty_zm" );
-    self setactionslot( 2, "weapon", "bouncingbetty_zm" );
+
+    if ( self zmqol_betty_slot_free() )
+        self setactionslot( 2, "weapon", "bouncingbetty_zm" );
+
     self setweaponammostock( "bouncingbetty_zm", 2 );
+}
+
+//  🛑 THE ACTION-SLOT MAP, measured from the stock dump, not assumed:
+//     slot 1  equipment and craftables - turbine, gas mask, drone, headchopper
+//     slot 2  Buried's Time Bomb + detonator (_zm_weap_time_bomb.gsc:2043,2055)
+//             and Origins' Maxis drone (zm_tomb_craftables.gsc:1075).
+//             FREE on TranZit, Die Rise, Nuketown and Mob of the Dead.
+//     slot 3  "altMode" on every map (_zm.gsc:1320) + Origins' revive staff
+//     slot 4  the claymore, on every map
+//  There is no fifth slot, so on Buried and Origins the Betty and one stock
+//  item genuinely want the same button. The Betty gives way: if the player
+//  already holds that map's slot-2 item the bind is skipped and the Betty sits
+//  in the inventory unbound, rather than silently disabling a stock feature.
+//  The other order (Betty first, Time Bomb built later) resolves itself the
+//  same way round - stock re-binds slot 2 and the Betty goes quiet.
+zmqol_betty_slot_free()
+{
+    if ( level.script == "zm_buried" )
+        return !self hasweapon( "time_bomb_zm" ) && !self hasweapon( "time_bomb_detonator_zm" );
+
+    if ( level.script == "zm_tomb" )
+        return !self hasweapon( "equip_dieseldrone_zm" );
+
+    return 1;
 }
 
 zmqol_betty_onplayerconnect()

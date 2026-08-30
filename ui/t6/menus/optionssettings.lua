@@ -1527,9 +1527,9 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	local T = CoD.OptionsSettings.QolToggle
 
 	-- The standard Plutonium game options.                            3 rows
-	T(QolButtons, LocalClientIndex, "ALLOW DOWNLOADING",  "cl_allowDownload",     "Allow downloading mods from a server.")
+	T(QolButtons, LocalClientIndex, "ALLOW DOWNLOADING",  "cl_allowDownload",     "Lets a server send you its mod files when you join.")
 	T(QolButtons, LocalClientIndex, "DRAW IDENTIFIER",    "cg_drawIdentifier",    "Session watermark at the top of the screen.")
-	T(QolButtons, LocalClientIndex, "FLASH SCRIPT HASHES","cg_flashScriptHashes", "Flash script hashes on screen.")
+	T(QolButtons, LocalClientIndex, "FLASH SCRIPT HASHES","cg_flashScriptHashes", "Developer readout. Leave it off unless you are debugging.")
 
 	-- 🛑 v1.99.54 - THE FOUR WORLD-RENDERING ROWS ARE GONE FROM THIS TAB.
 	-- NIGHT MODE, FOG and MODEL DETAIL FIX (now HIGHER DRAW DISTANCE) moved to
@@ -1594,7 +1594,7 @@ CoD.OptionsSettings.CreateQolTab = function (QolTab, LocalClientIndex)
 	-- and every switch on this tab leaves the mod as it was until thrown.
 	-- Deadshot's stock effect is aim-assist only, so on mouse and keyboard the
 	-- perk does nothing at all; this is what makes it worth buying either way.
-	T(QolButtons, LocalClientIndex, "BETTER DEADSHOT",    "better_deadshot",      "Deadshot doubles bullet headshot damage. Works on mouse too.")
+	T(QolButtons, LocalClientIndex, "BETTER DEADSHOT",    "better_deadshot",      "Deadshot doubles bullet headshot damage, on mouse and controller.")
 	-- ========================================================================
 	--  v2.2.0 - BETTER SPEED COLA, directly under BETTER DEADSHOT as asked.
 	--  User, 2026-08-21: *"make speed cola, like black ops 1 zombies, make speed
@@ -1984,7 +1984,7 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	--  Diner, Farm, Town, Bus Depot). Shown on every map, same as the other
 	--  map-specific rows on this tab (SLIQUIFIER PRE-NERF above).
 	-- ========================================================================
-	T(QolPatchesButtons, LocalClientIndex, "NO LAVA DAMAGE",     "no_lava_damage",      "TranZit maps. Lava stays visible but stops igniting/exploding zombies and stops damaging you.")
+	T(QolPatchesButtons, LocalClientIndex, "NO LAVA DAMAGE",     "no_lava_damage",      "TranZit maps. The lava still glows, but it stops burning you and the zombies.")
 
 	-- ========================================================================
 	--  v2.7.2 - 3 HIT DOWN. User, 2026-08-28: *"add '3 HIT DOWN' which as the
@@ -1993,7 +1993,7 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	--  maxhealth/3, so no round's melee scaling can down you in fewer than 3
 	--  hits. See zmqol_three_hit_down_install() in quality_of_life.gsc.
 	-- ========================================================================
-	T(QolPatchesButtons, LocalClientIndex, "3 HIT DOWN",         "three_hit_down",      "Zombie melee hits can never down you in fewer than 3 hits, like BO3+.")
+	T(QolPatchesButtons, LocalClientIndex, "3 HIT DOWN",         "three_hit_down",      "A zombie can never down you in fewer than 3 hits, the way Black Ops 3 does it.")
 
 	-- ========================================================================
 	--  v2.8.2 - WINTER'S HOWL INFINITE. User request 2026-08-29, for the BO1
@@ -2021,7 +2021,7 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	--  first round, which is the map intro. See this mod's round_think().
 	-- ========================================================================
 	T(QolPatchesButtons, LocalClientIndex, "ROUND DELAY OFF",    "round_delay_off",     "No pause between rounds. Removes the 10 second gap and the round announce wait.")
-	T(QolPatchesButtons, LocalClientIndex, "NO WALKERS",         "no_walkers",          "From round 10 on every zombie sprints. No walkers to break up a train.")
+	T(QolPatchesButtons, LocalClientIndex, "NO WALKERS",         "no_walkers",          "Every zombie sprints from round 10. No walkers to break up a train.")
 
 	-- 🛑 STALE COUNT FIXED 2026-08-27 - said "9 total"; NO BLEEDOUT PATCH (v2.2.0)
 	-- was added without updating it. Recounted directly against the T() calls.

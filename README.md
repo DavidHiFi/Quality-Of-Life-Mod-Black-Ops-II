@@ -73,9 +73,10 @@ once. The M16 is in the box on every map. The Pack-a-Punched crossbow — the Aw
 zombies towards wherever its bolts land, the way it did in Black Ops 1. The Tac-45 goes dual-wield
 when Pack-a-Punched. The campaign's Dragunov is in the box as its own gun — separate from the
 SVU-AS, with its Black Ops 1 Pack-a-Punch name, the D115 Disassembler. The multiplayer Bouncing
-Betty is in the box too: it takes the claymore's slot, and jumps up before it blows, the way it
-does in multiplayer. The Jet Gun sits in a normal weapon slot, never breaks, and runs on its heat
-gauge alone.
+Betty is in there too, springing up before it blows exactly as it does in multiplayer. It is an
+extra piece of kit and not a swap, so your claymores keep their slot, their button and their
+ammo. The Jet Gun never overheats into a broken engine any more — it keeps its heat gauge, and
+you can build it and the riot shield in the same game instead of choosing.
 
 **Perks** — a **PERK LIMIT** setting in the lobby lets you carry every perk the map has, or cap it
 anywhere from 1 to 12. Who's Who hands you a Pack-a-Punched ballistic knife so you can revive your
@@ -209,6 +210,8 @@ The rough edges, kept in the open. None of this is buried in the release notes.
 | **You cannot pick a starting weapon on Mob of the Dead** | The snub-nose Python it would need is not in any of the game's files. |
 | **Winter's Howl does not freeze and shatter** | The animation data never made it into the mod, so the gun kills without freezing anything first. |
 | **The Bouncing Betty plants and springs silently** | Its click and spring sounds are locked inside a multiplayer sound bank no available tool can open. The explosion is unaffected. The base game's own claymores plant silently too. |
+| **On Buried and Origins the Betty can end up with no button** | Black Ops II gives you four equipment buttons. On Buried the base game puts the Time Bomb on the one the Betty would use, and on Origins the Maxis drone. Carry both and the Betty gives way rather than taking the button off something Treyarch put there — you keep it, you just cannot throw it. On the other four maps it has a button to itself. |
+| **The Jet Gun's weapon slot is unconfirmed** | It no longer breaks, it keeps its heat gauge and it coexists with the shield — all of that is script and certain. Whether it also cycles with your guns instead of sitting on the equipment button depends on which copy of its weapon file the game loads first, and that has not been watched in game yet. |
 
 </details>
 
@@ -241,10 +244,11 @@ The rough edges, kept in the open. None of this is buried in the release notes.
 <br>
 
 Built on [**Plutonium**](https://plutonium.pw). **OpenAssetTools** builds the mod's asset file and
-reads the game's originals; **gsc-tool** by **xensik** checks every script for errors before a build. The
-**T6-Data-Archive** dumps meant the tight limits this mod works inside could be measured rather
-than guessed at, and Treyarch's own scripts are read constantly so the mod matches how the game
-really behaves instead of reinventing it.
+reads the game's originals; **gsc-tool** by **xensik** checks every script for errors before a
+build. Black Ops II is a tight fit — there are hard ceilings on how much a mod can add before a
+map simply refuses to load — and the **T6-Data-Archive** dumps are how those limits get measured
+instead of guessed at. Treyarch's own scripts sit open next to every change, so the mod follows
+how the game already works rather than inventing its own version of it.
 
 The optional ReShade install ships work by **crosire** ([ReShade](https://reshade.me)),
 **Barbatos Bachiko**, **Alex Tuduran**, **Marot Satil** and the **GShade** project, **Ioxa**,
