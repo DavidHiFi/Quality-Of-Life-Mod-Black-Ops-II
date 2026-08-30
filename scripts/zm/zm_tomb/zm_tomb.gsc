@@ -1771,41 +1771,41 @@ added_weapons()
         include_weapon( "rpd_upgraded_zm", 0 );
         add_zombie_weapon( "rpd_zm", "rpd_upgraded_zm", &"ZOMBIE_WEAPON_RPD", 50, "wpck_rpd", "", undefined, 1 );
 
-        include_weapon( "saritch_zm" );
-        include_weapon( "saritch_upgraded_zm", 0 );
-        add_zombie_weapon( "saritch_zm", "saritch_upgraded_zm", &"ZOMBIE_WEAPON_SARITCH", 50, "wpck_sidr", "", undefined, 1 );
+        include_weapon( "saritchqol_zm" );
+        include_weapon( "saritchqol_upgraded_zm", 0 );
+        add_zombie_weapon( "saritchqol_zm", "saritchqol_upgraded_zm", &"ZOMBIE_WEAPON_SARITCH", 50, "wpck_sidr", "", undefined, 1 );
 
-        include_weapon( "m16_zm" );
-        include_weapon( "m16_gl_upgraded_zm", 0 );
-        add_zombie_weapon( "m16_zm", "m16_gl_upgraded_zm", &"ZOMBIE_WEAPON_M16", 1200, "burstrifle", "", undefined );
+        include_weapon( "m16qol_zm" );
+        include_weapon( "m16qol_upgraded_zm", 0 );
+        add_zombie_weapon( "m16qol_zm", "m16qol_upgraded_zm", &"ZOMBIE_WEAPON_M16", 1200, "burstrifle", "", undefined );
 
-        include_weapon( "barretm82_zm" );
-        include_weapon( "barretm82_upgraded_zm", 0);
-        add_zombie_weapon( "barretm82_zm", "barretm82_upgraded_zm", &"ZOMBIE_WEAPON_BARRETM82", 50, "sniper", "", undefined );
+        include_weapon( "barretm82qol_zm" );
+        include_weapon( "barretm82qol_upgraded_zm", 0);
+        add_zombie_weapon( "barretm82qol_zm", "barretm82qol_upgraded_zm", &"ZOMBIE_WEAPON_BARRETM82", 50, "sniper", "", undefined );
 
-        include_weapon( "mp5k_zm" );
-        include_weapon( "mp5k_upgraded_zm", 0);
-        add_zombie_weapon( "mp5k_zm", "mp5k_upgraded_zm", &"ZOMBIE_WEAPON_MP5K", 1000, "smg", "", undefined );
+        include_weapon( "mp5kqol_zm" );
+        include_weapon( "mp5kqol_upgraded_zm", 0);
+        add_zombie_weapon( "mp5kqol_zm", "mp5kqol_upgraded_zm", &"ZOMBIE_WEAPON_MP5K", 1000, "smg", "", undefined );
 
-        include_weapon( "tar21_zm" );
-        include_weapon( "tar21_upgraded_zm", 0);
-        add_zombie_weapon( "tar21_zm", "tar21_upgraded_zm", &"ZOMBIE_WEAPON_TAR21", 50, "wpck_x95l", "", undefined, 1 );
+        include_weapon( "tar21qol_zm" );
+        include_weapon( "tar21qol_upgraded_zm", 0);
+        add_zombie_weapon( "tar21qol_zm", "tar21qol_upgraded_zm", &"ZOMBIE_WEAPON_TAR21", 50, "wpck_x95l", "", undefined, 1 );
 
-        include_weapon( "rottweil72_zm" );
-        include_weapon( "rottweil72_upgraded_zm", 0 );
-        add_zombie_weapon( "rottweil72_zm", "rottweil72_upgraded_zm", &"ZOMBIE_WEAPON_ROTTWEIL72", 500, "shotgun", "", undefined );
+        include_weapon( "rottweil72qol_zm" );
+        include_weapon( "rottweil72qol_upgraded_zm", 0 );
+        add_zombie_weapon( "rottweil72qol_zm", "rottweil72qol_upgraded_zm", &"ZOMBIE_WEAPON_ROTTWEIL72", 500, "shotgun", "", undefined );
 
-        include_weapon( "saiga12_zm" );
-        include_weapon( "saiga12_upgraded_zm", 0);
-        add_zombie_weapon( "saiga12_zm", "saiga12_upgraded_zm", &"ZOMBIE_WEAPON_SAIGA12", 50, "wpck_saiga12", "", undefined, 1 );
+        include_weapon( "saiga12qol_zm" );
+        include_weapon( "saiga12qol_upgraded_zm", 0);
+        add_zombie_weapon( "saiga12qol_zm", "saiga12qol_upgraded_zm", &"ZOMBIE_WEAPON_SAIGA12", 50, "wpck_saiga12", "", undefined, 1 );
 
         include_weapon( "m1911_zm" );
         include_weapon( "m1911_upgraded_zm", 0);
         add_zombie_weapon( "m1911_zm", "m1911_upgraded_zm", &"ZOMBIE_WEAPON_M1911", 50, "", "", undefined );
 
-        include_weapon( "judge_zm" );
-        include_weapon( "judge_upgraded_zm", 0);
-        add_zombie_weapon( "judge_zm", "judge_upgraded_zm", &"ZOMBIE_WEAPON_JUDGE", 50, "wpck_judge", "", undefined, 1 );
+        include_weapon( "judgeqol_zm" );
+        include_weapon( "judgeqol_upgraded_zm", 0);
+        add_zombie_weapon( "judgeqol_zm", "judgeqol_upgraded_zm", &"ZOMBIE_WEAPON_JUDGE", 50, "wpck_judge", "", undefined, 1 );
 
         include_weapon( "usrpg_zm" );
         include_weapon( "usrpg_upgraded_zm", 0);

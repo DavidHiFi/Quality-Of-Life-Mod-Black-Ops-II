@@ -142,26 +142,50 @@ include_weapons()
     include_weapon( "xm8_upgraded_zm", 0 );
     include_weapon( "rpd_zm" );
     include_weapon( "rpd_upgraded_zm", 0 );
-    include_weapon( "saritch_zm" );
-    include_weapon( "saritch_upgraded_zm", 0 );
-    include_weapon( "m16_zm" );
-    include_weapon( "m16_gl_upgraded_zm", 0 );
-    include_weapon( "barretm82_zm" );
-    include_weapon( "barretm82_upgraded_zm", 0);
-    include_weapon( "mp5k_zm" );
-    include_weapon( "mp5k_upgraded_zm", 0);
-    include_weapon( "tar21_zm" );
-    include_weapon( "tar21_upgraded_zm", 0);
-    include_weapon( "rottweil72_zm" );
-    include_weapon( "rottweil72_upgraded_zm", 0 );
-    include_weapon( "saiga12_zm" );
-    include_weapon( "saiga12_upgraded_zm", 0);
+    include_weapon( "saritchqol_zm" );
+    include_weapon( "saritchqol_upgraded_zm", 0 );
+    include_weapon( "m16qol_zm" );
+    include_weapon( "m16qol_upgraded_zm", 0 );
+    include_weapon( "barretm82qol_zm" );
+    include_weapon( "barretm82qol_upgraded_zm", 0);
+    include_weapon( "mp5kqol_zm" );
+    include_weapon( "mp5kqol_upgraded_zm", 0);
+    include_weapon( "tar21qol_zm" );
+    include_weapon( "tar21qol_upgraded_zm", 0);
+    include_weapon( "rottweil72qol_zm" );
+    include_weapon( "rottweil72qol_upgraded_zm", 0 );
+    include_weapon( "saiga12qol_zm" );
+    include_weapon( "saiga12qol_upgraded_zm", 0);
     include_weapon( "m1911_zm" );
     include_weapon( "m1911_upgraded_zm", 0);
-    include_weapon( "judge_zm" );
-    include_weapon( "judge_upgraded_zm", 0);
+    include_weapon( "judgeqol_zm" );
+    include_weapon( "judgeqol_upgraded_zm", 0);
     include_weapon( "usrpg_zm" );
     include_weapon( "usrpg_upgraded_zm", 0);
+
+    // ========================================================================
+    //  v2.9.1 - THE THREE ORIGINS COPIES THAT ARE REGISTERED FROM A ROOT
+    //  SCRIPT, so their client half cannot live where the other six do.
+    //
+    //  quality_of_life.gsc registers the XPR-50 through zmqol_add_mp_weapon()
+    //  and the M16 / Olympia through zmqol_wallbuy_box_add(), both of which run
+    //  on every map and swap in the private Origins copy via
+    //  zmqol_tomb_weapon(). Their client twins in zm_expanded.csc cannot make
+    //  that swap: level.script is never used by any stock .csc in the 618-file
+    //  client dump, so there is no verified way to test the map client-side.
+    //  This file only ever loads on Origins, so the includes simply go here.
+    //
+    //  📝 The twins in zm_expanded.csc still include the STOCK m16_zm /
+    //  rottweil72_zm / as50_zm here as well. That is harmless: the server never
+    //  registers those three on Origins, so they can never be a box result, and
+    //  they name the SAME view models as the copies - so even the box's spin
+    //  visual is identical.
+    // ========================================================================
+    //  🛑 ONLY the XPR-50 here. The M16 and the Olympia are already included
+    //  above - this map's own list carries them - and include_weapon() twice
+    //  for one name would be a duplicate, not a second entry.
+    include_weapon( "as50qol_zm" );
+    include_weapon( "as50qol_upgraded_zm", 0 );
 
 
     if ( is_true( level.raygun2_included ) && !isdemoplaying() )

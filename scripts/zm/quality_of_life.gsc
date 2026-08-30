@@ -7898,6 +7898,36 @@ zmqol_give_resolve( str_arg )
     if ( isdefined( level.zombie_weapons[ str_arg + "_zm" ] ) )
         return str_arg + "_zm";
 
+    //  2b. THE NAME THE GAME ITSELF USES -  .give mauser, .give chicom,
+    //      .give olympia, .give paralyzer, .give sliquifier.   (v2.9.0)
+    //      Read out of the retail English string tables, not written from
+    //      memory - see zmqol_give_names_table() for the dump command and for
+    //      why this runs ahead of rules 3-5 without changing any older name.
+    a_named = zmqol_give_names_table();
+
+    foreach ( row in a_named )
+    {
+        if ( !isdefined( level.zombie_weapons[ row.def ] ) )
+            continue;
+
+        if ( row.show == str_arg )
+            return row.def;
+
+        //  🛑 GUARDED, and not defensively-for-the-sake-of-it: rows whose gun
+        //  needs no second name pass "" for the key list, and strtok( "", " " )
+        //  is not documented to return an empty array on T6 - it may return
+        //  undefined, which would throw on the foreach. The guard costs one
+        //  test and removes the whole question.
+        if ( !isdefined( row.keys ) )
+            continue;
+
+        foreach ( key in row.keys )
+        {
+            if ( key == str_arg )
+                return row.def;
+        }
+    }
+
     //  3. the curated aliases, so every name that worked before still does.
     a_rows = zmqol_weapon_give_table();
 
@@ -8038,6 +8068,229 @@ zmqol_give_art_table()
     return a;
 }
 
+// ============================================================================
+//  zmqol_give_names_table  -  THE NAME A PLAYER ACTUALLY TYPES        (v2.9.0)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-30: *"make sure that the commands to give the weapons are
+//  simple and would be what you'd expect to input to give them via commands ...
+//  most people call the mauser the mauser even though it has the c96 part."*
+//
+//  The four rules that existed before all worked off the DEF name, so the only
+//  names that ever worked were the engine's: .give c96, .give insas,
+//  .give rottweil72, .give qcw05, .give as50, .give slowgun. Nobody calls them
+//  that. This table is the missing half - the in-game name -> the def.
+//
+//  🌟 EVERY `show` NAME BELOW IS MEASURED, NOT REMEMBERED. They were read out
+//  of the game's own English string tables, dumped from the retail language
+//  fastfiles (en_patch_zm, en_patch_mp, en_ui_zm, en_zm_*, en_dlc*_load_zm):
+//
+//      Unlinker --include-assets localize --search-path <zone/english;zone/all>
+//               -o <out> <zone/english/en_*.ff>
+//
+//  then joined to the defs through the &"..." reference each add_zombie_weapon()
+//  call passes. So `qcw05_zm` is "Chicom CQB" because WEAPON_QCW05 says so, and
+//  `c96_zm` is the Mauser because ZMWEAPON_C96 says "Mauser C96" - not because
+//  it sounded right. 50 of them came back from that join directly; the wonder
+//  weapons came from ZMWEAPON_PARALYZER / _SLIPGUN / _JETGUN / _BLUNDERGAT /
+//  ZOMBIE_FREEZEGUN / ZOMBIE_TESLA_GUN / ZMWEAPON_STAFF_*, and `slowgun_zm` is
+//  confirmed the Paralyzer by its own weapon pack, "wpck_paralyzer", in
+//  zm_buried.gsc:1157.
+//
+//  📝 THE TWO THAT ARE NOT MEASURED, stated so nobody later reads this list as
+//  all-verified: `retriever` / `hellsretriever` and `redeemer` /
+//  `hellsredeemer` on the two tomahawk defs. Those names are in no string table
+//  this workspace can read. They are added anyway because an extra alias cannot
+//  break anything - it either matches or it does not - and `tomahawk`, which IS
+//  derivable from the def, is on the same rows.
+//
+//  🛑 ORDER MATTERS AND THIS TABLE RUNS EARLY - rule 2b, ahead of the curated
+//  table (3), the loose match (4) and the art table (5). All 257 keys below
+//  were diffed against those three tables. Most already existed and point at
+//  the SAME def they always did (swat, fal, xpr, mp5, chicom, olympia, saiga,
+//  scarh, stg44, m82, mc96, scorpion, x95l, m16a2 ...).
+//
+//  THREE point somewhere else than the art table did, and all three are proven
+//  no-ops:
+//      mp40    art -> mp40_stalker_zm     here -> mp40_zm
+//      type95  art -> gl_type95_zm        here -> type95_zm
+//      xm8     art -> gl_xm8_zm           here -> xm8_zm
+//  RULE 2 ALREADY BEAT THE ART TABLE TO ALL THREE: it tests `<arg>_zm` first,
+//  so `.give mp40` has always returned mp40_zm whenever that is registered, and
+//  the art row only ever fired on a map where the plain def is absent. Rule 2b
+//  carries the same isdefined() guard, so on such a map it also falls through
+//  to the art rule. Same answer on every map, before and after.
+//
+//  `ak74u`, `b2023r` and `minigun` are deliberately ABSENT: the first two
+//  already resolve elsewhere, and `minigun` is intercepted by the Death Machine
+//  case before any resolver rule runs.
+//
+//  📝 Seven registered defs get no row on purpose - ak74u_zm,
+//  knife_ballistic_no_melee_zm, the four staff_*_upgraded_zm and
+//  staff_water_zm_cheap. Rules 1 and 2 already reach all of them, and the list
+//  printer falls back to the trimmed def name for exactly these.
+//
+//  🛑 Rules 1 and 2 still run FIRST, so the raw def name always wins. Nothing
+//  here can shadow `.give <def>`.
+//
+//  📝 A PACK-A-PUNCHED NAME IS A KEY ON THE BASE ROW - boomhilda, sweeper,
+//  petrifier, sassafras, wintersfury, zeuscannon, magnacollider, vitriolic.
+//  That is not an oversight, it is the convention this file already shipped:
+//  `ms` / `mustang` / `sally` have been keys on m1911_zm since v1.99.25 with
+//  the note *".give ms pap hands over m1911_upgraded_zm"*. So the upgraded name
+//  gets you the gun, and `pap` after it gets you the upgrade - one rule for all
+//  of them rather than m1911 behaving unlike the rest.
+// ============================================================================
+zmqol_give_name_row( str_def, str_show, str_keys )
+{
+    o = spawnstruct();
+    o.def  = str_def;
+    o.show = str_show;
+
+    //  strtok() is never handed "" - a gun that needs no second name simply has
+    //  no key array, and the resolver skips it. This is the half of the pair
+    //  that makes the isdefined( row.keys ) guard in zmqol_give_resolve() exact
+    //  rather than hopeful.
+    o.keys = undefined;
+
+    if ( str_keys != "" )
+        o.keys = strtok( str_keys, " " );
+
+    return o;
+}
+
+zmqol_give_names_table()
+{
+    a = [];
+
+    //  def | what .give list prints | every other name that reaches it
+    a[a.size] = zmqol_give_name_row( "870mcs_zm",        "r870",        "870 870mcs r870mcs remington remington870 rem870" );
+    a[a.size] = zmqol_give_name_row( "ak47_zm",          "ak47",        "ak" );
+    a[a.size] = zmqol_give_name_row( "ak74u_extclip_zm", "ak74uext",    "ak74uextclip 74u" );
+    a[a.size] = zmqol_give_name_row( "an94_zm",          "an94",        "" );
+    a[a.size] = zmqol_give_name_row( "as50_zm",          "xpr50",       "xpr as50" );
+    a[a.size] = zmqol_give_name_row( "ballista_zm",      "ballista",    "" );
+    a[a.size] = zmqol_give_name_row( "barretm82_zm",     "barrett",     "m82 m82a1 barret" );
+    a[a.size] = zmqol_give_name_row( "beacon_zm",        "beacon",      "homingbeacon artillerybeacon" );
+    a[a.size] = zmqol_give_name_row( "beretta93r_zm",    "b23r",        "beretta beretta93r 93r" );
+    a[a.size] = zmqol_give_name_row( "blundergat_zm",    "blundergat",  "sweeper" );
+    a[a.size] = zmqol_give_name_row( "blundersplat_zm",  "acidgat",     "acid gat blundersplat vitriolic" );
+    a[a.size] = zmqol_give_name_row( "bouncing_tomahawk_zm", "tomahawk", "hawk retriever hellsretriever" );
+    a[a.size] = zmqol_give_name_row( "c96_zm",           "mauser",      "mauserc96 c96 boomhilda" );
+    a[a.size] = zmqol_give_name_row( "claymore_zm",      "claymore",    "clay claymores" );
+    a[a.size] = zmqol_give_name_row( "crossbow_zm",      "crossbow",    "bow xbow" );
+    a[a.size] = zmqol_give_name_row( "cymbal_monkey_zm", "monkey",      "monkeys cymbal monkeybomb" );
+    a[a.size] = zmqol_give_name_row( "dsr50_zm",         "dsr50",       "dsr" );
+    a[a.size] = zmqol_give_name_row( "emp_grenade_zm",   "emp",         "empgrenade" );
+    a[a.size] = zmqol_give_name_row( "evoskorpion_zm",   "skorpion",    "skorpionevo evo" );
+    a[a.size] = zmqol_give_name_row( "fiveseven_zm",     "fiveseven",   "57" );
+    a[a.size] = zmqol_give_name_row( "fivesevendw_zm",   "fivesevendw", "57dw dualfiveseven" );
+    a[a.size] = zmqol_give_name_row( "fnfal_zm",         "fnfal",       "" );
+    a[a.size] = zmqol_give_name_row( "fnp45_zm",         "tac45",       "tac fnp45 fnp" );
+    a[a.size] = zmqol_give_name_row( "frag_grenade_zm",  "frag",        "frags grenade grenades" );
+    a[a.size] = zmqol_give_name_row( "freezegun_zm",     "wintershowl", "winters howl freezegun wintersfury" );
+    a[a.size] = zmqol_give_name_row( "galil_zm",         "galil",       "" );
+    a[a.size] = zmqol_give_name_row( "hamr_zm",          "hamr",        "" );
+    a[a.size] = zmqol_give_name_row( "hk416_zm",         "m27",         "hk416" );
+    a[a.size] = zmqol_give_name_row( "insas_zm",         "msmc",        "insas" );
+    a[a.size] = zmqol_give_name_row( "jetgun_zm",        "jetgun",      "jet thrustodyne" );
+    a[a.size] = zmqol_give_name_row( "judge_zm",         "judge",       "ragingjudge raging" );
+    a[a.size] = zmqol_give_name_row( "kard_zm",          "kap40",       "kap kard" );
+    a[a.size] = zmqol_give_name_row( "knife_ballistic_zm", "ballisticknife", "ballistic bk" );
+    a[a.size] = zmqol_give_name_row( "knife_ballistic_bowie_zm", "ballisticbowie", "bowieknife bowie" );
+    a[a.size] = zmqol_give_name_row( "ksg_zm",           "ksg",         "" );
+    a[a.size] = zmqol_give_name_row( "lsat_zm",          "lsat",        "" );
+    a[a.size] = zmqol_give_name_row( "m14_zm",           "m14",         "" );
+    a[a.size] = zmqol_give_name_row( "m16_zm",           "m16",         "m16a1 m16a2 colt" );
+    a[a.size] = zmqol_give_name_row( "m1911_zm",         "m1911",       "1911 ms mustang sally" );
+    a[a.size] = zmqol_give_name_row( "m32_zm",           "warmachine",  "m32" );
+    a[a.size] = zmqol_give_name_row( "mg08_zm",          "mg08",        "mg0815 magnacollider" );
+    a[a.size] = zmqol_give_name_row( "mk48_zm",          "mk48",        "" );
+    a[a.size] = zmqol_give_name_row( "mp40_zm",          "mp40",        "" );
+    a[a.size] = zmqol_give_name_row( "mp40_stalker_zm",  "mp40stalker", "stalker" );
+    a[a.size] = zmqol_give_name_row( "mp44_zm",          "stg44",       "stg mp44" );
+    a[a.size] = zmqol_give_name_row( "mp5k_zm",          "mp5",         "mp5k" );
+    a[a.size] = zmqol_give_name_row( "mp7_zm",           "mp7",         "" );
+    a[a.size] = zmqol_give_name_row( "pdw57_zm",         "pdw57",       "pdw" );
+    a[a.size] = zmqol_give_name_row( "peacekeeper_zm",   "peacekeeper", "pk" );
+    a[a.size] = zmqol_give_name_row( "python_zm",        "python",      "" );
+    a[a.size] = zmqol_give_name_row( "qbb95_zm",         "qbb",         "qbb95 lsw qbblsw" );
+    a[a.size] = zmqol_give_name_row( "qcw05_zm",         "chicom",      "chicomcqb cqb qcw qcw05" );
+    a[a.size] = zmqol_give_name_row( "ray_gun_zm",       "raygun",      "ray rg" );
+    a[a.size] = zmqol_give_name_row( "raygun_mark2_zm",  "raygunmk2",   "mk2 mark2 markii raygun2" );
+    a[a.size] = zmqol_give_name_row( "riotshield_zm",    "zombieshield", "shield riotshield" );
+    a[a.size] = zmqol_give_name_row( "rnma_zm",          "rnma",        "newmodelarmy nma sassafras" );
+    a[a.size] = zmqol_give_name_row( "rottweil72_zm",    "olympia",     "rottweil rottweil72" );
+    a[a.size] = zmqol_give_name_row( "rpd_zm",           "rpd",         "" );
+    a[a.size] = zmqol_give_name_row( "sa58_zm",          "falosw",      "fal osw sa58" );
+    a[a.size] = zmqol_give_name_row( "saiga12_zm",       "s12",         "saiga saiga12" );
+    a[a.size] = zmqol_give_name_row( "saritch_zm",       "saritch",     "toz tozsaritch" );
+    a[a.size] = zmqol_give_name_row( "scar_zm",          "scarh",       "scar" );
+    a[a.size] = zmqol_give_name_row( "sig556_zm",        "swat",        "swat556 sig556 sig" );
+    a[a.size] = zmqol_give_name_row( "slipgun_zm",       "sliquifier",  "sliq slipgun" );
+    a[a.size] = zmqol_give_name_row( "slowgun_zm",       "paralyzer",   "slowgun petrifier" );
+    a[a.size] = zmqol_give_name_row( "srm1216_zm",       "m1216",       "1216 srm1216 srm" );
+    a[a.size] = zmqol_give_name_row( "staff_air_zm",     "windstaff",   "staffofwind staffwind wind air" );
+    a[a.size] = zmqol_give_name_row( "staff_fire_zm",    "firestaff",   "staffoffire stafffire fire" );
+    a[a.size] = zmqol_give_name_row( "staff_lightning_zm", "lightningstaff", "staffoflightning stafflightning lightning" );
+    a[a.size] = zmqol_give_name_row( "staff_water_zm",   "icestaff",    "staffofice staffice ice staffwater water" );
+    a[a.size] = zmqol_give_name_row( "staff_revive_zm",  "revivestaff", "staffrevive sekhmet" );
+    a[a.size] = zmqol_give_name_row( "sticky_grenade_zm", "semtex",     "sticky stickygrenade" );
+    a[a.size] = zmqol_give_name_row( "svu_zm",           "svu",         "svuas" );
+    a[a.size] = zmqol_give_name_row( "tar21_zm",         "mtar",        "tar21 x95 x95l" );
+    a[a.size] = zmqol_give_name_row( "tazer_knuckles_zm", "galvaknuckles", "galva knuckles tazer" );
+    a[a.size] = zmqol_give_name_row( "tesla_gun_zm",     "wunderwaffe", "dg2 tesla teslagun" );
+    a[a.size] = zmqol_give_name_row( "thompson_zm",      "thompson",    "m1927 tommy tommygun" );
+    a[a.size] = zmqol_give_name_row( "thundergun_zm",    "thundergun",  "thunder zeus zeuscannon" );
+    a[a.size] = zmqol_give_name_row( "time_bomb_zm",     "timebomb",    "bomb" );
+    a[a.size] = zmqol_give_name_row( "titus6_zm",        "titus6",      "titus dart flechette" );
+    a[a.size] = zmqol_give_name_row( "type95_zm",        "type25",      "type95 type" );
+    a[a.size] = zmqol_give_name_row( "upgraded_tomahawk_zm", "redeemer", "hellsredeemer upgradedtomahawk" );
+    a[a.size] = zmqol_give_name_row( "usrpg_zm",         "rpg",         "usrpg" );
+    a[a.size] = zmqol_give_name_row( "uzi_zm",           "uzi",         "" );
+    a[a.size] = zmqol_give_name_row( "vector_zm",        "vector",      "k10 vectork10" );
+    a[a.size] = zmqol_give_name_row( "willy_pete_zm",    "smoke",       "smokegrenade willypete" );
+    a[a.size] = zmqol_give_name_row( "xm8_zm",           "m8a1",        "m8 xm8" );
+
+    // ------------------------------------------------------------------
+    //  v2.9.1 - THE NINE ORIGINS COPIES. Same friendly names as the guns
+    //  they copy, so .give mp5 / olympia / m16 keeps working on Origins.
+    //  Only one of each pair is ever registered on a given map, so the
+    //  isdefined() guard in rule 2b picks the right one with no map test.
+    //  See zmqol_tomb_weapon() for why Origins has its own copies at all.
+    // ------------------------------------------------------------------
+    a[a.size] = zmqol_give_name_row( "mp5kqol_zm",       "mp5",         "mp5k" );
+    a[a.size] = zmqol_give_name_row( "rottweil72qol_zm", "olympia",     "rottweil rottweil72" );
+    a[a.size] = zmqol_give_name_row( "m16qol_zm",        "m16",         "m16a1 m16a2 colt" );
+    a[a.size] = zmqol_give_name_row( "as50qol_zm",       "xpr50",       "xpr as50" );
+    a[a.size] = zmqol_give_name_row( "barretm82qol_zm",  "barrett",     "m82 m82a1 barret" );
+    a[a.size] = zmqol_give_name_row( "judgeqol_zm",      "judge",       "ragingjudge raging" );
+    a[a.size] = zmqol_give_name_row( "saiga12qol_zm",    "s12",         "saiga saiga12" );
+    a[a.size] = zmqol_give_name_row( "saritchqol_zm",    "saritch",     "toz tozsaritch" );
+    a[a.size] = zmqol_give_name_row( "tar21qol_zm",      "mtar",        "tar21 x95 x95l" );
+
+    return a;
+}
+
+//  The name .give list should print for a def, or "" when this table has no
+//  row for it - the caller then falls back to the def with "_zm" trimmed, which
+//  is what the list always printed.
+//
+//  🛑 THE ROWS ARE PASSED IN, NOT BUILT HERE, and that is not a style choice.
+//  zmqol_give_names_table() spawns 84 structs every time it is called, and the
+//  list printer calls this once per registered weapon - up to ~90 on a fully
+//  unlocked map. Building the table inside would spawn seven thousand structs
+//  in one frame for a single .give list. Built once by the caller instead.
+zmqol_give_show_name( str_def, a_rows )
+{
+    for ( i = 0; i < a_rows.size; i++ )
+    {
+        if ( a_rows[i].def == str_def )
+            return a_rows[i].show;
+    }
+
+    return "";
+}
+
 //  Prints this map's registry, eight names to a line. This is the whole point
 //  of the rewrite: the list is what the MAP has, so it is different on Origins
 //  and on the Diner and neither is written down anywhere.
@@ -8056,17 +8309,31 @@ zmqol_give_print_list()
     a_keys = getarraykeys( level.zombie_weapons );
     self iprintln( "^3[zm_qol] .give ^7- " + a_keys.size + " on this map, add ^3pap ^7for upgraded" );
 
+    //  Built ONCE - see the note on zmqol_give_show_name().
+    a_named = zmqol_give_names_table();
+
     str_line = "";
     n_on_line = 0;
 
     for ( i = 0; i < a_keys.size; i++ )
     {
-        //  The "_zm" is noise on every single name, so it is dropped for
-        //  display - and ".give <shown name>" resolves through rule 2 above.
-        str_show = a_keys[i];
+        //  v2.9.0 - print the name a player would TYPE, not the engine's def.
+        //  The list used to show c96, insas, rottweil72, qcw05, as50, slowgun;
+        //  it now shows mauser, msmc, olympia, chicom, xpr50, paralyzer. Every
+        //  name printed here is a key of rule 2b, so what is on screen is
+        //  always something .give accepts - that is the contract this loop and
+        //  zmqol_give_names_table() keep between them.
+        str_show = zmqol_give_show_name( a_keys[i], a_named );
 
-        if ( str_show.size > 3 && getsubstr( str_show, str_show.size - 3, str_show.size ) == "_zm" )
-            str_show = getsubstr( str_show, 0, str_show.size - 3 );
+        if ( str_show == "" )
+        {
+            //  No row for it - fall back to the old behaviour, the def with
+            //  "_zm" trimmed, which rule 2 resolves.
+            str_show = a_keys[i];
+
+            if ( str_show.size > 3 && getsubstr( str_show, str_show.size - 3, str_show.size ) == "_zm" )
+                str_show = getsubstr( str_show, 0, str_show.size - 3 );
+        }
 
         if ( n_on_line == 0 )
             str_line = str_show;
@@ -8774,6 +9041,13 @@ zmqol_wallbuy_box_init()
 
 zmqol_wallbuy_box_add( str_base, str_upgraded, str_hint, n_cost, str_vox )
 {
+    //  v2.9.1 - Origins uses its private M16 / Olympia. Without this the stock
+    //  pair would be registered here on Origins as well, and their aliases no
+    //  longer exist there, so the box would hand out two silent guns beside the
+    //  audible ones. See zmqol_tomb_weapon().
+    str_base     = zmqol_tomb_weapon( str_base );
+    str_upgraded = zmqol_tomb_weapon( str_upgraded );
+
     precacheitem( str_base );
     precacheitem( str_upgraded );
 
@@ -8824,7 +9098,9 @@ zmqol_wallbuy_box_reassert()
 
     for ( i = 0; i < a_names.size; i++ )
     {
-        str_w = a_names[i];
+        //  v2.9.1 - on Origins the registered name is the private copy, so the
+        //  re-assert has to look for that one or it silently does nothing.
+        str_w = zmqol_tomb_weapon( a_names[i] );
 
         if ( isdefined( level.zombie_weapons[ str_w ] ) && !level.zombie_weapons[ str_w ].is_in_box )
         {
@@ -8835,8 +9111,64 @@ zmqol_wallbuy_box_reassert()
     }
 }
 
+// ============================================================================
+//  zmqol_tomb_weapon  -  ORIGINS GETS PRIVATE COPIES OF NINE GUNS    (v2.9.1)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-30: *"the mp5 no longer uses the custom sounds from the zone
+//  folder ... make sure that all the custom sounds from the sound pack work,
+//  all of them with no exceptions, without causing any other sounds from the
+//  base game to go silent"* - then, asked how Origins should be handled:
+//  *"make the sounds work for all maps origins included, don't remove them
+//  from the box."*
+//
+//  THE BIND, measured. Nine guns - MP5, Olympia, M16, XPR-50, Barrett, Judge,
+//  S12, Saritch, MTAR - have their aliases declared by SEVEN of the eight map
+//  banks. Origins' bank declares ZERO of them, because retail never puts those
+//  guns on Origins. So:
+//      declare them in mod.all  -> audible on Origins, but mod.all loads first
+//                                  and shadows the user's pack on the other 7
+//      do not declare them      -> the pack wins on 7, silent on Origins
+//  v2.8.8 took the first branch and that is exactly the regression reported.
+//
+//  🌟 THE WAY OUT IS TO STOP SHARING THE NAME. Origins now gets its own copies
+//  of the nine defs - mp5kqol_zm, rottweil72qol_zm, ... - identical to the
+//  originals except that their two fire-sound fields point at wpn_<gun>qol_*.
+//  mod.all declares only those private names, which no stock bank uses, so it
+//  shadows nothing anywhere. On the other seven maps the stock def and the
+//  stock alias are untouched and the pack serves them again.
+//
+//  🛑 THE ONE THING THIS CANNOT FIX, stated rather than hidden: the reload and
+//  cocking foley (fly_<gun>_*) is named by the XANIM notetracks, not by the
+//  weapon file - the defs' notetrackSoundMap is empty, verified on mp5k_zm. A
+//  private weapon cannot redirect a shared animation, so those 50 foley rows
+//  stay under their stock names and stay mod-supplied on every map. Only the
+//  111 fire-chain names moved.
+//
+//  🛑 SERVER ONLY. level.script is used 30 times in this file and never once in
+//  any stock .csc - the client half is done in zm_tomb.csc, which only ever
+//  loads on Origins and so needs no map test at all.
+// ============================================================================
+zmqol_tomb_weapon( str_name )
+{
+    if ( !isdefined( level.script ) || level.script != "zm_tomb" )
+        return str_name;
+
+    if ( str_name == "as50_zm" )                return "as50qol_zm";
+    if ( str_name == "as50_upgraded_zm" )       return "as50qol_upgraded_zm";
+    if ( str_name == "m16_zm" )                 return "m16qol_zm";
+    if ( str_name == "m16_gl_upgraded_zm" )     return "m16qol_upgraded_zm";
+    if ( str_name == "rottweil72_zm" )          return "rottweil72qol_zm";
+    if ( str_name == "rottweil72_upgraded_zm" ) return "rottweil72qol_upgraded_zm";
+
+    return str_name;
+}
+
 zmqol_add_mp_weapon( str_base, str_upgraded, str_hint, n_cost, str_vox )
 {
+    //  Origins swaps in its private copies; every other map is unchanged.
+    str_base     = zmqol_tomb_weapon( str_base );
+    str_upgraded = zmqol_tomb_weapon( str_upgraded );
+
     precacheitem( str_base );
     precacheitem( str_upgraded );
 

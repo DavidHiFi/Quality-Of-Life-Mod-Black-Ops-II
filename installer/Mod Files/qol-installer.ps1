@@ -889,23 +889,59 @@ function Set-ControllerPack {
 #  StartupPresetPath and PresetShortcutPaths and nothing per-application, so
 #  there is no key that could name a different preset per game.
 #
-#  🌟 WHAT IS SHIPPED INSTEAD: all four presets go in beside each other, so they
-#  are all in ReShade's own preset list and Ctrl+Shift+PgUp / PgDn - already bound
-#  in ReShade.ini - steps between them in one keypress. The installer asks which
-#  one to START on and writes that to PresetPath.
+#  🌟 WHAT IS SHIPPED INSTEAD: the presets go in beside each other, so they are
+#  all in ReShade's own preset list and Ctrl+Shift+PgUp / PgDn - already bound in
+#  ReShade.ini - steps between them in one keypress. PresetPath names the one it
+#  opens on.
 #
-#  🛑 AND THEY ARE NOT COSMETIC VARIANTS. Measured off the import tables:
-#  BlackOps.exe, CoDWaW.exe and iw5sp.exe all import d3d9.dll; t6zm.exe imports
-#  d3d11.dll and dxgi.dll. The BO2 preset uses LocalContrastCS, which is a
-#  compute shader with a __RENDERER__ guard - it cannot run on Direct3D 9 at all.
-#  So the three D3D9 presets use only pixel-shader effects from the D3D9-era
-#  libraries (SweetFX / GShade): LumaSharpen, Clarity2, Vibrance, Curves.
+#  =============================================================================
+#  v2.9.2 - TWO CLAIMS THAT USED TO BE WRITTEN HERE WERE WRONG. Both are
+#  corrected below, because both caused the 2026-08-30 bug report.
+#
+#  ❌ "the three D3D9 presets use only pixel-shader effects from the D3D9-era
+#     libraries (SweetFX / GShade): LumaSharpen, Clarity2, Vibrance, Curves."
+#     They did not. BO1.ini, MW3.ini and WAW.ini shipped BYTE-IDENTICAL to
+#     BO2.ini - 1993 bytes each, same Techniques line. The note described an
+#     intention that was never in the files.
+#
+#  ❌ "LocalContrastCS ... is a compute shader ... it cannot run on Direct3D 9
+#     at all." It compiles on D3D9 fine. Measured, from the user's own
+#     ReShade.log on Plutonium T5: *"Successfully compiled '...\InsaneShaders\
+#     LocalContrastCS.fx'"*.
+#
+#  ✅ WHAT IS ACTUALLY TRUE, measured from that same log (486 effects compiled,
+#     43 failed, all D3D9 shader-model errors - "Bitwise operations not
+#     supported on target ps_2_0", "maximum temp register index exceeded"):
+#     the API split is real (BlackOps.exe / CoDWaW.exe / iw5sp.exe import
+#     d3d9.dll, t6zm.exe imports d3d11.dll), but only 43 of ~529 shaders are
+#     affected, and NONE of them is used by the presets shipped here.
+#
+#  🛑 THOSE 43 ONLY EVER COMPILE IF SOMETHING ASKS FOR ALL OF THEM.
+#     SkipLoadingDisabledEffects=1 means ReShade builds only what the preset
+#     enables - so the errors the user hit came from the overlay's "Force load
+#     all effects" button, which is now hidden (ShowForceLoadEffectsButton=0).
+#     That, plus presets that name only compatible effects, is what makes the
+#     ReShade half error-free on all four games rather than just on BO2.
+#
+#  📝 User, 2026-08-30: *"make sure that all the other presets are empty besides
+#     bo2's presets"* - so BO1/MW3/WAW now ship as genuinely empty presets
+#     (Techniques= and TechniqueSorting= blank). An empty preset enables
+#     nothing, so it compiles nothing, so it cannot error on any game.
 # =============================================================================
 $RESHADEPRESETS = [ordered]@{
+    #  The default, and the only one meant to be used on every game. User,
+    #  2026-08-30: *"make sure that this now apart of the reshade presets for my
+    #  mod, and that it's used by default for all games on plutonium, the game
+    #  specific named presets are optional."*
+    #  Two of its ten techniques were dropped to make that safe on all four:
+    #  SuperDepth3D.fx is in no shader pack this mod ships, and FSR1_2X.fx is
+    #  one of the 43 that fail on D3D9. The remaining eight are each confirmed
+    #  compiled on D3D9 in the log above.
+    'Cinematic Colour Grading.ini' = @{ Game = 'All games'; Api = 'DirectX 9 + 11' }
     'BO2.ini' = @{ Game = 'Black Ops II';    Api = 'DirectX 11' }
-    'BO1.ini' = @{ Game = 'Black Ops';       Api = 'DirectX 9'  }
-    'MW3.ini' = @{ Game = 'Modern Warfare 3';Api = 'DirectX 9'  }
-    'WAW.ini' = @{ Game = 'World at War';    Api = 'DirectX 9'  }
+    'BO1.ini' = @{ Game = 'Black Ops';       Api = 'DirectX 9 (empty)' }
+    'MW3.ini' = @{ Game = 'Modern Warfare 3';Api = 'DirectX 9 (empty)' }
+    'WAW.ini' = @{ Game = 'World at War';    Api = 'DirectX 9 (empty)' }
 }
 
 #  Read from the shipped DLL itself so this string can never claim a version the
@@ -934,7 +970,7 @@ $BACKUPSETS = [ordered]@{
     #  on top of the fixed dxgi.dll and the four this mod ships - see the note
     #  on Get-BackupPart.
     reshade = @{ Label = 'My ReShade setup';      Title = 'your ReShade setup'; Parts = @(
-                    @{ Sub='bin';             Path=$BINDIR; Type='files'; Items=@('ReShade.ini','BO2.ini','BO1.ini','MW3.ini','WAW.ini','dxgi.dll'); Glob='*.ini' },
+                    @{ Sub='bin';             Path=$BINDIR; Type='files'; Items=@('ReShade.ini','Cinematic Colour Grading.ini','BO2.ini','BO1.ini','MW3.ini','WAW.ini','dxgi.dll'); Glob='*.ini' },
                     @{ Sub='reshade-shaders'; Path=(Join-Path $BINDIR 'reshade-shaders'); Type='folder' } ) }
     #  🛑 THE SETTINGS BACKUP CARRIES SETTINGS, NOT STATS. The rule stands; the
     #  reason written here in v2.2.3 did not, and is corrected below.
@@ -1876,7 +1912,10 @@ function Act-InstallReShade {
         Say "The ReShade files are not in this package." $C.Warn
         Pause-Key; return
     }
-    $startPreset = 'BO2.ini'
+    #  v2.9.2 - opens on the all-games preset now. It is the only one that is
+    #  safe and useful on every Plutonium game; the game-named ones are optional
+    #  and three of them are deliberately empty. See $RESHADEPRESETS above.
+    $startPreset = 'Cinematic Colour Grading.ini'
     $intro = @(
         "Sharpens the picture and improves the colour. Works in every Plutonium",
         "game - Black Ops II, Black Ops, MW3 and World at War all share it. Press",
