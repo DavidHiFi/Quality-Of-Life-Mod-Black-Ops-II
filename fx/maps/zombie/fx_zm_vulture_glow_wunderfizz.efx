@@ -31,9 +31,9 @@ iwfx 2
 	atlasIndex 0;
 	atlasFps 0;
 	atlasLoopCount 0;
-	atlasColIndexBits 0;
+	atlasColIndexBits 1;
 	atlasRowIndexBits 0;
-	atlasEntryCount 0;
+	atlasEntryCount 2;
 	velGraph0X 0
 	{
 		{
@@ -215,9 +215,9 @@ iwfx 2
 	atlasIndex 0;
 	atlasFps 0;
 	atlasLoopCount 0;
-	atlasColIndexBits 0;
+	atlasColIndexBits 1;
 	atlasRowIndexBits 0;
-	atlasEntryCount 0;
+	atlasEntryCount 2;
 	velGraph0X 0
 	{
 		{

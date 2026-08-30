@@ -267,11 +267,47 @@ f0_local2 = function (f4_arg0, f4_arg1)
 	LUI.UIButton.gainFocus(f4_arg0.continueButton, f4_arg1)
 end
 
+-- ============================================================================
+--  zm_qol v2.9.3 - THE SOLO INTRO CUTSCENE GATE, client half.
+--
+--  User, 2026-08-30: on Origins solo they skipped the intro part-way through
+--  and "when i spawned in the zombies were right near me already and had
+--  already broke through the barrier".
+--
+--  🛑 THE MOD CAUSED THIS AND NOTHING IN THE ROUND-DELAY SWITCH DID. Read
+--  quality_of_life.gsc's round_think(): ROUND DELAY OFF is guarded with
+--  `&& !level.first_round`, so it cannot touch round one at all. What DOES
+--  create the overlap is this file's own cutscene, which zm_qol turns on by
+--  forcing party_maxplayers to 1 (see privateonlinegamelobby.lua). Stock never
+--  reaches this branch in a Plutonium private match, so there is no vanilla
+--  behaviour being restored here - the mod added a video that can run for over
+--  three minutes and never told the match to wait for it.
+--
+--  MEASURED, not guessed: video\zm_tomb_load.webm is 196.2s, zm_prison_load
+--  170.6s, zm_buried_load 158.0s, zm_highrise_load 78.6s (Matroska Duration
+--  element x TimecodeScale, read straight out of each file).
+--
+--  🌟 WHY A DVAR IS THE RIGHT CHANNEL. Solo is the ONLY case that reaches this
+--  branch, and solo on Plutonium is a listen server - the LUI writing the dvar
+--  and the GSC reading it are the same process. That is not a new trick here:
+--  zmQolForceSoloPartySize already hands "zmqol_loadmovie_probe" to
+--  quality_of_life.gsc the same way, and it arrives.
+--
+--  This handler is the END of the cutscene: it is the SKIP button's action, the
+--  mouse-click path, and the only thing that calls Stop3DCinematic. Clearing
+--  the gate here is therefore exact rather than timed.
+-- ============================================================================
 f0_local3 = function (f5_arg0, f5_arg1)
+	pcall(Engine.SetDvar, "zmqol_cutscene", "0")
 	Engine.Stop3DCinematic(0)
 end
 
 LUI.createMenu.Loading = function (f6_arg0)
+	-- zm_qol: clear the intro-cutscene gate at the TOP of every loading screen.
+	-- Quitting mid-cutscene would otherwise leave it raised, and the next
+	-- match would sit waiting for a video that is never going to play. Only
+	-- the movie branch below puts it back up.
+	pcall(Engine.SetDvar, "zmqol_cutscene", "0")
 	local f6_local0 = CoD.Menu.NewFromState("Loading", {
 		leftAnchor = true,
 		rightAnchor = true,
@@ -518,6 +554,9 @@ LUI.createMenu.Loading = function (f6_arg0)
 		f6_local0.mapImage:registerEventHandler("loading_updateimage", f0_local0)
 		f6_local0:addElement(LUI.UITimer.new(16, "loading_updateimage", false, f6_local0.mapImage))
 		Engine.SetDvar("ui_zm_useloadingmovie", 1)
+		-- zm_qol: the intro cutscene is now on screen. quality_of_life.gsc holds
+		-- the first round until f0_local3 above puts this back to 0.
+		pcall(Engine.SetDvar, "zmqol_cutscene", "1")
 		local f6_local35 = 15
 		local f6_local36 = 15
 		local f6_local37, f6_local38 = Engine.GetUserSafeArea()

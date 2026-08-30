@@ -82,6 +82,59 @@ function Restore-MissingReShade {
     return $restored
 }
 
+# -----------------------------------------------------------------------------
+#  v2.9.3 - THE OTHER HALF: LIVE EDITS NOW GO BACK INTO THE VAULT.
+#
+#  User, 2026-08-30: they edited "Cinematic Colour Grading.ini" from ReShade's
+#  own overlay, saved it, and asked that the mod always start on that preset
+#  WITH those edits.
+#
+#  Restore-MissingReShade alone could not promise that. The vault was written
+#  once by the installer and never again, so every in-game tweak lived only in
+#  Plutonium's bin - and bin is exactly the folder Plutonium wipes. One wipe and
+#  the watchdog faithfully restored the INSTALLER's copy over the top, silently
+#  undoing the edit. That is not a hypothetical: the vault copy on this machine
+#  was 37 minutes older than the live one when this was written.
+#
+#  So the sync is now two-way for the settings files only:
+#      vault -> bin   anything Plutonium cleared          (Restore-MissingReShade)
+#      bin -> vault   any *.ini edited more recently      (Save-LiveEdits)
+#
+#  🛑 TOP-LEVEL *.ini ONLY, and deliberately so. Those are ReShade.ini and the
+#  presets - the only files a player ever edits. Shaders, textures and dxgi.dll
+#  are shipped content: copying those back would let a corrupted or
+#  half-restored bin overwrite the known-good vault, which is the one copy that
+#  can put things right again.
+#
+#  🛑 A FILE IS ONLY COPIED ONCE IT HAS SETTLED. ReShade writes the preset the
+#  instant a slider moves (AutoSavePreset=1), so a poll can easily land
+#  mid-write; requiring 3 seconds of no further writes means the vault only ever
+#  receives a finished file. Nothing is lost by waiting - the next poll takes it.
+# -----------------------------------------------------------------------------
+$SettleSeconds = 3
+
+function Save-LiveEdits {
+    if (-not (Test-Path -LiteralPath $VaultDir)) { return 0 }
+    if (-not (Test-Path -LiteralPath $BinDir))   { return 0 }
+
+    $saved = 0
+    Get-ChildItem -LiteralPath $BinDir -File -Filter *.ini | ForEach-Object {
+        $vaultCopy = Join-Path $VaultDir $_.Name
+
+        # Only files the vault already knows about. A stray .ini in bin is not
+        # ours to adopt.
+        if (-not (Test-Path -LiteralPath $vaultCopy)) { return }
+
+        if (((Get-Date) - $_.LastWriteTime).TotalSeconds -lt $SettleSeconds) { return }
+        if ($_.LastWriteTime -le (Get-Item -LiteralPath $vaultCopy).LastWriteTime) { return }
+
+        Copy-Item -LiteralPath $_.FullName -Destination $vaultCopy -Force
+        Write-Host ("  [{0}] Saved your edit to {1} into the vault - it will survive the next wipe." -f (Get-Date -Format 'HH:mm:ss'), $_.Name) -ForegroundColor Green
+        $saved++
+    }
+    return $saved
+}
+
 Write-Host ''
 Write-Host '  Quality Of Life - ReShade watchdog' -ForegroundColor Cyan
 Write-Host '  ------------------------------------------------------------------' -ForegroundColor Cyan
@@ -136,6 +189,7 @@ while ($true) {
     }
 
     if ($running) {
+        Save-LiveEdits | Out-Null
         $n = Restore-MissingReShade
         if ($n -gt 0) {
             Write-Host ("  [{0}] Restored {1} ReShade file(s) Plutonium had cleared." -f (Get-Date -Format 'HH:mm:ss'), $n) -ForegroundColor Green

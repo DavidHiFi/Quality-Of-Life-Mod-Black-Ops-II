@@ -104,6 +104,40 @@ zmqol_mp_weapons_init()
 	if ( !getdvarintdefault( "zmqol_mp_weapons", 1 ) )
 		return;
 
+	// ========================================================================
+	//  🛑 v2.9.4 - THE XPR-50 IS NOT INCLUDED ON ORIGINS, AND SKIPPING IT IS
+	//  WHAT STOPS THE MAP CRASHING.
+	//
+	//  Origins boot, 2026-08-30: access violation 0xC0000005 on the CLIENT,
+	//  immediately after `CSC Executed "scripts/zm/zm_tomb/zm_tomb::main()"`.
+	//  The crash dump names the cause outright:
+	//      last gsc error message 'AddZombieBoxWeapon: Failed to find weapon as50_zm'
+	//
+	//  🌟 WHY as50_zm ALONE. On Origins the server swaps the XPR-50 for its
+	//  private copy (zmqol_tomb_weapon(): as50_zm -> as50qol_zm), so nothing
+	//  ever precaches as50_zm there and the weapon def does not exist. This
+	//  list then handed that name to _zm_weapons.csc::include_weapon(), whose
+	//  last line is
+	//      addzombieboxweapon( weapon, getweaponmodel( weapon ), ... )
+	//  - a model lookup on a weapon that is not loaded. The M16 and the Olympia
+	//  are swapped the same way and are NOT a problem, because their defs are
+	//  mod.ff assets and exist on every map regardless; the XPR-50's def is a
+	//  raw file that only exists where something precached it. That difference
+	//  is exactly what v2.9.1's "that is harmless" note in zm_tomb.csc missed.
+	//
+	//  🛑 THE MAP TEST IS getdvar( #"mapname" ), NOT level.script. v2.9.1
+	//  recorded that level.script appears in none of the 618 stock .csc files
+	//  and concluded there was no client-side map test. There is one, and it is
+	//  stock: clientscripts\mp\_fxanim.csc:14 in the ZOMBIES dump reads
+	//  `mapname = getdvar( #"mapname" )` and switches on map names. 67 client
+	//  scripts call getdvar.
+	//
+	//  📝 zm_tomb.csc includes as50qol_zm / as50qol_upgraded_zm in its place,
+	//  so the client list still matches the server's registration on Origins -
+	//  which is the invariant that matters, and the one this broke.
+	// ========================================================================
+	b_tomb = ( getdvar( #"mapname" ) == "zm_tomb" );
+
 	// the ten that go in the box
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sig556_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sa58_zm" );
@@ -114,7 +148,8 @@ zmqol_mp_weapons_init()
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "insas_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "peacekeeper_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_zm" );
-	clientscripts\mp\zombies\_zm_weapons::include_weapon( "as50_zm" );
+	if ( !b_tomb )
+		clientscripts\mp\zombies\_zm_weapons::include_weapon( "as50_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "titus6_zm" );
 
 	// their upgraded halves - included, but never a box result
@@ -127,7 +162,8 @@ zmqol_mp_weapons_init()
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "insas_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "peacekeeper_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_upgraded_zm", 0 );
-	clientscripts\mp\zombies\_zm_weapons::include_weapon( "as50_upgraded_zm", 0 );
+	if ( !b_tomb )
+		clientscripts\mp\zombies\_zm_weapons::include_weapon( "as50_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "titus6_upgraded_zm", 0 );
 
 	// attachment and projectile variants - same six as the server half

@@ -1219,6 +1219,121 @@ round_hud()
     }
 }
 
+// ============================================================================
+//  zmqol_wait_out_intro_cutscene  -  THE SOLO INTRO CUTSCENE GATE, server half
+// ----------------------------------------------------------------------------
+//  User, 2026-08-30, on Origins solo: they skipped the intro part-way through
+//  and *"when i spawned in the zombies were right near me already and had
+//  already broke through the barrier"*.
+//
+//  🛑 ROUND DELAY OFF IS NOT THE CAUSE, and that is checked rather than
+//  assumed. Both halves of that switch are guarded:
+//      round_one_up()   `&& !level.first_round`   - round one always blocks for
+//                       its full 6.25 + 2 seconds, threaded on no other round
+//      zombie_between_round_time = 0   - read by round_over(), which round one
+//                       never reaches until it is over
+//  Neither can move a single frame of round one. The switch is innocent.
+//
+//  🌟 WHAT ACTUALLY OVERLAPS IS THIS MOD'S OWN CUTSCENE. ui_mp/t6/hud/loading.lua
+//  plays video/<map>_load.webm only when party_maxplayers == 1, and stock never
+//  reaches that on a Plutonium private match - zm_qol turns it on deliberately
+//  by forcing the party size (privateonlinegamelobby.lua::zmQolForceSoloPartySize).
+//  So there is no vanilla behaviour to restore here: the mod added a video and
+//  never told the match to wait for it. Measured lengths, read out of each
+//  file's Matroska Duration element x TimecodeScale:
+//      zm_tomb_load     196.2s      zm_prison_load    170.6s
+//      zm_buried_load   158.0s      zm_highrise_load   78.6s
+//  Against that, round one's whole grace is 8.25 seconds.
+//
+//  🌟 THE SIGNAL IS EXACT, NOT A TIMER. loading.lua's own skip handler - the
+//  only thing anywhere that calls Engine.Stop3DCinematic, and what both the
+//  SKIP button and the mouse-click path run - now writes `zmqol_cutscene` 0,
+//  and the movie branch writes 1. Solo is the only case that can reach that
+//  branch, and solo on Plutonium is a listen server, so the LUI writing the
+//  dvar and this function reading it are the same process. That channel is not
+//  new or hopeful: zmQolForceSoloPartySize already hands `zmqol_loadmovie_probe`
+//  to init() exactly this way and it arrives (see zmqol_loadmovie_probe()).
+//
+//  🛑 THREE THINGS STOP THIS EVER HANGING A MATCH, because a gate that sticks
+//  would be far worse than the bug it fixes:
+//    1. loading.lua clears the dvar to 0 at the TOP of every loading screen, so
+//       a game quit mid-cutscene cannot leave it set for the next one.
+//    2. the map test below - only the four maps that own a *_load.webm can gate
+//       at all, so a stale 1 is inert on Diner, TranZit, Nuketown and Grief.
+//    3. the deadline - 210s, comfortably past the longest video, after which it
+//       gives up and plays on regardless.
+// ============================================================================
+zmqol_wait_out_intro_cutscene()
+{
+    //  The four maps loading.lua can play a video for. Anywhere else there is
+    //  nothing to wait on and a leftover dvar must not be able to bite.
+    if ( !isdefined( level.script ) )
+        return;
+
+    if ( level.script != "zm_tomb" && level.script != "zm_prison" &&
+         level.script != "zm_buried" && level.script != "zm_highrise" )
+        return;
+
+    if ( getdvarintdefault( "zmqol_cutscene", 0 ) != 1 )
+        return;
+
+    println( "[zm_qol] intro cutscene on screen - holding round 1 until it is skipped or ends" );
+
+    //  ------------------------------------------------------------------
+    //  THREE WAYS OUT, because relying on one would be relying on a guess.
+    //
+    //    1. the dvar clears  - the exact signal, written by loading.lua's own
+    //       Stop3DCinematic handler (the SKIP button and the click path).
+    //    2. the player looks around - while the video is up the client is in a
+    //       menu and no view input reaches the server, so the first change in
+    //       view angles is proof they are actually in the world. This is the
+    //       one that covers a video ENDING BY ITSELF: nothing in loading.lua
+    //       says the engine runs the skip handler in that case, so the dvar
+    //       might never clear, and waiting out the full deadline with the
+    //       player already in the world and frozen would be its own bug.
+    //    3. the deadline - 210s, past the longest video (zm_tomb_load, 196.2s).
+    //
+    //  Any one of the three is enough. The worst case is that only the last
+    //  fires, which is still bounded and still leaves round 1 unstarted, i.e.
+    //  the thing being fixed stays fixed.
+    //  ------------------------------------------------------------------
+    n_deadline = gettime() + 210000;
+    v_start = undefined;
+    a_players = get_players();
+
+    if ( isdefined( a_players ) && a_players.size > 0 && isdefined( a_players[0] ) )
+        v_start = a_players[0] getplayerangles();
+
+    while ( getdvarintdefault( "zmqol_cutscene", 0 ) == 1 && gettime() < n_deadline )
+    {
+        if ( isdefined( v_start ) )
+        {
+            a_players = get_players();
+
+            if ( isdefined( a_players ) && a_players.size > 0 && isdefined( a_players[0] ) )
+            {
+                v_now = a_players[0] getplayerangles();
+
+                //  A degree of movement in any axis - far more than drift, far
+                //  less than a deliberate turn.
+                if ( abs( angleclamp180( v_now[0] - v_start[0] ) ) > 1 ||
+                     abs( angleclamp180( v_now[1] - v_start[1] ) ) > 1 )
+                {
+                    println( "[zm_qol] player is looking around - treating the cutscene as over" );
+                    break;
+                }
+            }
+        }
+
+        wait 0.25;
+    }
+
+    //  Owned from here on either way, so nothing downstream can re-trigger.
+    setdvar( "zmqol_cutscene", "0" );
+
+    println( "[zm_qol] intro cutscene over - starting round 1" );
+}
+
 round_think( restart )
 {
     if ( !isdefined( restart ) )
@@ -1227,6 +1342,10 @@ round_think( restart )
 
     if ( !is_true( restart ) )
     {
+        //  Before anything else in the first-round path: the player may still be
+        //  watching the solo intro video. See zmqol_wait_out_intro_cutscene().
+        zmqol_wait_out_intro_cutscene();
+
         if ( isdefined( level.initial_round_wait_func ) )
             [[ level.initial_round_wait_func ]]();
         players = get_players();
@@ -3532,13 +3651,117 @@ zmqol_spawnintermission_dof( usedefaultcallback )
         self zmqol_dof_off_tuple();
 }
 
+// ============================================================================
+//  zmqol_dof_apply / zmqol_dof_quality_watch  -  DISABLED NOW ACTUALLY DISABLES
+// ----------------------------------------------------------------------------
+//  User, 2026-08-30, with a screenshot of the ADVANCED tab reading DEPTH OF
+//  FIELD: DISABLED: *"i can still see depth of field when aiming/zooming in,
+//  make sure that when it's set to disabled it actually disables all the depth
+//  of field as intended."*
+//
+//  🌟 THE CAUSE, READ OUT OF THEIR OWN CONFIG RATHER THAN GUESSED.
+//  storage	6\players\mods\zm_qol\plutonium_zm.cfg contains
+//      seta dof_quality "0"
+//      seta r_dofHDR    "2"
+//  and NO r_dof_enable line at all. Plutonium does not archive that dvar. So on
+//  every fresh launch:
+//      dof_quality      comes back 0  -> the row correctly displays DISABLED
+//      r_dof_enable     is the ENGINE DEFAULT, which is 1 -> blur is on
+//  and the only thing that ever wrote r_dof_enable was QolDofCallback in
+//  optionssettings.lua, which runs only when someone actually moves the
+//  selector. Leave the row alone - as anyone who has already set it to DISABLED
+//  would - and it is never written. The row was telling the truth about the
+//  mod's own dvar and nothing had told the renderer.
+//
+//  🛑 v1.99.54 DELIBERATELY REMOVED THE CONNECT-TIME WRITE, and its reasoning
+//  ("that row is the single owner of r_dof_enable now") had one hole: a menu row
+//  can only own a value while the menu is open. Its own comment claimed "the mod
+//  has archived r_dof_enable at 0 in the player's config since v1.99.45" - the
+//  config above shows that is no longer true, which is why this is fixed by
+//  measuring the file rather than by trusting the comment.
+//
+//  🌟 THE SHAPE IS FOG'S, WHICH ALREADY WORKS. v1.99.91 hit exactly this for
+//  r_fog - cheat-protected, never archived - and solved it by making an ordinary
+//  mod dvar the source of truth and carrying it to the renderer on connect plus
+//  on change. dof_quality is already that dvar, so this is the same two-part
+//  fix: apply it on connect, and watch it for changes. Nothing about the row,
+//  its four choices, or their meanings changes.
+//
+//  📝 r_dof_tweak IS SET TO 0 AND THAT IS NOT DEFENSIVE PADDING. Plutonium's own
+//  dvar_descriptions.json documents it as *"Use dvars to set the depth of field
+//  effect; overrides r_dof_enable"* - it is the one documented way for
+//  r_dof_enable 0 to be ignored, so a disable that does not clear it is not a
+//  disable. Nothing in this mod turns it on; this makes sure nothing else can
+//  leave it on either.
+//
+//  📝 dof_quality 0 = DISABLED, 1/2/3 = LOW/MEDIUM/HIGH, and r_dofHDR wants
+//  0/1/2 for those three - the same mapping QolDofSettings uses in the Lua, kept
+//  identical on purpose so the two front-ends can never disagree.
+// ============================================================================
+zmqol_dof_apply( n_quality )
+{
+    //  Never let the documented override stand between the row and the renderer.
+    self setclientdvar( "r_dof_tweak", "0" );
+
+    if ( n_quality <= 0 )
+    {
+        self setclientdvar( "r_dof_enable", "0" );
+        return;
+    }
+
+    self setclientdvar( "r_dof_enable", "1" );
+    self setclientdvar( "r_dofHDR", n_quality - 1 );
+}
+
+//  Edge-triggered, one writer, and only on change - the same contract as
+//  zmqol_fog_dvar_watch(). Writing every quarter second would fight anyone
+//  typing r_dof_enable at the console and would spend a reliable command each
+//  time.
+zmqol_dof_quality_watch()
+{
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    n_prev = getdvarintdefault( "dof_quality", 0 );
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        n_now = getdvarintdefault( "dof_quality", 0 );
+
+        if ( n_now != n_prev )
+        {
+            n_prev = n_now;
+            self zmqol_dof_apply( n_now );
+        }
+    }
+}
+
 zmqol_dof_onplayerconnect()
 {
     for ( ;; )
     {
         level waittill( "connected", player );
         player thread zmqol_dof_roundend_watch();
+        player thread zmqol_dof_connect_apply();
     }
+}
+
+//  Applied twice on purpose: once as soon as the player is connected, and again
+//  on their first spawn. The connect-time write can land before the engine has
+//  finished applying the archived config over the top, and the spawn is the
+//  first moment the value is certainly the last word. Both are one-shot.
+zmqol_dof_connect_apply()
+{
+    self endon( "disconnect" );
+
+    self zmqol_dof_apply( getdvarintdefault( "dof_quality", 0 ) );
+
+    self waittill( "spawned_player" );
+
+    self zmqol_dof_apply( getdvarintdefault( "dof_quality", 0 ) );
+    self thread zmqol_dof_quality_watch();
 }
 
 zmqol_dof_roundend_watch()
@@ -6359,7 +6582,7 @@ zmqol_help_lines()
     //  panel; .endround is new this version. Folded onto this line rather than
     //  a new one - the panel has a hard line budget, see the note above.
     a_lines[a_lines.size] = "^3.velocity ^7on/off ^8(also .vel/.speed)   ^3.round <n>^7/^3.endround";
-    a_lines[a_lines.size] = "^3.give <weapon> [pap] ^7any gun on this map ^8(.give list)";
+    a_lines[a_lines.size] = "^3.give <weapon> [pap] ^7any gun on this map   ^3.give list ^7show/hide";
     a_lines[a_lines.size] = "^3.brutus^7/^3.panzer^7/^3.jumpingjacks ^7(amount) ^8- Mob / Origins / Die Rise";
     a_lines[a_lines.size] = "^3.machines ^7drop every remaining machine ^8- Nuketown";
     a_lines[a_lines.size] = "^3.infammo ^7never run dry   ^3.infsprint ^7never tire   ^3.reload ^7refill";
@@ -6443,6 +6666,10 @@ zmqol_print_help()
         self zmqol_help_close();
         return;
     }
+
+    //  One panel at a time - the two share a HUD-element budget and the same
+    //  top-left anchor. See zmqol_give_list_toggle().
+    self zmqol_give_list_close();
 
     a_lines = zmqol_help_lines();
     self.zmqol_help_hud = [];
@@ -7510,7 +7737,7 @@ zmqol_weapon_give_table()
 
     //  keys | base weapon | upgraded weapon | display name
     a[a.size] = zmqol_give_row( "swat swat556 sig556",              "sig556_zm",      "SWAT-556" );
-    a[a.size] = zmqol_give_row( "fal falosw sa58 osw",              "sa58_zm",        "FAL OSW" );
+    a[a.size] = zmqol_give_row( "falosw sa58 osw",                  "sa58_zm",        "FAL OSW" );
     a[a.size] = zmqol_give_row( "mk48",                             "mk48_zm",        "Mk 48" );
     a[a.size] = zmqol_give_row( "qbb qbb95 lsw",                    "qbb95_zm",       "QBB LSW" );
     a[a.size] = zmqol_give_row( "mp7",                              "mp7_zm",         "MP7" );
@@ -8184,7 +8411,7 @@ zmqol_give_names_table()
     a[a.size] = zmqol_give_name_row( "evoskorpion_zm",   "skorpion",    "skorpionevo evo" );
     a[a.size] = zmqol_give_name_row( "fiveseven_zm",     "fiveseven",   "57" );
     a[a.size] = zmqol_give_name_row( "fivesevendw_zm",   "fivesevendw", "57dw dualfiveseven" );
-    a[a.size] = zmqol_give_name_row( "fnfal_zm",         "fnfal",       "" );
+    a[a.size] = zmqol_give_name_row( "fnfal_zm",         "fal",         "fnfal fn-fal" );
     a[a.size] = zmqol_give_name_row( "fnp45_zm",         "tac45",       "tac fnp45 fnp" );
     a[a.size] = zmqol_give_name_row( "frag_grenade_zm",  "frag",        "frags grenade grenades" );
     a[a.size] = zmqol_give_name_row( "freezegun_zm",     "wintershowl", "winters howl freezegun wintersfury" );
@@ -8221,7 +8448,7 @@ zmqol_give_names_table()
     a[a.size] = zmqol_give_name_row( "rnma_zm",          "rnma",        "newmodelarmy nma sassafras" );
     a[a.size] = zmqol_give_name_row( "rottweil72_zm",    "olympia",     "rottweil rottweil72" );
     a[a.size] = zmqol_give_name_row( "rpd_zm",           "rpd",         "" );
-    a[a.size] = zmqol_give_name_row( "sa58_zm",          "falosw",      "fal osw sa58" );
+    a[a.size] = zmqol_give_name_row( "sa58_zm",          "falosw",      "osw sa58 fal-osw" );
     a[a.size] = zmqol_give_name_row( "saiga12_zm",       "s12",         "saiga saiga12" );
     a[a.size] = zmqol_give_name_row( "saritch_zm",       "saritch",     "toz tozsaritch" );
     a[a.size] = zmqol_give_name_row( "scar_zm",          "scarh",       "scar" );
@@ -8291,44 +8518,64 @@ zmqol_give_show_name( str_def, a_rows )
     return "";
 }
 
-//  Prints this map's registry, eight names to a line. This is the whole point
-//  of the rewrite: the list is what the MAP has, so it is different on Origins
-//  and on the Diner and neither is written down anywhere.
-zmqol_give_print_list()
+// ============================================================================
+//  .give list  -  AN ON-SCREEN PANEL YOU TOGGLE, NOT A BURST OF CHAT   (v2.9.3)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-30: *"the .give list chat command is awkward as it lists them
+//  so fast you cant read them ... make the .give list command show all the
+//  options on screen until you turn it back off with the same command"*.
+//
+//  Their screenshot is the proof: four lines of names on screen and the header
+//  already scrolled away. iprintln() writes into the chat ring, which holds a
+//  handful of lines and ages them out - so a 90-name list on Origins could
+//  never be read, no matter how the printing was paced. The old version even
+//  had `wait 0.05` between lines to stop it outrunning the ring; that slowed
+//  the loss down without preventing it.
+//
+//  So this is modelled on .help, which the user named as the behaviour they
+//  want: a HUD panel that stays up until the same command takes it down.
+//
+//  🛑 THE HUD-ELEMENT BUDGET IS SHARED WITH .help AND IT IS REAL. See
+//  zmqol_help_lines() for the failure it caused there - a client has a fixed
+//  allowance and this mod already spends ~13 of it on permanent elements, so
+//  running two long panels at once is what silently truncated .help before.
+//  Opening either panel therefore closes the other. That also keeps them from
+//  being drawn on top of each other, since both anchor to the top-left.
+//
+//  🛑 THE TABLE IS BUILT ONCE. zmqol_give_names_table() spawns 84 structs per
+//  call and zmqol_give_show_name() needs it once per registered weapon - up to
+//  ~90 on a fully unlocked map. Building it inside the loop would spawn seven
+//  thousand structs to draw one panel.
+// ============================================================================
+zmqol_give_list_lines()
 {
-    //  Threaded and it waits, so the player can leave underneath it.
-    self endon( "disconnect" );
-    level endon( "game_ended" );
+    a_lines = [];
 
     if ( !isdefined( level.zombie_weapons ) )
     {
-        self iprintln( "^1[zm_qol] this map registered no weapons" );
-        return;
+        a_lines[a_lines.size] = "^1[zm_qol] this map registered no weapons";
+        return a_lines;
     }
 
-    a_keys = getarraykeys( level.zombie_weapons );
-    self iprintln( "^3[zm_qol] .give ^7- " + a_keys.size + " on this map, add ^3pap ^7for upgraded" );
-
-    //  Built ONCE - see the note on zmqol_give_show_name().
+    a_keys  = getarraykeys( level.zombie_weapons );
     a_named = zmqol_give_names_table();
+
+    a_lines[a_lines.size] = "^5.give ^7- " + a_keys.size + " weapons on this map   ^3.give <name> pap ^7for upgraded   ^3.give list ^7hides this";
 
     str_line = "";
     n_on_line = 0;
 
     for ( i = 0; i < a_keys.size; i++ )
     {
-        //  v2.9.0 - print the name a player would TYPE, not the engine's def.
-        //  The list used to show c96, insas, rottweil72, qcw05, as50, slowgun;
-        //  it now shows mauser, msmc, olympia, chicom, xpr50, paralyzer. Every
-        //  name printed here is a key of rule 2b, so what is on screen is
-        //  always something .give accepts - that is the contract this loop and
-        //  zmqol_give_names_table() keep between them.
+        //  The name a player would TYPE, not the engine's def - mauser, msmc,
+        //  olympia, chicom, xpr50, paralyzer. Every name shown is a key rule 2b
+        //  accepts, which is the contract this loop and zmqol_give_names_table()
+        //  keep between them.
         str_show = zmqol_give_show_name( a_keys[i], a_named );
 
         if ( str_show == "" )
         {
-            //  No row for it - fall back to the old behaviour, the def with
-            //  "_zm" trimmed, which rule 2 resolves.
+            //  No row for it - the def with "_zm" trimmed, which rule 2 resolves.
             str_show = a_keys[i];
 
             if ( str_show.size > 3 && getsubstr( str_show, str_show.size - 3, str_show.size ) == "_zm" )
@@ -8338,23 +8585,86 @@ zmqol_give_print_list()
         if ( n_on_line == 0 )
             str_line = str_show;
         else
-            str_line = str_line + " " + str_show;
+            str_line = str_line + "  " + str_show;
 
         n_on_line++;
 
+        //  Eight per line, the width the user's own screenshot proves fits.
+        //  Ten was tried and reverted before shipping: the sample in that
+        //  screenshot is all short names (semtex frag hamr rpd barrett dsr50
+        //  fnfal galil), and the registry also holds ballisticknife,
+        //  galvaknuckles, lightningstaff and raygunmk2 - ten of those would run
+        //  off the side of the screen. Eight names still fits ~90 weapons into
+        //  12 lines, inside the 14-element cap below.
         if ( n_on_line >= 8 )
         {
-            self iprintln( "^7" + str_line );
+            a_lines[a_lines.size] = "^7" + str_line;
             str_line = "";
             n_on_line = 0;
-            //  Spaced so a long map's list cannot outrun the print ring - the
-            //  same reason zmqol_give_all_perks() spaces its grants.
-            wait 0.05;
         }
     }
 
     if ( n_on_line > 0 )
-        self iprintln( "^7" + str_line );
+        a_lines[a_lines.size] = "^7" + str_line;
+
+    return a_lines;
+}
+
+zmqol_give_list_toggle()
+{
+    if ( isdefined( self.zmqol_give_list_hud ) )
+    {
+        self zmqol_give_list_close();
+        return;
+    }
+
+    //  One panel at a time - see the budget note above.
+    self zmqol_help_close();
+
+    a_lines = zmqol_give_list_lines();
+
+    //  Same hard cap and same honesty as .help: a map with an unusually long
+    //  registry drops lines ON PURPOSE and says how many, rather than running
+    //  the client out of HUD elements and vanishing.
+    n_max = 14;
+
+    if ( a_lines.size > n_max )
+    {
+        n_dropped = a_lines.size - n_max + 1;
+        a_trimmed = [];
+
+        for ( i = 0; i < n_max - 1; i++ )
+            a_trimmed[a_trimmed.size] = a_lines[i];
+
+        a_trimmed[a_trimmed.size] = "^1...and " + ( n_dropped * 8 ) + " more not shown";
+        a_lines = a_trimmed;
+    }
+
+    self.zmqol_give_list_hud = [];
+
+    for ( i = 0; i < a_lines.size; i++ )
+    {
+        e_line = self createfontstring( "small", 1.1 );
+        e_line setpoint( "TOP_LEFT", "TOP_LEFT", 8, 18 + ( i * 12 ) );
+        e_line.hidewheninmenu = 1;
+        e_line.foreground = 1;
+        e_line settext( a_lines[i] );
+        self.zmqol_give_list_hud[ self.zmqol_give_list_hud.size ] = e_line;
+    }
+}
+
+zmqol_give_list_close()
+{
+    if ( !isdefined( self.zmqol_give_list_hud ) )
+        return;
+
+    for ( i = 0; i < self.zmqol_give_list_hud.size; i++ )
+    {
+        if ( isdefined( self.zmqol_give_list_hud[i] ) )
+            self.zmqol_give_list_hud[i] destroy();
+    }
+
+    self.zmqol_give_list_hud = undefined;
 }
 
 zmqol_give_named_weapon( str_arg, b_pap )
@@ -8404,7 +8714,7 @@ zmqol_give_named_weapon( str_arg, b_pap )
 
     if ( str_arg == "list" || str_arg == "help" || str_arg == "?" )
     {
-        self thread zmqol_give_print_list();
+        self zmqol_give_list_toggle();
         return;
     }
 

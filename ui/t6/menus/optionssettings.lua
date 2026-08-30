@@ -780,6 +780,11 @@ CoD.OptionsSettings.QolDofCallback = function (DofChoice)
 		return
 	end
 	Engine.SetDvar("dof_quality", DofChoice.value)
+	-- zm_qol v2.9.3: r_dof_tweak is documented by Plutonium as "overrides
+	-- r_dof_enable", so a DISABLED that leaves it set is not a disable.
+	-- Cleared here as well as in quality_of_life.gsc's zmqol_dof_apply(),
+	-- so the row still applies instantly without waiting for a respawn.
+	Engine.SetDvar("r_dof_tweak", 0)
 	Engine.SetDvar("r_dof_enable", Setting.enable)
 	if Setting.hdr ~= nil then
 		Engine.SetDvar("r_dofHDR", Setting.hdr)
