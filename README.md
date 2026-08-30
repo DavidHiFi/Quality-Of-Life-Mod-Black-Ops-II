@@ -42,7 +42,7 @@ and an in-game menu to switch any of it on or off.
 Not lookalikes — the real weapons, brought across from Black Ops 1.<br>
 They come out of the mystery box, one player can carry each, and all three Pack-a-Punch.
 
-<sub>On TranZit, Nuketown, Die Rise and Mob of the Dead. Not on Buried or Origins yet.</sub>
+<sub>On TranZit, Nuketown, Die Rise and Mob of the Dead — Buried and Origins keep their own.</sub>
 
 </div>
 
