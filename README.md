@@ -39,10 +39,10 @@ and an in-game menu to switch any of it on or off.
 
 ### Thundergun · Wunderwaffe DG-2 · Winter's Howl
 
-Not lookalikes — the real weapons, brought across from Black Ops 1.<br>
-They come out of the mystery box, one player can carry each, and all three Pack-a-Punch.
+Ported over from Black Ops 1 — the real guns, not remakes.<br>
+They come out of the mystery box, only one player can hold each, and all three Pack-a-Punch.
 
-<sub>On TranZit, Nuketown, Die Rise and Mob of the Dead — Buried and Origins keep their own.</sub>
+<sub>On TranZit, Nuketown, Die Rise and Mob of the Dead. Buried and Origins already have the Paralyzer and the staffs.</sub>
 
 </div>
 
@@ -56,35 +56,35 @@ They come out of the mystery box, one player can carry each, and all three Pack-
 
 |  |  |
 |---|---|
-| **Every gun, every map** | The full roster everywhere, plus Pack-a-Punch on the maps that never had it. |
-| **All 12 perks** | On every map that can physically take them, with Wunderfizz everywhere. |
+| **Every gun, every map** | Nothing is locked to one map any more, and Pack-a-Punch works on the maps that never had it. |
+| **All 12 perks** | On every map with room for them, and Wunderfizz on every one of them. |
 | **12 more guns in the box** | Multiplayer and campaign weapons with real models, animations and audio — SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6 and Tac-45. |
 | **Diner as a Survival map** | The TranZit location Treyarch built and never shipped, with its own Pack-a-Punch, wall buys, buildable shield and secret song. |
-| **The Death Machine** | A power-up drop, with the announcer lines to match. |
-| **A menu for all of it** | Four tabs in Options, and near enough every change is a switch you can turn off. |
+| **The Death Machine** | A new power-up drop, announcer lines and all. |
+| **A menu for all of it** | Four tabs in the options menu. Almost everything here is a switch you can turn back off. |
 
 <details>
 <summary><b>The full list</b></summary>
 
 <br>
 
-**Weapons** — no box limits, so duplicates are allowed and both Ray Guns can be in play at once.
-The M16 is in the box on every map. The Pack-a-Punched crossbow, the Awful Lawton, pulls zombies
-to wherever its bolts stick, the way it did in Black Ops 1. The Tac-45 goes dual-wield when
-Pack-a-Punched.
+**Weapons** — the box has no limits, so duplicates are allowed and both Ray Guns can be out at
+once. The M16 is in the box on every map. The Pack-a-Punched crossbow — the Awful Lawton — pulls
+zombies towards wherever its bolts land, the way it did in Black Ops 1. The Tac-45 goes dual-wield
+when Pack-a-Punched.
 
-**Perks** — a **PERK LIMIT** row in the lobby lets you hold everything the map offers, or cap it
+**Perks** — a **PERK LIMIT** setting in the lobby lets you carry every perk the map has, or cap it
 anywhere from 1 to 12. Who's Who hands you a Pack-a-Punched ballistic knife so you can revive your
 own body from range.
 
-**Power-ups** — Blood Money on every map, Zombie Blood taken off Origins and given to the others,
-an Instant Nuke that kills everything at once instead of staggering, and three announcer lines
-Treyarch recorded and never used.
+**Power-ups** — Blood Money on every map, Zombie Blood on the other maps and not just Origins, an
+Instant Nuke that kills the whole horde at once instead of one zombie at a time, and three
+announcer lines Treyarch recorded and never used.
 
 **Maps** — Nuketown's sunken perk-drop pad is fixed, and the lobby can airlift every machine in at
 match start instead of making you wait until round 26. Die Rise gets the Sliquifier's pre-nerf
-behaviour as a switch, and a Semtex wall buy. The scoreboard and loading screen name where you
-actually are — "Survival - Diner", not "Survival - Green Run".
+behaviour as a switch, and a Semtex wall buy. The scoreboard and loading screen show where you are
+actually playing — "Survival - Diner" instead of "Survival - Green Run".
 
 **HUD** — hitmarkers with a choice of eight sound sets, plus crit and squad-downed alerts. Round
 summary, timers, health and bleedout bars, zombies remaining, zone names, compass, velocity meter,
@@ -92,9 +92,9 @@ perk pop-ups, power-up timers, and a Cold War round counter that can sit top-rig
 
 **Menus** — instant match start with no lobby countdown, and the intro cutscenes play again.
 **INSTANT EXIT** and **QUIT TO DESKTOP** on the pause menu. Night Mode, Fog and Higher Draw
-Distance on the game's own ADVANCED tab, plus a **DISABLED** step for Depth Of Field that base
-Black Ops II never gave you. In the lobby: pick your character, set minimum players, and choose
-when Nuketown's machines arrive.
+Distance on the game's own ADVANCED tab, plus a way to turn Depth Of Field off completely, which
+the base game never let you do. In the lobby: pick your character, set the minimum player count,
+and choose when Nuketown's machines arrive.
 
 **Everything else** — instant Pack-a-Punch, BO4 Max Ammo, wall buys that refill your magazine, the
 high-round fix, the galaxy animated Pack-a-Punch camo, +100 points for going prone at a perk
@@ -110,7 +110,7 @@ round delay, walkers, Speed Cola and perma-perks. Your settings are remembered b
 <br>
 
 Every command works with `.`, `!` or `/`, and any of them can be bound to a key.
-Type **`.help`** in game for the live list — it is always current, this is not.
+Type **`.help`** in game for the full list — that one is always up to date, this one might not be.
 
 ```
 .help                    show / hide the command list
@@ -147,12 +147,13 @@ it works the same as any other Plutonium mod.
 
 <br>
 
-Optional HD texture and custom sound packs, fetched on request — they are separate downloads on the
-release page because of their size. Controller icons for PlayStation 5, Nintendo Switch or Xbox One.
-ReShade, with a curated shader set and a *Cinematic Colour Grading* preset. A one-click **Play now
-(LAN)** shortcut that boots straight into Zombies with the mod loaded. Backups of your own textures,
-sounds and settings, restorable at any time. And an uninstaller that removes all of it or one piece
-at a time, touching only what it put there.
+- **HD texture and custom sound packs** — both optional, and only downloaded if you ask for them.
+  They are separate files on the release page because of their size.
+- **Controller icons** for PlayStation 5, Nintendo Switch or Xbox One.
+- **ReShade**, with a curated set of shaders and a *Cinematic Colour Grading* preset.
+- **Play now (LAN)** — one click straight into Zombies with the mod already loaded.
+- **Backups** of your own textures, sounds and settings, restorable at any time.
+- **An uninstaller** that removes all of it or one piece at a time, and only touches what it put there.
 
 > [!IMPORTANT]
 > **Plutonium deletes ReShade every time it starts.** It clears anything it does not recognise out
@@ -196,13 +197,13 @@ The rough edges, kept in the open. None of this is buried in the release notes.
 | Issue | Detail |
 |---|---|
 | **Launch-day recoil is not applied** | The mod ships pre-nerf recoil for the guns Treyarch nerfed after release, but it never reaches the game — most of the files sit in a folder Plutonium does not read, and the two that are in the right place are past the size the loader accepts. The guns work fine; they just use their patched recoil. |
-| **Some gun sounds come from the mod, not your sound pack** | 15 of them, the AK-47, M16, MP40, MP5K, MP7, Olympia, FAL OSW, SVU, Thompson and Type 95 among them. Their sounds are missing from at least one map's audio bank, so the mod has to supply them or the gun is silent there. Any one can be handed back, at the cost of that gun going silent on the maps that lack it. |
-| **Who's Who clone glow only draws on TranZit and Die Rise** | Both use real, unmodified stock assets. The other four maps are each blocked for a measured reason — Nuketown's and Mob's character models have no glow-capable material anywhere in the game, Origins' has neither that nor a spare clientfield bit, and Buried's is full. Nothing fake is built to paper over it. |
-| **Who's Who is stock on Origins and Mob of the Dead** | Neither map ships a single ballistic-knife asset, where every map that has the feature does. Porting the set across is possible but has not been attempted. |
-| **Deadshot Daiquiri's head lock-on is unconfirmed on controller** | The fix has been checked line by line against the game's own handler and matches it. What is missing is a gamepad actually on it. |
-| **The Diner claymore wall buy has no purchase prompt** | Its position is confirmed correct by an in-game measurement. The missing prompt is a separate, newer bug. |
-| **Mob of the Dead's starting-weapon row is not shipped** | The snub-nose Python it needs exists in no game file. |
-| **Winter's Howl does not freeze and shatter** | The animation data is not linked into the mod, so the gun kills without freezing anything. |
+| **Some gun sounds come from the mod, not your sound pack** | Fifteen guns, including the AK-47, M16, MP40, MP5K, MP7, Olympia, FAL OSW, SVU, Thompson and Type 95. Their sounds are missing from at least one map's audio bank, so the mod has to provide them or the gun is silent there. Any of them can be handed back to your pack, but that gun then goes quiet on the maps the sound is missing from. |
+| **Who's Who: your downed body only glows on TranZit and Die Rise** | Those two use the game's own assets, untouched. The other four are each blocked for a reason that was measured rather than guessed — Nuketown's and Mob's character models have no material that can glow anywhere in the game, and Origins and Buried have no room left to add the effect. Rather than fake it with a lookalike, it is left off. |
+| **Who's Who gives you no ballistic knife on Origins or Mob of the Dead** | The revive-your-own-body trick needs that knife, and neither map contains any part of it. Bringing it over from another map is possible, but has not been attempted. |
+| **Deadshot Daiquiri's head lock-on is unconfirmed on controller** | The fix has been checked line by line against the game's own code and matches it. It simply has not been tested with a controller yet. |
+| **The Diner claymore wall buy shows no prompt** | It is in the right place — that was measured in game — but nothing comes up when you look at it. That is a separate, newer bug. |
+| **You cannot pick a starting weapon on Mob of the Dead** | The snub-nose Python it would need is not in any of the game's files. |
+| **Winter's Howl does not freeze and shatter** | The animation data never made it into the mod, so the gun kills without freezing anything first. |
 
 </details>
 
@@ -217,9 +218,9 @@ The rough edges, kept in the open. None of this is buried in the release notes.
 | **sehteria** — *T6-ZM-Expanded* | The mod this one grew out of. Most of the original scripts came from here: BO4 Max Ammo, instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers, the area notifier, the Cold War round HUD and secret song survival. |
 | **SadSlothXL** | The Death Machine power-up — the drop, the weapon swap and its sounds. |
 | **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | Diner as a Survival location, and the extra gamemodes. Treyarch left the data in the game files and never shipped it; Reimagined is the implementation that works. |
-| **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The Die Rise weapons work — the Sliquifier's pre-nerf behaviour and the Semtex wall buy, position and angles value for value. |
+| **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The Die Rise weapon changes — the Sliquifier's pre-nerf behaviour, and the Semtex wall buy down to its exact position and angle. |
 | **Fraaagaaa** — [Strat Tester](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the teleport list. |
-| **B2ORG** — [T6-B2OP-PATCH](https://github.com/B2ORG/T6-B2OP-PATCH)<br><sub>built with **Astrox** and **NoMoleMan**</sub> | The reference for most of the patches — the network frame fix, the backspeed values, the 24-zombie solo cap, instakill rounds, Double Tap 1.0 and barrier attacks. Used as a reference and re-derived against the game's own scripts, never copied wholesale. |
+| **B2ORG** — [T6-B2OP-PATCH](https://github.com/B2ORG/T6-B2OP-PATCH)<br><sub>built with **Astrox** and **NoMoleMan**</sub> | The basis for most of the patches — the network frame fix, the backspeed values, the 24-zombie solo cap, instakill rounds, Double Tap 1.0 and barrier attacks. Used as a reference and rebuilt against the game's own scripts, not copied wholesale. |
 | **MOTD Galaxy Camo Animated**<br><sub>community texture pack, no author named in the download</sub> | The three textures behind the animated Pack-a-Punch camo. |
 
 > ### Did we miss you?
@@ -234,11 +235,11 @@ The rough edges, kept in the open. None of this is buried in the release notes.
 
 <br>
 
-Built on [**Plutonium**](https://plutonium.pw). **OpenAssetTools** links the mod's fastfile and
-reads the stock game's; **gsc-tool** by **xensik** parse-checks every script before a build. The
-**T6-Data-Archive** clientfield dumps made this mod's bit budgets something to measure instead of
-guess, and Treyarch's own script dumps are read constantly so the mod matches vanilla behaviour
-rather than reinventing it.
+Built on [**Plutonium**](https://plutonium.pw). **OpenAssetTools** builds the mod's asset file and
+reads the game's originals; **gsc-tool** by **xensik** checks every script for errors before a build. The
+**T6-Data-Archive** dumps meant the tight limits this mod works inside could be measured rather
+than guessed at, and Treyarch's own scripts are read constantly so the mod matches how the game
+really behaves instead of reinventing it.
 
 The optional ReShade install ships work by **crosire** ([ReShade](https://reshade.me)),
 **Barbatos Bachiko**, **Alex Tuduran**, **Marot Satil** and the **GShade** project, **Ioxa**,
