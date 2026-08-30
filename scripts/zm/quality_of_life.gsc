@@ -1583,8 +1583,17 @@ get_pack_a_punch_weapon_options( weapon )
         //  silently kept the wrong stock default. The comment below claiming
         //  "Master OFF = camo 39 everywhere = exact stock" was itself wrong for
         //  this exact reason - fixed here, not just the behaviour.
+        //
+        //  v2.9.8 - 44, not stock's 45. Measured 2026-08-30: index 45 is slot 13,
+        //  which is EMPTY in every Origins camo asset (only camo_stg44 even has a
+        //  13th entry, and it is blank) - so "exactly stock" renders NO camo at
+        //  all with the option off. Index 44 is slot 12 = mtl_weapon_camo_3layer,
+        //  Origins' own blue etched camo, which is what the user actually asked
+        //  for on 2026-08-28 ("origins should show its own blue camo"). Every
+        //  camo asset mod.ff owns was audited 2026-08-30: slot 12 is live on all
+        //  63, so no gun can come out blank.
         else
-            camo_index = 45;
+            camo_index = 44;
     }
     lens_index = randomintrange( 0, 6 );
     reticle_index = randomintrange( 0, 16 );
@@ -4036,6 +4045,48 @@ prone_bonus_try_award()
         self maps\mp\zombies\_zm_score::add_to_player_score( 100 );
         self playsound( "zmb_cha_ching" );
         return;
+    }
+
+    //  v2.9.8 PROBE, Mob only - queue item 2: "prone at Mob's Electric Cherry
+    //  gives no +100". Offline the cherry trigger is indistinguishable from the
+    //  machines that DO pay (struct "zclassic_perks_prison" -> stock
+    //  perk_machine_spawn_init -> targetname "zombie_vending", noteworthy
+    //  "specialty_grenadepulldeath"), so per ERROR_CATALOGUE discipline this
+    //  ships a measurement, not a guess. Log-only, throttled to one line per
+    //  5s of fruitless proning, prints the nearest vending trigger and its
+    //  distance so the next Mob boot names the actual failure point.
+    if ( isdefined( level.script ) && level.script == "zm_prison" )
+    {
+        now = gettime();
+        if ( !isdefined( self.zmqol_prone_probe_t ) || now - self.zmqol_prone_probe_t > 5000 )
+        {
+            self.zmqol_prone_probe_t = now;
+            best = undefined;
+            best_d = 999999;
+            for ( i = 0; i < trigs.size; i++ )
+            {
+                if ( !isdefined( trigs[i] ) || !isdefined( trigs[i].origin ) )
+                    continue;
+                d = distance( self.origin, trigs[i].origin );
+                if ( d < best_d )
+                {
+                    best_d = d;
+                    best = trigs[i];
+                }
+            }
+            if ( isdefined( best ) )
+            {
+                nw = "none";
+                if ( isdefined( best.script_noteworthy ) )
+                    nw = best.script_noteworthy;
+                paid = 0;
+                if ( isdefined( best.zmqol_prone_paid ) )
+                    paid = 1;
+                println( "[zm_qol] PRONE PROBE: trigs=" + trigs.size + " nearest=" + nw + " dist=" + int( best_d ) + " paid=" + paid );
+            }
+            else
+                println( "[zm_qol] PRONE PROBE: no zombie_vending triggers exist" );
+        }
     }
 }
 
