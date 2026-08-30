@@ -2,16 +2,24 @@
 //  bouncingbetty.gsc  -  THE MP BOUNCING BETTY, PORTED INTO ZOMBIES   (v2.9.9)
 //
 //  User directive 2026-08-30 (task 4): the multiplayer Bouncing Betty in the
-//  mystery box, occupying the placed-equipment slot the way it does in MP.
+//  mystery box. Revised the same night: **a pure ADDITION - it replaces
+//  nothing.** ("the bouncing betty needs to be an addition, not a
+//  replacement... claymores need to be the same as usual.")
 //
-//  📝 It lands in the PLACEABLE-MINE slot - the exact slot zombies' own
-//  claymores use (actionslot 4, set_player_placeable_mine, planted with the
-//  mine button). That IS the zombies equivalent of MP's lethal slot for a
-//  planted mine: stock's weapon_give already swaps mines for each other, so
-//  buying betties hands back your claymores and vice versa, exactly like MP's
-//  one-lethal-at-a-time. Frag/semtex stay untouched - registering a PLANTED
-//  mine as a THROWN lethal would put it through the cook-and-throw code path,
-//  which is wrong in the hand and wrong in the def.
+//  📝 HOW IT COEXISTS WITH EVERYTHING, each point measured:
+//    - It is deliberately NOT registered with
+//      register_placeable_mine_for_level: that registry is what makes
+//      weapon_give's is_placeable_mine branch take your claymores away
+//      (one-mine-at-a-time). Claymores keep their slot, their D-pad 4 bind
+//      and their ammo, untouched.
+//    - The give goes through stock's own per-weapon hook,
+//      level.zombie_weapons_callbacks (_zm_weapons.gsc:2448) - the
+//      data-driven form of the hardcoded claymore_zm case right above it -
+//      so the generic give path never runs for this weapon at all.
+//    - Betties bind to D-pad 2, measured free (stock ZM uses only 1 and 4).
+//    - Your guns are safe by stock's own rules regardless: the def is
+//      inventoryType "item", so weapon_give's at-limit takeweapon sits inside
+//      `if ( !is_offhand_weapon( weapon ) )` and can never fire for it.
 //
 //  Every mechanism below is a measured clone, not a design:
 //    - the plant/watch flow is stock's _zm_weap_claymore::claymore_watch/
@@ -65,16 +73,29 @@ init()
     level.zmqol_betty_activation_delay = 0.1;
     level.zmqol_betty_max_per_player = 12;
 
-    //  Box registration - the same pair every ported gun uses. weapon_give's
-    //  own is_placeable_mine branch then handles the slot swap with claymores.
-    //  Stock's own mine registrar - this is what makes weapon_give's
-    //  is_placeable_mine branch swap it with claymores, one mine type at a time.
-    maps\mp\zombies\_zm_utility::register_placeable_mine_for_level( "bouncingbetty_zm" );
+    //  🛑 v2.9.10 - PURE ADDITION, NOTHING REPLACED. The give runs through
+    //  stock's zombie_weapons_callbacks hook instead of the mine registry;
+    //  see the banner for the whole safety argument.
+    if ( !isdefined( level.zombie_weapons_callbacks ) )
+        level.zombie_weapons_callbacks = [];
+
+    level.zombie_weapons_callbacks["bouncingbetty_zm"] = ::zmqol_betty_setup;
 
     include_weapon( "bouncingbetty_zm" );
     add_zombie_weapon( "bouncingbetty_zm", undefined, &"ZMWEAPON_BOUNCINGBETTY", 1000, "", "", undefined );
 
     level thread zmqol_betty_onplayerconnect();
+}
+
+//  The give itself - claymore_setup minus the two lines that make claymores
+//  exclusive (set_player_placeable_mine and actionslot 4). Runs as the
+//  zombie_weapons_callbacks hook, threaded on the PLAYER by weapon_give, which
+//  also plays the weapon vo and returns before the generic give.
+zmqol_betty_setup()
+{
+    self giveweapon( "bouncingbetty_zm" );
+    self setactionslot( 2, "weapon", "bouncingbetty_zm" );
+    self setweaponammostock( "bouncingbetty_zm", 2 );
 }
 
 zmqol_betty_onplayerconnect()
