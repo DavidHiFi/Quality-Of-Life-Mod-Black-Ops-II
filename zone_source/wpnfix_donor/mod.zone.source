@@ -1,7 +1,7 @@
 // ============================================================================
 //  zm_qol wpnfix donor  -  built by build_wpnfix.bat, loaded FIRST by build_ff.
 //
-//  Sole purpose: supply the 1911/C96 weapon defs from RETAIL instead of from
+//  Sole purpose: supply the 1911 weapon defs from RETAIL instead of from
 //  zone_source\base\mod.ff. The donor's copies name fire aliases that exist
 //  nowhere in BO2 (wpn_m1911_*, wpn_mc96_*), so the guns were silent; retail's
 //  copies name wpn_1911_*, which every map bank declares and which the user's
@@ -13,4 +13,16 @@
 weapon,m1911_zm
 weapon,m1911_upgraded_zm
 weapon,m1911lh_upgraded_zm
-weapon,c96_zm
+
+//  v2.8.9 - c96_zm IS DELIBERATELY NOT HERE. User report 2026-08-30: the Mauser
+//  has the wrong shooting sound on every map except Origins. Retail's c96_zm asks
+//  for wpn_1911_fire_plr, and that alias is MAP-DEPENDENT: zmb_tomb points it at
+//  wpn_mauser_fire, every other map bank points it at wpn_fnp45_fire_plr - the
+//  M1911's shot. Treyarch could share the name because retail never lets the
+//  Mauser leave Origins; this mod does. So the fix is the opposite of the 1911's:
+//  let zone_source\base\mod.ff keep supplying c96_zm, whose fire aliases are the
+//  UNSHARED wpn_mc96_fire_{plr,npc}, and declare that family in mod.all. Measured:
+//  the donor's c96_zm differs from retail's in exactly 2 of 2055 fields (the two
+//  fire aliases), and its 11-row wpn_mc96_* chain is a rename of retail Origins'
+//  wpn_1911_* chain - same payloads, same secondary wiring. No stock bank declares
+//  any wpn_mc96_* name, so nothing is shadowed.
