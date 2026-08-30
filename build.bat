@@ -64,6 +64,36 @@ for %%I in ("%~dp0..") do set "ROOT=%%~fI"
 set "BUILD_DIR=%ROOT%\build\%MOD_NAME%"
 set "PLUTO_DIR=%LOCALAPPDATA%\Plutonium\storage\t6\mods\%MOD_NAME%"
 
+set "PROJ_DIR0=%~dp0"
+REM --- PRE-FLIGHT: raw weapon files must stay under 20,480 bytes ---------------
+REM  Plutonium's runtime loader reads a raw weapons\zm\ file into a fixed buffer
+REM  and REFUSES anything at or above 20480 bytes (0x5000). The failure is a one-
+REM  line 'Failed to load weapon X' in console_zm.log and NOTHING else - until a
+REM  client script include_weapon()s that name for the box, at which point
+REM  addzombieboxweapon() looks up a model on a weapon def that does not exist and
+REM  the game takes an access violation mid-load. That is the Origins crash of
+REM  2026-08-30 (saiga12qol_zm at 20,642 bytes).
+REM
+REM  Measured, not assumed: on that boot 47 files up to 20,380 bytes loaded and
+REM  every file from 20,494 up failed, with no counterexample; and BO2-Reimagined
+REM  ships 208 raw weapon files whose largest is 20,475 - five bytes under.
+REM
+REM  The six names below are over the limit ON PURPOSE. They have never loaded and
+REM  that is harmless: every map that puts those guns in the box supplies its own
+REM  def from its own fastfile (verified against zm_transit/highrise/buried/nuked/
+REM  prison/tomb .ff), so the mod's copy is never the only source. Making them load
+REM  would give the mod's copy ownership instead - an unverified behaviour change,
+REM  not a fix.
+REM
+REM  If a NEW name shows up here, trim it rather than adding it to the list: the
+REM  24 attachWorldModelOffset{Pitch,Yaw,Roll}1-8 fields are '0' on every gun in
+REM  this project, Reimagined's own working files omit them, and dropping them
+REM  saves exactly 720 bytes.
+set "WPN_OK=dsr50_zm dsr50_upgraded_zm fiveseven_zm fiveseven_upgraded_zm jetgun_zm jetgun_upgraded_zm"
+echo [0/6] Pre-flight: raw weapon file size ceiling (20480 bytes)...
+"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$d=Join-Path $env:PROJ_DIR0 'weapons\zm'; if(-not (Test-Path -LiteralPath $d)){ Write-Host '    [skip] no weapons\zm folder'; exit 0 }; $ok=$env:WPN_OK -split ' '; $bad=@(); Get-ChildItem -LiteralPath $d -File | ForEach-Object { if($_.Length -ge 20480){ if($ok -contains $_.Name){ Write-Host ('    [known] ' + $_.Name + ' ' + $_.Length + ' B - over the limit on purpose, the map supplies its own') } else { $bad += ($_.Name + ' ' + $_.Length + ' B'); Write-Host ('    [OVER]  ' + $_.Name + ' ' + $_.Length + ' B') } } }; if($bad.Count -gt 0){ Write-Host ''; Write-Host '    This weapon will NOT load and will crash the game if a .csc include_weapon()s'; Write-Host '    it for the box. Trim it below 20480 before building.'; exit 1 }; Write-Host '    [ok] every raw weapon file is under the ceiling'"
+if errorlevel 1 goto wpnfail
+
 echo [1/6] Syncing zone_assets\images -^> images (runtime pixel data)...
 REM  T6 keeps image PIXEL DATA in a loose .iwi, not in the fastfile. mod.ff only
 REM  carries the material and an image header. An image that is linked but whose
@@ -232,6 +262,14 @@ exit /b 0
 color C
 echo.
 echo   FAILED to pack mod.iwd (see the PowerShell error above).
+pause
+exit /b 1
+
+:wpnfail
+echo.
+echo   BUILD STOPPED: a raw weapon file is at or over the 20480-byte ceiling.
+echo   Drop its 24 attachWorldModelOffset{Pitch,Yaw,Roll}1-8 fields (all '0') to
+echo   save 720 bytes, then build again.
 pause
 exit /b 1
 
