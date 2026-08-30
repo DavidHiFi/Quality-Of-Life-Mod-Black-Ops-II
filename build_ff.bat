@@ -439,6 +439,7 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\monsoon.ff" ^
   --load "%BO2_DIR%\zone\all\code_post_gfx.ff" ^
   --load "%PROJ%\zone_source\fx_donor\mod.ff" ^
+  --load "%BO2_DIR%\zone\all\nicaragua.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^

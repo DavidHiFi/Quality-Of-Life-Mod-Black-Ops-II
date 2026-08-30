@@ -151,6 +151,11 @@ zmqol_mp_weapons_init()
 	if ( !b_tomb )
 		clientscripts\mp\zombies\_zm_weapons::include_weapon( "as50_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "titus6_zm" );
+	//  v2.9.9 - the campaign Dragunov (user task 1). Raw def in mod.iwd, so the
+	//  def exists on EVERY map - the as50/Origins crash class (ERROR_CATALOGUE
+	//  paragraph 37) cannot apply and no map gate is needed.
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "dragunov_zm" );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "bouncingbetty_zm" );
 
 	// their upgraded halves - included, but never a box result
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sig556_upgraded_zm", 0 );
@@ -162,6 +167,7 @@ zmqol_mp_weapons_init()
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "insas_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "peacekeeper_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "crossbow_upgraded_zm", 0 );
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "dragunov_upgraded_zm", 0 );
 	if ( !b_tomb )
 		clientscripts\mp\zombies\_zm_weapons::include_weapon( "as50_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "titus6_upgraded_zm", 0 );

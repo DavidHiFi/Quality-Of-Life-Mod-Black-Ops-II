@@ -29,6 +29,17 @@ main()
     replaceFunc( maps\mp\zm_transit_lava::zombie_exploding_death, ::zombie_exploding_death );
     replaceFunc( maps\mp\zm_transit_lava::lava_damage_init, ::qol_lava_damage_init );
 
+    //  v2.9.9 - JET GUN AS A REAL WEAPON, part 2 of the give routing (part 1 is
+    //  the onbought hook in zmqol_jetgun_real_slot()). This catches every OTHER
+    //  route that would hand the jet gun out as equipment: _zm_weapons::
+    //  weapon_give() calls equipment_give QUALIFIED at :2344 (so .give and any
+    //  scripted give land here), and so does the wallbuy path at :2080. The
+    //  crafting-table claim does NOT reach equipment_give through a catchable
+    //  call (equipment_buy calls it unqualified, same file - replaceFunc
+    //  failure mode 1), which is exactly why the claim is intercepted at the
+    //  buildable's own .onbought hook instead, one level higher.
+    replaceFunc( maps\mp\zombies\_zm_equipment::equipment_give, ::zmqol_equipment_give );
+
     // --- custom survival start locations: adds Diner, Power Station, Tunnel, Cornfield ---
     // Map-specific, so it lives here and not in quality_of_life.gsc (AI_CONTEXT rule 2).
     replaceFunc( maps\mp\zm_transit_gamemodes::init, scripts\zm\replaced\zm_transit_gamemodes::init );
@@ -205,6 +216,150 @@ init()
     added_weapons();
 
     level thread zmqol_jetgun_never_breaks();
+    level thread zmqol_jetgun_real_slot();
+}
+
+// ============================================================================
+//  JET GUN IN A REAL WEAPON SLOT                                    (v2.9.9)
+// ----------------------------------------------------------------------------
+//  User directive 2026-08-30 (task 3): move the jet gun out of the equipment
+//  slot into a standard weapon slot, never breaks, keep the heat mechanic.
+//
+//  WHAT "EQUIPMENT SLOT" ACTUALLY IS, measured: the jet gun's def is
+//  inventoryType "item", and _zm_equipment::equipment_give() adds the
+//  bookkeeping - set_player_equipment, the one-equipment-at-a-time
+//  equipment_take() (which is why claiming the jet gun costs you your shield
+//  and building a shield costs you the jet gun), clip forced to 1, and the
+//  drop/placed-item lifecycle.
+//
+//  THE CHANGE, in three coordinated pieces:
+//    1. weapons\zm\jetgun_zm / jetgun_upgraded_zm: inventoryType item ->
+//       primary, now UNDER the 20,480 raw-loader ceiling (they were over it
+//       and never loaded - ERROR_CATALOGUE §36; that also means the v1.99.23
+//       Paralyzer-cooldown fields in them have never applied either, and both
+//       land together the first time the trimmed defs load).
+//    2. The crafting-table claim: level.zombie_include_buildables["jetgun_zm"]
+//       .onbought - stock's own per-buildable hook (_zm_buildables.gsc:2140),
+//       which REPLACES the whole equipment_buy branch when set. The claim now
+//       gives the gun as a normal weapon: full clip, no equipment bookkeeping,
+//       so the shield and the jet gun coexist.
+//    3. Every other give route: the equipment_give replaceFunc in main().
+//
+//  WHAT IS DELIBERATELY UNTOUCHED, because it keys on the unchanged name
+//  "jetgun_zm": watch_overheat / wait_for_jetgun_fired / the whole firing,
+//  drag, gib and grind logic, and every client-side fx in _zm_weap_jetgun.csc
+//  (all of it tests currentweapon == "jetgun_zm" - a renamed weapon would have
+//  lost the vortex and power-cell effects, which is why no qol-copy def is
+//  used here).
+//
+//  NEVER BREAKS is already live (v1.99.23, the three flags above). Heat is the
+//  def's own engine mechanic (overheatWeapon 1) and survives untouched.
+//
+//  🛑 HONEST GATE, stated: whether a raw weapons\zm\ def OVERRIDES the copy
+//  zm_transit.ff supplies is still unproven (the DSR 50 in v2.9.8 is the same
+//  experiment). If the map's def wins, inventoryType stays "item": the gun
+//  then still never breaks, still keeps its heat, and still coexists with the
+//  shield (that half is pure script), but it selects via the D-pad slot the
+//  way stock did instead of cycling with your guns. The claim path below works
+//  identically under either outcome - giveweapon + setactionslot behave for
+//  both inventory types.
+// ============================================================================
+zmqol_jetgun_real_slot()
+{
+    if ( level.script != "zm_transit" )
+        return;
+
+    //  The buildable structs are created during the map's own init, after this
+    //  mod's main()/init() - poll until the jet gun's struct exists. Same
+    //  deferred-hook pattern as zmqol_jetgun_never_breaks() above; a claim
+    //  cannot physically happen for minutes, so there is no race window.
+    for ( i = 0; i < 1200; i++ )
+    {
+        if ( isdefined( level.zombie_include_buildables ) && isdefined( level.zombie_include_buildables["jetgun_zm"] ) )
+        {
+            level.zombie_include_buildables["jetgun_zm"].onbought = ::zmqol_jetgun_claimed;
+            println( "[zm_qol] jetgun: real-slot claim hook armed (onbought)" );
+            return;
+        }
+        wait 0.5;
+    }
+}
+
+//  The crafting-table claim. self = the buildable's unitrigger (stock calls
+//  `self [[ onbought ]]( player )`), so self.stub.* is available exactly as it
+//  is in stock's own else-branch, and the hint/cursor cleanup below mirrors
+//  that branch line for line (_zm_buildables.gsc:2144-2163) so the table stops
+//  prompting once claimed.
+zmqol_jetgun_claimed( player )
+{
+    if ( !isdefined( player ) || player hasweapon( "jetgun_zm" ) )
+        return;
+
+    player giveweapon( "jetgun_zm" );
+    player setweaponammoclip( "jetgun_zm", weaponclipsize( "jetgun_zm" ) );
+    //  Stock binds every claimed buildable weapon to D-pad slot 1; with the
+    //  primary-slot def this is redundant but harmless, and with the map's
+    //  own "item" def it is what makes the gun selectable at all.
+    player setactionslot( 1, "weapon", "jetgun_zm" );
+    player switchtoweapon( "jetgun_zm" );
+
+    self.stub.cursor_hint = "HINT_NOICON";
+    self.stub.cursor_hint_weapon = undefined;
+    self setcursorhint( self.stub.cursor_hint );
+
+    if ( isdefined( level.zombie_buildables["jetgun_zm"].bought ) )
+        self.stub.hint_string = level.zombie_buildables["jetgun_zm"].bought;
+    else
+        self.stub.hint_string = "";
+
+    self sethintstring( self.stub.hint_string );
+    player maps\mp\zombies\_zm_buildables::track_buildables_pickedup( "jetgun_zm" );
+}
+
+//  Stock _zm_equipment::equipment_give() with ONE added branch at the top.
+//  The body below the branch is stock's, verbatim (_zm_equipment.gsc:247-277),
+//  with the same-file helper calls qualified so they resolve from this file -
+//  behaviour for the shield and every other piece of equipment is unchanged.
+zmqol_equipment_give( equipment )
+{
+    if ( !isdefined( equipment ) )
+        return;
+
+    //  --- the jet gun is a weapon now, not equipment ---
+    if ( equipment == "jetgun_zm" )
+    {
+        if ( self hasweapon( "jetgun_zm" ) )
+            return;
+
+        self giveweapon( "jetgun_zm" );
+        self setweaponammoclip( "jetgun_zm", weaponclipsize( "jetgun_zm" ) );
+        self setactionslot( 1, "weapon", "jetgun_zm" );
+        return;
+    }
+
+    //  --- stock body, verbatim ---
+    if ( !isdefined( level.zombie_equipment[equipment] ) )
+        return;
+
+    if ( self maps\mp\zombies\_zm_utility::has_player_equipment( equipment ) )
+        return;
+
+    curr_weapon = self getcurrentweapon();
+    curr_weapon_was_curr_equipment = self maps\mp\zombies\_zm_utility::is_player_equipment( curr_weapon );
+    self maps\mp\zombies\_zm_equipment::equipment_take();
+    self maps\mp\zombies\_zm_utility::set_player_equipment( equipment );
+    self giveweapon( equipment );
+    self setweaponammoclip( equipment, 1 );
+    self thread maps\mp\zombies\_zm_equipment::show_equipment_hint( equipment );
+    self notify( equipment + "_given" );
+    self maps\mp\zombies\_zm_equipment::set_equipment_invisibility_to_player( equipment, 1 );
+    self setactionslot( 1, "weapon", equipment );
+
+    if ( isdefined( level.zombie_equipment[equipment].watcher_thread ) )
+        self thread [[ level.zombie_equipment[equipment].watcher_thread ]]();
+
+    self thread maps\mp\zombies\_zm_equipment::equipment_slot_watcher( equipment );
+    self maps\mp\zombies\_zm_audio::create_and_play_dialog( "weapon_pickup", level.zombie_equipment[equipment].vox );
 }
 
 // ============================================================================

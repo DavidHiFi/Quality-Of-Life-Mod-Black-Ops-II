@@ -58,7 +58,7 @@ They come out of the mystery box, only one player can hold each, and all three P
 |---|---|
 | **Every gun, every map** | Nothing is locked to one map any more, and Pack-a-Punch works on the maps that never had it. |
 | **All 12 perks** | On every map with room for them, and Wunderfizz on every one of them. |
-| **12 more guns in the box** | Multiplayer and campaign weapons with real models, animations and audio — SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6 and Tac-45. |
+| **13 more guns in the box** | Multiplayer and campaign weapons with real models, animations and audio — SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6, Tac-45 and the campaign Dragunov. |
 | **Diner as a Survival map** | The TranZit location Treyarch built and never shipped, with its own Pack-a-Punch, wall buys, buildable shield and secret song. |
 | **The Death Machine** | A new power-up drop, announcer lines and all. |
 | **A menu for all of it** | Four tabs in the options menu. Almost everything here is a switch you can turn back off. |
@@ -71,7 +71,11 @@ They come out of the mystery box, only one player can hold each, and all three P
 **Weapons** — the box has no limits, so duplicates are allowed and both Ray Guns can be out at
 once. The M16 is in the box on every map. The Pack-a-Punched crossbow — the Awful Lawton — pulls
 zombies towards wherever its bolts land, the way it did in Black Ops 1. The Tac-45 goes dual-wield
-when Pack-a-Punched.
+when Pack-a-Punched. The campaign's Dragunov is in the box as its own gun — separate from the
+SVU-AS, with its Black Ops 1 Pack-a-Punch name, the D115 Disassembler. The multiplayer Bouncing
+Betty is in the box too: it takes the claymore's slot, and jumps up before it blows, the way it
+does in multiplayer. The Jet Gun sits in a normal weapon slot, never breaks, and runs on its heat
+gauge alone.
 
 **Perks** — a **PERK LIMIT** setting in the lobby lets you carry every perk the map has, or cap it
 anywhere from 1 to 12. Who's Who hands you a Pack-a-Punched ballistic knife so you can revive your
@@ -204,6 +208,7 @@ The rough edges, kept in the open. None of this is buried in the release notes.
 | **The Diner claymore wall buy shows no prompt** | It is in the right place — that was measured in game — but nothing comes up when you look at it. That is a separate, newer bug. |
 | **You cannot pick a starting weapon on Mob of the Dead** | The snub-nose Python it would need is not in any of the game's files. |
 | **Winter's Howl does not freeze and shatter** | The animation data never made it into the mod, so the gun kills without freezing anything first. |
+| **The Bouncing Betty plants and springs silently** | Its click and spring sounds are locked inside a multiplayer sound bank no available tool can open. The explosion is unaffected. The base game's own claymores plant silently too. |
 
 </details>
 

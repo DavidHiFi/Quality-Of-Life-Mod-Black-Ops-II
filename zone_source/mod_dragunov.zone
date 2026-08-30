@@ -1,0 +1,72 @@
+// ============================================================================
+//  mod_dragunov.zone  -  the campaign Dragunov (SVD), weapon 13 of the ports.
+//  User directive 2026-08-30 (task 1): the campaign sniper in the box on every
+//  map, fully separate from the SVU-AS, with Pack-a-Punch, camos, animations
+//  and audio.
+//
+//  SOURCE: every asset below exists in nicaragua.ff (also angola_2 / panama /
+//  panama_2), verified by --list before this file was written. build_ff.bat
+//  --load's nicaragua.ff LAST, so first-load-wins means it can supply ONLY
+//  names no earlier zone carries - nothing already owned can be re-owned or
+//  have its contents replaced (the §38 trap is impossible from the last slot).
+//  The A/B asset-list diff after the first link is the proof and lives in the
+//  session checkpoint.
+//
+//  The weapon DEFS are deliberately NOT declared here: the Linker never reads
+//  a raw weapon file and a declared one would come from nicaragua.ff with SP
+//  campaign values. They ship raw in weapons\zm\ (dragunov_zm 20,373 B /
+//  dragunov_upgraded_zm 20,420 B - under the 20,480 runtime-loader ceiling),
+//  a name no fastfile claims, which is the exact mechanism the other 12 ported
+//  guns already use.
+//
+//  camo_dragunov IS declared: nicaragua's own copy is a 4-material SP stub
+//  (slots 2+ empty - no zombies/galaxy/Origins camo), and the complete
+//  13-material version is authored in zone_assets\camo\camo_dragunov.json,
+//  which outranks every --load (raw camo beats donors - measured 2026-08-30,
+//  CLAUDE.md).  🛑 A raw camo JSON is INERT unless the zone declares the name -
+//  also measured 2026-08-30 - which is precisely why this line exists.
+// ============================================================================
+
+// view / world models, and the magazine attachment models the defs name
+xmodel,t6_wpn_sniper_dragunov_view
+xmodel,t6_wpn_sniper_dragunov_world
+xmodel,t6_attach_mag_dragunov_view
+xmodel,t6_attach_mag_dragunov_world
+
+// all 23 view-model animations the defs reference - derived by parsing every
+// \key\value\ pair (the 20 *Anim keys PLUS dtp_in/dtp_loop/dtp_out, the
+// dive-to-prone trio that bit the Titus-6 when it was missed)
+xanim,viewmodel_dragunov_t6_idle
+xanim,viewmodel_dragunov_t6_fire
+xanim,viewmodel_dragunov_t6_reload
+xanim,viewmodel_dragunov_t6_reload_empty
+xanim,viewmodel_dragunov_t6_pullout
+xanim,viewmodel_dragunov_t6_pullout_quick
+xanim,viewmodel_dragunov_t6_putaway
+xanim,viewmodel_dragunov_t6_putaway_quick
+xanim,viewmodel_dragunov_t6_first_raise
+xanim,viewmodel_dragunov_t6_ads_up
+xanim,viewmodel_dragunov_t6_ads_down
+xanim,viewmodel_dragunov_t6_sprint_in
+xanim,viewmodel_dragunov_t6_sprint_loop
+xanim,viewmodel_dragunov_t6_sprint_out
+xanim,viewmodel_dragunov_t6_crawl_in
+xanim,viewmodel_dragunov_t6_crawl_out
+xanim,viewmodel_dragunov_t6_crawl_forward
+xanim,viewmodel_dragunov_t6_crawl_back
+xanim,viewmodel_dragunov_t6_crawl_left
+xanim,viewmodel_dragunov_t6_crawl_right
+xanim,viewmodel_dragunov_t6_d2p_in
+xanim,viewmodel_dragunov_t6_d2p_loop
+xanim,viewmodel_dragunov_t6_d2p_out
+
+// the scope overlay the defs' adsOverlayShader names (SP-only material; the
+// low-res variant was cleared from the defs instead - svu_zm ships none either)
+material,scope_overlay_dragunov
+
+// HUD icon - hudIcon / killIcon / ammoCounterIcon all point at this one
+material,menu_mp_weapons_drag
+
+// Pack-a-Punch camo - the authored 13-material JSON in zone_assets\camo\
+// resolves ahead of nicaragua's 4-material stub
+camo,camo_dragunov

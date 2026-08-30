@@ -2749,6 +2749,25 @@ deathmachine_powerup( m_powerup, e_player )
         return;
     }
     level.deathmachine_duration = getdvarintdefault( "sv_deathmachine_duration", 30 );
+
+    //  v2.9.9 - the announcer line, played the way BLOOD MONEY's is (v2.8.8):
+    //  directly through zmqol_play_announcer_line(), not via stock's
+    //  leaderdialog path. Stock's playleaderdialogonplayer() drops the line
+    //  outright when self.zmbdialogactive is already 1, and a Death Machine
+    //  grab always has competing dialog (the character's own pickup quip plus
+    //  the weapon-raise foley - the "gun-cock" the user reported was the ONLY
+    //  audible part). The payload itself was never wrong: the staged flac is
+    //  the same 48 kHz / ~114k-sample recording as BO1's own
+    //  english\sound\vox\scripted\zmb\announcer\death_machine.wav (measured
+    //  against the real BO1 file, localized_English_iw04.iwd) - Treyarch
+    //  carried the Samantha line forward into Die Rise's bank, which is where
+    //  this mod's copy came from. The createvox registration that used to
+    //  feed stock's route is REMOVED in the same change, for the same reason
+    //  Blood Money's was: with no vox registered for the key, stock's
+    //  leaderdialog on the grab returns before playing, so the line cannot
+    //  double-play.
+    level thread zmqol_play_announcer_line( "qol_powerup_death_machine" );
+
     e_player notify( "end_deathmachine" );
     wait 0.05;
     //  v1.99.2: stamp when this run ends, for the power-up timer HUD.
@@ -7797,6 +7816,8 @@ zmqol_weapon_give_table()
     a[a.size] = zmqol_give_row( "peacekeeper pk",                   "peacekeeper_zm", "Peacekeeper" );
     a[a.size] = zmqol_give_row( "crossbow bow",                     "crossbow_zm",    "Crossbow" );
     a[a.size] = zmqol_give_row( "xpr xpr50 as50 sniper",            "as50_zm",        "XPR-50" );
+    a[a.size] = zmqol_give_row( "dragunov svd",                    "dragunov_zm",    "Dragunov" );
+    a[a.size] = zmqol_give_row( "betty betties bouncingbetty",     "bouncingbetty_zm", "Bouncing Betty" );
     a[a.size] = zmqol_give_row( "titus titus6 dart",                "titus6_zm",      "Titus-6" );
     //  v1.99.13 - the Tac-45. The def is `fnp45`, so both names are accepted keys.
     //  `.give tac45 pap` hands over fnp45_upgraded_zm, and the engine brings the
@@ -8446,6 +8467,8 @@ zmqol_give_names_table()
     a[a.size] = zmqol_give_name_row( "ak74u_extclip_zm", "ak74uext",    "ak74uextclip 74u" );
     a[a.size] = zmqol_give_name_row( "an94_zm",          "an94",        "" );
     a[a.size] = zmqol_give_name_row( "as50_zm",          "xpr50",       "xpr as50" );
+    a[a.size] = zmqol_give_name_row( "dragunov_zm",      "dragunov",    "svd" );
+    a[a.size] = zmqol_give_name_row( "bouncingbetty_zm", "betty",       "betties bouncingbetty" );
     a[a.size] = zmqol_give_name_row( "ballista_zm",      "ballista",    "" );
     a[a.size] = zmqol_give_name_row( "barretm82_zm",     "barrett",     "m82 m82a1 barret" );
     a[a.size] = zmqol_give_name_row( "beacon_zm",        "beacon",      "homingbeacon artillerybeacon" );
@@ -9203,6 +9226,21 @@ zmqol_mp_weapons_init()
     //  📝 WEAPON_AS50 is NOT shipped in mod.str: it already resolves from
     //  en_patch_zm.ff and en_code_post_gfx_zm.ff. Only the PaP name is ours.
     zmqol_add_mp_weapon( "as50_zm",        "as50_upgraded_zm",        &"WEAPON_AS50",               1000, "sniper" );
+
+    //  v2.9.9 - the campaign Dragunov, weapon 13 (user task 1, 2026-08-30).
+    //
+    //  A fully separate weapon from the SVU-AS, per the directive: its own
+    //  defs (weapons\zm\dragunov_zm / dragunov_upgraded_zm, authored from the
+    //  campaign's dragunov_sp on the svu_zm ZM chassis), its own art and anims
+    //  (mod_dragunov.zone, donor nicaragua.ff), its own camo
+    //  (zone_assets\camo\camo_dragunov.json), its own alias chains in mod.all
+    //  (24 rows, every payload already staged), and BO1's real Pack-a-Punch
+    //  name ("D115 Disassembler", read from BO1's own string table).
+    //
+    //  Cost 1000 and vox "sniper" - the identical reasoning to the XPR-50
+    //  block above: there is no wpck_dragunov, "sniper" is stock's own class
+    //  key, and 1000 matches the other ported snipers.
+    zmqol_add_mp_weapon( "dragunov_zm",    "dragunov_upgraded_zm",    &"WEAPON_DRAGUNOV",           1000, "sniper" );
 
     //  v1.93.0 - the Titus-6, weapon 11 and the last of the port. User request.
     //
@@ -12015,7 +12053,12 @@ zmqol_register_announcer_vox()
             //  the same grab; with no vox registered for the key,
             //  playleaderdialogonplayer() returns before it plays anything and
             //  the mod's own call is the only one left.
-            maps\mp\zombies\_zm_audio_announcer::createvox( "deathmachine", "qol_powerup_death_machine" );
+            //
+            //  🛑 v2.9.9 - THE DEATH MACHINE'S createvox IS GONE FOR THE SAME
+            //  REASON. Its line now plays from deathmachine_powerup() through
+            //  zmqol_play_announcer_line(), the route Blood Money's confirmed
+            //  fix uses; registering the vox here as well would hand stock's
+            //  drop-if-busy path a second copy of the line.
 
             //  ================================================================
             //  🌟 v1.99.84 - SOLVED, AND THE v1.99.70 PROBE IS RETIRED.

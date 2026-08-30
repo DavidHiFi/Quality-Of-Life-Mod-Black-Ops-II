@@ -19,6 +19,8 @@ include,mod_locations
 include,mod_wonderweapons
 include,mod_freezefx
 include,mod_xpr50
+include,mod_dragunov
+include,mod_betty
 include,mod_titus6
 include,mod_whoswho
 include,mod_tac45

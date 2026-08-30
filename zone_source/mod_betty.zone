@@ -1,0 +1,34 @@
+// ============================================================================
+//  mod_betty.zone  -  the MP Bouncing Betty's assets (user task 4, 2026-08-30).
+//
+//  Every asset exists in fastfiles build_ff.bat ALREADY --load's - the models,
+//  anims and fx in common_mp.ff, the two HUD icon materials split between
+//  common_mp.ff (hud_bounce_betty) and code_post_gfx_mp.ff
+//  (hud_bounce_betty_256; common_mp carries that one only as a bare reference,
+//  the leading-comma form the XPR-50's zone banner warns about). No new
+//  --load was needed.
+//
+//  The weapon def ships raw (weapons\zm\bouncingbetty_zm, 18,029 B) - the same
+//  route as every other ported weapon. The zombie-side behaviour lives in
+//  scripts\zm\bouncingbetty.gsc.
+//
+//  t6_wpn_bouncing_betty_world_detect and fx_betty_light_red are deliberately
+//  NOT declared: recon-detection and enemy-team lights are MP concepts with no
+//  observer in zombies. fx_betty_destroyed likewise - zombies cannot shoot the
+//  mine out.
+// ============================================================================
+
+xmodel,t6_wpn_bouncing_betty_view
+xmodel,t6_wpn_bouncing_betty_world
+
+xanim,viewmodel_bouncing_betty_idle
+xanim,viewmodel_bouncing_betty_fire
+xanim,viewmodel_bouncing_betty_ads_up
+xanim,viewmodel_bouncing_betty_ads_down
+
+fx,weapon/bouncing_betty/fx_betty_explosion
+fx,weapon/bouncing_betty/fx_betty_launch_dust
+fx,weapon/bouncing_betty/fx_betty_light_green
+
+material,hud_bounce_betty
+material,hud_bounce_betty_256

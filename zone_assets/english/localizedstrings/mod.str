@@ -130,4 +130,30 @@ LANG_ENGLISH        "Augustus-9"
 REFERENCE           ZMWEAPON_FNP45_UPGRADED
 LANG_ENGLISH        "Toughguy & Crybaby"
 
+// ============================================================================
+//  v2.9.9 - THE CAMPAIGN DRAGUNOV, weapon 13 of the port (user task 1,
+//  2026-08-30).
+//
+//  BOTH names have to be ours. WEAPON_DRAGUNOV exists only in the CAMPAIGN
+//  language fastfiles - the zombies pair (en_patch_zm / en_code_post_gfx_zm,
+//  both dumped and grepped) carries only ZOMBIE_WEAPON_DRAGUNOV, a cut wall-buy
+//  hint. The Pack-a-Punch name is NOT invented: "D115 Disassembler" is BO1's
+//  own name for this exact gun's upgrade, read out of BO1's
+//  en_common_zombie.ff string table (key ZOMBIE_DRAGUNOV_UPGRADED) - the same
+//  read-the-real-thing rule as every name above.
+// ============================================================================
+
+REFERENCE           WEAPON_DRAGUNOV
+LANG_ENGLISH        "Dragunov"
+
+REFERENCE           ZMWEAPON_DRAGUNOV_UPGRADED
+LANG_ENGLISH        "D115 Disassembler"
+
+// v2.9.9 - the Bouncing Betty (user task 4). The MP key BOUNCING_BETTY lives
+// only in the MP language fastfiles, so the def and the box hint both use this
+// mod-owned key instead.
+
+REFERENCE           ZMWEAPON_BOUNCINGBETTY
+LANG_ENGLISH        "Bouncing Betty"
+
 ENDMARKER
