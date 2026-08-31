@@ -10772,7 +10772,22 @@ zmqol_register_divetonuke_visionset()
     if ( isdefined( level.vsmgr["visionset"].info ) && isdefined( level.vsmgr["visionset"].info["zm_perk_divetonuke"] ) )
         return;
 
-    maps\mp\_visionset_mgr::vsmgr_register_info( "visionset", "zm_perk_divetonuke", 9000, 400, 5, 1 );
+    //  🛑 v2.9.16 - LERP STEPS CUT TO FIT THE toplayer CEILING. Mob of the
+    //  Dead failed to load on v2.9.14 with the exact error ERROR_CATALOGUE
+    //  section 2 predicts:
+    //      Trying to assign 3 bits for netfield visionset_lerp but Client
+    //      Field Set toplayer is out of space.
+    //  (console_zm.log, 2026-08-31 20:35 - zm_prison, the vsmgr finalizer, the
+    //  last field to ask.) The v2.9.13 perk-field widening to stock's 2 bits is
+    //  correct and stays; the space comes back from the mod's OWN visionset
+    //  lerp granularity instead, which is the one cosmetic-only lever:
+    //  a visionset_lerp/overlay_lerp field is bits(max lerp_step_count over the
+    //  registered infos) and is SKIPPED entirely when that max is 1
+    //  (_visionset_mgr.gsc:204-224). On the maps where these infos are stock-
+    //  native (zombie blood on Origins and Buried, PhD's visionset on TranZit
+    //  via its own compiled copies where they win), the native registration is
+    //  preserved by the name-dedup guards, so stock maps keep stock widths.
+    maps\mp\_visionset_mgr::vsmgr_register_info( "visionset", "zm_perk_divetonuke", 9000, 400, 1, 1 );
 }
 
 // ============================================================================
@@ -10839,7 +10854,13 @@ zmqol_register_vulture_visionset()
     if ( isdefined( level.vsmgr[ "overlay" ].info ) && isdefined( level.vsmgr[ "overlay" ].info[ "vulture_stink_overlay" ] ) )
         return;
 
-    maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, 31, 1 );
+    //  🛑 v2.9.16 - steps 31 -> 7. 31 forced overlay_lerp to 5 bits on
+    //  Mob/Die Rise/Nuketown, the only maps this registration runs on (the
+    //  gate above excludes Buried, where stock's own 31 stays untouched). The
+    //  stink fade quantizes to 8 levels instead of 32. Twins: the module's own
+    //  call in maps\mp\zombies\_zm_perk_vulture.gsc and the client in
+    //  zm_expanded.csc - all three carry 7 and MUST move together.
+    maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, 7, 1 );
 }
 
 // ============================================================================
@@ -11973,16 +11994,24 @@ zmqol_register_zombie_blood_visionsets()
          !( isdefined( level.vsmgr[ "visionset" ].info ) &&
             isdefined( level.vsmgr[ "visionset" ].info[ "zm_powerup_zombie_blood_visionset" ] ) ) )
     {
+        //  🛑 v2.9.16 - steps 15 -> 1 (see the toplayer note over the PhD
+        //  registration). Only reached on maps where zombie blood is NOT
+        //  native - the isdefined guard above keeps Origins'/Buried's own
+        //  15-step registration, so stock maps keep stock widths. Client twin:
+        //  zm_expanded.csc, same guard, same 1.
         maps\mp\_visionset_mgr::vsmgr_register_info( "visionset", "zm_powerup_zombie_blood_visionset",
-            14000, level.vsmgr_prio_visionset_zm_powerup_zombie_blood, 15, 1 );
+            14000, level.vsmgr_prio_visionset_zm_powerup_zombie_blood, 1, 1 );
     }
 
     if ( isdefined( level.vsmgr[ "overlay" ] ) &&
          !( isdefined( level.vsmgr[ "overlay" ].info ) &&
             isdefined( level.vsmgr[ "overlay" ].info[ "zm_powerup_zombie_blood_overlay" ] ) ) )
     {
+        //  🛑 v2.9.16 - steps 15 -> 7: caps overlay_lerp at 3 bits on the
+        //  maps where this mod is the only overlay-lerp customer. Client twin
+        //  in zm_expanded.csc carries the same 7.
         maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "zm_powerup_zombie_blood_overlay",
-            14000, level.vsmgr_prio_overlay_zm_powerup_zombie_blood, 15, 1 );
+            14000, level.vsmgr_prio_overlay_zm_powerup_zombie_blood, 7, 1 );
     }
 }
 

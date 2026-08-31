@@ -124,7 +124,10 @@ init_vulture()
     if ( zmqol_vulture_has_disease_meter() )
         registerclientfield( "toplayer", "vulture_perk_disease_meter", 12000, 5, "float" );
 
-    maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, 31, 1 );
+    //  🛑 v2.9.16 - 31 -> 7, in step with quality_of_life.gsc and
+    //  zm_expanded.csc (see the banner there). overlay_lerp width is derived
+    //  from this number on both sides; the three sites must stay equal.
+    maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, 7, 1 );
     maps\mp\zombies\_zm_spawner::add_cusom_zombie_spawn_logic( ::vulture_zombie_spawn_func );
     register_zombie_death_event_callback( ::zombies_drop_stink_on_death );
     level thread vulture_perk_watch_mystery_box();

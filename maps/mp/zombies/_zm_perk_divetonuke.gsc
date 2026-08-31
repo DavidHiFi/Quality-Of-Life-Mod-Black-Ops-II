@@ -18,7 +18,13 @@ enable_divetonuke_perk_for_level()
 init_divetonuke()
 {
     level.zombiemode_divetonuke_perk_func = ::divetonuke_explode;
-    maps\mp\_visionset_mgr::vsmgr_register_info( "visionset", "zm_perk_divetonuke", 9000, 400, 5, 1 );
+    //  🛑 v2.9.16 - lerp steps 5 -> 1: with every mod-registered visionset at
+	//  1 step, visionset_lerp is skipped on the maps stock never paid for it on
+	//  (Mob failed to load asking for exactly those 3 bits - see the banner in
+	//  quality_of_life.gsc over zmqol_register_divetonuke_visionset). The dive
+	//  flash snaps instead of fading; the twin in clientscripts\mp\zombies\
+	//  _zm_perk_divetonuke.csc carries the same 1 and MUST stay identical.
+	maps\mp\_visionset_mgr::vsmgr_register_info( "visionset", "zm_perk_divetonuke", 9000, 400, 1, 1 );
     level._effect["divetonuke_groundhit"] = loadfx( "maps/zombie/fx_zmb_phdflopper_exp" );
     set_zombie_var( "zombie_perk_divetonuke_radius", 300 );
     set_zombie_var( "zombie_perk_divetonuke_min_damage", 1000 );

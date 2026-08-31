@@ -819,19 +819,32 @@ zmqol_zb_register()
 	//  Guarded on the manager being present so that if this ordering ever changes
 	//  it degrades to "visionset not registered" instead of erroring out of the
 	//  whole clientfield pass - the same guard the Who's Who registration uses.
-	if ( isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "visionset" ] ) )
+	//  🛑 v2.9.16 - steps 15 -> 1, AND the name-dedup guard the server half
+	//  always had. Without it this call and the native one on Origins/Buried
+	//  both land, and the client's register_info REPLACES an equal-version
+	//  duplicate (_visionset_mgr.csc validate_info) - harmless while both said
+	//  15, a width mismatch the moment they differ. With the guard, whichever
+	//  side registered first wins on BOTH halves and stock maps keep stock's
+	//  15-step fade; the maps where this mod is the only registrar get 1.
+	if ( isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "visionset" ] ) &&
+	     !( isdefined( level.vsmgr[ "visionset" ].info ) &&
+	        isdefined( level.vsmgr[ "visionset" ].info[ "zm_powerup_zombie_blood_visionset" ] ) ) )
 	{
 		clientscripts\mp\_visionset_mgr::vsmgr_register_visionset_info( "zm_powerup_zombie_blood_visionset",
-			14000, 15, "zm_powerup_zombie_blood", "zm_powerup_zombie_blood" );
+			14000, 1, "zm_powerup_zombie_blood", "zm_powerup_zombie_blood" );
 	}
 
 	//  filter_index 1, pass_index 0 are Origins' own and collide with nothing
 	//  this mod uses - Vulture's overlay is filter 0, Who's Who's afterlife
 	//  filter is 5.
-	if ( isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "overlay" ] ) )
+	//  🛑 v2.9.16 - steps 15 -> 7 and the same dedup guard as the visionset
+	//  above, for the same reason.
+	if ( isdefined( level.vsmgr ) && isdefined( level.vsmgr[ "overlay" ] ) &&
+	     !( isdefined( level.vsmgr[ "overlay" ].info ) &&
+	        isdefined( level.vsmgr[ "overlay" ].info[ "zm_powerup_zombie_blood_overlay" ] ) ) )
 	{
 		clientscripts\mp\_visionset_mgr::vsmgr_register_overlay_info_style_filter( "zm_powerup_zombie_blood_overlay",
-			14000, 15, 1, 0, "generic_filter_zombie_blood_b" );
+			14000, 7, 1, 0, "generic_filter_zombie_blood_b" );
 	}
 }
 
@@ -1449,7 +1462,10 @@ zmqol_init_vulture_trimmed()
 	// the server half registers it unconditionally too. Dropping it on one side
 	// only is what widened overlay_lerp and produced the [CLIENT: 4 SERVER: 5]
 	// boot crash Vulture caused twice before.
-	clientscripts\mp\_visionset_mgr::vsmgr_register_overlay_info_style_filter( "vulture_stink_overlay", 12000, 31, 0, 0, "generic_filter_zombie_perk_vulture", 0 );
+	//  🛑 v2.9.16 - 31 -> 7, in step with both server sites (see
+	//  quality_of_life.gsc). This function only runs where the mod supplies the
+	//  whole client half, never on Buried, so no native 31 can disagree with it.
+	clientscripts\mp\_visionset_mgr::vsmgr_register_overlay_info_style_filter( "vulture_stink_overlay", 12000, 7, 0, 0, "generic_filter_zombie_perk_vulture", 0 );
 
 	level._effect["vulture_perk_zombie_stink"] = loadfx( "maps/zombie/fx_zm_vulture_perk_stink" );
 	level._effect["vulture_perk_zombie_stink_trail"] = loadfx( "maps/zombie/fx_zm_vulture_perk_stink_trail" );
