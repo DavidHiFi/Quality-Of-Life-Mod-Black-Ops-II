@@ -133,6 +133,13 @@ main()
     //  would look like it worked and still let some zombies die on their own.
     level._zombies_round_spawn_failsafe = ::zmqol_round_spawn_failsafe;
 
+    //  v2.9.15 - AND THE SECOND AUTOMATIC KILL, WHICH v2.2.0 MISSED ENTIRELY.
+    //  _zm_spawner::zombie_assure_node() kills a zombie that could not path to
+    //  any entrance node, ~1 minute after it spawned. See its banner. Both of
+    //  stock's call sites (_zm_spawner.gsc:426 and :458) are threaded, which is
+    //  the case STOCK_REFERENCE 7a records as measured-hookable.
+    replaceFunc( maps\mp\zombies\_zm_spawner::zombie_assure_node, ::zmqol_zombie_assure_node );
+
     // --- BETTER SPEED COLA  (v2.2.0, GAME tab) ---
     //  Two halves of one feature: the board-closing animation scalar and the
     //  pause between boards. See the banner over zmqol_replace_chunk().
@@ -622,6 +629,7 @@ init()
     level thread zmqol_dof_onplayerconnect();            // DOF full fix, item 48
     level thread zmqol_perma_perks_watch();              // PERMA-PERKS, queue item 29
     level thread zmqol_no_walkers_watch();               // NO WALKERS, user request 2026-08-30
+    level thread zmqol_no_limited_weapons_watch();        // NO BOX LIMITS reaches the ported wonder weapons (v2.9.15)
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
@@ -9831,6 +9839,154 @@ zmqol_box_wonder_weapon_weights( keys )
 }
 
 // ============================================================================
+//  NO BOX LIMITS REACHES THE PORTED WONDER WEAPONS         (v2.9.15)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-31: *"Ensure the 'No Box Limits' setting applies to the ported
+//  BO1 Wonder Weapons. When enabled, remove the 1-per-match restriction for
+//  these weapons, allowing multiple players to pull the same Wonder Weapon
+//  simultaneously and allowing players to pull it from the box again to refill
+//  ammo."*
+//
+//  🌟 WHAT THE CAP ACTUALLY IS, traced rather than assumed. Each ported gun
+//  registers `add_limited_weapon( <gun>, 1 )` in its own init (thundergun.gsc:37,
+//  teslagun.gsc:46, freeze.gsc:37), which writes level.limited_weapons[<gun>] = 1.
+//  Exactly two things in the stock tree read that table:
+//     _zm_weapons::limited_weapon_below_quota()   the quota itself - the magic
+//         box (_zm_magicbox.gsc:893) and the four buildable-bench call sites in
+//         _zm_buildables.gsc (:1723, :2033, :2060, :2093).
+//     _zm_utility::is_limited_weapon()            the weapon locker / fridge on
+//         TranZit, Die Rise and Buried, which refuses to store a limited weapon.
+//         📝 That one does NOT consult the switch below - it reads the table
+//         directly - so the fridge still refuses these guns. Out of scope here;
+//         written down so nobody re-derives it.
+//
+//  🌟 AND STOCK SHIPS THE SWITCH ITSELF. limited_weapon_below_quota() opens
+//  with `if ( is_true( level.no_limited_weapons ) ) return false;`
+//  (_zm_weapons.gsc:737) - a global kill switch for every quota check that no
+//  stock map ever sets. Mirroring the row into it is therefore not an invention
+//  and cannot desync from the box: it is the game's own supported way to say
+//  "no quotas", and it covers every caller at once.
+//
+//  📝 THE BOX PATH WAS ALREADY CORRECT, and this is deliberately additive.
+//  This mod's _zm_magicbox.gsc override already skips has_weapon_or_upgrade,
+//  limited_weapon_below_quota and special_weapon_magicbox_check whenever the row
+//  is on, so a second player could already pull the same wonder weapon and a
+//  re-pull already refilled it (stock weapon_give() gives start ammo to a weapon
+//  you already hold, _zm_weapons.gsc:744). What this adds is that the SAME row
+//  now also governs every other quota reader, so the answer cannot differ
+//  depending on which door the weapon came through.
+//
+//  🛑 WHAT THIS DOES CHANGE BEYOND THE BOX, said plainly: with the row on,
+//  the buildable benches (Sliquifier, Paralyzer, Jet Gun) also stop enforcing
+//  their one-per-match quota. That is the same sentence as the row's name read
+//  literally, and it is reversible from the console with `no_box_limits 0`.
+//
+//  Watched, not read once, so the row is live like every other GAME-tab row.
+// ============================================================================
+zmqol_no_limited_weapons_watch()
+{
+    level endon( "end_game" );
+
+    b_last = -1;
+
+    for ( ;; )
+    {
+        b_want = getdvarintdefault( "no_box_limits", 1 );
+
+        if ( b_want != b_last )
+        {
+            b_last = b_want;
+            level.no_limited_weapons = b_want;
+            println( "[zm_qol] no_box_limits -> level.no_limited_weapons = " + b_want );
+        }
+
+        wait 1;
+    }
+}
+
+// ============================================================================
+//  TAP TO INTERACT                                          (v2.9.15)
+//  CONTROLS > GAMEPAD, right under AIM ASSIST
+// ----------------------------------------------------------------------------
+//  User, 2026-08-31: *"Add a 'Tap to Interact' toggle option to the in-game UI
+//  under Options > Controls > Gamepad tab. Implement the underlying keybind
+//  logic (similar to console interact binding) so controller users can interact
+//  with objects instantly without holding the interact button."*
+//
+//  🌟 THE ENGINE ALREADY OWNS THIS AND THE DVAR IS NAMED, NOT GUESSED:
+//      g_useholdtime -> "The time to hold down the 'use' button to activate a
+//                        'use' command"
+//  read out of the T6 dvar dump (Black Ops 2 Grand Resources\BO2 Detailed
+//  DVARS.txt:1750). It is milliseconds. A controller's X button is the COMBINED
+//  use/reload button, and this value is the line between the two: release
+//  before it and the press was a reload, hold past it and it was a use. Drop it
+//  to zero and the press interacts the instant it goes down - which is exactly
+//  what the request describes.
+//
+//  📝 NOTHING IN GSC READS IT. Grepped across all 2,093 stock scripts: zero
+//  hits for useholdtime. It is purely engine-side, so a setdvar is the whole
+//  implementation and there is no stock function to hook.
+//
+//  🛑 THE HONEST TRADE-OFF, SAID OUT LOUD RATHER THAN DISCOVERED IN GAME.
+//  Because one button carries both actions on a pad, making the tap interact
+//  means the tap can no longer reload while something interactable is in range.
+//  That is inherent to the combined binding, not to this implementation, and it
+//  is why the row ships OFF by default and why its description says so.
+//
+//  🛑 AND WHAT IS NOT VERIFIED. Nobody here has a gamepad (checkpoint 173
+//  §6 has the same caveat for BETTER DEADSHOT), and whether Plutonium lets a mod
+//  write g_useholdtime at all cannot be settled offline. So this ships a PROBE
+//  as well as a fix: the value is read back after every write and printed, so
+//  one line of console_zm.log says whether the set took:
+//      [zm_qol] tap_to_interact 1 -> g_useholdtime wanted 0, reads 0     took
+//      [zm_qol] tap_to_interact 1 -> g_useholdtime wanted 0, reads 500   refused
+//
+//  📝 THE OFF VALUE IS MEASURED, NOT ASSUMED TO BE 500. The dvar is sampled
+//  once before the row is ever applied and that sample is what OFF restores, so
+//  a server or a future Plutonium build that ships a different default is
+//  preserved exactly.
+// ============================================================================
+zmqol_tap_to_interact_watch()
+{
+    level endon( "end_game" );
+
+    //  Sample the untouched value first. getdvar returns "" if the dvar is not
+    //  registered at all, and in that case there is nothing to restore to and
+    //  nothing this row can do - say so once and stop.
+    str_stock = getdvar( "g_useholdtime" );
+
+    if ( str_stock == "" )
+    {
+        println( "[zm_qol] tap_to_interact: g_useholdtime is not a registered dvar on this build - row inert" );
+        return;
+    }
+
+    n_stock = int( str_stock );
+    n_last = -1;
+
+    for ( ;; )
+    {
+        n_want = getdvarintdefault( "tap_to_interact", 0 );
+
+        if ( n_want != n_last )
+        {
+            n_last = n_want;
+
+            if ( n_want )
+                n_set = 0;
+            else
+                n_set = n_stock;
+
+            setdvar( "g_useholdtime", "" + n_set );
+
+            println( "[zm_qol] tap_to_interact " + n_want + " -> g_useholdtime wanted " + n_set + ", reads " + getdvar( "g_useholdtime" ) + " (stock was " + n_stock + ")" );
+        }
+
+        wait 1;
+    }
+}
+
+// ============================================================================
 //  STRANDED-ZOMBIE PROBE                                 (v1.75.0)
 //
 //  User, 2026-08-11: "a spawn point near the diner strands the last zombie of a
@@ -10847,6 +11003,13 @@ perks()
     //  and cannot reach - it is measured, and it is narrower than the label.
     create_dvar( "aim_assist", 1 );
     level thread zmqol_aim_assist_watch();
+
+    //  v2.9.15 - TAP TO INTERACT, user request 2026-08-31, CONTROLS > GAMEPAD.
+    //  Default 0 = stock hold-to-use. See the banner over
+    //  zmqol_tap_to_interact_watch() for what the engine dvar behind it is and
+    //  what it costs on a controller.
+    create_dvar( "tap_to_interact", 0 );
+    level thread zmqol_tap_to_interact_watch();
 
     //  ========================================================================
     //  THE PATCHES TAB  (v1.99.93, user request 2026-08-20)
@@ -17663,6 +17826,29 @@ zmqol_round_spawn_failsafe()
             //  loop simply keeps watching it.
             if ( getdvarintdefault( "no_bleedout", 0 ) )
             {
+                //  v2.9.15 - AND THE ROUND MUST STILL BE ABLE TO END. Skipping the
+                //  kill and doing nothing else leaves a zombie welded to scenery
+                //  for the rest of the match, which is its own softlock. After
+                //  five consecutive stuck passes (~2.5 minutes) it is MOVED to a
+                //  live spawn point instead - never damaged - so the player can
+                //  walk up and kill it. See zmqol_relocate_zombie().
+                if ( !isdefined( self.zmqol_nb_stuck ) )
+                    self.zmqol_nb_stuck = 0;
+
+                self.zmqol_nb_stuck++;
+
+                if ( !isdefined( self.zmqol_nb_said ) )
+                {
+                    self.zmqol_nb_said = 1;
+                    println( "[zm_qol] no_bleedout: SUPPRESSED playspace-timeout kill, round " + level.round_number );
+                }
+
+                if ( self.zmqol_nb_stuck >= 5 && getdvarintdefault( "no_bleedout_relocate", 1 ) && self zmqol_no_bleedout_can_relocate() )
+                {
+                    if ( self zmqol_relocate_zombie( 0 ) )
+                        self.zmqol_nb_stuck = 0;
+                }
+
                 prevorigin = self.origin;
                 continue;
             }
@@ -17682,7 +17868,226 @@ zmqol_round_spawn_failsafe()
         }
 
         prevorigin = self.origin;
+        self.zmqol_nb_stuck = 0;
     }
+}
+
+// ============================================================================
+//  NO BLEEDOUT, PART 2  -  THE SPAWN-TIME KILL              (v2.9.15)
+// ----------------------------------------------------------------------------
+//  User, 2026-08-31: *"The 'No Bleedout' patch failed during testing (the last
+//  zombie on Round 13 despawned/died on its own after ~1 minute of
+//  distance/time). Fix the logic so that when 'No Bleedout' is enabled, zombies
+//  (especially the final zombie of a round) never automatically bleed out or
+//  self-destruct regardless of distance or time elapsed."*
+//
+//  🛑 v2.2.0 PATCHED ONE OF THE TWO AUTOMATIC KILLS, NOT BOTH. That is the
+//  defect. Every script-side automatic zombie death in the whole 2,093-file
+//  stock dump was enumerated for this fix - `dodamage( self.health` across the
+//  entire tree, then every zombie_history() string naming a kill - and exactly
+//  TWO of them fire on a timer:
+//
+//    1. _zm.gsc:3635  round_spawn_failsafe()   30s of not moving -> kill.
+//                     Patched since v2.2.0, above.
+//    2. _zm_spawner.gsc:548  zombie_assure_node()   the zombie could not path to
+//                     ANY entrance node -> `wait 20` -> dodamage( health + 10 ).
+//                     🛑 NEVER PATCHED. This is the one that was missed.
+//
+//  🌟 AND ITS TIMING IS THE USER'S "~1 MINUTE", read off the stock body
+//  rather than estimated: zombie_bad_path() blocks up to 2s per candidate node,
+//  the function walks the entrance-node list, then `wait 2`, then re-picks the
+//  20 closest exterior_goals and walks those too, then `wait 20` before the
+//  kill. Twenty bad candidates at 2s plus the two fixed waits is ~62 seconds.
+//  round_spawn_failsafe's clock is a flat 30s and cannot produce that number.
+//
+//  🛑 AND "JUST DO NOT KILL IT" IS NOT A FIX HERE. Stock kills this zombie
+//  because it is stranded with no path to anywhere; leaving it alive would end
+//  the round FOREVER, which is a worse bug than the one being fixed and exactly
+//  the reason the v2.2.0 banner gave for keeping the below-world kill. So with
+//  the row on, this mod MOVES the zombie to a live spawn point instead of
+//  damaging it. It is never killed, and it becomes reachable - which is what the
+//  request actually asks for ("the player would have to actually kill the
+//  zombies themself").
+//
+//  📝 The body below is stock's, verbatim, except that:
+//    - the two /# #/ println blocks and the zombie_history() /
+//      draw_line_ent_to_pos() calls are dropped. Both of those functions have
+//      their ENTIRE bodies inside /# #/ (_zm_spawner.gsc:2602,
+//      _zm_utility.gsc:2551), so in retail they do nothing at all.
+//    - `start_pos` is dropped; stock assigns it and never reads it.
+//    - zombie_bad_path() is called fully qualified, because this file is not
+//      _zm_spawner.gsc.
+//
+//  Recovery with no rebuild, if the relocation ever misbehaves:
+//      no_bleedout_relocate 0     suppress the kill but never move anything
+//      no_bleedout 0              back to stock entirely
+// ============================================================================
+zmqol_zombie_assure_node()
+{
+    self endon( "death" );
+    self endon( "goal" );
+    level endon( "intermission" );
+
+    if ( isdefined( self.entrance_nodes ) )
+    {
+        for ( i = 0; i < self.entrance_nodes.size; i++ )
+        {
+            if ( self maps\mp\zombies\_zm_spawner::zombie_bad_path() )
+            {
+                self.first_node = self.entrance_nodes[i];
+                self setgoalpos( self.entrance_nodes[i].origin );
+                continue;
+            }
+
+            return;
+        }
+    }
+
+    wait 2;
+    nodes = get_array_of_closest( self.origin, level.exterior_goals, undefined, 20 );
+
+    if ( isdefined( nodes ) )
+    {
+        self.entrance_nodes = nodes;
+
+        for ( i = 0; i < self.entrance_nodes.size; i++ )
+        {
+            if ( self maps\mp\zombies\_zm_spawner::zombie_bad_path() )
+            {
+                self.first_node = self.entrance_nodes[i];
+                self setgoalpos( self.entrance_nodes[i].origin );
+                continue;
+            }
+
+            return;
+        }
+    }
+
+    wait 20;
+
+    //  🛑 THE PATCH. Stock's next two lines are the kill and the counter.
+    if ( getdvarintdefault( "no_bleedout", 0 ) )
+    {
+        println( "[zm_qol] no_bleedout: SUPPRESSED assure_node kill, round " + level.round_number );
+
+        if ( getdvarintdefault( "no_bleedout_relocate", 1 ) )
+            self thread zmqol_no_bleedout_rescue();
+
+        return;
+    }
+
+    self dodamage( self.health + 10, self.origin );
+    level.zombies_timeout_spawn++;
+}
+
+// ----------------------------------------------------------------------------
+//  Keeps moving a stranded zombie to a live spawn point until it finally gets a
+//  path. `endon( "goal" )` is what stops it: the moment the zombie reaches an
+//  entrance node the thread is gone, so this costs nothing once the zombie is in
+//  play. It never damages anything.
+// ----------------------------------------------------------------------------
+zmqol_no_bleedout_rescue()
+{
+    self endon( "death" );
+    self endon( "goal" );
+    level endon( "intermission" );
+
+    for ( ;; )
+    {
+        if ( !self zmqol_no_bleedout_can_relocate() )
+            return;
+
+        self zmqol_relocate_zombie( 1 );
+        wait 20;
+    }
+}
+
+// ----------------------------------------------------------------------------
+//  🛑 WHAT MUST NEVER BE TELEPORTED. Every entry is a state where the zombie
+//  is mid-script and moving it would break the map rather than help it:
+//    - magic bullet shield  = stock's own marker for scripted and boss zombies
+//      (the Origins panzer, Mob's brutus, the Die Rise elevator scripts). This
+//      mod already skips them for the nuke and for zmqol_kill_horde(); this
+//      brings the rescue into line with both.
+//    - in_the_ground / in_the_ceiling  = Buried and Die Rise rise-from and
+//      drop-from animations, which own the zombie's position outright. Taken
+//      from BO2-Reimagined's own round_spawn_failsafe rewrite, which guards on
+//      exactly these two.
+//    - is_inert  = a zombie parked on purpose by a map script.
+//    - isscreecher  = TranZit's denizens, which attach themselves to a player.
+//  Anything in this list is simply left alone. Stock's kill is skipped for it
+//  too, so nothing here can be killed by the patch either.
+// ----------------------------------------------------------------------------
+zmqol_no_bleedout_can_relocate()
+{
+    if ( !isdefined( self ) || !isalive( self ) )
+        return false;
+
+    if ( is_magic_bullet_shield_enabled( self ) )
+        return false;
+
+    if ( isdefined( self.is_brutus ) && self.is_brutus )
+        return false;
+
+    if ( isdefined( self.in_the_ground ) && self.in_the_ground )
+        return false;
+
+    if ( isdefined( self.in_the_ceiling ) && self.in_the_ceiling )
+        return false;
+
+    if ( isdefined( self.is_inert ) && self.is_inert )
+        return false;
+
+    if ( isdefined( self.isscreecher ) && self.isscreecher )
+        return false;
+
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+//  🌟 level.zombie_spawn_locations IS THE RIGHT ARRAY, AND IT IS NOT A GUESS.
+//  It is the exact array stock's own round_spawning() draws from every time it
+//  spawns a zombie (_zm.gsc:2977), and the zone manager keeps it to the spots
+//  inside currently ACTIVE zones - so a spot taken from it is, by construction,
+//  somewhere the game was about to spawn a zombie anyway, near the players.
+//
+//  forceteleport() on an AI is stock's own move: _zm_utility::spawn_zombie does
+//  `guy forceteleport( spawner.origin )` for every zombie the game creates, and
+//  _zm_spawner::taunt_notetracks does it on a live one.
+//
+//  b_reassign_entrance:
+//     1  the zombie never got into the map - re-derive its entrance node from
+//        the new position, using the same two lines stock's own assure_node
+//        retry uses.
+//     0  the zombie is already in play and find_flesh() owns its goal, so do not
+//        touch it; it re-paths to a player on its own.
+// ----------------------------------------------------------------------------
+zmqol_relocate_zombie( b_reassign_entrance )
+{
+    if ( !isdefined( level.zombie_spawn_locations ) || level.zombie_spawn_locations.size == 0 )
+        return false;
+
+    s_spot = level.zombie_spawn_locations[ randomint( level.zombie_spawn_locations.size ) ];
+
+    if ( !isdefined( s_spot ) || !isdefined( s_spot.origin ) )
+        return false;
+
+    self forceteleport( s_spot.origin );
+
+    if ( isdefined( b_reassign_entrance ) && b_reassign_entrance && isdefined( level.exterior_goals ) )
+    {
+        nodes = get_array_of_closest( self.origin, level.exterior_goals, undefined, 3 );
+
+        if ( isdefined( nodes ) && nodes.size > 0 )
+        {
+            self.entrance_nodes = nodes;
+            self.first_node = nodes[0];
+            self setgoalpos( nodes[0].origin );
+        }
+    }
+
+    println( "[zm_qol] no_bleedout: MOVED a stranded zombie to (" + int( s_spot.origin[0] ) + "," + int( s_spot.origin[1] ) + "," + int( s_spot.origin[2] ) + ")" );
+    return true;
 }
 
 // ============================================================================

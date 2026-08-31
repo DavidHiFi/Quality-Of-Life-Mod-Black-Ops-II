@@ -340,6 +340,13 @@ init()
     //  that, and do not widen the label without re-reading it.
     qol_opt_dvar( "aim_assist", "1" );
 
+    //  v2.9.15 - TAP TO INTERACT, user request 2026-08-31. Lives on the STOCK
+    //  CONTROLS > GAMEPAD tab, not on one of this mod's own tabs, because that
+    //  is where the request put it - optionssettings.lua adds the row next to
+    //  AIM ASSIST. Default 0 = stock hold-to-use, so it changes nothing until a
+    //  player throws it. Read by quality_of_life::zmqol_tap_to_interact_watch().
+    qol_opt_dvar( "tap_to_interact", "0" );
+
     //  Model pop-in. On by default - it is a pure image-quality win with no
     //  gameplay effect. See qol_opt_lod_fix() for what it actually writes.
     qol_opt_dvar( "lod_fix", "1" );

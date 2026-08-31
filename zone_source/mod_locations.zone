@@ -919,6 +919,129 @@ camo,camo_qbb
 camo,camo_sa58
 camo,camo_sig556
 camo,camo_vector
+
+// ============================================================================
+//  v2.9.15 - THE SEVEN GREEN RUN GUNS THAT COULD NOT ANIMATE.
+//
+//  User, 2026-08-31, on the open question from checkpoint 173 section 5.2:
+//  *"fix that and don't break electric cherry."*
+//
+//  🌟 THE CAUSE, measured for v2.9.12 and unchanged: PaP camo index 40 is
+//  camo SLOT 8. zm_transit.ff's own camo assets are FOUR slots - all 37 of them
+//  - so on Green Run slot 8 does not exist and index 40 renders nothing. mod.ff
+//  already overrode 29 of those 37 names with 13-15 slot copies; these were the
+//  ones it did not own, so they kept the map's 4-slot asset.
+//
+//  🌟 AND THIS IS DONE WITHOUT TOUCHING THE --load ORDER, which is the whole
+//  point of doing it this way. build_ff.bat's own banner records that the last
+//  --load reorder shipped the v1.62.7 Electric Cherry blob bug, and that
+//  zm_prison.ff must stay ahead of every so_*.ff. Reordering zm_tomb.ff ahead of
+//  zm_prison.ff - the route checkpoint 170 sketched - would have moved that
+//  boundary. It is not needed: CLAUDE.md's measured Linker-precedence table says
+//  a raw file in zone_assets\ BEATS every --load for camo and image, and this
+//  project already ships 13 camos that way. So the copies are staged as raw JSON
+//  in zone_assets\camo\ and the --load list is byte-identical to v2.9.14.
+//
+//  📝 THE DONOR IS zm_tomb.ff AND THE SLOT COUNT WAS READ, NOT ASSUMED. All
+//  seven dumped from Origins' own fastfile carry camoMaterials = 13, so slot 8
+//  (index 40, the animated camo) AND slot 12 (index 44, Origins' blue etched
+//  camo) both exist. Buried's and Mob's copies are 12-slot and would have taken
+//  slot 12 away from these guns on Origins - which is the bug v2.9.13 had to
+//  work around for the ballistic knife.
+//
+//  📝 camo_ballistic_knife_80s is NOT in this list and does not need to be.
+//  mod.ff has owned it since v2.9.13 (Buried's 12-slot copy, whose slot 8 is
+//  live), so it already animates on Green Run. Checkpoint 171 listed eight guns;
+//  measured against the built mod.ff today, seven of them are still missing.
+// ============================================================================
+camo,camo_870mcs
+camo,camo_dsr50
+camo,camo_fal
+camo,camo_fiveseven
+camo,camo_galil
+camo,camo_m14
+camo,camo_raygun
+
+//  🛑 AND THE 64 LINES BELOW ARE WHY THIS IS SAFE. Declaring the seven
+//  camos alone made the Linker OWN every base material and image they name - 64
+//  assets, taken from whichever fastfile happens to be --load'ed first
+//  (zm_prison). mod.ff loads ahead of every map, so Mob's Ray Gun textures would
+//  have replaced Origins' own on Origins: measured, the two copies of
+//  mc/mtl_t6_wpn_zmb_raygun differ (Origins names mtl_t6_wpn_zmb_raygun_col /
+//  _nml / _spc and carries a thermalMaterial; Mob names ray_gun / ray_gun_n and
+//  has none). That is the v1.62.7 Electric Cherry blob bug in a different suit.
+//
+//  A `type,,name` line is a REFERENCE - the name with no data - which is how
+//  mod_base.zone already carries 84 assets it points at but does not own. With
+//  these in place mod.ff owns the seven camo assets and NOTHING else, and every
+//  gun keeps its own map's materials. The other 26 of the 28 materials were
+//  measured byte-identical across Origins, Mob and TranZit, so only the Ray Gun
+//  pair actually mattered - but referencing all of them costs nothing and means
+//  no future donor change can leak in here either.
+image,,mtl_t6_wpn_ar_fal_nml
+image,,mtl_t6_wpn_ar_galil_nml
+image,,mtl_t6_wpn_ar_m14_nml
+image,,mtl_t6_wpn_pistol_fiveseven_n
+image,,mtl_t6_wpn_sniper_dsr50_nml
+image,,mtl_t6_wpn_sniper_dsr50_scope_nml
+image,,ray_gun_n
+image,,~-gmtl_t6_wpn_ar_fal_col
+image,,~-gmtl_t6_wpn_ar_galil_col
+image,,~-gmtl_t6_wpn_ar_m14_col
+image,,~-gmtl_t6_wpn_pistol_fiveseven_c
+image,,~-gmtl_t6_wpn_shotty_870mcs_col
+image,,~-gmtl_t6_wpn_sniper_dsr50_col
+image,,~-gmtl_t6_wpn_sniper_dsr50_scope_col
+image,,~-gray_gun
+image,,~mtl_t6_wpn_ar_fal_ao-l&mtl_t~f0369cec
+image,,~mtl_t6_wpn_ar_fal_ir-r&mtl_t~0aa73288
+image,,~mtl_t6_wpn_ar_galil_ao-l&mtl~d31254ca
+image,,~mtl_t6_wpn_ar_galil_ir-r&mtl~22366022
+image,,~mtl_t6_wpn_ar_m14_ao-l&mtl_t~fccda477
+image,,~mtl_t6_wpn_pistol_fiveseven_~b6b6fc78
+image,,~mtl_t6_wpn_pistol_fiveseven_~d46e0a38
+image,,~mtl_t6_wpn_shotty_870mcs_ao-~7f6ddb87
+image,,~mtl_t6_wpn_sniper_dsr50_ao-l~e9c1a863
+image,,~mtl_t6_wpn_sniper_dsr50_ir-r~92199ca7
+image,,~mtl_t6_wpn_sniper_dsr50_scop~483ccde2
+image,,~mtl_t6_wpn_sniper_dsr50_scop~650cc522
+image,,~~-gmtl_t6_wpn_ar_fal_spc-rgb~a1445438
+image,,~~-gmtl_t6_wpn_ar_galil_spc-r~2399f7d6
+image,,~~-gmtl_t6_wpn_ar_m14_spc-rgb~bcbd7c6b
+image,,~~-gmtl_t6_wpn_pistol_fivesev~3f59e01b
+image,,~~-gmtl_t6_wpn_shotty_870mcs_~bcb28dd4
+image,,~~-gmtl_t6_wpn_sniper_dsr50_s~18f1757c
+image,,~~-gmtl_t6_wpn_sniper_dsr50_s~b8752abf
+image,,~~-gray_gun_s-rgb&~-rray_gun_~0d7425f4
+material,,mc/mtl_ray_gun
+material,,mc/mtl_t6_wpn_ar_fal_camo1
+material,,mc/mtl_t6_wpn_ar_fal_camo2
+material,,mc/mtl_t6_wpn_ar_fal_camo3
+material,,mc/mtl_t6_wpn_ar_fal_thermal
+material,,mc/mtl_t6_wpn_ar_galil_camo1
+material,,mc/mtl_t6_wpn_ar_galil_camo2
+material,,mc/mtl_t6_wpn_ar_galil_camo3
+material,,mc/mtl_t6_wpn_ar_galil_thermal
+material,,mc/mtl_t6_wpn_ar_m14
+material,,mc/mtl_t6_wpn_ar_m14_2
+material,,mc/mtl_t6_wpn_ar_m14_3
+material,,mc/mtl_t6_wpn_pistol_fiveseven_camo1
+material,,mc/mtl_t6_wpn_pistol_fiveseven_camo2
+material,,mc/mtl_t6_wpn_pistol_fiveseven_camo3
+material,,mc/mtl_t6_wpn_pistol_fiveseven_thermal
+material,,mc/mtl_t6_wpn_shotty_870mcs
+material,,mc/mtl_t6_wpn_shotty_870mcs_camo1
+material,,mc/mtl_t6_wpn_shotty_870mcs_camo2
+material,,mc/mtl_t6_wpn_shotty_870mcs_camo3
+material,,mc/mtl_t6_wpn_sniper_dsr50
+material,,mc/mtl_t6_wpn_sniper_dsr50_camo2
+material,,mc/mtl_t6_wpn_sniper_dsr50_scope
+material,,mc/mtl_t6_wpn_sniper_dsr50_scope_camo2
+material,,mc/mtl_t6_wpn_sniper_dsr50_scope_thermal
+material,,mc/mtl_t6_wpn_sniper_dsr50_thermal
+material,,mc/mtl_t6_wpn_zmb_raygun
+material,,mc/mtl_t6_wpn_zmb_raygun_camo
+techniqueset,,mc_lit_sm_r0c0n0s0_7426e277
 fx,weapon/crossbow/fx_trail_crossbow
 fx,weapon/muzzleflashes/fx_crossbow_base
 fx,weapon/muzzleflashes/fx_muz_md_gas_flash_3p_6_star

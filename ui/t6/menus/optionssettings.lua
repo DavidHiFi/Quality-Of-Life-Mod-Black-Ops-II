@@ -177,6 +177,22 @@ if ZmQolModLoaded() and CoD and CoD.OptionsControls and CoD.OptionsControls.Crea
 							"aim_assist",
 							"Aim assist on zombies. Separate from Target Assist."
 						)
+
+						--  v2.9.15 - TAP TO INTERACT, user request 2026-08-31.
+						--  Rides the same insertion point as AIM ASSIST, one row
+						--  further down, for the reason written over that row: a
+						--  CoD.ButtonList has add* methods and removeAllButtons
+						--  and nothing else, so the only place a row can be put
+						--  in a chosen position is the moment the row above it is
+						--  added. Server half:
+						--  quality_of_life::zmqol_tap_to_interact_watch().
+						CoD.OptionsSettings.QolToggle(
+							SelfList,
+							ClientIndex,
+							"TAP TO INTERACT",
+							"tap_to_interact",
+							"Interact the moment the button goes down instead of holding it. On a pad, that button then interacts rather than reloading."
+						)
 					end
 
 					return Selector
