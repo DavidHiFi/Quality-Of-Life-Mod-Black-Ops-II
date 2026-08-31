@@ -10,11 +10,21 @@
 //
 //  WHAT EACH PIECE IS AND WHERE IT CAME FROM (nothing invented):
 //    defs      weapons\zm\zapgun_{dw,le}[_upgraded]_zm - the zm_ezz3.0
-//              package's converted defs, re-tuned to BO1's OWN numbers read
-//              out of zombie_moon.ff's microwavegundw defs: clip 8 / 64 ammo,
-//              12 / 100 upgraded, fireTime 0.32. Dual-wield is stock T6
-//              plumbing (DualWieldWeapon\zapgun_le_zm, the fivesevendw shape).
-//              All four measured under the 20,480 B raw-def loader ceiling.
+//              package's converted defs. 🛑 v2.9.29: T6 maxAmmo/startAmmo are
+//              in MAGAZINES, not rounds (measured from stock fiveseven: max 6
+//              x clip 20 = the known 120 reserve; dual max 13 x 15 = 195).
+//              The first re-tune copied BO1's ROUND counts (64/100) into the
+//              mag fields, which the engine read as 64 and 100 magazines -
+//              the user's 12|12/974 screenshot. Now clip 12, cap 5 mags (60)
+//              base / 8 mags (96) upgraded - the user's requested balance
+//              (their 2026-09-01 12/60 + ~100 ask; 100 is not a multiple of
+//              12, rounded DOWN to 96). Same session the pool identities the
+//              ezz skeleton left behind (ammoName ".45acp m1911" / clipName
+//              "m1911_upgraded_zm" - the STARTING PISTOL's pools) became a
+//              private "zapgundw" pair, the stock fivesevendw pattern.
+//              Dual-wield is stock T6 plumbing (DualWieldWeapon\zapgun_le_zm,
+//              the fivesevendw shape). All four still under the 20,480 B
+//              raw-def loader ceiling.
 //    models    the donor's 4 converted xmodels via zone_source\zapgun_donor
 //              (19-asset minimal fastfile - see mod_zapgun.zone for why the
 //              full donor is untouchable).
