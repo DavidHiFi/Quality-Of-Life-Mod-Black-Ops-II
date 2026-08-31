@@ -1,0 +1,11 @@
+// Call Of Duty: Black Ops II
+>game,T6
+
+material,mc/mtl_raygun_moon_front
+material,mc/mtl_raygun_moon_rear
+material,mc/mtl_zapgun_dw1
+material,mc/mtl_zapgun_dw2
+xmodel,wavegun_le_view
+xmodel,wavegun_ri_view
+xmodel,wm_zapgun_lh
+xmodel,wm_zapgun_rh
