@@ -102,7 +102,8 @@ the base game never let you do. In the lobby: pick your character, set the minim
 and choose when Nuketown's machines arrive.
 
 **Everything else** — instant Pack-a-Punch, BO4 Max Ammo, wall buys that refill your magazine, the
-high-round fix, the galaxy animated Pack-a-Punch camo, +100 points for going prone at a perk
+high-round fix, the EMP grenade in the box on every map (it knocks out the Wunderfizz too, not just
+perk machines and the box), the galaxy animated Pack-a-Punch camo, +100 points for going prone at a perk
 machine, full backwards and sideways movement speed, a network frame patch, and switches for the
 round cap, the 24-zombie solo cap, instakill rounds, Double Tap 1.0, barrier attacks, bleedout,
 round delay, walkers, Speed Cola and perma-perks. Your settings are remembered between sessions.
@@ -222,6 +223,7 @@ The rough edges, kept in the open. None of this is buried in the release notes.
 | **You cannot pick a starting weapon on Mob of the Dead** | The snub-nose Python it would need is not in any of the game's files. |
 | **Winter's Howl does not freeze zombies solid, and they never shatter** | The frozen death pose is a Black Ops II animation *state*, and the files that define one cannot be shipped by a mod — doing it crashes every map at load, which was measured, not assumed. Without that state the gun skips its whole freeze-and-shatter sequence and just kills. Two things behind it were fixed this version: the progressive slow-down had both of its speed thresholds set to the same number, so it could only ever snap straight to a walk, and the Packed version did nearly four thousand times its intended damage, which killed everything instantly and hid the frost effects entirely. The frost on arms and legs works; the pose and the shatter cannot be done with the tools that exist. |
 | **The Bouncing Betty plants and springs silently** | Its click and spring sounds are locked inside a multiplayer sound bank no available tool can open. The explosion is unaffected. The base game's own claymores plant silently too. |
+| **The EMP grenade is new on five maps and could, in theory, stop one loading** | Putting it in the box outside Green Run restores the perk display width the base game always used, which costs a little of a budget whose true limit nobody has ever measured. If a map suddenly refuses to load, type `emp_all_maps 0` in the console and it goes back exactly as it was — no reinstall, no rebuild. Green Run is untouched either way, since it always had the grenade. |
 | **Eight guns do not get the animated Pack-a-Punch camo on Green Run** | The Ray Gun, DSR 50, Five-Seven, M14, Galil, FAL, 870 MCS and the ballistic knife. Green Run stores a cut-down camo for those eight that has no animated version in it, and the mod does not yet carry its own replacement for them. Every other weapon animates there. They were not animating before either, so nothing got worse. |
 | **On Buried and Origins the Betty can end up with no button** | Black Ops II gives you four equipment buttons. On Buried the base game puts the Time Bomb on the one the Betty would use, and on Origins the Maxis drone. Carry both and the Betty gives way rather than taking the button off something Treyarch put there — you keep it, you just cannot throw it. On the other four maps it has a button to itself. |
 

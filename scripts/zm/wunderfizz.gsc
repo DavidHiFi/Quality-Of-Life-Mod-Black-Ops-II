@@ -2025,6 +2025,12 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 	{
 		trig SetHintString(" ");
 	}
+	//  v2.9.13 - EMP watcher, one per machine, started once and for the
+	//  machine's whole life. Deliberately AFTER the power/generator gate above
+	//  so it cannot fire while the machine has never gone live, and BEFORE the
+	//  main loop so it is armed no matter which location is currently active.
+	self thread zmqol_wf_emp_watch( trig );
+
 	for(;;)
 	{
 		if(level.currentWunderfizzLocation == self.location)
@@ -2071,6 +2077,19 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 				if( zmqol_wf_tomb_locked( e_native_gen ) )
 				{
 					trig SetHintString( "Activate the Generator First" );
+					wait 0.5;
+					continue;
+				}
+
+				//  v2.9.13 - EMP'd. Same shape as the generator lock directly
+				//  above, deliberately: no `trig waittill("trigger")` is armed
+				//  while we sit here, so there is no buy prompt and no way to
+				//  purchase - "visible but locked", which is the behaviour this
+				//  file already settled on and what stock perk machines do when
+				//  their power is cut.
+				if( self zmqol_wf_emped() )
+				{
+					trig SetHintString( "Wunderfizz Is Disabled" );
 					wait 0.5;
 					continue;
 				}
@@ -2473,6 +2492,18 @@ zmqol_wf_idle_arcs()
 		//  The spin has its own, denser crackle - two threads drawing arcs on the
 		//  same tag is the stacking failure this file has hit twice.
 		if( isdefined( self.zmqol_wf_cycling ) && self.zmqol_wf_cycling )
+			continue;
+
+		//  v2.9.13 - EMP'd machines go dark AND silent. Skipping this pass is
+		//  the whole mechanism: server GSC has no stopfx (see the block in
+		//  zmqol_wf_ball_glow), so these effects are RETRIGGERED on a beat and
+		//  simply not retriggering them lets the last one expire on its own.
+		//  The playsound below is the machine's idle crackle, so the same
+		//  `continue` silences it - which is what "off" should sound like.
+		//  Deliberately a flag rather than the "zmqol_wf_ball_off" notify this
+		//  thread endons: that notify ENDS the thread for good, and an EMP is
+		//  temporary.
+		if( self zmqol_wf_emped() )
 			continue;
 
 		if( !self zmqol_wf_fx_nearby() )
@@ -3151,4 +3182,113 @@ zmqol_wf_vulture_marker_watch()
 
 		wait 0.25;
 	}
+}
+
+// ============================================================================
+//  THE EMP GRENADE TURNS THE WUNDERFIZZ OFF                          (v2.9.13)
+// ----------------------------------------------------------------------------
+//  User request 2026-08-31: *"When an EMP Grenade detonates within range of an
+//  active Wunderfizz machine, temporarily disable/turn off the machine for a
+//  short period, mirroring its vanilla interaction with standard perk machines
+//  and the Mystery Box. Ensure proper visual/audio feedback."*
+//
+//  🌟 THE HOOK IS STOCK'S OWN, NOT AN INVENTION. _zm_weap_emp_bomb.gsc's
+//  emp_detonate() fires `level notify( "emp_detonate", origin, emp_radius )`
+//  before it does anything else, and that is exactly how the MYSTERY BOX
+//  listens - _zm_magicbox.gsc::watch_for_emp_close() runs the identical
+//  `level waittill( "emp_detonate", origin, radius )` + distancesquared test.
+//  This is that same pattern, so the Wunderfizz responds on the same frame and
+//  at the same range as the box does.
+//
+//  🛑 WHY THIS WAS NOT ALREADY HAPPENING BY ITSELF. Two independent reasons,
+//  both checked rather than assumed:
+//   1. Stock's EMP disables perk machines through
+//      _zm_power::change_power_in_radius(), which only walks items registered
+//      with add_powered_item(). The Wunderfizz is spawned by this file and is
+//      not one of them, so the power sweep never saw it.
+//   2. This file's own power gate (`flag_wait("power_on")`, in wunderfizz())
+//      is a ONE-SHOT that only holds the machine before it first goes live. It
+//      never re-checks, so even losing power outright would not have closed it.
+//
+//  DURATION is stock's, read from the same level.zombie_vars the EMP module
+//  sets - emp_perk_off_time, 90s - so the machine comes back exactly when the
+//  perks it dispenses do. Falls back to 90 if the EMP module never ran.
+//
+//  FEEDBACK, all six axes considered:
+//    visual - the idle arcs and the wunderfizz_loop effect stop being
+//             retriggered (see zmqol_wf_idle_arcs), so the machine visibly
+//             goes dark. Server GSC has no stopfx; not retriggering IS the off
+//             switch, which is the mechanism this file already relies on.
+//    sound  - zmqol_wf_stop on the way down and zmqol_wf_start on the way back.
+//             Both are THIS MOD'S OWN aliases, present in
+//             soundbank\mod.all.aliases.additions.csv, so they cannot be
+//             shadowed by, or silently missing from, the user's sound pack.
+//             The idle crackle (zmqol_wf_sparks) stops with the arcs.
+//    usable - the buy loop sits on a hint string and never arms its trigger, so
+//             there is no prompt and no purchase. Same shape as the Origins
+//             generator lock a few lines above it.
+//
+//  🛑 NOT STACKABLE. A second grenade while the machine is already down is
+//  ignored rather than extending or double-restoring it - two timers on one
+//  machine is the thread-stacking failure this file has hit twice before.
+// ============================================================================
+zmqol_wf_emped()
+{
+	return isdefined( self.zmqol_wf_emped_until ) && gettime() < self.zmqol_wf_emped_until;
+}
+
+zmqol_wf_emp_watch( trig )
+{
+	self endon( "death" );
+	level endon( "end_game" );
+
+	for( ;; )
+	{
+		level waittill( "emp_detonate", v_origin, n_radius );
+
+		if( !isdefined( v_origin ) || !isdefined( n_radius ) )
+			continue;
+
+		//  Same test the mystery box uses, squared to avoid the sqrt.
+		if( distancesquared( v_origin, self.origin ) >= n_radius * n_radius )
+			continue;
+
+		if( self zmqol_wf_emped() )
+			continue;
+
+		self thread zmqol_wf_emp_down( trig );
+	}
+}
+
+zmqol_wf_emp_down( trig )
+{
+	self endon( "death" );
+	level endon( "end_game" );
+
+	n_time = 90;
+
+	if( isdefined( level.zombie_vars ) && isdefined( level.zombie_vars[ "emp_perk_off_time" ] ) )
+		n_time = level.zombie_vars[ "emp_perk_off_time" ];
+
+	self.zmqol_wf_emped_until = gettime() + int( n_time * 1000 );
+
+	self playsound( "zmqol_wf_stop" );
+
+	if( isdefined( trig ) )
+		trig SetHintString( "Wunderfizz Is Disabled" );
+
+	println( "[zm_qol] wunderfizz: EMP'd at location " + self.location + " for " + n_time + "s" );
+
+	wait n_time;
+
+	//  Only speak for this outage. If a later grenade re-armed the machine while
+	//  we were asleep, that thread owns the restore and this one must not talk
+	//  over it.
+	if( self zmqol_wf_emped() )
+		return;
+
+	self.zmqol_wf_emped_until = undefined;
+	self playsound( "zmqol_wf_start" );
+
+	println( "[zm_qol] wunderfizz: EMP wore off at location " + self.location );
 }

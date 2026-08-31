@@ -157,6 +157,20 @@ zmqol_mp_weapons_init()
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "dragunov_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "bouncingbetty_zm" );
 
+	//  v2.9.13 - THE EMP GRENADE. Server twin: quality_of_life.gsc's
+	//  zmqol_emp_grenade_init(). Both halves must agree or the box cannot draw
+	//  its pickup model.
+	//
+	//  🛑 GATED THE SAME WAY THE SERVER IS, and on the same two conditions, or
+	//  the two lists diverge: skipped on zm_transit (which includes it in its
+	//  own stock client script, clientscripts\mp\zm_transit.csc:314) and skipped
+	//  when emp_all_maps is 0.
+	//
+	//  📝 mod.ff owns emp_grenade_zm and its models now, so the def exists on
+	//  every map and the as50/Origins missing-def crash class cannot apply.
+	if ( getdvarintdefault( "emp_all_maps", 1 ) && getdvar( "mapname" ) != "zm_transit" )
+		clientscripts\mp\zombies\_zm_weapons::include_weapon( "emp_grenade_zm" );
+
 	// their upgraded halves - included, but never a box result
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sig556_upgraded_zm", 0 );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "sa58_upgraded_zm", 0 );
@@ -2308,11 +2322,15 @@ zmqol_deadshot_perk_callback( localclientnum, oldval, newval, bnewent, binitials
 
 perks_register_clientfield()
 {
-	bits = 1;
-	if (clientscripts\mp\zombies\_zm_weapons::is_weapon_included("emp_grenade_zm"))
-	{
-		bits = 2;
-	}
+	//  🛑 v2.9.13 - THE CLIENT TWIN OF THE SERVER'S SAME CHANGE. Was
+	//  `bits = 1` widened to 2 only when emp_grenade_zm was included; stock's
+	//  clientscripts\mp\zombies\_zm_perks.csc hardcodes 2 and never mentions the
+	//  EMP. Both halves are now the same constant, so the two lists can no
+	//  longer disagree about a width - see the long block on the server side in
+	//  quality_of_life.gsc::perks_register_clientfield() for the full evidence,
+	//  including the game's own per-map clientfield dumps showing 2 bits on
+	//  every map. Changing one side alone is EXE_CLIENT_FIELD_MISMATCH at load.
+	bits = 2;
 	if (is_true(level.zombiemode_using_additionalprimaryweapon_perk))
 	{
 		registerclientfield("toplayer", "perk_additional_primary_weapon", 1, bits, "int", level.zombies_global_perk_client_callback, 0, 1);

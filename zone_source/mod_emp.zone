@@ -1,0 +1,40 @@
+// ============================================================================
+//  mod_emp.zone  -  the EMP grenade, so it can be a box weapon on EVERY map.
+//
+//  User request 2026-08-31: put the EMP grenade in the mystery box pool on all
+//  six maps, not just Green Run.
+//
+//  MEASURED BEFORE THIS FILE WAS WRITTEN (Unlinker --list over retail zone\all):
+//    * `weapon, emp_grenade_zm` exists in **zm_transit.ff ONLY** - zero in
+//      zm_prison, zm_tomb, zm_buried, zm_highrise, zm_nuked or common_zm. So on
+//      five of the six maps the weapon genuinely does not exist and has to be
+//      carried here, the same way the ballistic knife is.
+//    * Its own def names 2 xmodels, 1 fx, 3 xanims and 6 sound aliases. The
+//      three anims are the US smoke grenade's (viewmodel_ussmokegrenade_*) and
+//      the sounds are the generic grenade set, so only the models and the one
+//      fx are actually TranZit-bound.
+//    * The module's OTHER effect, weapon/emp/fx_emp_explosion_equip (loadfx'd
+//      in _zm_weap_emp_bomb::init), is owned by **common_zm**, which the game
+//      loads on every zombies map - so it needs no declaration here and is
+//      already available everywhere. Verified, not assumed.
+//
+//  build_ff.bat already --loads zm_transit.ff, which is where all four assets
+//  below come from.
+//
+//  🛑 THE DEF IS DECLARED, NOT SHIPPED RAW. Unlike the ported guns, there is no
+//  reason to author a raw weapons\zm\ copy: the stock def is exactly what is
+//  wanted, and the Linker can only ever emit a verbatim copy from a loaded
+//  fastfile anyway.
+//
+//  📝 The display name is NOT here - ZOMBIE_WEAPON_EMP_GRENADE turned out to be
+//  in no localize asset in the game, so it is added to this mod's own mod.str
+//  (declared as `localize,mod` in mod_wonderweapons.zone) with the same text
+//  TranZit already shows.
+// ============================================================================
+
+weapon,emp_grenade_zm
+
+xmodel,t6_wpn_grenade_emp_view
+xmodel,t6_wpn_grenade_emp_world
+
+fx,maps/zombie/fx_zmb_wep_emp_explo

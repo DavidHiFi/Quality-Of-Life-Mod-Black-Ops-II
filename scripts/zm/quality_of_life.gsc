@@ -605,6 +605,7 @@ init()
     zmqol_dev_commands();
     zmqol_box_wonder_weapon_weights_init();
     zmqol_mp_weapons_init();
+    zmqol_emp_grenade_init();   // v2.9.13 - EMP grenade in the box on every map
     zmqol_wallbuy_box_init();
     level thread zmqol_wallbuy_box_reassert();
     level thread zmqol_wallbuy_variant_keep();   // wall buy = the box's variant (v1.99.91)
@@ -9349,6 +9350,87 @@ zmqol_mp_weapons_init()
 
     println( "[zm_qol] mp_weapons: 12 registered for the box on " + getdvar( "mapname" ) );
 }
+
+// ============================================================================
+//  THE EMP GRENADE, IN THE BOX ON EVERY MAP                          (v2.9.13)
+// ----------------------------------------------------------------------------
+//  User request 2026-08-31: *"Add the EMP Grenade to the Mystery Box item pool
+//  across ALL Black Ops 2 Zombies maps (not just Tranzit/Green Run maps)."*
+//
+//  Registration is stock's own, copied line for line from zm_transit.gsc:1926
+//  and :2017 - the weight function, the cost, the vox pack and the trailing 1
+//  are all Treyarch's numbers, not chosen here:
+//      include_weapon( "emp_grenade_zm", 1, undefined, ::less_than_normal );
+//      add_zombie_weapon( "emp_grenade_zm", undefined,
+//                         &"ZOMBIE_WEAPON_EMP_GRENADE", 2000, "wpck_emp", "",
+//                         undefined, 1 );
+//
+//  🛑 TRANZIT IS SKIPPED. It already registers all of this in its own stock
+//  script; doing it twice would put a second copy in the box pool.
+//
+//  🛑 THE ASSETS. emp_grenade_zm lives in zm_transit.ff and NOWHERE else -
+//  measured with Unlinker over all six maps and common_zm - so mod.ff now owns
+//  the weapon plus its 2 xmodels and its fx (zone_source\mod_emp.zone). The
+//  module's other effect is in common_zm, which loads on every map anyway.
+//
+//  🛑 THE CLIENT MUST MATCH. zm_expanded.csc includes the same weapon; the box
+//  needs it on both sides to draw the pickup model. Registering on one side
+//  only is the EXE_CLIENT_FIELD_MISMATCH class.
+//
+//  🌟 WHAT THIS COSTS IN CLIENTFIELD BITS - AND WHY THE OLD COMMENT WAS WRONG.
+//  perks_register_clientfield() in this file narrows every perk field to 1 bit
+//  unless emp_grenade_zm is included, and its comment claimed that was "stock's
+//  own rule". IT IS NOT. Stock's _zm_perks.gsc hardcodes **2** for all eight
+//  perk fields and never mentions the EMP at all, and the game's own runtime
+//  clientfield dumps confirm 2 bits on EVERY map - Origins, Buried, Mob, Die
+//  Rise and Nuketown included, none of which ship the grenade.
+//  So this feature does not "cost" bits that stock was saving; it restores the
+//  width stock always used. It also repairs a real latent defect: perk_pause()
+//  writes the value 2 (_zm_perks.gsc:2650) and a 1-bit field cannot hold it, so
+//  on those five maps the "perk disabled" state was being truncated whenever a
+//  machine lost power.
+//  🛑 RESIDUAL RISK, STATED PLAINLY: it is still +1 bit x 9 perk fields on five
+//  maps, and toplayer's real ceiling is unmeasured (ERROR_CATALOGUE section 2
+//  says never issue a verdict from that arithmetic). If any map now fails to
+//  load with "Client Field Set toplayer is out of space", set `emp_all_maps 0`
+//  at the console and it reverts with no rebuild.
+// ============================================================================
+zmqol_emp_grenade_init()
+{
+    if ( !getdvarintdefault( "emp_all_maps", 1 ) )
+    {
+        println( "[zm_qol] emp: disabled by emp_all_maps 0" );
+        return;
+    }
+
+    //  TranZit ships the grenade itself - leave its own registration alone.
+    if ( level.script == "zm_transit" )
+    {
+        println( "[zm_qol] emp: zm_transit registers its own, nothing added" );
+        return;
+    }
+
+    precacheitem( "emp_grenade_zm" );
+    include_weapon( "emp_grenade_zm", 1, undefined, ::zmqol_emp_box_weight );
+    add_zombie_weapon( "emp_grenade_zm", undefined, &"ZOMBIE_WEAPON_EMP_GRENADE", 2000, "wpck_emp", "", undefined, 1 );
+
+    //  AFTER the two calls above, never before: the module's own init() returns
+    //  immediately unless level.zombie_weapons["emp_grenade_zm"] is defined, and
+    //  add_zombie_weapon() is what defines it.
+    maps\mp\zombies\_zm_weap_emp_bomb::init();
+
+    println( "[zm_qol] emp: EMP grenade added to the box on " + level.script + " (perk clientfields now 2 bits, stock's own width)" );
+}
+
+//  Stock's box weight for the grenade. zm_transit.gsc:1978, zm_buried.gsc:1160
+//  and zm_transit_dr.gsc:685 all define this identically as a map-local
+//  function returning 0.5 - it is not a shared utility, so the mod needs its
+//  own copy. A local function reference like this is safe in a root script;
+//  only qualified maps\mp\zm_<map>:: references resolve at load time.
+zmqol_emp_box_weight()
+{
+    return 0.5;
+}
 // ============================================================================
 //  zmqol_wallbuy_box_init  -  WALL-BUY-ONLY GUNS, PUT IN THE MYSTERY BOX
 //                                                       (v1.99.56 / v1.99.58)
@@ -13307,8 +13389,17 @@ zmqol_vulture_enabled()
     //  could be moved to `allplayers`, where TranZit uses 25 of 32. That is a
     //  tune of a stock field, which this project does not do, and it frees 5
     //  where 10 are needed. Narrowing the perk fields is not available either -
-    //  they are 2 bits wide because TranZit ships emp_grenade_zm, which is
-    //  stock's own rule in perks_register_clientfield().
+    //  they are 2 bits wide on EVERY map because that is the width stock
+    //  hardcodes in perks_register_clientfield(), and perk_pause() writes the
+    //  value 2 into them, which 1 bit cannot hold.
+    //
+    //  🛑 CORRECTED v2.9.13. This used to say they were 2 bits "because TranZit
+    //  ships emp_grenade_zm, which is stock's own rule". That was WRONG on both
+    //  counts: stock's function hardcodes 2 and never mentions the EMP, and the
+    //  game's own per-map clientfield dumps show 2 bits on all six maps
+    //  including the five with no EMP. The EMP conditional was this mod's own
+    //  invention and has been removed - see the block on
+    //  perks_register_clientfield() itself.
     //
     //  📝 TranZit keeps 11 perks. getPerks() gates Vulture on
     //  level._custom_perks[ "specialty_nomotionsensor" ], defined only by the
@@ -13549,11 +13640,43 @@ zmqol_enable_electric_cherry()
 
 perks_register_clientfield()
 {
-	bits = 1;
-	if (isdefined(level.zombie_include_weapons) && isdefined(level.zombie_include_weapons["emp_grenade_zm"]))
-	{
-		bits = 2;
-	}
+	// ========================================================================
+	//  🛑 v2.9.13 - THE `bits` VARIABLE WAS A FABRICATION. RESTORED TO STOCK.
+	//
+	//  This used to read `bits = 1;` and only widen to 2 when emp_grenade_zm was
+	//  included, with a comment elsewhere in this file calling that "stock's own
+	//  rule in perks_register_clientfield()". IT IS NOT STOCK'S RULE. Stock's
+	//  _zm_perks.gsc hardcodes **2** for all eight perk fields and does not
+	//  mention the EMP anywhere in the function - checked in the gsc-dump.
+	//
+	//  🌟 AND THE GAME'S OWN RUNTIME DUMPS AGREE. T6-Data-Archive's per-map
+	//  clientfield dumps show 2-bit perk fields on EVERY map, including the five
+	//  that ship no EMP grenade at all:
+	//      Origins 2, Buried 2, Mob 2, Die Rise 2, Nuketown 2, TranZit 2.
+	//
+	//  🔴 SO THIS WAS A REAL, SHIPPED DEFECT, not just a cosmetic deviation.
+	//  perk_pause() writes the value **2** into these fields
+	//  (_zm_perks.gsc:2650) whenever a machine loses power. A 1-bit field cannot
+	//  hold 2, so on all five non-TranZit maps the "perk disabled" client state
+	//  was being truncated every time power dropped.
+	//
+	//  🛑 IT ALSO REMOVED AN ORDERING TRAP. Reading level.zombie_include_weapons
+	//  here made the width depend on whether weapon registration had already run
+	//  when the perks registered - and the CLIENT twin computed the same thing
+	//  from its own separate list. Two independently-ordered reads deciding one
+	//  shared bit width is exactly how EXE_CLIENT_FIELD_MISMATCH happens. A
+	//  constant cannot desync.
+	//
+	//  COST: +1 bit per perk field on the five maps that were narrowed. That is
+	//  what stock has always spent there. 🛑 toplayer's true ceiling is still
+	//  unmeasured (ERROR_CATALOGUE section 2) - if a map now fails to load with
+	//  "Client Field Set toplayer is out of space", that is this change, and
+	//  this is the first place to look.
+	//
+	//  🛑 THE CLIENT TWIN IN zm_expanded.csc CHANGED IN THE SAME EDIT and must
+	//  stay identical.
+	// ========================================================================
+	bits = 2;
 	if (isdefined(level.zombiemode_using_additionalprimaryweapon_perk) && level.zombiemode_using_additionalprimaryweapon_perk)
 	{
 		registerclientfield("toplayer", "perk_additional_primary_weapon", 1, bits, "int");
