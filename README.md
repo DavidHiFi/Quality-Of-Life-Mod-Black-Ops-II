@@ -25,14 +25,6 @@ and an in-game menu to switch any of it on or off.
 
 </div>
 
-<!-- SCREENSHOT SPOT 1 - the hero shot goes here, right under the badges.
-     One wide image works best. Drop the file in and uncomment:
-
-     <div align="center">
-     <img src="docs/screenshot-hero.png" width="900" alt="">
-     </div>
--->
-
 ---
 
 <div align="center">
