@@ -1482,3 +1482,36 @@ attachmentunique,au_peacekeeper_reflex
 //  camo_qbb, camo_holo, camo_peacekeeper, camo_reflex) is confirmed present in
 //  mod.ff, so those fields are correct as extracted too.
 // ============================================================================
+
+// ============================================================================
+//  v2.9.26 - THE EZZ ANIMATED PACK-A-PUNCH CAMO (user, 2026-09-01: "use the
+//  animated pap camos from the ezz mod and replace the current galaxy one").
+//
+//  Measured out of the installed zm_ezz3.0 (mods folder), not assumed:
+//    - EZZ never touches scripts or the PaP index; their per-weapon camo
+//      tables keep stock slot 8 = mtl_weapon_camo_zmb_dlc2.
+//    - Their signature pink/cherry/galaxy animated camo is the material
+//      mtl_weapon_camo_mystic (v3.0 contents): the SAME animated techniqueset
+//      as dlc2 (mc_sw4_3d_weapon_camo_anim_glow_930950j2), with
+//      camo_stellar_ember driving BOTH the Ember and Heat_Map roles,
+//      camo_goldgrid_nml as detail/reveal/color/spec, and much hotter
+//      constants (intensity 17.5/17.5, flicker 1.6/1.6 vs stock 5.5/11,
+//      0.53/0.98). Verified by decoding camo_stellar_ember to PNG and
+//      looking at it: pink/red/purple nebula with stars.
+//
+//  This mod already owns the whole animated dlc2 family (plain + _1/_2/_3,
+//  byte-identical texture tables and constants, measured), and every camo
+//  table's slot 8 points there - so stamping EZZ's mystic contents onto all
+//  four names (zone_assets\materials\mc\, raw JSON beats the --loads) swaps
+//  the look everywhere at once, replacing the old MOTD Galaxy image-pixel
+//  retexture. The galaxy-pack pixels in camo_zmb_dlc2_ember/_heat/_reveal are
+//  no longer referenced by these materials but the image assets stay owned -
+//  un-owning a still-declared name is the ERROR_CATALOGUE 35 crash class.
+//  The _alt family (static etched camo, different techniqueset) is untouched.
+//
+//  The two images below are new names; their headers build from the raw
+//  .iwi in zone_assets\images\ (EZZ's own files, verbatim bytes) and
+//  build.bat's step [1/6] copies the pixels into images\ for mod.iwd.
+// ============================================================================
+image,camo_stellar_ember
+image,camo_goldgrid_nml

@@ -103,7 +103,7 @@ and choose when Nuketown's machines arrive.
 
 **Everything else** — instant Pack-a-Punch, BO4 Max Ammo, wall buys that refill your magazine, the
 high-round fix, the EMP grenade in the box on every map (it knocks out the Wunderfizz too, not just
-perk machines and the box), the galaxy animated Pack-a-Punch camo, +100 points for going prone at a perk
+perk machines and the box), the pink-nebula animated Pack-a-Punch camo from the Ezz mod, +100 points for going prone at a perk
 machine, full backwards and sideways movement speed, a network frame patch, and switches for the
 round cap, the 24-zombie solo cap, instakill rounds, Double Tap 1.0, barrier attacks, bleedout,
 round delay, walkers, Speed Cola and perma-perks. Your settings are remembered between sessions.
@@ -266,12 +266,11 @@ without tools that don't exist.
 |---|---|
 | **sehteria** — *T6-ZM-Expanded* | The mod this one grew out of. Most of the original scripts came from here: BO4 Max Ammo, instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers, the area notifier, the Cold War round HUD and secret song survival. |
 | **SadSlothXL** | The Death Machine power-up — the drop, the weapon swap and its sounds. |
-| **Aranella, Frozedy & Skwll** — *Ezz Primary Mod* | The converted Zap Gun models, animations, effects and sounds — the halves of that port nothing on this machine can produce from Black Ops 1 directly. The gameplay is written against Treyarch's own Black Ops 1 script rather than theirs. |
+| **Aranella, Frozedy & Skwll** — *Ezz Primary Mod* | The converted Zap Gun models, animations, effects and sounds — the halves of that port nothing on this machine can produce from Black Ops 1 directly. The gameplay is written against Treyarch's own Black Ops 1 script rather than theirs. The animated Pack-a-Punch camo's textures are theirs too. |
 | **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | Diner as a Survival location, and the extra gamemodes. Treyarch left the data in the game files and never shipped it; Reimagined is the implementation that works. The Bouncing Betty's carry animations follow Reimagined's solution too. |
 | **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The Die Rise weapon changes — the Sliquifier's pre-nerf behaviour, and the Semtex wall buy down to its exact position and angle. |
 | **Fraaagaaa** — [Strat Tester](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the teleport list. |
 | **B2ORG** — [T6-B2OP-PATCH](https://github.com/B2ORG/T6-B2OP-PATCH)<br><sub>built with **Astrox** and **NoMoleMan**</sub> | The basis for most of the patches — the network frame fix, the backspeed values, the 24-zombie solo cap, instakill rounds, Double Tap 1.0 and barrier attacks. Used as a reference and rebuilt against the game's own scripts, not copied wholesale. |
-| **MOTD Galaxy Camo Animated**<br><sub>community texture pack, no author named in the download</sub> | The three textures behind the animated Pack-a-Punch camo. |
 
 > ### Did we miss you?
 > Then it was an oversight, not a decision. Some of this project's early history predates its own
