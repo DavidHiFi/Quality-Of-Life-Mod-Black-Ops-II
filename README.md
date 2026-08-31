@@ -7,14 +7,14 @@
 Every weapon and every perk on every map, three wonder weapons brought over from Black Ops 1,
 and an in-game menu to switch any of it on or off.
 
-<a href="https://github.com/DavidHiFi/QualityOfLifeModBlackOpsII/releases/latest">
+<a href="https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest">
 <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20LATEST%20RELEASE-2EA043?style=for-the-badge&labelColor=161B22" alt="Download the latest release" height="42">
 </a>
 
 <br><br>
 
-<img src="https://img.shields.io/github/v/release/DavidHiFi/QualityOfLifeModBlackOpsII?style=flat-square&label=version&color=5865F2&labelColor=161B22">
-<img src="https://img.shields.io/github/downloads/DavidHiFi/QualityOfLifeModBlackOpsII/total?style=flat-square&label=downloads&color=5865F2&labelColor=161B22">
+<img src="https://img.shields.io/github/v/release/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II?style=flat-square&label=version&color=5865F2&labelColor=161B22">
+<img src="https://img.shields.io/github/downloads/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/total?style=flat-square&label=downloads&color=5865F2&labelColor=161B22">
 <img src="https://img.shields.io/badge/platform-Windows-5865F2?style=flat-square&labelColor=161B22">
 
 <br>
@@ -139,7 +139,7 @@ Type **`.help`** in game for the full list — that one is always up to date, th
 
 Install Plutonium and run it once so its folders exist, then close it.
 
-1. [Download the latest release](https://github.com/DavidHiFi/QualityOfLifeModBlackOpsII/releases/latest) and unzip it anywhere.
+1. [Download the latest release](https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest) and unzip it anywhere.
 2. Run **`Windows Install.bat`**.
 3. Choose **INSTALL → The mod** and confirm.
 4. Launch Plutonium T6 → **Zombies → Mods → Quality Of Life**.
@@ -153,8 +153,8 @@ Both are on the release page as their own downloads, so you can take one without
 
 | Download | Size | What it is |
 |---|---|---|
-| [**HD Texture Pack**](https://github.com/DavidHiFi/QualityOfLifeModBlackOpsII/releases/latest/download/HD.Texture.Pack.zip) | 525 MB | 1,020 upscaled textures. Unzip and drop the `images` folder into `%LOCALAPPDATA%\Plutonium\storage\t6\`. |
-| [**Controller Icons**](https://github.com/DavidHiFi/QualityOfLifeModBlackOpsII/releases/latest/download/Controller.Icons.Pack.zip) | 184 KB | PlayStation 5, Nintendo Switch and Xbox One button prompts. Pick one of the three folders inside and copy its contents into `%LOCALAPPDATA%\Plutonium\storage\t6\images\`. |
+| [**HD Texture Pack**](https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest/download/HD.Texture.Pack.zip) | 525 MB | 1,020 upscaled textures. Unzip and drop the `images` folder into `%LOCALAPPDATA%\Plutonium\storage\t6\`. |
+| [**Controller Icons**](https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest/download/Controller.Icons.Pack.zip) | 184 KB | PlayStation 5, Nintendo Switch and Xbox One button prompts. Pick one of the three folders inside and copy its contents into `%LOCALAPPDATA%\Plutonium\storage\t6\images\`. |
 
 Neither needs the mod installed, and the installer can still fetch and back them up for you if you
 would rather it did.
