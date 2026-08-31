@@ -104,7 +104,18 @@ init()
     //  The body-arc shock, loaded by this module itself (v2.9.28) so the death
     //  dressing no longer depends on the Wunderwaffe module having run - the
     //  fx asset is mod.ff-owned, resident on every map this script allows.
-    level._effect["zapgun_shock"]      = loadfx( "maps/zombie/fx_zombie_tesla_shock" );
+    //
+    //  🛑 v2.9.30 - THE SECONDARY ARC, NOT THE FULL ONE. User, 2026-09-01: the
+    //  electrified-zombie flashes are blinding. Measured from BO1's raw .efx
+    //  sources (the family these T6 assets derive from,
+    //  F:\...\Call of Duty Black Ops\raw\fx\maps\zombie\): the full
+    //  fx_zombie_tesla_shock is 13 elements / 10 billboard sprites / peak
+    //  sprite size 525; _secondary is 7 / 5 / 425. Secondary is also what
+    //  stock Electric Cherry plays on zombies it merely stuns - Treyarch's own
+    //  "lighter arc" of the same family, so the dressing stays a genuine
+    //  asset. Both fx are declared in zone_source\mod_locations.zone, so
+    //  residency is unchanged. The eye sparks below are small and stay.
+    level._effect["zapgun_shock"]      = loadfx( "maps/zombie/fx_zombie_tesla_shock_secondary" );
 
     //  Host sweep + connect loop, the bouncingbetty.gsc lesson: the host is
     //  "connected" before a root script's init() runs.

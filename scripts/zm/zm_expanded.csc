@@ -685,7 +685,16 @@ perks()
 	if ( getDvar("mapname") == "zm_transit" || getDvar("mapname") == "zm_nuked" || getDvar("mapname") == "zm_highrise" || getDvar("mapname") == "zm_prison" || getDvar("mapname") == "zm_buried" ) //GLOBAL
     {
 		level.zombiemode_using_marathon_perk = 1;
-		level.zombiemode_using_deadshot_perk = 1;
+
+		//  🛑 v2.9.30 - EXACT TWIN of the Buried exclusion in
+		//  quality_of_life.gsc::perks(). Buried classic failed to load at 71
+		//  toplayer bits vs the 63 that stock Buried (the fullest map in the
+		//  game) already spends; Deadshot's 2 are part of the 8 cut. Full
+		//  arithmetic in the server copy. Disagree here and it is
+		//  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+		if ( getDvar( "mapname" ) != "zm_buried" )
+			level.zombiemode_using_deadshot_perk = 1;
+
 		level.zombiemode_using_additionalprimaryweapon_perk = 1;
 		level.zombiemode_using_divetonuke_perk = 1;
         clientscripts\mp\zombies\_zm_perk_divetonuke::enable_divetonuke_perk_for_level();
@@ -696,7 +705,10 @@ perks()
 		//  functions ever disagree the toplayer set is one field wider on one
 		//  side and everyone is dropped with EXE_CLIENT_FIELD_MISMATCH before
 		//  the map starts. Change one, change the other.
-		level.zombiemode_using_tombstone_perk = 1;
+		//  🛑 v2.9.30 - not on Buried; twin of the server's exclusion (Buried
+		//  failed to load at 71/63 toplayer bits).
+		if ( getDvar( "mapname" ) != "zm_buried" )
+			level.zombiemode_using_tombstone_perk = 1;
 
 		level thread toggle_vending_deadshot_power_on_think();
 		level thread toggle_vending_deadshot_power_off_think();
@@ -787,6 +799,15 @@ zmqol_zombie_blood_enabled()
 	// *_lerp fields are the expensive part and neither exists in stock Mob —
 	// full accounting in the server twin.
 	if ( getDvar( "mapname" ) == "zm_prison" )
+		return 0;
+
+	// 🛑 v2.9.30 - EXACT TWIN of the Buried exclusion in
+	// quality_of_life.gsc::zmqol_zombie_blood_enabled(). Buried classic failed
+	// to load at 71/63 toplayer bits; Zombie Blood's 3 (powerup_zombie_blood 2
+	// + the visionset_lerp 3->4 widening) are part of the 8 cut. Full
+	// arithmetic in the server copy. Disagree here and it is
+	// EXE_CLIENT_FIELD_MISMATCH before the map starts.
+	if ( getDvar( "mapname" ) == "zm_buried" )
 		return 0;
 
 	return 1;
@@ -976,6 +997,16 @@ zmqol_whoswho_enabled()
 	// dropped because its classic-mode `actor` clientfield set is 32/32 and the
 	// corpse-glow field needs one more bit. Full counts in the server copy.
 	if ( map == "zm_buried" )
+		return 0;
+
+	// 🛑 v2.9.30 - EXACT TWIN of the zm_tomb exclusion in
+	// quality_of_life.gsc::zmqol_whoswho_enabled(). Origins classic failed to
+	// load at 66 toplayer bits (2026-09-01 boot log); 63 is the only total ever
+	// seen to boot, and Who's Who's 3 bits are the cut - the perk's clone glow
+	// is impossible for the Origins crew anyway (no `_g` materials). Full
+	// arithmetic in the server copy. Disagree here and it is
+	// EXE_CLIENT_FIELD_MISMATCH before the map starts.
+	if ( map == "zm_tomb" )
 		return 0;
 
 	return 1;
@@ -2264,7 +2295,11 @@ zmqol_enable_electric_cherry()
 {
 	map = getDvar( "mapname" );
 
-	if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" && map != "zm_buried" )
+	//  🛑 v2.9.30 - zm_buried REMOVED, in the same edit as the server's list in
+	//  quality_of_life.gsc::zmqol_enable_electric_cherry(). Buried failed to
+	//  load at 71/63 toplayer bits; the two lists must stay identical or it is
+	//  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+	if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" )
 		return;
 
 	if ( isDefined( level._custom_perks ) && isDefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) )

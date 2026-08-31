@@ -630,6 +630,7 @@ init()
     level thread zmqol_perma_perks_watch();              // PERMA-PERKS, queue item 29
     level thread zmqol_no_walkers_watch();               // NO WALKERS, user request 2026-08-30
     level thread zmqol_no_limited_weapons_watch();        // NO BOX LIMITS reaches the ported wonder weapons (v2.9.15)
+    level thread zmqol_dim_cherry_arcs();                // Electric Cherry kill arc -> secondary (v2.9.30)
 
     // --- zm_expanded: weapon precache + weapon-limit monitor hook ---
     precacheitem( "uzi_zm" );
@@ -10962,7 +10963,43 @@ perks()
     if ( getDvar("mapname") == "zm_transit" || getDvar("mapname") == "zm_nuked" || getDvar("mapname") == "zm_highrise" || getDvar("mapname") == "zm_prison" || getDvar("mapname") == "zm_buried" ) //GLOBAL
     {
         level.zombiemode_using_marathon_perk = 1;
-        level.zombiemode_using_deadshot_perk = 1;
+
+        // ====================================================================
+        //  🛑 v2.9.30 - BURIED IS EXCLUDED FROM DEADSHOT (and Tombstone,
+        //  below). Measured from the user's failed boot, 2026-09-01:
+        //      Trying to assign 5 bits for netfield vulture_perk_disease_meter
+        //      but Client Field Set toplayer is out of space.  (zm_buried, zclassic)
+        //  That field is STOCK Buried's own (the mod's Vulture port is off
+        //  here - Buried ships the perk) - per ERROR_CATALOGUE §2 the name is
+        //  just whoever asked last. The real cause: stock Buried classic is
+        //  the fullest toplayer map in the game at 63 bits, and the mod's
+        //  additions put it at 71:
+        //      perk_dead_shot            +2   (this flag)
+        //      perk_tombstone            +2   (below)
+        //      perk_electric_cherry      +1   (zmqol_enable_electric_cherry)
+        //      powerup_zombie_blood      +2   (zmqol_zombie_blood_enabled)
+        //      visionset_lerp 3 -> 4     +1   (zombie blood's 15 lerp steps)
+        //  63 is the only total ever seen to boot (stock Buried; this mod's
+        //  Buried on 2026-08-13 - which really ran at 63, not the "≥71" the
+        //  ERROR_CATALOGUE records, because the pre-v2.9.13 1-bit perk fields
+        //  were masking 8 bits; Mob since v2.9.22). 66 fails (Mob v2.9.21,
+        //  Origins 2026-09-01). So ALL FIVE of the mod's Buried bits go, and
+        //  Buried returns to its stock toplayer roster exactly.
+        //
+        //  What Buried loses: Deadshot + Electric Cherry from the Wunderfizz
+        //  (it keeps its native seven perks incl. Vulture Aid), Tombstone
+        //  (was co-op-only anyway), and the Zombie Blood box powerup. If a
+        //  boot ever proves the ceiling is 64 or 65, Electric Cherry (+1) and
+        //  then Deadshot (+2) are the restoration order.
+        //
+        //  🛑 The client twin is zm_expanded.csc::perks() and MUST carry the
+        //  identical exclusions, or the toplayer set differs in width between
+        //  the two sides and everyone is dropped with
+        //  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+        // ====================================================================
+        if ( getDvar( "mapname" ) != "zm_buried" )
+            level.zombiemode_using_deadshot_perk = 1;
+
         level.zombiemode_using_additionalprimaryweapon_perk = 1;
         level.zombiemode_using_divetonuke_perk = 1;
         maps\mp\zombies\_zm_perk_divetonuke::enable_divetonuke_perk_for_level();
@@ -10982,7 +11019,11 @@ perks()
         //  🛑 The twin in scripts\zm\zm_expanded.csc::perks() MUST set this too.
         //  Both sides gate a registerclientfield on it, so one-sided is
         //  EXE_CLIENT_FIELD_MISMATCH before the map starts.
-        level.zombiemode_using_tombstone_perk = 1;
+        //  🛑 v2.9.30 - not on Buried; see the Deadshot block above for the
+        //  full toplayer arithmetic (63 stock + these 2 was part of the 71
+        //  that stopped the map loading).
+        if ( getDvar( "mapname" ) != "zm_buried" )
+            level.zombiemode_using_tombstone_perk = 1;
     }
 
     // ========================================================================
@@ -11898,6 +11939,25 @@ zmqol_zombie_blood_enabled()
     if ( getDvar( "mapname" ) == "zm_prison" )
         return 0;
 
+    // ========================================================================
+    //  🛑 v2.9.30 - BURIED CANNOT AFFORD IT EITHER. Same mechanism as the Mob
+    //  block above, measured from the user's failed boot 2026-09-01: Buried
+    //  classic died at "Trying to assign 5 bits for netfield
+    //  vulture_perk_disease_meter but Client Field Set toplayer is out of
+    //  space" - stock's own field asking after the mod's additions had filled
+    //  the set. Stock Buried classic is the fullest toplayer map in the game
+    //  at 63 bits; Zombie Blood's share of the mod's 8-bit overage there is 3
+    //  (powerup_zombie_blood 2 + widening visionset_lerp 3->4, its 15 lerp
+    //  steps vs stock Buried's widest, PhD's 5). Full arithmetic in the
+    //  Deadshot block inside perks().
+    //
+    //  🛑 The client twin is zm_expanded.csc::zmqol_zombie_blood_enabled().
+    //  Both must agree or the toplayer set differs in width between the two
+    //  sides and everyone is dropped with EXE_CLIENT_FIELD_MISMATCH.
+    // ========================================================================
+    if ( getDvar( "mapname" ) == "zm_buried" )
+        return 0;
+
     return 1;
 }
 
@@ -12533,6 +12593,41 @@ zmqol_whoswho_enabled()
     // the kind of half-implementation this project does not ship. Asked and
     // answered: drop it on Buried entirely.
     if ( map == "zm_buried" )
+        return 0;
+
+    // ========================================================================
+    //  🛑 v2.9.30 - ORIGINS IS DROPPED TOO. Measured from the user's failed
+    //  boot, 2026-09-01 (console_zm.log):
+    //      Trying to assign 2 bits for netfield visionset_slot
+    //      but Client Field Set toplayer is out of space.       (zm_tomb, zclassic)
+    //
+    //  The arithmetic, from the T6-Data-Archive per-map dump: stock Origins
+    //  classic toplayer = 61 bits. This mod added 5 there - perk_tombstone 2
+    //  (user-requested, v1.58.2) + Who's Who's 3 (clientfield_whos_who_audio 1,
+    //  clientfield_whos_who_filter 1, perk_chugabud 1) - for 66. The only
+    //  toplayer totals ever seen to BOOT are <= 63 (stock Buried 63; this mod's
+    //  Buried at 63 on 2026-08-13, when the pre-v2.9.13 1-bit perk fields
+    //  masked 8 bits; Mob at 63 since v2.9.22). 66 has now failed twice (Mob
+    //  v2.9.21, Origins here). Ceiling is somewhere in [63,65]; 63 is the only
+    //  proven-safe target, so 3 bits had to go.
+    //
+    //  Who's Who is the right cut, not Tombstone, for two reasons:
+    //    1. Tombstone was an explicit user request for Origins ("there's one
+    //       perk missing tombstone cola", 2026-08-07) and costs only 2.
+    //    2. Who's Who is ALREADY incomplete on Origins and always will be: the
+    //       downed-clone glow needs the `_g` glow materials, which exist for
+    //       the Victis crew only - the Origins crew has none anywhere in the
+    //       game (the sweep is documented on zmqol_whoswho_clone_glow_enabled).
+    //       "Perfectly or not at all" - the same rule that took Vulture off
+    //       this map in v1.59.0.
+    //  Dropping it here also returns Origins' `actor` set to 31/32 (the
+    //  clone-glow shader field goes with it) and un-registers the zm_whos_who
+    //  visionset info on both sides.
+    //
+    //  🛑 The client twin is zm_expanded.csc::zmqol_whoswho_enabled(). Both
+    //  must agree or the toplayer set differs in width between the two sides
+    //  and everyone is dropped with EXE_CLIENT_FIELD_MISMATCH.
+    if ( map == "zm_tomb" )
         return 0;
 
     return 1;
@@ -13807,7 +13902,14 @@ zmqol_enable_electric_cherry()
 {
     map = getDvar( "mapname" );
 
-    if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" && map != "zm_buried" )
+    //  🛑 v2.9.30 - zm_buried REMOVED from this list. Buried classic failed to
+    //  load at 71 toplayer bits vs the 63 stock spends (the fullest map in the
+    //  game); perk_electric_cherry's 1 bit is part of the 8 cut. Full
+    //  arithmetic in the Deadshot block inside perks(). The client twin's list
+    //  in zm_expanded.csc::zmqol_enable_electric_cherry() changed in the same
+    //  edit and MUST stay identical - one side wider is
+    //  EXE_CLIENT_FIELD_MISMATCH before the map starts.
+    if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" )
         return;
 
     // 🛑 THIS GUARD IS WHY THE PERK WENT HALF-DEAD - user: "with electric cherry
@@ -13860,6 +13962,54 @@ zmqol_enable_electric_cherry()
     // whose first line calls init_electric_cherry() a second time. See above.
     if ( isdefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) )
         level._custom_perks[ "specialty_grenadepulldeath" ].perk_machine_thread = undefined;
+}
+
+// ============================================================================
+//  zmqol_dim_cherry_arcs  -  Electric Cherry's kill arc uses the SECONDARY
+//  tesla shock (v2.9.30)
+//
+//  User, 2026-09-01: electrified zombies cause blinding screen flashes. Stock's
+//  electric_cherry_death_fx() plays level._effect["tesla_shock"] on every
+//  zombie the reload shock KILLS - at an empty clip that is every zombie
+//  within 128 units, each one a 13-element / 10-sprite flash (measured from
+//  BO1's raw .efx sources, which this T6 family derives from; peak sprite
+//  size 525). Stock's own STUN arc, fx_zombie_tesla_shock_secondary, is the
+//  same family at 7 elements / 5 sprites / peak 425 - Treyarch's lighter arc.
+//
+//  THE MECHANISM: repoint the _effect key, not replaceFunc. The only reader
+//  of level._effect["tesla_shock"] in all 2,093 stock scripts is
+//  electric_cherry_death_fx() (grepped, not assumed), and it is called
+//  UNQUALIFIED from electric_cherry_reload_attack() in the same file - which
+//  is replaceFunc failure mode #1 (dev CLAUDE.md §4): a replace would
+//  silently not take for those calls. The key repoint reaches every caller.
+//
+//  No loadfx here - both handles are loaded by stock init_electric_cherry()
+//  (lines 44-45), so this only copies an already-loaded handle and cannot hit
+//  the loadfx-after-init window. The wait exists because cherry's init timing
+//  differs between the ported maps (our perks(), main window) and its native
+//  maps (Mob/Origins, machine think inside _zm_perks::init()); nobody can
+//  drink the perk within the first seconds, so the poll always wins the race
+//  that matters. If cherry is not on this map the keys never appear and this
+//  exits after ~10s having touched nothing.
+//
+//  📝 Server-side only ON PURPOSE: network_safe_play_fx_on_tag() sends the fx
+//  handle the server chose, and the zombie-attached arcs are all
+//  server-played. No clientfield, no client twin, no symmetry risk.
+// ============================================================================
+zmqol_dim_cherry_arcs()
+{
+    for ( i = 0; i < 200; i++ )
+    {
+        if ( isdefined( level._effect ) &&
+             isdefined( level._effect[ "tesla_shock" ] ) &&
+             isdefined( level._effect[ "tesla_shock_secondary" ] ) )
+        {
+            level._effect[ "tesla_shock" ] = level._effect[ "tesla_shock_secondary" ];
+            return;
+        }
+
+        wait 0.05;
+    }
 }
 
 perks_register_clientfield()

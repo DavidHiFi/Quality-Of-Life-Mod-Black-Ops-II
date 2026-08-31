@@ -55,7 +55,7 @@ its model, and a fake was not an option.)
 |---|---|
 | **Every gun, every map** | Nothing is locked to one map any more, and Pack-a-Punch works on the maps that never had it. |
 | **The campaign SPAS-12** | In the box on every map, with Black Ops 1's own numbers, and it Packs into the SPAZ-24. |
-| **All 12 perks** | On every map with room for them, and Wunderfizz on every one of them. |
+| **All 12 perks** | On every map with room for them, and Wunderfizz on every one of them. Buried and Origins run closer to stock — the game engine's own network budget is full there (see the known-issues table). |
 | **13 more guns in the box** | Multiplayer and campaign weapons with real models, animations and audio — SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6, Tac-45 and the campaign Dragunov. |
 | **Diner as a Survival map** | The TranZit location Treyarch built and never shipped, with its own Pack-a-Punch, wall buys, buildable shield and secret song. |
 | **The Death Machine** | A new power-up drop, announcer lines and all. |
@@ -80,7 +80,8 @@ you can build it and the riot shield in the same game instead of choosing.
 anywhere from 1 to 12. Who's Who hands you a Pack-a-Punched ballistic knife so you can revive your
 own body from range.
 
-**Power-ups** — Blood Money on every map, Zombie Blood on the other maps and not just Origins, an
+**Power-ups** — Blood Money on every map, Zombie Blood beyond Origins (every map except Mob of the
+Dead and Buried, whose network budgets are full — see the known-issues table), an
 Instant Nuke that kills the whole horde at once instead of one zombie at a time, and three
 announcer lines Treyarch recorded and never used.
 
@@ -230,7 +231,7 @@ Each of these is already in the current build — it just has not been seen in g
 |---|---|
 | **The Bouncing Betty's first-person hold** | The game ships no animations for carrying a Betty, so holding one froze the hands. It now uses the campaign mine's full carry set. |
 | **Launch-day recoil on the DSR 50 and Five-Seven** | The last two of the eight de-nerfed guns now load their original recoil. Nobody has fired them since. |
-| **Who's Who's ballistic knife on Origins** | Origins contains no part of that knife, so the mod carries its own copy from Buried. Untested until someone goes down there. |
+| **Who's Who's ballistic knife** | The maps it plays on contain no part of that knife, so the mod carries its own copy from Buried. Untested until someone goes down with the perk. |
 | **The animated camo on Green Run's last seven guns** | Green Run stores a cut-down camo for them, so the mod carries a full one from Origins. Nobody has Packed one of the seven since. |
 | **The Zap Guns' animated Pack-a-Punch camo** | The earlier "checks out on paper" was wrong: the camo file claimed the same surfaces twice in its Pack-a-Punch slot, which can black them out. Rebuilt to match the Ezz mod's own working layout. The third-person model stays uncamoed, as it does in the Ezz mod. |
 | **Full nebula coverage when Packed** | Parts of most guns route their Pack-a-Punch look through a second camo layer that still carried the stock look — the "bands". That layer now carries the same animated nebula. |
@@ -249,6 +250,7 @@ without tools that don't exist.
 | Limit | Why |
 |---|---|
 | **Winter's Howl doesn't freeze zombies solid** | The frozen pose is an animation *state*, and the files defining those crash every map when shipped by a mod. The gun deals its full damage and keeps its frost effects. |
+| **Buried keeps its own seven perks; Origins gets Tombstone but not Who's Who** | The engine's per-map network budget for player-state fields is a hard ceiling, and Buried's is the fullest in the game — the mod's extra perks and Zombie Blood pushed both maps past it and they stopped loading (v2.9.13–v2.9.29). Buried now runs its native perk set, Origins keeps its twelfth perk (Tombstone) and gives up Who's Who — whose body glow could never work there anyway. Measured field-by-field against the game's own budget dumps. |
 | **No starting-weapon pick on Mob of the Dead** | The snub-nose Python it needs is not in any of the game's files. |
 | **The Bouncing Betty plants silently** | Its click and spring live in a multiplayer sound bank no available tool can open. The explosion is audible, pulling it out uses the claymore's own gear sound — and the game's own claymores plant silently too. |
 | **On Buried and Origins the Betty can end up with no button** | The base game already uses its button there (Time Bomb, Maxis drone). The Betty gives way rather than break something Treyarch shipped. |
