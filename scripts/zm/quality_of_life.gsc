@@ -9295,6 +9295,18 @@ zmqol_mp_weapons_init()
     //  en_patch_zm.ff and en_code_post_gfx_zm.ff. Only the PaP name is ours.
     zmqol_add_mp_weapon( "as50_zm",        "as50_upgraded_zm",        &"WEAPON_AS50",               1000, "sniper" );
 
+    //  v2.9.18 - the campaign SPAS-12, user request 2026-08-31 ("SPAS-12 ...
+    //  into the Mystery Box on all Zombie maps ... official BO1 Pack-a-Punch
+    //  name"). Same delivery as the Dragunov: raw defs in weapons\zm (so the
+    //  def exists on every map and the as50/Origins missing-def class cannot
+    //  apply), art from nicaragua.ff via mod_spas.zone, numbers from BO1's own
+    //  raw\weapons\sp\spas_zm (clip 8/32, damage 160; SPAZ-24 24/72, 300).
+    //  Cost 500 is the Olympia's - stock's other box shotgun of this class -
+    //  and "shotgun" is stock's own vox key (the rottweil72 row above uses it).
+    //  📝 No pap_attach row needed: the upgraded def ships with NO
+    //  attachments field, the mk48/insas/crossbow case.
+    zmqol_add_mp_weapon( "spas_zm",        "spas_upgraded_zm",        &"WEAPON_SPAS",               500, "shotgun" );
+
     //  v2.9.9 - the campaign Dragunov, weapon 13 (user task 1, 2026-08-30).
     //
     //  A fully separate weapon from the SVU-AS, per the directive: its own

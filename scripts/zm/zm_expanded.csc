@@ -155,6 +155,9 @@ zmqol_mp_weapons_init()
 	//  def exists on EVERY map - the as50/Origins crash class (ERROR_CATALOGUE
 	//  paragraph 37) cannot apply and no map gate is needed.
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "dragunov_zm" );
+	//  v2.9.18 - the campaign SPAS-12. Raw def in mod.iwd like the Dragunov, so
+	//  no map gate is needed; server twin is zmqol_add_mp_weapon( "spas_zm" ... ).
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "spas_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "bouncingbetty_zm" );
 
 	//  v2.9.13 - THE EMP GRENADE. Server twin: quality_of_life.gsc's

@@ -63,6 +63,7 @@ stands on its own.
 |  |  |
 |---|---|
 | **Every gun, every map** | Nothing is locked to one map any more, and Pack-a-Punch works on the maps that never had it. |
+| **The campaign SPAS-12** | In the box on every map, with Black Ops 1's own numbers, and it Packs into the SPAZ-24. |
 | **All 12 perks** | On every map with room for them, and Wunderfizz on every one of them. |
 | **13 more guns in the box** | Multiplayer and campaign weapons with real models, animations and audio — SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6, Tac-45 and the campaign Dragunov. |
 | **Diner as a Survival map** | The TranZit location Treyarch built and never shipped, with its own Pack-a-Punch, wall buys, buildable shield and secret song. |
