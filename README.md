@@ -232,7 +232,8 @@ Each of these is already in the current build — it just has not been seen in g
 | **Launch-day recoil on the DSR 50 and Five-Seven** | The last two of the eight de-nerfed guns now load their original recoil. Nobody has fired them since. |
 | **Who's Who's ballistic knife on Origins** | Origins contains no part of that knife, so the mod carries its own copy from Buried. Untested until someone goes down there. |
 | **The animated camo on Green Run's last seven guns** | Green Run stores a cut-down camo for them, so the mod carries a full one from Origins. Nobody has Packed one of the seven since. |
-| **The Zap Guns' animated Pack-a-Punch camo** | Reported not showing in one session; the full chain checks out on paper and the next session settles it. |
+| **The Zap Guns' animated Pack-a-Punch camo** | The earlier "checks out on paper" was wrong: the camo file claimed the same surfaces twice in its Pack-a-Punch slot, which can black them out. Rebuilt to match the Ezz mod's own working layout. The third-person model stays uncamoed, as it does in the Ezz mod. |
+| **Full nebula coverage when Packed** | Parts of most guns route their Pack-a-Punch look through a second camo layer that still carried the stock look — the "bands". That layer now carries the same animated nebula. |
 | **Deadshot Daiquiri's head lock-on on controller** | Checked line by line against the game's own code; not yet tested with a controller in hand. |
 
 </details>

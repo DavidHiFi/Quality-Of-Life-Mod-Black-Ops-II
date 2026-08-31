@@ -51,6 +51,9 @@
 // ============================================================================
 #include maps\mp\zombies\_zm_utility;
 #include maps\mp\zombies\_zm_weapons;
+//  network_safe_play_fx_on_tag - the choke-safe fx call BO1's own zap death
+//  dressing uses (its T6 home is _zm_net). Globally safe per hard rule 2.
+#include maps\mp\zombies\_zm_net;
 // common_scripts\utility supplies get_players() and is_true() - without it the
 // load-time resolver threw 'Unresolved external' on every map (caught on the
 // first v2.9.20 boot, Mob of the Dead, 2026-08-31). Globally safe per hard
@@ -88,6 +91,10 @@ init()
 
     level._effect["zapgun_impact"]     = loadfx( "misc/fx_exp_zapgun_impact" );
     level._effect["zapgun_shock_eyes"] = loadfx( "maps/zombie/fx_zombie_tesla_shock_eyes" );
+    //  The body-arc shock, loaded by this module itself (v2.9.28) so the death
+    //  dressing no longer depends on the Wunderwaffe module having run - the
+    //  fx asset is mod.ff-owned, resident on every map this script allows.
+    level._effect["zapgun_shock"]      = loadfx( "maps/zombie/fx_zombie_tesla_shock" );
 
     //  Host sweep + connect loop, the bouncingbetty.gsc lesson: the host is
     //  "connected" before a root script's init() runs.
@@ -197,31 +204,48 @@ zmqol_zapgun_kill( e_player, str_weapon )
 
     self.microwavegun_dw_death = 1;
 
-    //  v2.9.24 - THE FULL BO1 DEATH DRESSING, not just the eye flash.
-    //  BO1's microwavegun_zap_death_fx (raw _zombiemode_weap_microwavegun.gsc
-    //  :515-547) plays a body shock fx on J_SpineUpper, "wpn_imp_tesla" on the
-    //  zombie, and head-gibs non-quads. The Wunderwaffe port's
-    //  tesla_play_death_fx is the same sequence in T6 terms (spine arcs +
-    //  wpn_imp_tesla + the 75% head gib with the eye fx on the else branch),
-    //  so the zap guns share it - the two guns share the death anim family in
-    //  BO1 too. Guarded on the waffe module having initialized its fx
-    //  (teslagun.gsc gates _zm_weap_tesla::init() behind zmqol_ww, so a
-    //  zap-only bisect run falls back to the old eye flash).
-    if ( isdefined( level._effect ) && isdefined( level._effect["tesla_shock"] ) )
-        self thread maps\mp\zombies\_zm_weap_tesla::tesla_play_death_fx( 1 );
-    else
-    {
-        v_head = self gettagorigin( "j_head" );
-
-        if ( !isdefined( v_head ) )
-            v_head = self getcentroid();
-
-        playfx( level._effect["zapgun_shock_eyes"], v_head );
-        self playsound( "wpn_imp_tesla" );
-    }
+    //  v2.9.28 - BO1'S OWN DEATH SEQUENCE, re-measured from BO1 raw this
+    //  session (_zombiemode_weap_microwavegun.gsc:522-547) instead of
+    //  inherited from the Wunderwaffe port: body shock on J_SpineUpper
+    //  (J_Spine1 for dogs) + "wpn_imp_tesla" + the shock-eyes fx on EVERY
+    //  non-quad that still has its head. 🌟 BO1's "microwavegun_zap_head_gib"
+    //  only plays the eyes fx - it never gibs the model - so the waffe's 75%
+    //  head-gib roll was the waffe's own dressing, not the zap guns', and the
+    //  delegation to tesla_play_death_fx is gone. The literal Moon fx
+    //  (fx_zap_shock_dw / _eyes_dw) are unobtainable on this machine, all
+    //  three routes measured 2026-09-01: OAT dumps no T5 fx from
+    //  zombie_moon.ff, BO1's raw\fx ships no weapon\microwavegun folder, and
+    //  the ezz package carries only the tesla-family shocks. The body arc is
+    //  therefore BO1's tesla shock - the family Moon shares its zap death
+    //  anims with - which is the closest genuine asset, not a fabrication.
+    //  Threaded exactly like BO1 threads its dressing, so a rig missing a tag
+    //  can cost the garnish but never the kill below.
+    self thread zmqol_zapgun_death_dressing();
 
     if ( isdefined( e_player ) && isalive( e_player ) )
         self dodamage( self.health + 666, self.origin, e_player );
     else
         self dodamage( self.health + 666, self.origin );
+}
+
+//  BO1's microwavegun_zap_death_fx + microwavegun_zap_head_gib, in T6 terms.
+zmqol_zapgun_death_dressing()
+{
+    self endon( "death" );
+
+    str_tag = "J_SpineUpper";
+
+    if ( isdefined( self.isdog ) && self.isdog )
+        str_tag = "J_Spine1";
+
+    network_safe_play_fx_on_tag( "zapgun_death_fx", 2, level._effect["zapgun_shock"], self, str_tag );
+    self playsound( "wpn_imp_tesla" );
+
+    if ( isdefined( self.animname ) && self.animname == "quad_zombie" )
+        return;
+
+    if ( is_true( self.head_gibbed ) )
+        return;
+
+    network_safe_play_fx_on_tag( "zapgun_death_fx", 2, level._effect["zapgun_shock_eyes"], self, "J_Eyeball_LE" );
 }
