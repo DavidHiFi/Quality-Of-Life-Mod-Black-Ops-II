@@ -907,8 +907,12 @@ material,zm_hud_icon_cardoor
 //    XPR-50, TAC-45 - in no workspace mod at all (the user ruled these out).
 //    M16          - already shipped and boxed. Dragunov - no such BO2 weapon.
 //
-//  📝 menu_mp_weapons_* were excluded on purpose: they are create-a-class icons
-//  that zombies never draws, and they resolve from no loaded fastfile.
+//  📝 menu_mp_weapons_* for the MP box guns need no line here: the donor base
+//  mod.ff ALREADY carries them (menu_mp_weapons_sig556/mk48/mp7/... - measured
+//  with Unlinker --list 2026-09-01), so they resolve at runtime - no log line
+//  for any of them on the v2.9.26 Diner boot. The old claim here that zombies
+//  never draws them was never verified; the maps ship these icons for every
+//  stock zm gun.
 // ============================================================================
 camo,camo_crossbow
 camo,camo_mk48
@@ -919,6 +923,19 @@ camo,camo_qbb
 camo,camo_sa58
 camo,camo_sig556
 camo,camo_vector
+
+// ============================================================================
+//  v2.9.27 - THE SPAS ICON. The one gun whose hudIcon/killIcon/ammoCounterIcon
+//  resolve from NO loaded fastfile (SPAS is a campaign gun; its icon ships only
+//  in frontend.ff, which zombies never loads) - the sole weapon-icon
+//  "Could not load material" on the v2.9.26 Diner boot log. Treyarch ships a
+//  menu_mp_weapons_* icon with every stock zm gun, so the SPAS carries its own:
+//  material JSON + iwi dumped verbatim from retail frontend.ff into
+//  zone_assets\ (raw beats every --load; the --load list is untouched).
+//  The _big variant is create-a-class-only and stays out.
+// ============================================================================
+material,menu_mp_weapons_spas
+image,menu_mp_weapons_spas
 
 // ============================================================================
 //  v2.9.15 - THE SEVEN GREEN RUN GUNS THAT COULD NOT ANIMATE.
