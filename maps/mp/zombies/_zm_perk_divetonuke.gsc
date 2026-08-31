@@ -90,12 +90,12 @@ vending_divetonuke_power_off()
 
 divetonuke_register_clientfield()
 {
-	bits = 1;
-	if (isdefined(level.zombie_include_weapons) && isdefined(level.zombie_include_weapons["emp_grenade_zm"]))
-	{
-		bits = 2;
-	}
-	registerclientfield("toplayer", "perk_dive_to_nuke", 9000, bits, "int");
+	//  🛑 v2.9.23 - CONSTANT 1, EMP conditional removed; the client twin in
+	//  clientscripts\mp\zombies\_zm_perk_divetonuke.csc carries the full
+	//  story and the same constant. Stock ships 1 bit on every map that
+	//  registers this field (seven T6-Data-Archive dumps agree), and a
+	//  computed width desynced the two halves on Mob (client 2 / server 1).
+	registerclientfield("toplayer", "perk_dive_to_nuke", 9000, 1, "int");
 }
 
 divetonuke_set_clientfield( state )

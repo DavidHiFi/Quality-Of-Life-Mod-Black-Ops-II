@@ -45,12 +45,19 @@ init_divetonuke()
 
 divetonuke_client_field_func()
 {
-	bits = 1;
-	if (clientscripts\mp\zombies\_zm_weapons::is_weapon_included("emp_grenade_zm"))
-	{
-		bits = 2;
-	}
-	registerclientfield("toplayer", "perk_dive_to_nuke", 9000, bits, "int", undefined, 0, 1);
+	//  🛑 v2.9.23 - THE EMP CONDITIONAL IS GONE, CONSTANT 1. Same defect class
+	//  as v2.9.13's perks_register_clientfield fix, missed in that sweep: two
+	//  independently-ordered reads deciding one shared width. Stock's own
+	//  conditional is dead code - the check runs before the EMP is included,
+	//  so every stock map that registers this field registers it at 1 bit
+	//  (T6-Data-Archive runtime dumps: Buried, Mob grief, Origins x2 more,
+	//  seven dumps, all "9000 1 int" - including EMP-shipping maps). The mod
+	//  tripped it: zm_expanded.csc includes emp_grenade_zm EARLY, so this
+	//  computed 2 while the server (whose include runs later) computed 1 -
+	//  EXE_CLIENT_FIELD_MISMATCH on the first boot that got past the bit
+	//  budget (Mob, 2026-08-31). Server twin in _zm_perk_divetonuke.gsc
+	//  carries the same constant and MUST stay identical.
+	registerclientfield("toplayer", "perk_dive_to_nuke", 9000, 1, "int", undefined, 0, 1);
 }
 
 divetonuke_code_callback_func()
