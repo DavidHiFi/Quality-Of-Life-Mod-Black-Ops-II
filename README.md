@@ -6,8 +6,8 @@
 
 **A Black Ops II Zombies overhaul for [Plutonium T6](https://plutonium.pw).**
 
-Every weapon and every perk on every map, four wonder weapons brought over from Black Ops 1,
-and an in-game menu to switch any of it on or off.
+Every weapon on every map, all twelve perks wherever the engine has room for them, four wonder
+weapons brought over from Black Ops 1, and an in-game menu to switch any of it on or off.
 
 <a href="https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest">
 <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20LATEST%20RELEASE-2EA043?style=for-the-badge&labelColor=161B22" alt="Download the latest release" height="42">
@@ -55,7 +55,7 @@ its model, and a fake was not an option.)
 |---|---|
 | **Every gun, every map** | Nothing is locked to one map any more, and Pack-a-Punch works on the maps that never had it. |
 | **The campaign SPAS-12** | In the box on every map, with Black Ops 1's own numbers, and it Packs into the SPAZ-24. |
-| **All 12 perks** | On every map with room for them, and Wunderfizz on every one of them. Buried and Origins run closer to stock — the game engine's own network budget is full there (see the known-issues table). |
+| **All 12 perks** | On every map with room for them, and Wunderfizz on every one of them. Buried keeps its own seven and Origins trades Who's Who for Tombstone — the engine's network budget is full on those two, and the details are in the known-issues table. |
 | **13 more guns in the box** | Multiplayer and campaign weapons with real models, animations and audio — SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6, Tac-45 and the campaign Dragunov. |
 | **Diner as a Survival map** | The TranZit location Treyarch built and never shipped, with its own Pack-a-Punch, wall buys, buildable shield and secret song. |
 | **The Death Machine** | A new power-up drop, announcer lines and all. |
@@ -80,10 +80,10 @@ you can build it and the riot shield in the same game instead of choosing.
 anywhere from 1 to 12. Who's Who hands you a Pack-a-Punched ballistic knife so you can revive your
 own body from range.
 
-**Power-ups** — Blood Money on every map, Zombie Blood beyond Origins (every map except Mob of the
-Dead and Buried, whose network budgets are full — see the known-issues table), an
-Instant Nuke that kills the whole horde at once instead of one zombie at a time, and three
-announcer lines Treyarch recorded and never used.
+**Power-ups** — Blood Money on every map, Zombie Blood on TranZit, Nuketown and Die Rise (Origins
+has its own; Mob and Buried have no network room for it), an Instant Nuke that kills the whole
+horde at once instead of one zombie at a time, and three announcer lines Treyarch recorded and
+never used.
 
 **Maps** — Nuketown's sunken perk-drop pad is fixed, and the lobby can airlift every machine in at
 match start instead of making you wait until round 26. Die Rise gets the Sliquifier's pre-nerf
