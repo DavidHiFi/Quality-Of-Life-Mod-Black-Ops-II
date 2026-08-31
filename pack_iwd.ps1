@@ -66,7 +66,12 @@ try {
     # the crash, and the real gap was THIRTEEN TECHNIQUESETS in mod.ff, seven of
     # them effect_* / distortion_*, the shaders particles draw with. See
     # zone_source\mod_wonderweapons.zone.
-    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui','ui_mp','weapons')
+    $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui','ui_mp','weapons','xanim')
+    # 'xanim' (v2.9.18): raw xanims load from a mod's iwd the same way raw weapon
+    # defs do - proven by the zm_ezz3.0 package, whose mod2.iwd is 818 of them and
+    # nothing else (checkpoint 173). The Zap Gun's 15 view anims ship this way;
+    # OAT cannot link a T5-derived xanim into the fastfile, so the iwd is the
+    # only route, exactly as it is for .efx.
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 

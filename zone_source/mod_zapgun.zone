@@ -1,0 +1,52 @@
+// ============================================================================
+//  mod_zapgun.zone  -  the BO1 Zap Guns (dual-wield), v2.9.18
+// ----------------------------------------------------------------------------
+//  User approval 2026-08-31 for queue item 35, after the audit in
+//  .agents\WAVEGUN_TARGET_INVENTORY.md: the combined Wave Gun cannot be built
+//  (its model exists only in T5 form and nothing on this machine can compile a
+//  T6 xmodel), so the split Zap Guns ship as a complete feature in themselves.
+//
+//  THE DONOR is zone_source\zapgun_donor\mod.ff - a 19-asset minimal fastfile
+//  rebuilt from the zm_ezz3.0 package (recipe beside it), --load'ed LAST in
+//  build_ff.bat so it can only supply names no zombies fastfile above offers.
+//  🛑 A plain --load of their full mod.ff would resolve 77 of this mod's
+//  references from a third-party server mod, and their camo_zapgun would drag
+//  in the entire camo system including the animated-camo shader this mod runs
+//  on - both measured, both are why the donor is minimal (checkpoint 174 §5).
+//
+//  WHAT IS DECLARED HERE:
+//    - the four converted-from-BO1 xmodels and their four materials. Their
+//      remaining dependencies (a fiveseven normal-map trio, the
+//      zombie_teleporter_glow set, two techsets) resolve from whichever loaded
+//      fastfile is first, exactly like every other donor asset - the post-link
+//      A/B in checkpoint 174's pre-flight is the check that nothing shared
+//      changed owner.
+//    - camo,camo_zapgun: NOT the donor's (poisoned - see above). A raw
+//      zone_assets\camo\camo_zapgun.json, built in the shape of camo_tesla.json
+//      with the zapgun's four base materials, so Pack-a-Punch camos including
+//      slot 8 (animated) and slot 12 (Origins blue) work like every other gun.
+//      Raw beats every --load for camo (CLAUDE.md precedence table).
+//
+//  WHAT IS DELIBERATELY NOT HERE:
+//    - weapon defs: raw runtime files in weapons\zm\ (all four measured under
+//      the 20,480 B loader ceiling), like the Jet Gun and the wpnfix guns.
+//    - xanims: 15 raw files in xanim\, packed into mod.iwd - the route the ezz
+//      package proved (its mod2.iwd is 818 raw xanims and nothing else).
+//    - fx: 6 raw .efx in fx\, like the other wonder weapons' 63.
+//    - sounds: alias rows in soundbank\mod.all.aliases.additions.csv with
+//      payloads dumped from the donor's own bank.
+// ============================================================================
+material,mc/mtl_raygun_moon_front
+material,mc/mtl_raygun_moon_rear
+material,mc/mtl_zapgun_dw1
+material,mc/mtl_zapgun_dw2
+xmodel,wavegun_le_view
+xmodel,wavegun_ri_view
+xmodel,wm_zapgun_lh
+xmodel,wm_zapgun_rh
+camo,camo_zapgun
+
+//  The client half ships as a fastfile script asset like its three siblings
+//  (teslagun.csc etc. in mod_wonderweapons.zone); the .gsc needs no line here
+//  - Plutonium runs raw scripts/zm/*.gsc straight out of mod.iwd.
+script,scripts/zm/zapgun.csc

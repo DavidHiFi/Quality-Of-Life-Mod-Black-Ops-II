@@ -6,7 +6,7 @@
 
 **A Black Ops II Zombies overhaul for [Plutonium T6](https://plutonium.pw).**
 
-Every weapon and every perk on every map, three wonder weapons brought over from Black Ops 1,
+Every weapon and every perk on every map, four wonder weapons brought over from Black Ops 1,
 and an in-game menu to switch any of it on or off.
 
 <a href="https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest">
@@ -39,10 +39,14 @@ and an in-game menu to switch any of it on or off.
 
 ## The Black Ops 1 wonder weapons
 
-### Thundergun · Wunderwaffe DG-2 · Winter's Howl
+### Thundergun · Wunderwaffe DG-2 · Winter's Howl · Zap Guns
 
 Ported over from Black Ops 1 — the real guns, not remakes.<br>
-They come out of the mystery box, only one player can hold each, and all three Pack-a-Punch.
+They come out of the mystery box, only one player can hold each, and all of them Pack-a-Punch.
+The Zap Guns are Moon's dual-wield pair — one bolt, one kill, and the proper Porter's X2 name when
+Packed. The combined Wave Gun is the one piece that cannot come over: its model only exists in
+Black Ops 1 form and no tool that can convert it exists, so rather than ship a fake, the pair
+stands on its own.
 
 <sub>On TranZit, Nuketown, Die Rise and Mob of the Dead. Buried and Origins already have the Paralyzer and the staffs.</sub>
 
@@ -243,6 +247,7 @@ The rough edges, kept in the open. None of this is buried in the release notes.
 |---|---|
 | **sehteria** — *T6-ZM-Expanded* | The mod this one grew out of. Most of the original scripts came from here: BO4 Max Ammo, instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers, the area notifier, the Cold War round HUD and secret song survival. |
 | **SadSlothXL** | The Death Machine power-up — the drop, the weapon swap and its sounds. |
+| **Aranella, Frozedy & Skwll** — *Ezz Primary Mod* | The converted Zap Gun models, animations, effects and sounds — the halves of that port nothing on this machine can produce from Black Ops 1 directly. The gameplay is written against Treyarch's own Black Ops 1 script rather than theirs. |
 | **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | Diner as a Survival location, and the extra gamemodes. Treyarch left the data in the game files and never shipped it; Reimagined is the implementation that works. |
 | **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The Die Rise weapon changes — the Sliquifier's pre-nerf behaviour, and the Semtex wall buy down to its exact position and angle. |
 | **Fraaagaaa** — [Strat Tester](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the teleport list. |
