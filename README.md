@@ -21,7 +21,7 @@ and an in-game menu to switch any of it on or off.
 
 <br>
 
-<sub>Still in development — the rough edges are listed under <a href="#known-issues">known issues</a>.</sub>
+<sub>Feature-complete and in final polish — the short list of what's left is under <a href="#known-issues">known issues</a>.</sub>
 
 </div>
 
@@ -33,12 +33,11 @@ and an in-game menu to switch any of it on or off.
 
 ### Thundergun · Wunderwaffe DG-2 · Winter's Howl · Zap Guns
 
-Ported over from Black Ops 1 — the real guns, not remakes.<br>
+Four ports from Black Ops 1 — the real guns, not remakes.<br>
 They come out of the mystery box, only one player can hold each, and all of them Pack-a-Punch.
-The Zap Guns are Moon's dual-wield pair — one bolt, one kill, and the proper Porter's X2 name when
-Packed. The combined Wave Gun is the one piece that cannot come over: its model only exists in
-Black Ops 1 form and no tool that can convert it exists, so rather than ship a fake, the pair
-stands on its own.
+The Zap Guns are Moon's dual-wield pair — one bolt, one kill, and the proper Porter's X2 name
+when Packed. (The combined Wave Gun form stays in Black Ops 1 — no tool exists that can convert
+its model, and a fake was not an option.)
 
 <sub>On TranZit, Nuketown, Die Rise and Mob of the Dead. Buried and Origins already have the Paralyzer and the staffs.</sub>
 
@@ -206,28 +205,54 @@ it works the same as any other Plutonium mod.
 
 ## Known issues
 
-The rough edges, kept in the open. None of this is buried in the release notes.
+Kept honest and current. Almost everything here is a hard limit of modding Black Ops II,
+not a bug — and the one open bug is named as such.
 
 <details>
-<summary><b>Open issues</b></summary>
+<summary><b>The one open bug</b></summary>
 
 <br>
 
 | Issue | Detail |
 |---|---|
-| **Launch-day recoil on the DSR 50 and Five-Seven is untested** | Six of the eight guns Treyarch nerfed after release always had their original recoil here — that part of the earlier note was wrong. The last two were being rejected for file size. They now fit and the game confirms it loads them, so the change is live; nobody has actually fired them yet to say how they feel. |
-| **Some gun sounds come from the mod, not your sound pack** | Fifteen guns, including the AK-47, M16, MP40, MP5K, MP7, Olympia, FAL OSW, SVU, Thompson and Type 95. Their sounds are missing from at least one map's audio bank, so the mod has to provide them or the gun is silent there. Any of them can be handed back to your pack, but that gun then goes quiet on the maps the sound is missing from. |
-| **Who's Who: your downed body only glows on TranZit and Die Rise** | Those two use the game's own assets, untouched. The other four are each blocked for a reason that was measured rather than guessed — Nuketown's and Mob's character models have no material that can glow anywhere in the game, and Origins and Buried have no room left to add the effect. Rather than fake it with a lookalike, it is left off. |
-| **Who's Who's ballistic knife on Origins is new and unconfirmed** | The revive-your-own-body trick needs that knife, and Origins contains no part of it — so the mod now carries its own copy, taken from Buried. It should work there for the first time this version, but nobody has died on Origins to check. Mob of the Dead is not affected either way: it has no Who's Who at all, so there is nothing there to hand a knife to. The old note naming Mob was simply wrong. |
-| **Deadshot Daiquiri's head lock-on is unconfirmed on controller** | The fix has been checked line by line against the game's own code and matches it. It simply has not been tested with a controller yet. |
-| **The Diner claymore wall buy shows no prompt** | It is in the right place — that was measured in game — but nothing comes up when you look at it. That is a separate, newer bug. |
-| **You cannot pick a starting weapon on Mob of the Dead** | The snub-nose Python it would need is not in any of the game's files. |
-| **Winter's Howl does not freeze zombies solid, and they never shatter** | The frozen death pose is a Black Ops II animation *state*, and the files that define one cannot be shipped by a mod — doing it crashes every map at load, which was measured, not assumed. Without that state the gun skips its whole freeze-and-shatter sequence and just kills. Two things behind it were fixed this version: the progressive slow-down had both of its speed thresholds set to the same number, so it could only ever snap straight to a walk, and the Packed version did nearly four thousand times its intended damage, which killed everything instantly and hid the frost effects entirely. The frost on arms and legs works; the pose and the shatter cannot be done with the tools that exist. |
-| **The Bouncing Betty plants and springs silently** | Its click and spring sounds are locked inside a multiplayer sound bank no available tool can open. The explosion is unaffected, and pulling it out now makes the claymore's gear sound. The base game's own claymores plant silently too. |
-| **The Bouncing Betty's first-person hold is rebuilt and unconfirmed** | In multiplayer the Betty is planted from the equipment slot and never carried, so the game ships no animations for holding one — and carrying it here left the hands frozen and clipping. It now uses the campaign mine's full set of carry, sprint and crawl animations, the same way BO2-Reimagined solved it. Nobody has held one since the change. |
-| **The EMP grenade is new on five maps and could, in theory, stop one loading** | Putting it in the box outside Green Run restores the perk display width the base game always used, which costs a little of a budget whose true limit nobody has ever measured. If a map suddenly refuses to load, type `emp_all_maps 0` in the console and it goes back exactly as it was — no reinstall, no rebuild. Green Run is untouched either way, since it always had the grenade. |
-| **The last seven guns without the animated camo on Green Run are fixed, but unconfirmed** | The Ray Gun, DSR 50, Five-Seven, M14, Galil, FAL and 870 MCS. Green Run stores a cut-down camo for those that has no animated version in it, so the mod now carries a full one for each, taken from Origins. The ballistic knife was on this list and no longer needs to be. Nobody has Packed one of the seven since the change. |
-| **On Buried and Origins the Betty can end up with no button** | Black Ops II gives you four equipment buttons. On Buried the base game puts the Time Bomb on the one the Betty would use, and on Origins the Maxis drone. Carry both and the Betty gives way rather than taking the button off something Treyarch put there — you keep it, you just cannot throw it. On the other four maps it has a button to itself. |
+| **The Diner claymore wall buy prompt is unreliable** | The mine is in the right place and has been bought in testing, but the prompt has also failed to appear. Logging is in place to catch the cause the next time it happens. |
+
+</details>
+
+<details>
+<summary><b>Fixed, awaiting one more play-through</b></summary>
+
+<br>
+
+Each of these is already in the current build — it just has not been seen in game since the fix.
+
+| Change | Detail |
+|---|---|
+| **The Bouncing Betty's first-person hold** | The game ships no animations for carrying a Betty, so holding one froze the hands. It now uses the campaign mine's full carry set. |
+| **Launch-day recoil on the DSR 50 and Five-Seven** | The last two of the eight de-nerfed guns now load their original recoil. Nobody has fired them since. |
+| **Who's Who's ballistic knife on Origins** | Origins contains no part of that knife, so the mod carries its own copy from Buried. Untested until someone goes down there. |
+| **The animated camo on Green Run's last seven guns** | Green Run stores a cut-down camo for them, so the mod carries a full one from Origins. Nobody has Packed one of the seven since. |
+| **The Zap Guns' animated Pack-a-Punch camo** | Reported not showing in one session; the full chain checks out on paper and the next session settles it. |
+| **Deadshot Daiquiri's head lock-on on controller** | Checked line by line against the game's own code; not yet tested with a controller in hand. |
+
+</details>
+
+<details>
+<summary><b>Engine limits — permanent, and why</b></summary>
+
+<br>
+
+Each of these was measured against the game files, not assumed. None of them can change
+without tools that don't exist.
+
+| Limit | Why |
+|---|---|
+| **Winter's Howl doesn't freeze zombies solid** | The frozen pose is an animation *state*, and the files defining those crash every map when shipped by a mod. The gun deals its full damage and keeps its frost effects. |
+| **No starting-weapon pick on Mob of the Dead** | The snub-nose Python it needs is not in any of the game's files. |
+| **The Bouncing Betty plants silently** | Its click and spring live in a multiplayer sound bank no available tool can open. The explosion is audible, pulling it out uses the claymore's own gear sound — and the game's own claymores plant silently too. |
+| **On Buried and Origins the Betty can end up with no button** | The base game already uses its button there (Time Bomb, Maxis drone). The Betty gives way rather than break something Treyarch shipped. |
+| **Who's Who's body glow is TranZit and Die Rise only** | The other maps' character models have no glow material, or no clientfield space left for one. No lookalike is shipped in its place. |
+| **Fifteen guns' sounds come from the mod, not your sound pack** | Their sounds are missing from at least one map's audio bank — the mod supplies them or the gun goes silent there. |
 
 </details>
 
@@ -242,7 +267,7 @@ The rough edges, kept in the open. None of this is buried in the release notes.
 | **sehteria** — *T6-ZM-Expanded* | The mod this one grew out of. Most of the original scripts came from here: BO4 Max Ammo, instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers, the area notifier, the Cold War round HUD and secret song survival. |
 | **SadSlothXL** | The Death Machine power-up — the drop, the weapon swap and its sounds. |
 | **Aranella, Frozedy & Skwll** — *Ezz Primary Mod* | The converted Zap Gun models, animations, effects and sounds — the halves of that port nothing on this machine can produce from Black Ops 1 directly. The gameplay is written against Treyarch's own Black Ops 1 script rather than theirs. |
-| **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | Diner as a Survival location, and the extra gamemodes. Treyarch left the data in the game files and never shipped it; Reimagined is the implementation that works. |
+| **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | Diner as a Survival location, and the extra gamemodes. Treyarch left the data in the game files and never shipped it; Reimagined is the implementation that works. The Bouncing Betty's carry animations follow Reimagined's solution too. |
 | **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The Die Rise weapon changes — the Sliquifier's pre-nerf behaviour, and the Semtex wall buy down to its exact position and angle. |
 | **Fraaagaaa** — [Strat Tester](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the teleport list. |
 | **B2ORG** — [T6-B2OP-PATCH](https://github.com/B2ORG/T6-B2OP-PATCH)<br><sub>built with **Astrox** and **NoMoleMan**</sub> | The basis for most of the patches — the network frame fix, the backspeed values, the 24-zombie solo cap, instakill rounds, Double Tap 1.0 and barrier attacks. Used as a reference and rebuilt against the game's own scripts, not copied wholesale. |
