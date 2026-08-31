@@ -216,6 +216,34 @@ init()
 
     level thread zmqol_jetgun_never_breaks();
     level thread zmqol_jetgun_real_slot();
+
+    //  ========================================================================
+    //  v2.9.16 - THE PACK-A-PUNCH DOOR STAYS OPEN, user request 2026-08-31:
+    //  "Once a player opens the Power Station door with a Turbine, keep the
+    //  Town Bank Vault Pack-a-Punch door permanently open without requiring a
+    //  Turbine to remain behind."
+    //
+    //  🌟 TREYARCH SHIPPED THE SWITCH; THIS SETS IT. _zm_blockers.gsc's
+    //  door_think() checks `level.local_doors_stay_open` immediately after a
+    //  local_electric_door opens (:588) and RETURNS - the close half of the
+    //  loop (wait 3 / waittill_door_can_close / door_block) never runs, so the
+    //  door latches open the first time a Turbine powers it. Stock itself sets
+    //  this flag in _zm_game_module::turn_power_on_and_open_doors() (:121) for
+    //  the grief/turned modules, so this is a supported state, not a hack.
+    //
+    //  📝 WHAT IT COVERS: every `local_electric_door` on the map - the bank
+    //  vault Pack-a-Punch door AND the power station's turbine door. Both still
+    //  need a Turbine placed ONCE to open (door_think still waits on
+    //  "local_power_on"); the flag only stops them closing again when the
+    //  Turbine leaves or dies.
+    //
+    //  Recovery with no rebuild: pap_door_stays_open 0, next map load.
+    //  ========================================================================
+    if ( getdvar( "pap_door_stays_open" ) == "" )
+        setdvar( "pap_door_stays_open", "1" );
+
+    if ( getdvarint( "pap_door_stays_open" ) )
+        level.local_doors_stay_open = 1;
 }
 
 // ============================================================================
@@ -296,10 +324,21 @@ zmqol_jetgun_claimed( player )
 
     player giveweapon( "jetgun_zm" );
     player setweaponammoclip( "jetgun_zm", weaponclipsize( "jetgun_zm" ) );
-    //  Stock binds every claimed buildable weapon to D-pad slot 1; with the
-    //  primary-slot def this is redundant but harmless, and with the map's
-    //  own "item" def it is what makes the gun selectable at all.
-    player setactionslot( 1, "weapon", "jetgun_zm" );
+    //  🛑 v2.9.16 - NO ACTION-SLOT BIND ANY MORE, user request 2026-08-31:
+    //  "remove the Jet Gun equipment HUD element/icon on the right side of the
+    //  screen [and] the dedicated equipment hotkey prompt (e.g. key 8)". The
+    //  old comment here called the slot-1 bind "redundant but harmless" with
+    //  the primary def - the harm is exactly that engine-drawn equipment
+    //  widget and its key prompt (slot 1 = DPAD_UP = key 8, read from the
+    //  user's own bindings_zm.bdg). The v2.9.11 boot MEASURED the raw def
+    //  loading as inventoryType "primary" in the running game, so the gun
+    //  cycles with the weapon-switch key like any rifle and needs no slot.
+    //  The bind survives only as a fallback for the one state where it is
+    //  load-bearing: if the raw def ever fails to load (the 20,480 B loader
+    //  ceiling) the map's own "item" def is back and slot 1 is the only way
+    //  to select the gun at all. Checked at runtime, not assumed.
+    if ( weaponinventorytype( "jetgun_zm" ) != "primary" )
+        player setactionslot( 1, "weapon", "jetgun_zm" );
     player switchtoweapon( "jetgun_zm" );
 
     self.stub.cursor_hint = "HINT_NOICON";
@@ -332,7 +371,11 @@ zmqol_equipment_give( equipment )
 
         self giveweapon( "jetgun_zm" );
         self setweaponammoclip( "jetgun_zm", weaponclipsize( "jetgun_zm" ) );
-        self setactionslot( 1, "weapon", "jetgun_zm" );
+
+        //  v2.9.16 - same rule as zmqol_jetgun_claimed(): no slot-1 bind (and
+        //  no equipment HUD widget) unless the raw primary def failed to load.
+        if ( weaponinventorytype( "jetgun_zm" ) != "primary" )
+            self setactionslot( 1, "weapon", "jetgun_zm" );
         return;
     }
 

@@ -1597,12 +1597,28 @@ get_pack_a_punch_weapon_options( weapon )
     //  and Diner, classic/survival/grief - because all of them run with
     //  level.script == "zm_transit".
     //
-    //  📝 Die Rise (zm_highrise) and Nuketown (zm_nuked) are still on 39. They
-    //  were NOT included: the user asked for Green Run, and the same evidence
-    //  has not been gathered for those two.
     else if ( level.script == "zm_transit" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_transit", 1 ) )
+            camo_index = 40;
+    }
+    //  v2.9.16 - DIE RISE AND NUKETOWN JOIN, user request 2026-08-31 ("Enable
+    //  working animated camos across ALL Zombies maps"). The evidence the
+    //  v2.9.12 note above said was missing has now been gathered the same way
+    //  it was for Green Run: `Unlinker --list` of zm_highrise.ff (40 camo
+    //  assets) and zm_nuked.ff (39) against mod.ff's 72 - EVERY camo name both
+    //  maps carry is owned by mod.ff, whose copies are 12-15 slot with slot 8
+    //  live, and mod.ff loads ahead of the map. So index 40 (slot 8, the
+    //  animated galaxy camo) can not land on a 4-slot asset anywhere on either
+    //  map - the Green Run failure mode does not exist here at all.
+    else if ( level.script == "zm_highrise" )
+    {
+        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_highrise", 1 ) )
+            camo_index = 40;
+    }
+    else if ( level.script == "zm_nuked" )
+    {
+        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_nuked", 1 ) )
             camo_index = 40;
     }
     else if ( level.script == "zm_tomb" )
@@ -2035,17 +2051,16 @@ timer()
     zmqol_hud_round_anchor( timer );
     timer.y = 80;
     timer.fontscale = 1.4;
-    //  v1.95.3 - dull navy blue, user 2026-08-14: *"just make them a sort of dull
-    //  navy blue colour both the round and global match timer so they match
-    //  better"*. Both timers now carry the same colour instead of yellow /
-    //  light blue.
+    //  v1.95.3 gave both timers a dull navy blue at the user's request; v2.9.16
+    //  turns them WHITE at the user's request (2026-08-31: "both the Round
+    //  Timer and Global Game Timer text render in white color instead of the
+    //  default blue"). Both timers carry the same colour; the round timer's
+    //  twin write lives in qol_options.gsc and MUST match.
     //
     //  Must be set here as well as in qol_options' watcher: that watcher seeds
     //  its previous-value to the dvar default and so deliberately does nothing on
-    //  its first pass, which would leave this element on the engine default
-    //  (white) if creation didn't set it. Console override, live, no rebuild:
-    //  hud_color_timer "r g b".
-    timer.color = ( 0.3, 0.45, 0.9 );
+    //  its first pass. Console override, live, no rebuild: hud_color_timer "r g b".
+    timer.color = ( 1, 1, 1 );
     timer.alpha = 0;
     timer.hidewheninmenu = 1;
     flag_wait( "initial_blackscreen_passed" );

@@ -153,7 +153,7 @@ init()
     //
     //  🛑 The watcher's str_prev_color_timer / _round seeds MUST match these two
     //  strings exactly, or the first pass sees a change and repaints on spawn.
-    qol_opt_dvar( "hud_color_timer",       "0.3 0.45 0.9" );
+    qol_opt_dvar( "hud_color_timer",       "1 1 1" );   //  white, user 2026-08-31 (was navy blue)
     qol_opt_dvar( "hud_color_round_timer", "0.3 0.45 0.9" );
 
     //  Read by quality_of_life::get_pack_a_punch_weapon_options(). Default 1
@@ -176,6 +176,8 @@ init()
     qol_opt_dvar( "anim_pap_camo_buried",  "1" );
     qol_opt_dvar( "anim_pap_camo_origins", "1" );
     qol_opt_dvar( "anim_pap_camo_transit", "1" );
+    qol_opt_dvar( "anim_pap_camo_highrise", "1" );   //  v2.9.16 - Die Rise joins (user 2026-08-31)
+    qol_opt_dvar( "anim_pap_camo_nuked",    "1" );   //  v2.9.16 - Nuketown joins (user 2026-08-31)
 
     //  v1.95.0 - three new rows for the QUALITY OF LIFE menu, user 2026-08-14.
     //  All default ON, so the mod behaves exactly as before unless switched off.
@@ -2059,7 +2061,7 @@ qol_opt_round_timer_hud( b_on )
         //  v1.95.3 - dull navy blue, same value as the game timer above, user
         //  2026-08-14. Set at creation for the same reason: the watcher no-ops on
         //  its first pass. Console override: hud_color_round_timer "r g b".
-        self.qol_hud_roundtimer.color = ( 0.3, 0.45, 0.9 );
+        self.qol_hud_roundtimer.color = ( 1, 1, 1 );   //  white, user 2026-08-31 - twin of the game timer's write in quality_of_life.gsc
         self.qol_hud_roundtimer.hidewheninmenu = 1;
 
         if ( isdefined( level.qol_round_start_time ) )

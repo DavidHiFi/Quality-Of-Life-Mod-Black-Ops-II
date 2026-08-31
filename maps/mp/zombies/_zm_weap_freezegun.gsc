@@ -348,6 +348,18 @@ freezegun_get_enemies_in_range( upgraded )
             return; // everything else in the list will be out of range
         }
 
+        //  🛑 v2.9.16 - TRANZIT DENIZENS: same rule and same reason as the
+        //  thundergun's candidate loop (see the banner there) - a screecher at
+        //  or on the shooter fails the dot and cone gates by geometry, so a
+        //  close or latched one is accepted outright and takes the shot's
+        //  normal damage through the list below.
+        if ( isdefined( zombies[i].isscreecher ) && zombies[i].isscreecher && ( test_range_squared < 16384 || ( isdefined( zombies[i].linked_ent ) && zombies[i].linked_ent == self ) ) )
+        {
+            level.freezegun_enemies[level.freezegun_enemies.size] = zombies[i];
+            level.freezegun_enemies_dist_ratio[level.freezegun_enemies_dist_ratio.size] = 1;
+            continue;
+        }
+
         normal = VectorNormalize( test_origin - view_pos );
         dot = VectorDot( forward_view_angles, normal );
         if ( 0 > dot )

@@ -131,6 +131,22 @@ thundergun_get_enemies_in_range()
             continue;
         }
 
+        //  🛑 v2.9.16 - TRANZIT DENIZENS, user request 2026-08-31. A screecher
+        //  latched to the shooter sits AT the muzzle: the dot test below sees a
+        //  degenerate direction, and DamageConeTrace from inside the ent
+        //  returns 0 - so the gates skipped it every time and the blast passed
+        //  straight through the thing on your face. A screecher close to the
+        //  shooter (or latched to them) is therefore accepted outright; a far
+        //  one on the ground keeps the normal gates. Live screechers carry
+        //  .isscreecher from their spawn init (_zm_ai_screecher.gsc:375) and
+        //  .linked_ent while latched (:546-549).
+        if ( isdefined( zombie.isscreecher ) && zombie.isscreecher && ( test_range_squared < 16384 || ( isdefined( zombie.linked_ent ) && zombie.linked_ent == self ) ) )
+        {
+            level.thundergun_knockdown_enemies[level.thundergun_knockdown_enemies.size] = zombie;
+            level.thundergun_knockdown_gib[level.thundergun_knockdown_gib.size] = false;
+            continue;
+        }
+
         normal = vectornormalize( test_origin - view_pos );
         dot = vectordot( forward_view_angles, normal );
 
@@ -494,6 +510,26 @@ thundergun_knockdown_zombie( player, gib )
 
         if ( b_handled )
             return;
+    }
+
+    //  🛑 v2.9.16 - DENIZENS DIE TO THE BLAST. The dispatch below goes
+    //  through self.thundergun_knockdown_func, which stock assigns ONLY for
+    //  basic zombies (_zm_spawner.gsc:260) and dogs (_zm_ai_dogs.gsc:445) -
+    //  a screecher has no pointer, so the isdefined() was false and the gun
+    //  did NOTHING to it, exactly the Brutus failure the banner above
+    //  documents, on a different AI. No knockdown animation exists for its
+    //  rig (and this mod ships no reaction anims at all - see
+    //  srs_ww_anims_supported), so it takes the kill directly; a denizen is a
+    //  one-knife-hit creature, and its own screecher_death_func unlinks it
+    //  from a latched player cleanly.
+    if ( isdefined( self.isscreecher ) && self.isscreecher )
+    {
+        if ( isdefined( player ) && isalive( player ) )
+            self dodamage( self.health + 666, self.origin, player, self, "none", "MOD_EXPLOSIVE", 0, "thundergun_zm" );
+        else
+            self dodamage( self.health + 666, self.origin );
+
+        return;
     }
 
     if ( IsDefined( self.thundergun_knockdown_func ) )

@@ -129,6 +129,77 @@ init()
     add_zombie_weapon( "bouncingbetty_zm", undefined, &"ZMWEAPON_BOUNCINGBETTY", 1000, "", "", undefined );
 
     level thread zmqol_betty_onplayerconnect();
+    level thread zmqol_claymore_shot_connect();
+}
+
+//  ============================================================================
+//  v2.9.16 - CLAYMORES DETONATE WHEN SHOT OR CAUGHT IN A BLAST, user request
+//  2026-08-31 ("Enable damage triggers for both Bouncing Betties and Claymores
+//  so they detonate when shot by weapons or triggered by nearby explosions").
+//
+//  Nothing of stock's claymore is replaced. Every planted claymore already
+//  fires the engine's "grenade_fire" notify on its planter, so this listens
+//  from the outside, marks the planted ent damageable, and calls stock's own
+//  detonate() when anything hurts it. The kill scaling needs no help here:
+//  claymore_zm IS a registered placeable mine, so _zm_spawner's damage handler
+//  gives every zombie it catches the round * randomintrange( 100, 200 ) bonus
+//  on its own. And because a damageable ent receives radiusdamage, one
+//  explosion chains into the next mine - betties included, both directions.
+//  ============================================================================
+zmqol_claymore_shot_connect()
+{
+    //  The host is already "connected" before a root script's init() runs (the
+    //  lesson written over zmqol_betty_setup above), and unlike the Betty there
+    //  is no per-give hook to catch them later - so sweep whoever is already
+    //  in first. The notify/endon pair in the watch makes double-threading a
+    //  no-op for anyone caught by both paths.
+    a_players = get_players();
+
+    for ( i = 0; i < a_players.size; i++ )
+        a_players[i] thread zmqol_claymore_shot_watch();
+
+    for (;;)
+    {
+        level waittill( "connected", player );
+        player thread zmqol_claymore_shot_watch();
+    }
+}
+
+zmqol_claymore_shot_watch()
+{
+    self endon( "disconnect" );
+    self notify( "zmqol_claymore_shot_watch" );
+    self endon( "zmqol_claymore_shot_watch" );
+
+    for (;;)
+    {
+        self waittill( "grenade_fire", clay, weapname );
+
+        if ( weapname != "claymore_zm" )
+            continue;
+
+        clay thread zmqol_claymore_damage_think( self );
+    }
+}
+
+zmqol_claymore_damage_think( player )
+{
+    self endon( "death" );
+    self waittill_not_moving();
+
+    if ( !isdefined( self ) )
+        return;
+
+    self setcandamage( 1 );
+    self waittill( "damage", n_amount, e_attacker );
+
+    if ( !isdefined( self ) )
+        return;
+
+    if ( isdefined( player ) )
+        self detonate( player );
+    else
+        self detonate();
 }
 
 //  The give itself - claymore_setup minus the two lines that make claymores
@@ -216,6 +287,14 @@ zmqol_betty_watch()
         self.zmqol_betties[self.zmqol_betties.size] = betty;
         betty thread zmqol_betty_proximity();
         betty thread zmqol_betty_light();
+
+        //  v2.9.16 - SHOOTABLE, user request 2026-08-31: "Enable damage
+        //  triggers ... so they detonate when shot by weapons or triggered by
+        //  nearby explosions." MP's own mines do exactly this (setcandamage +
+        //  a damage watcher); radiusdamage from any other blast also lands on
+        //  a damageable ent, so one mine going off sets off its neighbours.
+        betty setcandamage( 1 );
+        betty thread zmqol_betty_shot_watch();
     }
 }
 
@@ -265,9 +344,21 @@ zmqol_betty_proximity()
         if ( !isdefined( ent.origin ) )
             continue;
 
-        //  MP's detectionmindist: something standing ON the mine still sets
-        //  it off; only sub-20-unit overlap right at the plant is ignored.
-        if ( distance( ent.origin, self.origin ) < level.zmqol_betty_mindist )
+        //  🛑 v2.9.16 - FIRE AT CLAYMORE RANGE, NOT AT THE TRIGGER'S RIM.
+        //  User: "Fix Bouncing Betty proximity triggers so zombies reliably
+        //  detonate them when stepping over them." The old loop broke on the
+        //  FIRST trigger notify, which for a walking zombie is the moment it
+        //  crosses the 192-unit boundary - so the mine jumped while the zombie
+        //  was still ~16 feet away and the blast caught nothing. A touching
+        //  entity re-notifies every server frame, which is exactly how stock's
+        //  own claymore_detonation() re-tests its cone - so waiting for a
+        //  notify inside stock's claymore detonate radius (96,
+        //  _zm_weap_claymore.gsc:150) fires the mine under the zombie's feet.
+        //  The old MP detectionmindist skip is gone with it: for a PLANTER
+        //  that rule stops instant self-triggering, but the owner is already
+        //  skipped by identity above, and for a zombie standing directly on
+        //  the mine it was a reason NOT to fire - backwards here.
+        if ( distance( ent.origin, self.origin ) > 96 )
             continue;
 
         break;
@@ -281,6 +372,13 @@ zmqol_betty_proximity()
     if ( !isdefined( self ) )
         return;
 
+    self zmqol_betty_pop( damagearea );
+}
+
+//  v2.9.16 - the jump-and-explode, split out of zmqol_betty_proximity() so the
+//  shot-detonation watcher below can fire the same sequence. Body unchanged.
+zmqol_betty_pop( damagearea )
+{
     //  --- MP's spawnminemover + bouncingbettyjumpandexplode, killcam dropped ---
     owner = self.owner;
     org = self.origin;
@@ -322,10 +420,59 @@ zmqol_betty_proximity()
     else
         minemover radiusdamage( minemover.origin, level.zmqol_betty_damage_radius, level.zmqol_betty_damage_max, level.zmqol_betty_damage_min, undefined, "MOD_EXPLOSIVE", "bouncingbetty_zm" );
 
+    //  🛑 v2.9.16 - AND THE CLAYMORE'S OWN KILL RULE, because the MP numbers
+    //  alone are why the mine "worked" and killed nothing. A zombie has
+    //  round-scaled health; a claymore still one-shots deep into the rounds
+    //  because _zm_spawner's damage handler gives any placeable-mine hit a
+    //  bonus of level.round_number * randomintrange( 100, 200 )
+    //  (_zm_spawner.gsc:1935-1942). The Betty is deliberately NOT registered
+    //  as a placeable mine (that registry is what would make it evict
+    //  claymores from the equipment slot), so its hits fell into the plain
+    //  explosive branch - round * randomintrange( 0, 100 ), which can roll
+    //  ZERO. So the mine's own damage rule is applied here explicitly, with
+    //  stock's claymore numbers, to every live reachable zombie in the blast:
+    a_zombies = getaispeciesarray( level.zombie_team, "all" );
+
+    for ( i = 0; i < a_zombies.size; i++ )
+    {
+        if ( !isdefined( a_zombies[i] ) || !isalive( a_zombies[i] ) )
+            continue;
+
+        if ( distance( a_zombies[i].origin, minemover.origin ) > level.zmqol_betty_damage_radius )
+            continue;
+
+        //  Scripted and boss zombies keep their protection - damaging one
+        //  breaks the map script waiting on it (the zmqol_kill_horde lesson).
+        if ( is_magic_bullet_shield_enabled( a_zombies[i] ) )
+            continue;
+
+        if ( isdefined( owner ) && isalive( owner ) )
+            a_zombies[i] dodamage( level.round_number * randomintrange( 100, 200 ), a_zombies[i].origin, owner, a_zombies[i], "none", "MOD_EXPLOSIVE", 0, "bouncingbetty_zm" );
+        else
+            a_zombies[i] dodamage( level.round_number * randomintrange( 100, 200 ), a_zombies[i].origin, undefined, a_zombies[i], "none", "MOD_EXPLOSIVE", 0, "bouncingbetty_zm" );
+    }
+
     wait 0.2;
 
     if ( isdefined( minemover ) )
         minemover delete();
+}
+
+//  v2.9.16 - detonate when shot, or when another blast reaches the mine. Any
+//  damage notify fires the same jump-and-explode as a proximity trip; the
+//  planter's book-keeping is cleaned by zmqol_betty_pop() exactly as before.
+//  MP's own mines are damage-detonated the same way, so this matches the
+//  weapon's home behaviour rather than inventing one.
+zmqol_betty_shot_watch()
+{
+    self endon( "death" );
+    self waittill_not_moving();
+    self waittill( "damage", n_amount, e_attacker );
+
+    if ( !isdefined( self ) )
+        return;
+
+    self zmqol_betty_pop( self.zmqol_damagearea );
 }
 
 //  delete_claymores_on_death(), name-swapped: the trigger dies with the mine

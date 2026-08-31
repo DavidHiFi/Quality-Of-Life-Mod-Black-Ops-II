@@ -1931,7 +1931,7 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	-- overwrites already live. Its dvar is unchanged (graphics_boost) and so is
 	-- its behaviour; see the note in CreateAdvancedTab. This tab is now 10 rows
 	-- + 2 half-spacers = 11.0 pitches.
-	T(QolPatchesButtons, LocalClientIndex, "ANIMATED CAMO PATCH", "anim_pap_camo",       "Animated Pack-a-Punch camo on Mob, Buried and Origins.")
+	T(QolPatchesButtons, LocalClientIndex, "ANIMATED CAMO PATCH", "anim_pap_camo",       "Animated Pack-a-Punch camo on every map.")
 
 
 	-- The legacy / pre-patch restorations.                            5 rows
