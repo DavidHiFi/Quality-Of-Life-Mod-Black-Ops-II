@@ -1,5 +1,7 @@
 <div align="center">
 
+<img width="3840" height="2160" alt="image" src="https://github.com/user-attachments/assets/32a1cfbd-7ece-4a91-9690-82691bed24b1" />
+
 # Quality Of Life
 
 **A Black Ops II Zombies overhaul for [Plutonium T6](https://plutonium.pw).**
