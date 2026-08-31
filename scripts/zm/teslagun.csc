@@ -14,13 +14,14 @@ init()
     // these scripts do not include, and using it here threw
     //     Unresolved external: "getdvarintdefault" with 2 parameters
     // getdvar is a true engine builtin and needs no include. Unset returns "",
-    // which fails both tests below, so the default stays OFF.
+    // which PASSES the gate below, so the default is ON.
     str_ww = getdvar( "zmqol_ww" );
-    // v1.69.8: DEFAULT IS OFF. Unset gives "", which fails both tests, so a
-    // normal launch loads the mod with no wonder weapon code running at all.
-    // This is the first build where that is actually true - until v1.69.7 the
-    // gate itself was being shadowed by Plutonium's loose scripts folder, so
-    // every "guns off" test was really a guns-on test.
+    // DEFAULT IS ON: unset gives "", the first test fails, and the gate falls
+    // through into the weapon code. Set zmqol_ww to any other value to turn the
+    // guns off for a bisect ("1" = all guns on, this gun's own number = only it).
+    // (An old v1.69.8 comment here claimed default-off - wrong: "" skips the
+    // return. Until v1.69.7 the gate was also shadowed by Plutonium's loose
+    // scripts folder, so every early "guns off" test was really guns-on.)
     if ( str_ww != "" && str_ww != "1" && str_ww != "3" )
         return;
 
