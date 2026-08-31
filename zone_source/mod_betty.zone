@@ -8,7 +8,7 @@
 //  the leading-comma form the XPR-50's zone banner warns about). No new
 //  --load was needed.
 //
-//  The weapon def ships raw (weapons\zm\bouncingbetty_zm, 18,029 B) - the same
+//  The weapon def ships raw (weapons\zm\bouncingbetty_zm, 18,577 B) - the same
 //  route as every other ported weapon. The zombie-side behaviour lives in
 //  scripts\zm\bouncingbetty.gsc.
 //
@@ -16,15 +16,50 @@
 //  NOT declared: recon-detection and enemy-team lights are MP concepts with no
 //  observer in zombies. fx_betty_destroyed likewise - zombies cannot shoot the
 //  mine out.
+//
+//  v2.9.25 - THE HELD-MINE PRESENTATION, the fix for the broken first-person
+//  viewmodel. The MP betty ships only idle/fire/ads viewmodel anims - in MP it
+//  is planted from the equipment slot, never carried - so as a held zombies
+//  weapon every raise, sprint and crawl had NO anim and the hands froze/clipped.
+//  BO2-Reimagined's zombies betty (runtime-proven, sanctioned reference) solves
+//  it with the campaign TC6 mine's full held-mine anim family driving an EMPTY
+//  gun model (t6_wpn_none_view), the betty mesh attached to tag_weapon with
+//  offsets (X -5, pitch -90). The def now mirrors that scheme exactly.
+//    - the 14 viewmodel_mine_tc6_* anims the def references exist in NO zombies
+//      fastfile - donor is so_cmp_afghanistan.ff, a NEW --load (carries the
+//      full set; verified by Unlinker --list 2026-09-01).
+//    - t6_wpn_none_view / t6_wpn_none_world come from zm_prison.ff, already
+//      loaded.
+//    - viewmodel_claymore_empty_idle (emptyDropAnim) is resident in ALL six
+//      map fastfiles - not declared here.
+//  The four viewmodel_bouncing_betty_* anims below are no longer referenced by
+//  the def but stay declared: un-owning them costs a relink A/B for zero gain.
 // ============================================================================
 
 xmodel,t6_wpn_bouncing_betty_view
 xmodel,t6_wpn_bouncing_betty_world
+xmodel,t6_wpn_none_view
+xmodel,t6_wpn_none_world
 
 xanim,viewmodel_bouncing_betty_idle
 xanim,viewmodel_bouncing_betty_fire
 xanim,viewmodel_bouncing_betty_ads_up
 xanim,viewmodel_bouncing_betty_ads_down
+
+xanim,viewmodel_mine_tc6_idle
+xanim,viewmodel_mine_tc6_fire
+xanim,viewmodel_mine_tc6_hold_fire
+xanim,viewmodel_mine_tc6_quick_pullout
+xanim,viewmodel_mine_tc6_putaway
+xanim,viewmodel_mine_tc6_sprint_in
+xanim,viewmodel_mine_tc6_sprint_loop
+xanim,viewmodel_mine_tc6_sprint_out
+xanim,viewmodel_mine_tc6_crawl_in
+xanim,viewmodel_mine_tc6_crawl_forward
+xanim,viewmodel_mine_tc6_crawl_back
+xanim,viewmodel_mine_tc6_crawl_right
+xanim,viewmodel_mine_tc6_crawl_left
+xanim,viewmodel_mine_tc6_crawl_out
 
 fx,weapon/bouncing_betty/fx_betty_explosion
 fx,weapon/bouncing_betty/fx_betty_launch_dust

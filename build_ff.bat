@@ -446,6 +446,7 @@ REM  target "REM".
   --load "%PROJ%\zone_source\fx_donor\mod.ff" ^
   --load "%PROJ%\zone_source\zapgun_donor\mod.ff" ^
   --load "%BO2_DIR%\zone\all\nicaragua.ff" ^
+  --load "%BO2_DIR%\zone\all\so_cmp_afghanistan.ff" ^
   --base-folder "%PROJ%" ^
   --add-asset-search-path "%PROJ%\zone_assets" ^
   --add-source-search-path "%PROJ%\zone_source" ^
