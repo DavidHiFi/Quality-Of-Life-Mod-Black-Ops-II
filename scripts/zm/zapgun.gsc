@@ -51,6 +51,11 @@
 // ============================================================================
 #include maps\mp\zombies\_zm_utility;
 #include maps\mp\zombies\_zm_weapons;
+// common_scripts\utility supplies get_players() and is_true() - without it the
+// load-time resolver threw 'Unresolved external' on every map (caught on the
+// first v2.9.20 boot, Mob of the Dead, 2026-08-31). Globally safe per hard
+// rule 2; the three sibling gun files simply never call these two helpers.
+#include common_scripts\utility;
 
 init()
 {
