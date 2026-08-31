@@ -10881,13 +10881,15 @@ zmqol_register_vulture_visionset()
     if ( isdefined( level.vsmgr[ "overlay" ].info ) && isdefined( level.vsmgr[ "overlay" ].info[ "vulture_stink_overlay" ] ) )
         return;
 
-    //  🛑 v2.9.16 - steps 31 -> 7. 31 forced overlay_lerp to 5 bits on
-    //  Mob/Die Rise/Nuketown, the only maps this registration runs on (the
-    //  gate above excludes Buried, where stock's own 31 stays untouched). The
-    //  stink fade quantizes to 8 levels instead of 32. Twins: the module's own
-    //  call in maps\mp\zombies\_zm_perk_vulture.gsc and the client in
-    //  zm_expanded.csc - all three carry 7 and MUST move together.
-    maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, 7, 1 );
+    //  🛑 v2.9.22 - steps 7 -> 1 (v2.9.16 had 31 -> 7; not enough). Mob still
+    //  refused visionset_slot's 3 bits on the 2026-08-31 boot; at 1 step the
+    //  finalizer SKIPS overlay_lerp entirely, which is exactly 3 bits on the
+    //  maps this registration runs on (gate above excludes Buried, where
+    //  stock's own 31 stays untouched). The stink overlay snaps instead of
+    //  fading. Twins: the module's own call in
+    //  maps\mp\zombies\_zm_perk_vulture.gsc and the client in zm_expanded.csc
+    //  - all three carry 1 and MUST move together.
+    maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, 1, 1 );
 }
 
 // ============================================================================
@@ -12034,11 +12036,14 @@ zmqol_register_zombie_blood_visionsets()
          !( isdefined( level.vsmgr[ "overlay" ].info ) &&
             isdefined( level.vsmgr[ "overlay" ].info[ "zm_powerup_zombie_blood_overlay" ] ) ) )
     {
-        //  🛑 v2.9.16 - steps 15 -> 7: caps overlay_lerp at 3 bits on the
-        //  maps where this mod is the only overlay-lerp customer. Client twin
-        //  in zm_expanded.csc carries the same 7.
+        //  🛑 v2.9.22 - steps 7 -> 1 (v2.9.16 had 15 -> 7; not enough for
+        //  Mob). At 1 step overlay_lerp is SKIPPED by the finalizer, matching
+        //  stock Mob, which registers no lerp fields at all. The overlay
+        //  snaps instead of fading on mod-ported maps; Origins keeps native
+        //  15 via the guard above. Client twin in zm_expanded.csc carries the
+        //  same 1.
         maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "zm_powerup_zombie_blood_overlay",
-            14000, level.vsmgr_prio_overlay_zm_powerup_zombie_blood, 7, 1 );
+            14000, level.vsmgr_prio_overlay_zm_powerup_zombie_blood, 1, 1 );
     }
 }
 

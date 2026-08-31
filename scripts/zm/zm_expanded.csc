@@ -846,8 +846,10 @@ zmqol_zb_register()
 	     !( isdefined( level.vsmgr[ "overlay" ].info ) &&
 	        isdefined( level.vsmgr[ "overlay" ].info[ "zm_powerup_zombie_blood_overlay" ] ) ) )
 	{
+		//  v2.9.22: 7 -> 1 in step with the server (quality_of_life.gsc) -
+		//  overlay_lerp is skipped entirely at 1 step; see the banner there.
 		clientscripts\mp\_visionset_mgr::vsmgr_register_overlay_info_style_filter( "zm_powerup_zombie_blood_overlay",
-			14000, 7, 1, 0, "generic_filter_zombie_blood_b" );
+			14000, 1, 1, 0, "generic_filter_zombie_blood_b" );
 	}
 }
 
@@ -1468,7 +1470,12 @@ zmqol_init_vulture_trimmed()
 	//  🛑 v2.9.16 - 31 -> 7, in step with both server sites (see
 	//  quality_of_life.gsc). This function only runs where the mod supplies the
 	//  whole client half, never on Buried, so no native 31 can disagree with it.
-	clientscripts\mp\_visionset_mgr::vsmgr_register_overlay_info_style_filter( "vulture_stink_overlay", 12000, 7, 0, 0, "generic_filter_zombie_perk_vulture", 0 );
+	//  v2.9.22: 7 -> 1 in step with both server twins (quality_of_life.gsc,
+	//  maps\mp\zombies\_zm_perk_vulture.gsc) - overlay_lerp skipped at 1 step.
+	//  (The compiled stock _zm_perk_vulture.csc still says 31, but its
+	//  init_vulture() is dead code - the init_thread is re-pointed to this
+	//  trimmed copy a few lines below, so its 31 never registers.)
+	clientscripts\mp\_visionset_mgr::vsmgr_register_overlay_info_style_filter( "vulture_stink_overlay", 12000, 1, 0, 0, "generic_filter_zombie_perk_vulture", 0 );
 
 	level._effect["vulture_perk_zombie_stink"] = loadfx( "maps/zombie/fx_zm_vulture_perk_stink" );
 	level._effect["vulture_perk_zombie_stink_trail"] = loadfx( "maps/zombie/fx_zm_vulture_perk_stink_trail" );
