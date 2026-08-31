@@ -197,12 +197,28 @@ zmqol_zapgun_kill( e_player, str_weapon )
 
     self.microwavegun_dw_death = 1;
 
-    v_head = self gettagorigin( "j_head" );
+    //  v2.9.24 - THE FULL BO1 DEATH DRESSING, not just the eye flash.
+    //  BO1's microwavegun_zap_death_fx (raw _zombiemode_weap_microwavegun.gsc
+    //  :515-547) plays a body shock fx on J_SpineUpper, "wpn_imp_tesla" on the
+    //  zombie, and head-gibs non-quads. The Wunderwaffe port's
+    //  tesla_play_death_fx is the same sequence in T6 terms (spine arcs +
+    //  wpn_imp_tesla + the 75% head gib with the eye fx on the else branch),
+    //  so the zap guns share it - the two guns share the death anim family in
+    //  BO1 too. Guarded on the waffe module having initialized its fx
+    //  (teslagun.gsc gates _zm_weap_tesla::init() behind zmqol_ww, so a
+    //  zap-only bisect run falls back to the old eye flash).
+    if ( isdefined( level._effect ) && isdefined( level._effect["tesla_shock"] ) )
+        self thread maps\mp\zombies\_zm_weap_tesla::tesla_play_death_fx( 1 );
+    else
+    {
+        v_head = self gettagorigin( "j_head" );
 
-    if ( !isdefined( v_head ) )
-        v_head = self getcentroid();
+        if ( !isdefined( v_head ) )
+            v_head = self getcentroid();
 
-    playfx( level._effect["zapgun_shock_eyes"], v_head );
+        playfx( level._effect["zapgun_shock_eyes"], v_head );
+        self playsound( "wpn_imp_tesla" );
+    }
 
     if ( isdefined( e_player ) && isalive( e_player ) )
         self dodamage( self.health + 666, self.origin, e_player );

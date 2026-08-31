@@ -1458,7 +1458,10 @@ zmqol_init_vulture_trimmed()
 
 	if ( zmqol_vulture_has_disease_meter() )
 	{
-		registerclientfield( "toplayer", "vulture_perk_disease_meter", 12000, 5, "float", clientscripts\mp\zombies\_zm_perk_vulture::vulture_callback_stink_active, 0, 1 );
+		//  v2.9.24: the callback is now a WRAPPER around stock's - it also
+		//  drives the stink filter's intensity constant, replacing the dead
+		//  overlay_lerp (see the block below the overlay registration).
+		registerclientfield( "toplayer", "vulture_perk_disease_meter", 12000, 5, "float", ::zmqol_vulture_stink_meter_cb, 0, 1 );
 		setupclientfieldcodecallbacks( "toplayer", 1, "vulture_perk_disease_meter" );
 	}
 
@@ -1476,6 +1479,25 @@ zmqol_init_vulture_trimmed()
 	//  init_vulture() is dead code - the init_thread is re-pointed to this
 	//  trimmed copy a few lines below, so its 31 never registers.)
 	clientscripts\mp\_visionset_mgr::vsmgr_register_overlay_info_style_filter( "vulture_stink_overlay", 12000, 1, 0, 0, "generic_filter_zombie_perk_vulture", 0 );
+
+	//  🛑 v2.9.24 - THE 1-STEP OVERLAY NEEDS ITS INTENSITY DRIVEN BY HAND.
+	//  With overlay_lerp gone (1 step, v2.9.22), the client's curr_lerp sits at
+	//  its init value 1 forever - and this filter is the ONE overlay whose
+	//  constant_index is defined, so stock's update_cb wrote curr_lerp into the
+	//  filter constant every update. Server semantics: constant = 1 - soak
+	//  fraction, 0 = fully stunk. Stuck at 1 = ZERO intensity - the overlay was
+	//  enabled and invisible, the user's "missing fx" in the stink cloud on the
+	//  first v2.9.22+ boot (Mob, 2026-08-31).
+	//
+	//  The fix, all client-side, zero clientfields: stock's own
+	//  level.vsmgr_filter_custom_enable escape hatch (checked first in
+	//  overlay_update_cb's style-1 branch) takes over the enable, and the
+	//  5-bit disease-meter field - which already carries the exact soak
+	//  fraction - drives the constant through the wrapper callback above. On
+	//  Mob the meter field is cut for toplayer space (see
+	//  maps\mp\zombies\_zm_perk_vulture.gsc), so the enable hook holds a fixed
+	//  0.25 (75% soaked) instead of the initial 1.0 the ramp maps start from.
+	level.vsmgr_filter_custom_enable[ "generic_filter_zombie_perk_vulture" ] = ::zmqol_vulture_filter_enable;
 
 	level._effect["vulture_perk_zombie_stink"] = loadfx( "maps/zombie/fx_zm_vulture_perk_stink" );
 	level._effect["vulture_perk_zombie_stink_trail"] = loadfx( "maps/zombie/fx_zm_vulture_perk_stink_trail" );
@@ -1585,6 +1607,51 @@ zmqol_init_vulture_trimmed()
 	//  ========================================================================
 	level thread zmqol_vulture_marker_height_watch();
 	level thread zmqol_vulture_marker_perk_watch();   // v1.99.91 - hide on purchase
+}
+
+//  v2.9.24 - the stink filter's custom enable. Called by stock's
+//  overlay_update_cb (style-1 branch checks level.vsmgr_filter_custom_enable
+//  first) with self = the local player and curr_info = the overlay's info
+//  struct. It does exactly what the default branch does, except the constant:
+//  ramp maps start at 1.0 (invisible - the meter callback below refines it
+//  within a tick, restoring the true soak ramp through the 5-bit field);
+//  meterless maps (Mob - the field is cut there for toplayer space) hold a
+//  fixed 0.25, about 75% soaked, so the overlay is unmistakably present.
+zmqol_vulture_filter_enable( curr_info )
+{
+	n_const = 0.25;
+
+	if ( zmqol_vulture_has_disease_meter() )
+		n_const = 1;
+
+	self set_filter_pass_material( curr_info.filter_index, curr_info.pass_index, level.filter_matid[ curr_info.material_name ] );
+	self set_filter_pass_enabled( curr_info.filter_index, curr_info.pass_index, 1 );
+	self set_filter_pass_constant( curr_info.filter_index, curr_info.pass_index, curr_info.constant_index, n_const );
+}
+
+//  v2.9.24 - wrapper around stock's disease-meter callback: after the stock
+//  work, it writes 1 - fraction into the stink filter constant, but only while
+//  the stink overlay is the active slot (the overlay ladder is winner-take-all
+//  and this must not repaint zombie blood's or a trap's filter).
+zmqol_vulture_stink_meter_cb( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump )
+{
+	self clientscripts\mp\zombies\_zm_perk_vulture::vulture_callback_stink_active( localclientnum, oldval, newval, bnewent, binitialsnap, fieldname, bwasdemojump );
+
+	if ( !isdefined( level.vsmgr ) || !isdefined( level.vsmgr[ "overlay" ] ) )
+		return;
+
+	o = level.vsmgr[ "overlay" ];
+
+	if ( !isdefined( o.state ) || !isdefined( o.state[ localclientnum ] ) )
+		return;
+
+	n_slot = o.state[ localclientnum ].curr_slot;
+
+	if ( !isdefined( o.sorted_name_keys[ n_slot ] ) || o.sorted_name_keys[ n_slot ] != "vulture_stink_overlay" )
+		return;
+
+	info = o.info[ "vulture_stink_overlay" ];
+	level.localplayers[ localclientnum ] set_filter_pass_constant( info.filter_index, info.pass_index, info.constant_index, 1 - newval );
 }
 
 // ============================================================================
