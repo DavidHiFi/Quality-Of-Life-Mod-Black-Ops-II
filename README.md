@@ -7,14 +7,14 @@
 Every weapon and every perk on every map, three wonder weapons brought over from Black Ops 1,
 and an in-game menu to switch any of it on or off.
 
-<a href="https://github.com/DavidHiFi/zm_qol/releases/latest">
+<a href="https://github.com/DavidHiFi/QualityOfLifeModBlackOpsII/releases/latest">
 <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20LATEST%20RELEASE-2EA043?style=for-the-badge&labelColor=161B22" alt="Download the latest release" height="42">
 </a>
 
 <br><br>
 
-<img src="https://img.shields.io/github/v/release/DavidHiFi/zm_qol?style=flat-square&label=version&color=5865F2&labelColor=161B22">
-<img src="https://img.shields.io/github/downloads/DavidHiFi/zm_qol/total?style=flat-square&label=downloads&color=5865F2&labelColor=161B22">
+<img src="https://img.shields.io/github/v/release/DavidHiFi/QualityOfLifeModBlackOpsII?style=flat-square&label=version&color=5865F2&labelColor=161B22">
+<img src="https://img.shields.io/github/downloads/DavidHiFi/QualityOfLifeModBlackOpsII/total?style=flat-square&label=downloads&color=5865F2&labelColor=161B22">
 <img src="https://img.shields.io/badge/platform-Windows-5865F2?style=flat-square&labelColor=161B22">
 
 <br>
@@ -136,13 +136,25 @@ Type **`.help`** in game for the full list — that one is always up to date, th
 
 Install Plutonium and run it once so its folders exist, then close it.
 
-1. [Download the latest release](https://github.com/DavidHiFi/zm_qol/releases/latest) and unzip it anywhere.
+1. [Download the latest release](https://github.com/DavidHiFi/QualityOfLifeModBlackOpsII/releases/latest) and unzip it anywhere.
 2. Run **`Windows Install.bat`**.
 3. Choose **INSTALL → The mod** and confirm.
 4. Launch Plutonium T6 → **Zombies → Mods → Quality Of Life**.
 
 Arrow keys to move, **Enter** to choose, **Q** to quit. No admin rights, nothing left running, and
 no game file is ever touched — everything is written inside Plutonium's own folder.
+
+### Just want the textures or the controller icons?
+
+Both are on the release page as their own downloads, so you can take one without the mod:
+
+| Download | Size | What it is |
+|---|---|---|
+| [**HD Texture Pack**](https://github.com/DavidHiFi/QualityOfLifeModBlackOpsII/releases/latest/download/HD.Texture.Pack.zip) | 525 MB | 1,020 upscaled textures. Unzip and drop the `images` folder into `%LOCALAPPDATA%\Plutonium\storage\t6\`. |
+| [**Controller Icons**](https://github.com/DavidHiFi/QualityOfLifeModBlackOpsII/releases/latest/download/Controller.Icons.Pack.zip) | 184 KB | PlayStation 5, Nintendo Switch and Xbox One button prompts. Pick one of the three folders inside and copy its contents into `%LOCALAPPDATA%\Plutonium\storage\t6\images\`. |
+
+Neither needs the mod installed, and the installer can still fetch and back them up for you if you
+would rather it did.
 
 On **Linux** (Wine, Proton, Lutris, Bottles) there is no automated installer. Install it by hand —
 it works the same as any other Plutonium mod.
@@ -201,17 +213,17 @@ The rough edges, kept in the open. None of this is buried in the release notes.
 
 | Issue | Detail |
 |---|---|
-| **Launch-day recoil on the DSR 50 and Five-Seven is untested** | Six of the eight guns Treyarch nerfed after release always had their original recoil here — that part of the earlier note was wrong. The last two were being rejected for file size; they now fit, but nobody has fired them since the fix. |
+| **Launch-day recoil on the DSR 50 and Five-Seven is untested** | Six of the eight guns Treyarch nerfed after release always had their original recoil here — that part of the earlier note was wrong. The last two were being rejected for file size. They now fit and the game confirms it loads them, so the change is live; nobody has actually fired them yet to say how they feel. |
 | **Some gun sounds come from the mod, not your sound pack** | Fifteen guns, including the AK-47, M16, MP40, MP5K, MP7, Olympia, FAL OSW, SVU, Thompson and Type 95. Their sounds are missing from at least one map's audio bank, so the mod has to provide them or the gun is silent there. Any of them can be handed back to your pack, but that gun then goes quiet on the maps the sound is missing from. |
 | **Who's Who: your downed body only glows on TranZit and Die Rise** | Those two use the game's own assets, untouched. The other four are each blocked for a reason that was measured rather than guessed — Nuketown's and Mob's character models have no material that can glow anywhere in the game, and Origins and Buried have no room left to add the effect. Rather than fake it with a lookalike, it is left off. |
-| **Who's Who gives you no ballistic knife on Origins or Mob of the Dead** | The revive-your-own-body trick needs that knife, and neither map contains any part of it. Bringing it over from another map is possible, but has not been attempted. |
+| **Who's Who's ballistic knife on Origins is new and unconfirmed** | The revive-your-own-body trick needs that knife, and Origins contains no part of it — so the mod now carries its own copy, taken from Buried. It should work there for the first time this version, but nobody has died on Origins to check. Mob of the Dead is not affected either way: it has no Who's Who at all, so there is nothing there to hand a knife to. The old note naming Mob was simply wrong. |
 | **Deadshot Daiquiri's head lock-on is unconfirmed on controller** | The fix has been checked line by line against the game's own code and matches it. It simply has not been tested with a controller yet. |
 | **The Diner claymore wall buy shows no prompt** | It is in the right place — that was measured in game — but nothing comes up when you look at it. That is a separate, newer bug. |
 | **You cannot pick a starting weapon on Mob of the Dead** | The snub-nose Python it would need is not in any of the game's files. |
-| **Winter's Howl does not freeze and shatter** | The animation data never made it into the mod, so the gun kills without freezing anything first. |
+| **Winter's Howl does not freeze zombies solid, and they never shatter** | The frozen death pose is a Black Ops II animation *state*, and the files that define one cannot be shipped by a mod — doing it crashes every map at load, which was measured, not assumed. Without that state the gun skips its whole freeze-and-shatter sequence and just kills. Two things behind it were fixed this version: the progressive slow-down had both of its speed thresholds set to the same number, so it could only ever snap straight to a walk, and the Packed version did nearly four thousand times its intended damage, which killed everything instantly and hid the frost effects entirely. The frost on arms and legs works; the pose and the shatter cannot be done with the tools that exist. |
 | **The Bouncing Betty plants and springs silently** | Its click and spring sounds are locked inside a multiplayer sound bank no available tool can open. The explosion is unaffected. The base game's own claymores plant silently too. |
+| **Eight guns do not get the animated Pack-a-Punch camo on Green Run** | The Ray Gun, DSR 50, Five-Seven, M14, Galil, FAL, 870 MCS and the ballistic knife. Green Run stores a cut-down camo for those eight that has no animated version in it, and the mod does not yet carry its own replacement for them. Every other weapon animates there. They were not animating before either, so nothing got worse. |
 | **On Buried and Origins the Betty can end up with no button** | Black Ops II gives you four equipment buttons. On Buried the base game puts the Time Bomb on the one the Betty would use, and on Origins the Maxis drone. Carry both and the Betty gives way rather than taking the button off something Treyarch put there — you keep it, you just cannot throw it. On the other four maps it has a button to itself. |
-| **The Jet Gun's weapon slot is unconfirmed** | It no longer breaks, it keeps its heat gauge and it coexists with the shield — all of that is script and certain. Whether it also cycles with your guns instead of sitting on the equipment button depends on which copy of its weapon file the game loads first, and that has not been watched in game yet. |
 
 </details>
 

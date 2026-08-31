@@ -1568,6 +1568,34 @@ get_pack_a_punch_weapon_options( weapon )
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_mob", 1 ) )
             camo_index = 40;
     }
+    //  v2.9.12, queue item 9 - GREEN RUN. User, 2026-08-31: they spectated a
+    //  player on the "ezz" server running animated camos on Town survival, so
+    //  it is demonstrably possible off the DLC maps. Measured here before
+    //  shipping rather than inferred from that sighting:
+    //
+    //    - camo index 40 is slot 8, and slot 8 is LIVE in all 64 camo assets
+    //      mod.ff owns - zero blank, so no weapon can come out untextured
+    //      (the failure mode that made index 45 wrong on Origins in v2.9.8).
+    //    - slot 8 resolves to mc/mtl_weapon_camo_zmb_dlc2*, and mod.ff OWNS
+    //      all 7 of those materials, the animated shader they need
+    //      (techniqueset mc_sw4_3d_weapon_camo_anim_glow_930950j2 - the ember
+    //      /flicker one, not a static lookalike) and all 9 of its images.
+    //    - mod.ff loads ahead of every map, so that whole chain is already in
+    //      memory on Green Run today. Nothing new is linked for this; the only
+    //      thing that was stopping it is this function picking 39.
+    //
+    //  One branch covers Green Run entirely - TranZit, Bus Depot, Farm, Town
+    //  and Diner, classic/survival/grief - because all of them run with
+    //  level.script == "zm_transit".
+    //
+    //  📝 Die Rise (zm_highrise) and Nuketown (zm_nuked) are still on 39. They
+    //  were NOT included: the user asked for Green Run, and the same evidence
+    //  has not been gathered for those two.
+    else if ( level.script == "zm_transit" )
+    {
+        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_transit", 1 ) )
+            camo_index = 40;
+    }
     else if ( level.script == "zm_tomb" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_origins", 1 ) )
@@ -1592,6 +1620,22 @@ get_pack_a_punch_weapon_options( weapon )
         //  for on 2026-08-28 ("origins should show its own blue camo"). Every
         //  camo asset mod.ff owns was audited 2026-08-30: slot 12 is live on all
         //  63, so no gun can come out blank.
+        //  🛑 v2.9.13 - THE BALLISTIC KNIFE IS THE ONE EXCEPTION TO 44 HERE.
+        //  Origins had no knife_ballistic asset at all until this version, so
+        //  its camo now comes from the copy mod.ff took from zm_buried - and
+        //  Buried's camo assets carry 12 slots, not the 13+ the rest of this
+        //  mod's do. Index 44 is slot 12, which therefore does NOT exist on
+        //  this one weapon, and asking for it renders no camo at all - exactly
+        //  the blank-gun failure that made stock's index 45 wrong here in
+        //  v2.9.8. Slot 8 (index 40) IS present and populated
+        //  (mc/mtl_weapon_camo_zmb_dlc2, verified in the rebuilt ff), so the
+        //  knife takes that whatever the animated-camo row says.
+        //  No other weapon is affected: every other camo mod.ff owns has 13-15
+        //  slots.
+        else if ( base == "knife_ballistic_zm" || base == "knife_ballistic_upgraded_zm" ||
+                  base == "knife_ballistic_bowie_zm" || base == "knife_ballistic_bowie_upgraded_zm" ||
+                  base == "knife_ballistic_no_melee_zm" || base == "knife_ballistic_no_melee_upgraded_zm" )
+            camo_index = 40;
         else
             camo_index = 44;
     }
@@ -14769,6 +14813,41 @@ zonecheck()
 
     while ( true )
     {
+        // ====================================================================
+        //  🛑 v2.9.13 - THE ZONE POP-UP NOW OBEYS THE "ZONE NAME" ROW.
+        //
+        //  User's friend, 2026-08-31, on TranZit: with zone names set to
+        //  DISABLED the centre-screen pop-up still announced every zone he
+        //  walked into.
+        //
+        //  Cause: there are TWO zone displays and only one was ever gated.
+        //  qol_options.gsc's qol_opt_zone_hud() correctly honours hud_zone for
+        //  the small permanent readout in the bottom-left - but this loop, the
+        //  pop-up, read no dvar at all and had announced unconditionally since
+        //  the areanotifier module was merged in. The HUD row promises "ZONE
+        //  NAME - Name of the area you are in", which is exactly what the
+        //  pop-up shows, so one switch has to govern both.
+        //
+        //  Read INSIDE the loop, not once at thread start, so the row is live
+        //  the same way BLEEDOUT BAR is (v1.99.6 fixed that exact complaint).
+        //  Turning it off also retires whatever is on screen right now rather
+        //  than leaving the last pop-up hanging for its remaining 3.25s.
+        //
+        //  📝 BEHAVIOUR CHANGE, STATED PLAINLY: hud_zone defaults to 0, so out
+        //  of the box the pop-up is now OFF where it used to always appear.
+        //  That is the point of the report - "disabled" has to mean disabled -
+        //  and turning ZONE NAME on restores it along with the corner readout.
+        //  currentzone is still tracked while off, so re-enabling mid-game does
+        //  not re-announce the zone you are already standing in.
+        // ====================================================================
+        if ( !getdvarintdefault( "hud_zone", 0 ) )
+        {
+            self qol_zone_notifier_clear();
+            self.currentzone = self get_zone_name();
+            wait 0.2;
+            continue;
+        }
+
         str_zone = self get_zone_name();
 
         if ( self.currentzone != str_zone )

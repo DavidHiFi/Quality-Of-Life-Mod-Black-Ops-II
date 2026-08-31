@@ -1809,6 +1809,34 @@ added_weapons()
         include_weapon( "usrpg_zm" );
         include_weapon( "usrpg_upgraded_zm", 0);
         add_zombie_weapon( "usrpg_zm", "usrpg_upgraded_zm", &"ZOMBIE_WEAPON_USRPG", 50, "wpck_rpg", "", undefined, 1 );
+
+        // ====================================================================
+        //  v2.9.13 - THE BALLISTIC KNIFE, SO WHO'S WHO CAN REVIVE YOU HERE.
+        //
+        //  README known issue: Who's Who handed out no ballistic knife on
+        //  Origins, so the revive-your-own-body trick did not work. The cause
+        //  was never scripting - `Unlinker --list` over retail zm_tomb.ff finds
+        //  ZERO knife_ballistic assets of any kind. The gun simply is not on
+        //  this map.
+        //
+        //  mod_ballisticknife.zone now makes mod.ff own the weapon and its 4
+        //  models / 17 anims / 6 materials / fx, taken verbatim from zm_buried
+        //  (whose copy is md5-identical to zm_transit's and zm_highrise's, so
+        //  no map that already had it can be changed). mod.ff loads ahead of
+        //  every map, so the asset exists here now - these two lines are what
+        //  make the map actually PRECACHE it.
+        //
+        //  🛑 NO add_zombie_weapon(). This must NOT enter the mystery box; it
+        //  exists solely so zmqol_whoswho_knife_name()'s guard
+        //  (level.zombie_include_weapons["knife_ballistic_upgraded_zm"]) passes.
+        //  That guard was already dynamic rather than a hard-coded map list,
+        //  which is why no give-logic changed for this.
+        //
+        //  📝 Mob of the Dead is deliberately NOT given this: it has no Who's
+        //  Who at all, so there would be nothing to hand a knife to.
+        // ====================================================================
+        include_weapon( "knife_ballistic_zm", 0 );
+        include_weapon( "knife_ballistic_upgraded_zm", 0 );
     }
 }
 

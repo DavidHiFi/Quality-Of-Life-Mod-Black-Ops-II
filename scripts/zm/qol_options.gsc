@@ -166,10 +166,16 @@ init()
     //  master is ANDed with them: OFF means camo 39 (stock) on all three maps
     //  whatever the per-map dvars say, ON leaves the per-map behaviour exactly
     //  as it has always been.
+    //  v2.9.12, queue item 9 - GREEN RUN JOINS THEM (user, 2026-08-31, after
+    //  spectating a player on the "ezz" server with animated camos on Town
+    //  survival). One dvar covers all of Green Run because TranZit, Bus Depot,
+    //  Farm, Town and Diner - classic, survival and grief alike - all run with
+    //  level.script == "zm_transit".
     qol_opt_dvar( "anim_pap_camo",         "1" );
     qol_opt_dvar( "anim_pap_camo_mob",     "1" );
     qol_opt_dvar( "anim_pap_camo_buried",  "1" );
     qol_opt_dvar( "anim_pap_camo_origins", "1" );
+    qol_opt_dvar( "anim_pap_camo_transit", "1" );
 
     //  v1.95.0 - three new rows for the QUALITY OF LIFE menu, user 2026-08-14.
     //  All default ON, so the mod behaves exactly as before unless switched off.
@@ -1525,26 +1531,67 @@ qol_opt_coop_pause()
 //  level init, so flipping this mid-game would do nothing and pretending
 //  otherwise would just be confusing.
 // ----------------------------------------------------------------------------
+// ============================================================================
+//  🛑 v2.9.13 - THIS OPTION DID THE OPPOSITE OF WHAT ITS ROW SAYS. REWRITTEN.
+//
+//  User, 2026-08-31: *"make sure that the option to enable power for the current
+//  map works as intended, the option in the cheats menu."*
+//
+//  What the menu promises (ui\t6\menus\optionssettings.lua:2054, CHEATS tab):
+//      "NO POWER NEEDED"  -  "Perks and doors work without power."
+//
+//  What the old body actually did: returned immediately on every map except
+//  TranZit, and on TranZit pointed the TURBINE and JET GUN buildables at a null
+//  stub - i.e. it REMOVED the only way to get power there. A row sitting on the
+//  CHEATS tab, promising perks and doors without power, instead made the map
+//  strictly harder and did nothing at all on the other five. Its own comment
+//  called it "TranZit's power-free challenge", so the code was coherent with
+//  itself and simply never matched the row it was wired to.
+//
+//  🌟 THE FIX USES THE GAME'S OWN CHEAT, NOT AN INVENTION. Stock's devgui does
+//  exactly one thing for its "power_on" button (_zm_devgui.gsc:900-902):
+//      case "power_on":  flag_set( "power_on" );  break;
+//  and "power_on" is flag_init()'d in CORE _zm.gsc:1133, so it exists on every
+//  map, not just one - confirmed in the dump, and every map's own scripts read
+//  it (TranZit 23 references, Buried 13, Die Rise 8, Mob 8, Origins 5,
+//  Nuketown 3). Perk machines, Pack-a-Punch and power doors are all driven off
+//  it through _zm_power.gsc's powered-item list, which is why setting the one
+//  flag is enough and no per-map special-casing is needed.
+//
+//  Watched rather than read once, so the row is live like BLEEDOUT BAR: flip it
+//  mid-game and the lights come on. Turning it back OFF deliberately does NOT
+//  cut the power again - if you had legitimately switched the power on, clearing
+//  the flag would strand every door and machine you had already paid for. The
+//  row is one-way within a match, and that is a deliberate choice, not an
+//  oversight.
+// ============================================================================
 qol_opt_no_power()
 {
-    if ( level.script != "zm_transit" )
-        return;
-
-    if ( !getdvarintdefault( "no_power", 0 ) )
-        return;
+    level endon( "end_game" );
 
     flag_wait( "start_zombie_round_logic" );
 
-    if ( !isdefined( level.zombie_include_buildables ) )
-        return;
+    b_applied = 0;
 
-    if ( isdefined( level.zombie_include_buildables[ "turbine" ] ) )
-        level.zombie_include_buildables[ "turbine" ].triggerthink = ::qol_opt_nullptr;
+    for ( ;; )
+    {
+        if ( !b_applied && getdvarintdefault( "no_power", 0 ) )
+        {
+            if ( !flag( "power_on" ) )
+            {
+                flag_set( "power_on" );
+                println( "[zm_qol] no_power: power_on flag set on " + level.script + " - perks, Pack-a-Punch and power doors are live" );
+            }
+            else
+            {
+                println( "[zm_qol] no_power: power was already on for " + level.script + ", nothing to do" );
+            }
 
-    if ( isdefined( level.zombie_include_buildables[ "jetgun_zm" ] ) )
-        level.zombie_include_buildables[ "jetgun_zm" ].triggerthink = ::qol_opt_nullptr;
+            b_applied = 1;
+        }
 
-    level iprintln( "^3[zm_qol] ^7no_power - turbine and jet gun disabled" );
+        wait 0.5;
+    }
 }
 
 qol_opt_nullptr()

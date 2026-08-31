@@ -1,0 +1,41 @@
+// ============================================================================
+//  mod_ballisticknife.zone  -  the ballistic knife, so Who's Who can hand one
+//  over on ORIGINS.
+//
+//  README "known issues" said: *"Who's Who gives you no ballistic knife on
+//  Origins or Mob of the Dead ... Bringing it over from another map is
+//  possible, but has not been attempted."*  This is that attempt.
+//
+//  MEASURED FIRST, 2026-08-31:
+//    * `Unlinker --list` over retail zm_prison.ff and zm_tomb.ff finds ZERO
+//      knife_ballistic weapons; zm_transit.ff and zm_highrise.ff each carry all
+//      six variants. So the gun genuinely is not on those maps - the old note
+//      was right about the cause.
+//    * zm_transit's and zm_highrise's copies of knife_ballistic_zm,
+//      _upgraded_zm and _no_melee_zm are BYTE-IDENTICAL (md5). So it does not
+//      matter which of the two --load slots wins here, and mod.ff owning the
+//      def cannot change what TranZit or Die Rise already ship. That is the
+//      §38 content-swap trap checked and cleared before writing this file.
+//    * The perk's own guard is already dynamic, not a hard-coded map list -
+//      quality_of_life.gsc's zmqol_whoswho_knife_watch() keys off whether the
+//      weapon is included on the map. So no give-logic changes; the weapon
+//      simply has to exist and be included.
+//
+//  🛑 MOB OF THE DEAD IS NOT PART OF THIS AND NEVER WAS. Mob does not have
+//  Who's Who at all, so there is nothing there to give a knife to. The README
+//  naming both maps was wrong and is corrected in the same commit.
+//
+//  fx: OAT can neither dump nor link fx from raw, so the two the def names have
+//  to come from a --load'ed fastfile that OWNS them. zm_transit.ff does, and
+//  build_ff.bat already loads it - that is why they are declared here rather
+//  than shipped as raw .efx like the wonder weapons' 27.
+// ============================================================================
+
+weapon,knife_ballistic_zm
+weapon,knife_ballistic_upgraded_zm
+
+xmodel,t5_weapon_ballistic_knife_viewmodel
+xmodel,t5_weapon_ballistic_knife_world
+xmodel,t5_weapon_ballistic_knife_blade
+
+fx,weapon/knife_ballistic/fx_trail_knife_ballistic

@@ -47,7 +47,29 @@ init()
     set_zombie_var( "freezegun_cylinder_radius_upgraded",       180 ); // 15 feet
     set_zombie_var( "freezegun_inner_range_upgraded",           120 ); // 10 feet
     set_zombie_var( "freezegun_outer_range_upgraded",           900 ); // 75 feet
-    set_zombie_var( "freezegun_inner_damage_upgraded",          5900000 );
+    //  🛑 v2.9.13 - WAS 5900000, RESTORED TO BO1'S 1500.
+    //
+    //  git blame: the 5,900,000 arrived verbatim with the SRS wonder-weapon
+    //  import (f4c22d8, v1.69.0) and is the donor package's own number. It is
+    //  documented NOWHERE in this project - not MOD_CATALOGUE, not QUEUE, not a
+    //  comment - so it was inherited, never chosen here. BO1 ships 1500:
+    //      <BO1>\raw\maps\_zombiemode_weap_freezegun.gsc:32
+    //
+    //  Two things it broke:
+    //   1. At 3,933x BO1's damage the Packed gun one-shot every zombie at every
+    //      round, so freezegun_damage_response() - the progressive slowdown and
+    //      the frost fx - could never run on an upgraded kill. The gun "killed
+    //      without freezing anything first", which is the reported symptom.
+    //   2. It silently disabled this mod's own WINTER'S HOWL INFINITE DAMAGE row
+    //      (PATCHES tab, dvar winters_howl_infinite). That option raises damage to
+    //      self.health when ON - but with the base already at 5.9M, self.health is
+    //      almost never greater, so ON and OFF behaved identically. The row only
+    //      becomes a real switch once this value is sane again.
+    //  📝 SCOPE: only the 5.9M outlier is touched. outer_damage_upgraded stays at
+    //  this mod's 1000 (BO1 ships 750), as do both shatter_*_upgraded values, and
+    //  every base-gun number already matches BO1 exactly. Those are tuning, with
+    //  no defect behind them - changing them would be an unrequested rebalance.
+    set_zombie_var( "freezegun_inner_damage_upgraded",          1500 );
     set_zombie_var( "freezegun_outer_damage_upgraded",          1000 );
     set_zombie_var( "freezegun_shatter_range_upgraded",         300 ); // 25 feet
     set_zombie_var( "freezegun_shatter_inner_damage_upgraded",  1000 );
@@ -472,11 +494,25 @@ freezegun_damage_response( player, amount )
 
     percent_dmg = self enemy_percent_damaged_by_freezegun();
     
-    if ( 0.1 <= percent_dmg )
+    //  🛑 v2.9.13 - DECOMPILE DAMAGE, FIXED AGAINST BO1'S OWN SOURCE.
+    //  Both branches read `0.1 <= percent_dmg`, so the second could NEVER run -
+    //  identical condition, dead code. Any zombie past 10% freeze damage was
+    //  dropped straight to "walk" and the intermediate sprint->run step, which is
+    //  what makes the gun feel like it is freezing them progressively, never
+    //  happened at all.
+    //
+    //  The real thresholds are 0.66 and 0.33, read out of Black Ops 1's own
+    //  shipped source - not guessed, not inferred:
+    //      <BO1>\raw\maps\_zombiemode_weap_freezegun.gsc::freezegun_damage_response
+    //  which is the file this whole module was ported from. CLAUDE.md's rule
+    //  earned its keep here: "a decompile is trustworthy in inverse proportion to
+    //  its control flow", and a two-branch if/else-if is exactly where a
+    //  decompiler drops the discriminating constant.
+    if ( 0.66 <= percent_dmg )
     {
         new_move_speed = "walk";
     }
-    else if ( 0.1 <= percent_dmg )
+    else if ( 0.33 <= percent_dmg )
     {
         if ( "sprint" == self.zombie_move_speed )
         {
