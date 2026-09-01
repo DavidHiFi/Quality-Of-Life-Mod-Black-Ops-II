@@ -17786,8 +17786,24 @@ zmqol_set_points_watch()
 //  🌟 THE DESTINATIONS ARE THE STRAT TESTER'S OWN, copied value for value out of
 //  H:\Claude\Strat-Tester-BO2\scripts\zm\strattester\commands.gsc::tpcase() -
 //  position AND angles, so each one lands facing the way it does there. Nothing
-//  is invented: Nuketown has no list in that file, so it gets no row in the menu
-//  and no case here.
+//  is invented: Nuketown has no list in that file, so until v2.10.4 it had no
+//  row in the menu and no case here.
+//
+//  v2.10.4 - NUKETOWN, measured from the map's OWN entities, not authored by
+//  hand. zm_nuked.ff's mapents carry exactly three `player_respawn_point`
+//  structs - the spots stock's own zone manager puts a respawning player on
+//  (_zm_zonemgr.gsc:661/832 pick the nearest one in an enabled zone) - so
+//  they are, by construction, places a player can stand:
+//      culdesac_zone            (-56.5, -228.5, 6)  yaw 270   SPAWN
+//      openhouse1_backyard_zone (-1872, 402, -24)   yaw 340   GREEN HOUSE BACKYARD
+//      openhouse2_backyard_zone (1944, 384, -24)    yaw 190   YELLOW HOUSE BACKYARD
+//  openhouse1 = green and openhouse2 = yellow is read off zm_nuked.gsc:588-596
+//  (nuked_update_player_zones counts openhouse1_backyard_zone into
+//  level.green_backyard and openhouse2 into level.yellow_backyard). The
+//  angles are the structs' own. Nothing else on that map is a measured
+//  standing position (the other structs are the box/perk pads, which put a
+//  player inside a machine), so three is the honest list - add more only
+//  from a `.where` reading.
 //
 //  🛑 THE INDEX ORDER MUST MATCH THE LUI LIST EXACTLY. The menu row's values are
 //  indices into the switch below, and the two lists are written to be read side
@@ -17802,6 +17818,12 @@ zmqol_set_points_watch()
 //  that cost this mod a perk on every TranZit survival in v1.83.0 ( see the long
 //  note over the Vulture gate ). ui_gametype is safe to read here for the same
 //  reason it is safe there.
+//
+//  📝 v2.10.4 - NUKETOWN IS THE ONE EXCEPTION TO THE CLASSIC GATE. That map
+//  registers only zstandard (zm_nuked.gsc:629 - there is no zclassic there),
+//  and its zstandard IS the whole map, not a carved-out arena, so the
+//  survival-arena reasoning above does not apply. zmqol_teleport_watch() lets
+//  zm_nuked through on any gametype; every other map keeps the classic gate.
 //
 //  🛑 v2.4.2 - SPLIT INTO A SELECTOR + A SEPARATE EXECUTE ROW, MATCHING THE
 //  STRAT TESTER'S OWN UX. User, 2026-08-26: *"right now you just cycle through
@@ -17837,7 +17859,7 @@ zmqol_teleport_watch()
 
             if ( n_want <= 0 )
                 self iprintln( "^3[zm_qol] teleport: ^7pick a destination first" );
-            else if ( getdvar( "ui_gametype" ) != "zclassic" )
+            else if ( getdvar( "ui_gametype" ) != "zclassic" && level.script != "zm_nuked" )
                 self iprintln( "^3[zm_qol] teleport is classic-only ^7- these landmarks sit outside a survival or grief arena" );
             else
             {
@@ -17943,6 +17965,21 @@ zmqol_teleport_dest( n )
                 a["pos"] = level.vh_tank.origin + ( 0, 0, 50 );
                 a["ang"] = level.vh_tank.angles;
                 break;                                                                    // TANK
+            default: return undefined;
+        }
+
+        return a;
+    }
+
+    if ( level.script == "zm_nuked" )
+    {
+        //  The three player_respawn_point structs from zm_nuked.ff's mapents -
+        //  see the banner above for the derivation and the house colours.
+        switch ( n )
+        {
+            case 1: a["pos"] = ( -56.5, -228.5, 6 );   a["ang"] = ( 0, 270, 0 ); break;   // SPAWN (cul-de-sac)
+            case 2: a["pos"] = ( -1872, 402, -24 );    a["ang"] = ( 0, 340, 0 ); break;   // GREEN HOUSE BACKYARD
+            case 3: a["pos"] = ( 1944, 384, -24 );     a["ang"] = ( 0, 190, 0 ); break;   // YELLOW HOUSE BACKYARD
             default: return undefined;
         }
 

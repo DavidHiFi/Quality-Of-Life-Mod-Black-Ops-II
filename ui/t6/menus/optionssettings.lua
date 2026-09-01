@@ -2300,6 +2300,11 @@ CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientInde
 		ZmTele = { { "OFF", 0 }, { "CHURCH", 1 }, { "CRAZY PLACE", 2 }, { "GENERATOR 1", 3 },
 			{ "GENERATOR 2", 4 }, { "GENERATOR 3", 5 }, { "GENERATOR 4", 6 }, { "GENERATOR 5", 7 },
 			{ "GENERATOR 6", 8 }, { "TANK", 9 } }
+	elseif ZmMap == "zm_nuked" then
+		-- v2.10.4 - the map's own three player_respawn_point structs, measured
+		-- from zm_nuked.ff's mapents; see zmqol_teleport_dest() for the
+		-- derivation. Same index order as the GSC switch, always.
+		ZmTele = { { "OFF", 0 }, { "SPAWN", 1 }, { "GREEN HOUSE BACKYARD", 2 }, { "YELLOW HOUSE BACKYARD", 3 } }
 	end
 
 	if ZmTele ~= nil then
@@ -2313,10 +2318,11 @@ CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientInde
 
 	-- 🛑 STALE COUNT FIXED 2026-08-27 - said "12 total"; SET POINTS (v1.99.93) was
 	-- added without updating it. Recounted directly: 11 rows always present
-	-- (GOD MODE..SET POINTS) + TELEPORT/EXECUTE TELEPORT on every map except
-	-- Nuketown, which has no landmark list (see ZmTele above).
+	-- (GOD MODE..SET POINTS) + TELEPORT/EXECUTE TELEPORT on every map.
 	-- v2.8.2 - ONE SHOT ONE KILL added to the always-present block.
-	return QolCheatsContainer                        -- 14 total, 12 on Nuketown
+	-- v2.10.4 - Nuketown got its landmark list, so the pair is on all six maps
+	-- now and the row count is the same everywhere.
+	return QolCheatsContainer                        -- 14 total, on every map
 end
 
 LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
