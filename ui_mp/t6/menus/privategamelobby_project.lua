@@ -148,6 +148,101 @@ if CoD.MapInfoImage ~= nil and CoD.MapInfoImage.ZmQolSizeWrapped ~= true then
 	end
 end
 
+-- ============================================================================
+--  zm_qol v2.10.2 - THE LOBBY PREVIEW CAPTION FOR THE RESTORED LOCATIONS.
+--
+--  User, 2026-09-02, with a screenshot of the solo lobby reading
+--  "GREEN RUN" / " / SURVIVAL" for a restored location: *"the names are
+--  missing from the previews in the lobby ... it says the specific name of the
+--  map"*.
+--
+--  Stock CoD.MapInfoImage.ZombieUpdate (ui/t6/mapinfoimage.lua) builds the
+--  small caption as <location> .. " / " .. <gametype>, taking <location> from
+--  zm/gametypestable.csv section 5 (column 3 = ui_zm_mapstartlocation, column
+--  4 = the ALL CAPS localize key - the diner row is
+--  5,6,zm_transit,diner,ZMUI_DINER_CAPS,...). power, tunnel and the three Die
+--  Rise locations have NO row in the stock table (dumped 2026-09-02), so the
+--  lookup hands back "" and the caption comes out " / SURVIVAL". The big
+--  "GREEN RUN" line is the MAP name and is correct - stock's own Diner reads
+--  "GREEN RUN" over "DINER / SURVIVAL", which is the shape restored here.
+--
+--  Same fix shape as loading.lua's GetZMLoadingMapName and scoreboard.lua's
+--  GetMapDisplayName: a Lua table for the rows stock lacks, consulted ONLY
+--  when the stock lookup fails, so any location stock does know keeps its
+--  stock string. BO2-Reimagined solves it by shipping its own
+--  gametypestable.csv + localize asset; owning that whole stringtable in
+--  mod.ff would override every gametype row on every map, which is why this
+--  mod keeps to the Lua route.
+--
+--  The preview IMAGE is untouched: all 14 menu_/loadscreen_ materials are in
+--  mod.ff (Unlinker --list, 2026-09-02) with the same images Reimagined uses
+--  for them (Tunnel = the bus-depot picture, Die Rise trio = the rooftop one).
+-- ============================================================================
+if CoD.MapInfoImage ~= nil and CoD.MapInfoImage.ZombieUpdate ~= nil and CoD.MapInfoImage.ZmQolCaptionWrapped ~= true then
+	CoD.MapInfoImage.ZmQolCaptionWrapped = true
+
+	local ZmQolStockZombieUpdate = CoD.MapInfoImage.ZombieUpdate
+
+	-- ALL CAPS, because stock's column-4 keys are the _CAPS strings.
+	local ZmQolLocationCaptions = {
+		power          = "POWER STATION",
+		tunnel         = "TUNNEL",
+		shopping_mall  = "SHOPPING MALL",
+		dragon_rooftop = "DRAGON ROOFTOP",
+		sweatshop      = "SWEATSHOP",
+		diner          = "DINER",
+		cellblock      = "CELL BLOCK",
+		street         = "BOROUGH",
+	}
+
+	CoD.MapInfoImage.ZombieUpdate = function (Widget, MapName, GameType)
+		ZmQolStockZombieUpdate(Widget, MapName, GameType)
+
+		pcall(function ()
+			if not ZmQolLobbyModLoaded() then
+				return
+			end
+			if GameType == nil or GameType == CoD.Zombie.GAMETYPE_ZCLASSIC then
+				return
+			end
+			-- Stock blanks the whole panel while a non-host is watching the
+			-- host pick, and in Theater with no film; leave those alone.
+			if Engine.GameModeIsMode(CoD.GAMEMODE_THEATER) == true and UIExpression.DvarString(Widget.controller, "ui_demoname") == "" then
+				return
+			end
+			local Location = UIExpression.DvarString(nil, "ui_zm_mapstartlocation")
+			if Location == nil or Location == "" then
+				return
+			end
+			local HostState = Engine.PartyGetHostUIState()
+			if (HostState == CoD.PARTYHOST_STATE_SELECTING_GAMETYPE or HostState == CoD.PARTYHOST_STATE_SELECTING_MAP) and UIExpression.GameHost(Widget.controller) ~= 1 then
+				return
+			end
+
+			-- Did stock resolve a name? Then it is already on screen.
+			local Key = UIExpression.TableLookup(nil, CoD.gametypesTable, 0, 5, 3, Location, 4)
+			if Key ~= nil and Key ~= "" then
+				local StockName = Engine.Localize(Key)
+				if StockName ~= nil and StockName ~= "" and string.match(StockName, Key) == nil then
+					return
+				end
+			end
+
+			local Caption = ZmQolLocationCaptions[Location]
+			if Caption == nil then
+				return
+			end
+
+			local Description = CoD.GetZombieGameTypeDescription(GameType, CoD.Zombie.GetUIMapName())
+			if Description ~= nil and Description ~= "" then
+				Widget.gameTypeText:setText(Caption .. " / " .. Description)
+			else
+				Widget.gameTypeText:setText(Caption)
+			end
+		end)
+	end
+end
+
 CoD.PrivateGameLobby.GameTypeSettings = {}
 CoD.PrivateGameLobby.GameTypeSettings[1] = {}
 CoD.PrivateGameLobby.GameTypeSettings[1].id = "zmDifficulty"
