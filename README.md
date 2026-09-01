@@ -8,14 +8,14 @@
 
 Expanded weapon pools, legacy wonder weapons, restored survival map variants, perk adjustments, and fully configurable in-game settings.
 
-<a href="https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest">
+<a href="https://github.com/DavidHiFi/T6-QoL/releases/latest">
 <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20DOWNLOAD%20LATEST%20RELEASE-2EA043?style=for-the-badge&labelColor=161B22" alt="Download the latest release" height="42">
 </a>
 
 <br><br>
 
-<img src="https://img.shields.io/github/v/release/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II?style=flat-square&label=version&color=5865F2&labelColor=161B22">
-<img src="https://img.shields.io/github/downloads/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/total?style=flat-square&label=downloads&color=5865F2&labelColor=161B22">
+<img src="https://img.shields.io/github/v/release/DavidHiFi/T6-QoL?style=flat-square&label=version&color=5865F2&labelColor=161B22">
+<img src="https://img.shields.io/github/downloads/DavidHiFi/T6-QoL/total?style=flat-square&label=downloads&color=5865F2&labelColor=161B22">
 <img src="https://img.shields.io/badge/platform-Windows-5865F2?style=flat-square&labelColor=161B22">
 
 </div>
@@ -56,7 +56,7 @@ Expanded weapon pools, legacy wonder weapons, restored survival map variants, pe
 
 Install Plutonium and run it once so its folders exist, then close it.
 
-1. [Download the latest release](https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest) and unzip it anywhere.
+1. [Download the latest release](https://github.com/DavidHiFi/T6-QoL/releases/latest) and unzip it anywhere.
 2. Run **`Windows Install.bat`**.
 3. Choose **INSTALL → The mod** and confirm.
 4. Launch Plutonium T6 → **Zombies → Mods → Quality Of Life**.
@@ -69,8 +69,8 @@ Neither needs the mod installed:
 
 | Download | Size | What it is |
 |---|---|---|
-| [**HD Texture Pack**](https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest/download/HD.Texture.Pack.zip) | 525 MB | 1,020 upscaled textures. Unzip and drop the `images` folder into `%LOCALAPPDATA%\Plutonium\storage\t6\`. |
-| [**Controller Icons**](https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest/download/Controller.Icons.Pack.zip) | 184 KB | PlayStation 5, Nintendo Switch and Xbox One button prompts. Pick one of the three folders inside and copy its contents into `%LOCALAPPDATA%\Plutonium\storage\t6\images\`. |
+| [**HD Texture Pack**](https://github.com/DavidHiFi/T6-QoL/releases/latest/download/HD.Texture.Pack.zip) | 525 MB | 1,020 upscaled textures. Unzip and drop the `images` folder into `%LOCALAPPDATA%\Plutonium\storage\t6\`. |
+| [**Controller Icons**](https://github.com/DavidHiFi/T6-QoL/releases/latest/download/Controller.Icons.Pack.zip) | 184 KB | PlayStation 5, Nintendo Switch and Xbox One button prompts. Pick one of the three folders inside and copy its contents into `%LOCALAPPDATA%\Plutonium\storage\t6\images\`. |
 
 <details>
 <summary><b>Install by hand (and Linux)</b></summary>

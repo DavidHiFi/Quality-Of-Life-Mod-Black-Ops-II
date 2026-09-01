@@ -30,7 +30,7 @@ $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 
 # ------------------------------------------------------------------ context --
-$REPO    = 'DavidHiFi/zm_qol'
+$REPO    = 'DavidHiFi/T6-QoL'
 $MODID   = 'zm_qol'
 $MODNAME = 'Quality Of Life'
 $MODFILES = @('mod.ff','mod.iwd','mod.json','mod.all.sabl','mod.all.sabs')

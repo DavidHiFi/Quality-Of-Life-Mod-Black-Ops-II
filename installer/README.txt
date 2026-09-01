@@ -96,4 +96,4 @@ Black Ops II Zombies  ·  Plutonium T6
 
 
  ─────────────────────────────────────────────────────────────
- github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II
+ github.com/DavidHiFi/T6-QoL
