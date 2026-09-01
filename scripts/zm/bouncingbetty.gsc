@@ -33,6 +33,20 @@
 //      gun. main() now replaces is_offhand_weapon so it answers truthfully for
 //      this weapon, which is what the safety argument assumed all along.
 //
+//  🛑 v2.9.32 - WHY NO BETTY EVER DETONATED BEFORE THIS VERSION: the def
+//  shipped `plantable 0` from day one, deviating from BOTH working precedents
+//  on exactly that flag (MP's bouncingbetty_mp = 1, stock claymore_zm = 1;
+//  field-diffed against the T6-Data-Archive dumps). Every watcher below waits
+//  in waittill_not_moving(), which for a grenade ent is waittill("stationary")
+//  - the settle notify of a PLANTED grenade. A non-plantable sticky projectile
+//  sits visibly on the ground (engine stickiness, no script needed) while the
+//  light, proximity and shot threads all hang on that wait forever - the
+//  measured v2.9.31 symptom set exactly. The def now says plantable 1 =
+//  byte-parity with the MP donor on every behavioral field. Suspected-not-
+//  proven half, stated honestly: that "stationary" is withheld for stuck
+//  non-plantable grenades cannot be confirmed offline - the probe printlns
+//  below turn the next boot into the proof either way.
+//
 //  Every mechanism below is a measured clone, not a design:
 //    - the plant/watch flow is stock's _zm_weap_claymore::claymore_watch/
 //      claymore_setup (Tranzit dump), name-swapped;
@@ -190,6 +204,8 @@ zmqol_claymore_damage_think( player )
     if ( !isdefined( self ) )
         return;
 
+    //  v2.9.32 - health first, per stock satchel_damage; see the betty watch.
+    self.health = 100000;
     self setcandamage( 1 );
     self waittill( "damage", n_amount, e_attacker );
 
@@ -293,8 +309,18 @@ zmqol_betty_watch()
         //  nearby explosions." MP's own mines do exactly this (setcandamage +
         //  a damage watcher); radiusdamage from any other blast also lands on
         //  a damageable ent, so one mine going off sets off its neighbours.
+        //  v2.9.32 - health first, stock's own satchel_damage order
+        //  (_zm_weap_claymore.gsc:379-381): a damageable ent with default
+        //  health can be KILLED by the shot instead of receiving "damage",
+        //  and endon("death") then eats the watcher with no detonation.
+        betty.health = 100000;
         betty setcandamage( 1 );
         betty thread zmqol_betty_shot_watch();
+
+        //  v2.9.32 probe: user planted two betties (v2.9.31 boot) and neither
+        //  proximity nor gunfire set them off. These lines make the next log
+        //  say exactly which stage died. Remove once detonation is confirmed.
+        println( "[zm_qol] betty: plant caught (grenade_fire), waiting to settle" );
     }
 }
 
@@ -322,6 +348,8 @@ zmqol_betty_proximity()
 {
     self endon( "death" );
     self waittill_not_moving();
+
+    println( "[zm_qol] betty: settled, proximity trigger up at " + self.origin );
 
     r = level.zmqol_betty_radius;
     damagearea = spawn( "trigger_radius", self.origin + ( 0, 0, 0 - r ), 4, r, r * 2 );
@@ -363,6 +391,8 @@ zmqol_betty_proximity()
 
         break;
     }
+
+    println( "[zm_qol] betty: tripped, jumping" );
 
     //  Armed. The alert alias is played for parity with the claymore's own
     //  code path; note it is a stock dangler in every zombies bank.
@@ -472,6 +502,7 @@ zmqol_betty_shot_watch()
     if ( !isdefined( self ) )
         return;
 
+    println( "[zm_qol] betty: damage-detonated (" + n_amount + ")" );
     self zmqol_betty_pop( self.zmqol_damagearea );
 }
 
