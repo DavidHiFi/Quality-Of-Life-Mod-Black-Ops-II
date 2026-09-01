@@ -290,30 +290,37 @@ thundergun_fling_zombie( player, fling_vec, index )
 // this actually catches are Brutus (MotD) and the Jumping Jacks / denizens (Die Rise, TranZit).
 srs_ww_anims_supported()
 {
-    // 🛑 zm_qol: FORCED FALSE, and this is deliberate.
+    // v1.69.x - v2.10.4: FORCED FALSE. The wonder-weapon reaction states
+    // (zm_thundergun_fall_*, getup_*, the freeze/tesla poses) exist only in the
+    // package's MODIFIED animstatedefs/zm_*_basic.asd, and this mod stopped
+    // shipping those after the v1.69.0 load crash - so with the stock tree the
+    // states did not exist, and driving AnimCustom into a state the animname
+    // does not define is the "boss frozen mid-animation" failure. Returning
+    // false took the package's own degrade path: sound + full knockdown
+    // damage, normal death, no fall/getup animation.
     //
-    // The wonder-weapon reaction states - zm_thundergun_fall_*, getup_*, the
-    // freeze poses - are defined only in the package's MODIFIED
-    // animstatedefs/zm_*_basic.asd. This mod does not ship those: they are what
-    // killed every map at load (v1.69.0-v1.69.5), proven by a boot with all
-    // three guns gated OFF crashing at the identical point.
+    // v2.10.5 - the modified trees are declared again (zone_source/
+    // mod_wonderweapons.zone has the measurements), so this is now the donor's
+    // own animname test (SRS_T5_WonderWeapons_portable ..._zm_weap_thundergun
+    // .gsc:234 - "zombie" / "zombie_dog" are the only animnames those states
+    // are defined against) PLUS a runtime check that the state really exists
+    // on this AI. The second half is what makes this safe either way: if the
+    // rawfile did not take, or the map's tree is the stock one, the test is
+    // false and the pre-v2.10.5 degrade path runs exactly as before. Same
+    // guard the Winter's Howl and Wunderwaffe already use for their death
+    // states (HasAnimStateFromASD, stock builtin - animscripts/zm_stop.gsc:20).
     //
-    // With the stock animation tree in place those states do not exist, and
-    // driving AnimCustom into a state an animname does not define is exactly
-    // the "boss frozen mid-animation" failure the package README warns about -
-    // here it would hit every ordinary zombie.
-    //
-    // Returning false takes the path the package ALREADY uses for every special
-    // enemy: the gun plays its sound and applies FULL knockdown damage, the
-    // zombie dies normally, and there is no fall, getup or gib animation. The
-    // README's own words for that trade: "Degrading to normal death, full
-    // damage beats gun does nothing."
-    //
-    // 📝 To restore the animations properly, the modified .asd/.atr have to come
-    // back WITH the runtime scriptmodelsuseanimtree() contract this project
-    // documents in zone_source/mod_locations.zone - not by re-declaring the
-    // rawfiles on their own, which is what crashed.
-    return false;
+    // The old note here claimed the trees need a scriptmodelsuseanimtree()
+    // call - that contract is for script_model entities (the Wunderfizz), not
+    // AI actors, whose tree comes from the aitype. Treyarch ships these same
+    // assets as plain rawfiles in so_zsurvival_zm_transit.ff with no such call.
+    if ( !IsDefined( self.animname ) )
+        return false;
+
+    if ( self.animname != "zombie" && self.animname != "zombie_dog" )
+        return false;
+
+    return self HasAnimStateFromASD( "zm_thundergun_fall_front" );
 }
 
 // MotD's Hell's Retriever soul catchers. A zombie killed inside a wolf volume gets

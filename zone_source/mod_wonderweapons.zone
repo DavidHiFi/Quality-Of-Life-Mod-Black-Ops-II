@@ -96,18 +96,49 @@ script,scripts/zm/thundergun.csc
 //  normally, which is the same degradation the package README already accepts
 //  for every special enemy. The guns themselves are unaffected.
 // ============================================================================
-// rawfile,animtrees/zm_tomb_basic.atr
-// rawfile,animtrees/zm_nuked_basic.atr
-// rawfile,animtrees/zm_buried_basic.atr
-// rawfile,animtrees/zm_prison_basic.atr
-// rawfile,animtrees/zm_transit_basic.atr
-// rawfile,animtrees/zm_highrise_basic.atr
-// rawfile,animstatedefs/zm_tomb_basic.asd
-// rawfile,animstatedefs/zm_nuked_basic.asd
-// rawfile,animstatedefs/zm_buried_basic.asd
-// rawfile,animstatedefs/zm_prison_basic.asd
-// rawfile,animstatedefs/zm_transit_basic.asd
-// rawfile,animstatedefs/zm_highrise_basic.asd
+// ============================================================================
+//  v2.10.5 - THE FOUR MODIFIED TREES ARE BACK, for the four maps the guns are
+//  ENABLED on (thundergun.gsc:31 / teslagun.gsc:40 / freeze.gsc gate all three
+//  OFF on zm_buried and zm_tomb, so those two are deliberately NOT declared:
+//  Buried keeps the STOCK pair mod_locations.zone ships for Borough, and Tomb's
+//  modified copy is against an older base - 34 removed lines - so it is not a
+//  clean overlay).
+//
+//  Why this is not the v1.69.0 crash again - measured, not hoped:
+//   1. The crash condition was 'states declared, anims absent'. v1.69.1
+//      declared all 102 xanims explicitly (block below); Unlinker --list on the
+//      current mod.ff shows all 30 reaction anims present by name.
+//   2. Pre-flight per ERROR_CATALOGUE s10: every name in each modified .atr
+//      resolves in mod.ff or that map's own family of fastfiles
+//      (zm_<map>, _patch, so_*). Transit family: 3441 xanims, 0 unresolved
+//      beyond the stock file's own list.
+//   3. Diffed against the STOCK rawfiles dumped out of so_zsurvival_zm_transit,
+//      zm_nuked, zm_highrise, zm_prison: each modified .atr = stock + 41 lines,
+//      each .asd = stock + 78 lines (the 30 anims / 13 states), ZERO removals,
+//      and the additions are byte-identical across the four maps.
+//   4. Working precedent: Treyarch ships these exact assets the same way -
+//      rawfile animtrees/zm_transit_basic.atr + animstatedefs/.asd live in
+//      so_zsurvival_zm_transit.ff (retail sweep of all 216 fastfiles). No
+//      scriptmodelsuseanimtree() is involved for AI trees - that contract is
+//      for script_models (the Wunderfizz), not actors.
+//   5. mod.ff loads BEFORE the map fastfiles (console_zm.log: 'Loading fastfile
+//      mod' at menu time, zm_transit + so_zsurvival at map time) and first-load
+//      wins, which is exactly why v1.69.0's copy took effect and crashed.
+//  Files are CRLF like stock's. Restores: Winter's Howl freeze pose + torso
+//  frost + shatter/crumple, Wunderwaffe death anims, Thundergun fall/getup
+//  (its srs_ww_anims_supported() gate now checks the state at runtime).
+//  DEPLOYED, NOT BOOTED - if Diner dies at load with 0x80000003 and no script
+//  error, THIS is the first suspect: comment the eight lines and relink.
+// ============================================================================
+rawfile,animtrees/zm_transit_basic.atr
+rawfile,animstatedefs/zm_transit_basic.asd
+rawfile,animtrees/zm_nuked_basic.atr
+rawfile,animstatedefs/zm_nuked_basic.asd
+rawfile,animtrees/zm_highrise_basic.atr
+rawfile,animstatedefs/zm_highrise_basic.asd
+rawfile,animtrees/zm_prison_basic.atr
+rawfile,animstatedefs/zm_prison_basic.asd
+// still NOT shipped (guns gated off there): zm_tomb_basic, zm_buried_basic
 // zm_qol: REMOVED. These files exist only so the Linker walks their %anim
 // references - which it does not do (see the xanim block below). With the
 // modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name
