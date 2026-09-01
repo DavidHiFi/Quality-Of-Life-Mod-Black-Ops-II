@@ -36,8 +36,8 @@ Expanded weapon pools, legacy wonder weapons, restored survival map variants, pe
 ## Expanded Arsenal & Equipment
 
 ### Ported Weapons & Wonder Weapons
-* **BO1 Wonder Weapons:** Wave Gun / Zap Guns, Thundergun, Wunderwaffe DG-2, and Winter's Howl ported with Pack-a-Punch support and proper interactions against special zombies (Brutus, Jumping Jacks, Hellhounds, Denizens).
-* **Campaign & Multiplayer Weapons:** Includes the Campaign SPAS-12 (Packs into the *SPA-Z* with BO1 ammo balancing), Dragunov (Packs into the *D115 Disassembler*), SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6, and Tac-45.
+* **BO1 Wonder Weapons:** Zap Guns (Moon's dual-wield pair), Thundergun, Wunderwaffe DG-2, and Winter's Howl ported with Pack-a-Punch support and proper hit logic against Brutus on Mob of the Dead — the first hit takes his helmet, the second kills.
+* **Campaign & Multiplayer Weapons:** Includes the Campaign SPAS-12 (Packs into the *SPAZ-24* with BO1 ammo balancing), Dragunov (Packs into the *D115 Disassembler*), SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6, and Tac-45.
 * **Equipment Overhaul:** Bouncing Betties are added to the Mystery Box with corrected viewmodels and deploy animations. Both Betties and Claymores feature proximity detonation and shootable trigger logic.
 * **Jet Gun Clean-Up:** Operates strictly as a primary inventory weapon with non-overheating durability mechanics and clean HUD integration.
 
@@ -45,10 +45,62 @@ Expanded weapon pools, legacy wonder weapons, restored survival map variants, pe
 
 ## Quality of Life & HUD Customisation
 
-* **Game Timers & Visuals:** Round Timer and Global Game Timer text updated to clean white display. Includes a Cold War-style round counter and customisable hitmarkers with 8 sound presets.
-* **FOV & Viewmodel Fixes:** High FOV viewmodel alignment applied to weapons like the Ray Gun Mark 1 to prevent static/floating left-hand glitches.
+* **Game Timers & Visuals:** The Global Game Timer now defaults to clean white text, and both timers' colours are configurable. Includes a Cold War-style round counter and customisable hitmarkers with 8 sound presets.
+* **FOV & Viewmodel Fixes:** A view-nudge tunable for the Ray Gun's floating left hand at high FOV (`.rayhand` in chat) — it becomes the default once the confirmed value lands.
 * **Controls & Interactivity:** Native "Tap to Interact" controller support available under the standard Gamepad controls menu.
 * **Custom ReShade Integration:** Bundled with an updated, tailored *Cinematic Colour Grading* ReShade preset.
+
+---
+
+## Installation
+
+Install Plutonium and run it once so its folders exist, then close it.
+
+1. [Download the latest release](https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest) and unzip it anywhere.
+2. Run **`Windows Install.bat`**.
+3. Choose **INSTALL → The mod** and confirm.
+4. Launch Plutonium T6 → **Zombies → Mods → Quality Of Life**.
+
+Arrow keys to move, **Enter** to choose, **Q** to quit. No admin rights, nothing left running, and no game file is ever touched — everything is written inside Plutonium's own folder. The installer can also fetch the optional extras: the HD texture and custom sound packs, controller icons (PlayStation 5, Nintendo Switch or Xbox One), ReShade, backups of your own files, and a full uninstaller.
+
+### Standalone downloads
+
+Neither needs the mod installed:
+
+| Download | Size | What it is |
+|---|---|---|
+| [**HD Texture Pack**](https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest/download/HD.Texture.Pack.zip) | 525 MB | 1,020 upscaled textures. Unzip and drop the `images` folder into `%LOCALAPPDATA%\Plutonium\storage\t6\`. |
+| [**Controller Icons**](https://github.com/DavidHiFi/Quality-Of-Life-Mod-Black-Ops-II/releases/latest/download/Controller.Icons.Pack.zip) | 184 KB | PlayStation 5, Nintendo Switch and Xbox One button prompts. Pick one of the three folders inside and copy its contents into `%LOCALAPPDATA%\Plutonium\storage\t6\images\`. |
+
+<details>
+<summary><b>Install by hand (and Linux)</b></summary>
+
+<br>
+
+On **Linux** (Wine, Proton, Lutris, Bottles) there is no automated installer — install by hand; it works the same as any other Plutonium mod.
+
+1. Download the release zip and open the **`Mod Files`** folder inside it.
+2. Create a folder called `zm_qol` in `%LOCALAPPDATA%\Plutonium\storage\t6\mods\` *(on Linux, the same path inside your Plutonium prefix).*
+3. Copy these five files into it: `mod.ff`, `mod.iwd`, `mod.json`, `mod.all.sabl`, `mod.all.sabs`. Nothing else from that folder is needed.
+4. Launch Plutonium T6 → **Zombies → Mods → Quality Of Life**.
+
+</details>
+
+---
+
+## Important Notices
+
+> [!IMPORTANT]
+> **Plutonium deletes ReShade every time it starts** — it clears anything it does not recognise out of its own `bin` folder. The fix ships with the installer: launch using **`Play BO2 with ReShade.bat`** and leave its window open while you play; it puts ReShade back the moment Plutonium clears it. Closing that window uninstalls nothing — it just stops watching.
+
+> [!NOTE]
+> **Cloning this repo does not give you a playable mod** — `mod.iwd` is a build output and is not tracked in git. Use the release.
+
+> [!NOTE]
+> **The newest changes are still awaiting a fresh play-through:** the seven restored Survival locations beyond Diner, the Bouncing Betty detonation fix, the camo band coverage, and the Ray Gun hand tunable are all in the current build but have not been verified in game since landing. Anything that fails will be fixed or pulled, not left broken.
+
+> [!NOTE]
+> **Most of this mod was written by [Claude Code](https://claude.com/claude-code)**, Anthropic's AI coding agent, directed and tested in game by me across a long run of sessions. Plenty of people want nothing to do with AI-written code, which is fair — so you should know before you download rather than after.
 
 ---
 
@@ -69,3 +121,31 @@ Commands can be executed using `.`, `!`, or `/` prefix, or bound directly to key
 .giveperks / .removeperks Grant or remove player perks
 .pay <player> <amount>    Transfer points to another player
 .shield / .staff <elem>   Spawn shield or specific Origins elemental staff
+```
+
+</details>
+
+---
+
+## Credits
+
+**Made by DavidHiFi & Synarxis.**
+
+| Who | What |
+|---|---|
+| **sehteria** — *T6-ZM-Expanded* | The mod this one grew out of — BO4 Max Ammo, instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers, the area notifier, the Cold War round HUD and secret song survival. |
+| **SadSlothXL** | The Death Machine power-up — the drop, the weapon swap and its sounds. |
+| **Aranella, Frozedy & Skwll** — *Ezz Primary Mod* | The converted Zap Gun models, animations, effects and sounds, and the animated Pack-a-Punch camo's textures. |
+| **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | The extra Survival locations, and the Bouncing Betty's carry animations. |
+| **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The Die Rise weapon changes — the Sliquifier's pre-nerf behaviour and the Semtex wall buy. |
+| **Fraaagaaa** — [Strat Tester](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the teleport list. |
+| **B2ORG** — [T6-B2OP-PATCH](https://github.com/B2ORG/T6-B2OP-PATCH)<br><sub>built with **Astrox** and **NoMoleMan**</sub> | The basis for most of the patches — rebuilt against the game's own scripts, not copied wholesale. |
+
+Built on [**Plutonium**](https://plutonium.pw), with **OpenAssetTools** and **xensik**'s **gsc-tool**. The optional ReShade install ships work by **crosire** ([ReShade](https://reshade.me)), **Barbatos Bachiko**, **Alex Tuduran**, **Marot Satil** and the **GShade** project, **Ioxa**, **Lord of Lunacy**, **prod80**, and **NVIDIA** — all shipped as released, and all credit for them is theirs.
+
+> **Did we miss you?** Then it was an oversight, not a decision. If any of this builds on your work and you are not credited — or credited under the wrong name — open an issue and it gets fixed. No proof needed and no argument required.
+
+<div align="center">
+<br>
+<sub>Not affiliated with Activision or Treyarch. Requires a legitimate copy of Black Ops II and <a href="https://plutonium.pw">Plutonium</a>.</sub>
+</div>
