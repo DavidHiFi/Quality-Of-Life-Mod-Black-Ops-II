@@ -947,7 +947,7 @@ CoD.OptionsSettings.CreateGraphicsTab = function (GraphicsTab, LocalClientIndex)
 	FOVScaleSlider:setRoundToFraction(0.05)
 	FOVScaleSlider:setBarSpeed(0.01)
 	
-	local FOVSensitivity = GraphicsTabButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize("FOV SENSITIVITY"), "cg_usefovsensitivity", Engine.Localize("When enabled, your sensitivity is scaled based on your fovScale"))
+	local FOVSensitivity = GraphicsTabButtonList:addDvarLeftRightSelector(LocalClientIndex, Engine.Localize("FOV SENSITIVITY"), "cg_usefovsensitivity", Engine.Localize("Scales look sensitivity with your FOV SCALE setting."))
 	FOVSensitivity:addChoice(LocalClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0, nil, CoD.OptionsSettings.Button_ApplyDvarChanged)
 	FOVSensitivity:addChoice(LocalClientIndex, Engine.Localize("MENU_ENABLED_CAPS"), 1, nil, CoD.OptionsSettings.Button_ApplyDvarChanged)
 	
@@ -1018,9 +1018,9 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 		end
 		CoD.OptionsSettings.Button_AddChoices_DrawFPS(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_DRAW_FPS_CAPS"), "cg_drawFPS", Engine.Localize("PLATFORM_DRAW_FPS_DESC")))
 		AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
-		CoD.OptionsSettings.Button_AddChoices_StreamerMode(AdvancedTabButtonList:addHardwareProfileLeftRightSelector("STREAMER MODE", "cl_enableStreamerMode", "Hides important networking and player information"))
+		CoD.OptionsSettings.Button_AddChoices_StreamerMode(AdvancedTabButtonList:addHardwareProfileLeftRightSelector("STREAMER MODE", "cl_enableStreamerMode", "Hides identifying player and network info while you stream."))
 		AdvancedTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
-		local StockSafeArea = AdvancedTabButtonList:addButton(Engine.Localize("MENU_SAFE_AREA_ADJUSTMENT_CAPS"), Engine.Localize("Edit the HUD safearea."))
+		local StockSafeArea = AdvancedTabButtonList:addButton(Engine.Localize("MENU_SAFE_AREA_ADJUSTMENT_CAPS"), Engine.Localize("Adjust how far the HUD sits from the screen edges."))
 		StockSafeArea:setActionEventName("open_safe_area")
 		return AdvancedTabContainer
 	end
@@ -1137,9 +1137,9 @@ CoD.OptionsSettings.CreateAdvancedTab = function (AdvancedTab, LocalClientIndex)
 	end
 	CoD.OptionsSettings.Button_AddChoices_DrawFPS(AdvancedTabButtonList:addHardwareProfileLeftRightSelector(Engine.Localize("PLATFORM_DRAW_FPS_CAPS"), "cg_drawFPS", "Show your frame rate on screen."))
 	
-	CoD.OptionsSettings.Button_AddChoices_StreamerMode(AdvancedTabButtonList:addHardwareProfileLeftRightSelector("STREAMER MODE", "cl_enableStreamerMode", "Hides important networking and player information"))
+	CoD.OptionsSettings.Button_AddChoices_StreamerMode(AdvancedTabButtonList:addHardwareProfileLeftRightSelector("STREAMER MODE", "cl_enableStreamerMode", "Hides identifying player and network info while you stream."))
 
-	local SafeAreaButton = AdvancedTabButtonList:addButton(Engine.Localize("MENU_SAFE_AREA_ADJUSTMENT_CAPS"), Engine.Localize("Edit the HUD safearea."))
+	local SafeAreaButton = AdvancedTabButtonList:addButton(Engine.Localize("MENU_SAFE_AREA_ADJUSTMENT_CAPS"), Engine.Localize("Adjust how far the HUD sits from the screen edges."))
 	SafeAreaButton:setActionEventName("open_safe_area")
 	
 	return AdvancedTabContainer

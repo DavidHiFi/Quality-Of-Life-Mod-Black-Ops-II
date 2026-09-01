@@ -207,16 +207,17 @@ it works the same as any other Plutonium mod.
 ## Known issues
 
 Kept honest and current. Almost everything here is a hard limit of modding Black Ops II,
-not a bug — and the one open bug is named as such.
+not a bug — and the open bugs are named as such.
 
 <details>
-<summary><b>The one open bug</b></summary>
+<summary><b>The open bugs</b></summary>
 
 <br>
 
 | Issue | Detail |
 |---|---|
 | **The Diner claymore wall buy prompt is unreliable** | The mine is in the right place and has been bought in testing, but the prompt has also failed to appear. Logging is in place to catch the cause the next time it happens. |
+| **The Ray Gun's left hand floats at high FOV** | A base-game quirk, not the mod's: the carry animation poses the off-hand where the standard field of view never shows it. The animation itself cannot be re-authored, so the mod ships a view-nudge tunable (`.rayhand` in chat cycles candidate positions) — once a value that hides it is confirmed, it becomes the default. |
 
 </details>
 
@@ -229,7 +230,7 @@ Each of these is already in the current build — it just has not been seen in g
 
 | Change | Detail |
 |---|---|
-| **The Bouncing Betty's first-person hold** | The game ships no animations for carrying a Betty, so holding one froze the hands. It now uses the campaign mine's full carry set. |
+| **The Bouncing Betty now detonates** | Planted Betties ignored zombies and gunfire alike: the weapon file was missing the one flag that marks it as a planted mine, so the trip logic waited forever. The flag is set, mines are also shootable without being silently destroyed, and claymores got the same shooting fix. Not yet seen exploding in game. |
 | **Launch-day recoil on the DSR 50 and Five-Seven** | The last two of the eight de-nerfed guns now load their original recoil. Nobody has fired them since. |
 | **Who's Who's ballistic knife** | The maps it plays on contain no part of that knife, so the mod carries its own copy from Buried. Untested until someone goes down with the perk. |
 | **The animated camo on Green Run's last seven guns** | Green Run stores a cut-down camo for them, so the mod carries a full one from Origins. Nobody has Packed one of the seven since. |
