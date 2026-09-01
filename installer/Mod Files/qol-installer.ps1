@@ -1286,6 +1286,52 @@ function Move-OldBackups {
 }
 
 # ------------------------------------------------------------------ copying --
+# ---------------------------------------------------------------------------
+#  v2.10.3 - A SHADER THE FOLDER ALREADY HAS UNDER ANOTHER PATH IS NOT COPIED
+#  TWICE. User, 2026-09-02: "levels.fx reshade shader is being doubled, and i
+#  have to keep disabling it after restarting the game."
+#
+#  Measured on their PC: bin\reshade-shaders is also managed by
+#  RenoDXCommander ("Managed by RDXC.txt"), which installs the SweetFX pack as
+#  Shaders\SweetFX\SweetFX\*.fx - one level below where this payload puts the
+#  same files. ReShade.ini searches Shaders\** recursively, so two Levels.fx
+#  files are two "Levels" techniques, Levels@Levels.fx in the preset enables
+#  both, and the effect runs twice (62 shader names were doubled that way).
+#  After the payload lands, every .fx of OURS whose name already exists at a
+#  different path is removed again - the other tool's copy is left alone, so
+#  nothing fights it. reshade-watchdog.ps1 applies the identical rule when it
+#  restores from the vault; the vault itself stays complete for PCs that have
+#  no second shader manager.
+# ---------------------------------------------------------------------------
+function Remove-SecondShaderCopies {
+    param([string] $Dest, [string[]] $PayloadRel)
+    $shaders = Join-Path $Dest 'reshade-shaders\Shaders'
+    if (-not (Test-Path -LiteralPath $shaders)) { return }
+    $byName = @{}
+    Get-ChildItem -LiteralPath $shaders -Recurse -File -Filter *.fx -ErrorAction SilentlyContinue | ForEach-Object {
+        $k = $_.Name.ToLower()
+        if (-not $byName.ContainsKey($k)) { $byName[$k] = @() }
+        $byName[$k] += [IO.Path]::GetFullPath($_.FullName).ToLower()
+    }
+    $removed = 0
+    foreach ($r in $PayloadRel) {
+        if ($r -notlike '*.fx') { continue }
+        $mine = [IO.Path]::GetFullPath((Join-Path $Dest $r)).ToLower()
+        $k = (Split-Path -Leaf $r).ToLower()
+        if (-not $byName.ContainsKey($k)) { continue }
+        $others = @($byName[$k] | Where-Object { $_ -ne $mine })
+        if ($others.Count -eq 0) { continue }
+        if (Test-Path -LiteralPath $mine) {
+            Remove-Item -LiteralPath $mine -Force -ErrorAction SilentlyContinue
+            $removed++
+        }
+    }
+    if ($removed -gt 0) {
+        Say ("Left out {0} shader(s) this folder already had under another path - a shader present twice runs twice." -f $removed) $C.Dim
+        Write-Log ("reshade: removed {0} second copies of shaders already present under another path" -f $removed)
+    }
+}
+
 function Copy-Payload {
     param([string] $Source, [string] $Dest, [string] $Kind)
     # -----------------------------------------------------------------------
@@ -1335,6 +1381,7 @@ function Copy-Payload {
     $r = robocopy $Source $Dest /E /NFL /NDL /NJH /NJS /NP @xf
     if ($LASTEXITCODE -ge 8) { Say "Copy FAILED - close Plutonium and try again." $C.Bad; return $false }
     $rel = @($files | ForEach-Object { $_.FullName.Substring($Source.Length).TrimStart('\') })
+    if ($Kind -eq 'reshade') { Remove-SecondShaderCopies $Dest $rel }
 
     if ($Kind -eq 'images' -and $blocked.Count -gt 0) {
         Say ("Left out {0} file(s): the HUD blood splat, and all controller icons." -f $blocked.Count) $C.Dim

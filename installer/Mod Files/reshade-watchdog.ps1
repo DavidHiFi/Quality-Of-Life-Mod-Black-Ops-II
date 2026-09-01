@@ -58,6 +58,33 @@ function Test-AnyProcess {
 # Copies from the vault only what is not currently in bin. Never overwrites -
 # a file that exists there is either untouched-by-Plutonium or a live edit,
 # and either way it is not this script's to replace.
+# ---------------------------------------------------------------------------
+#  v2.10.3 - NEVER PUT BACK A SECOND COPY OF A SHADER (user, 2026-09-02:
+#  "levels.fx reshade shader is being doubled, and i have to keep disabling it
+#  after restarting the game").
+#
+#  Measured on the user's PC: bin\reshade-shaders is ALSO written by
+#  RenoDXCommander ("Managed by RDXC.txt" in the folder), which lays the
+#  SweetFX pack out as Shaders\SweetFX\SweetFX\*.fx - one level deeper than
+#  this mod's payload puts the same files. ReShade.ini searches
+#  Shaders\** recursively, so two Levels.fx files become two "Levels"
+#  techniques, the preset's Levels@Levels.fx enables both, and the effect runs
+#  twice. Disabling one in-game only lasted until this watchdog restored the
+#  mod's copy again. Rule now: a .fx from the vault is restored only when NO
+#  file of that name exists anywhere under Shaders\. Everything else
+#  (dxgi.dll, presets, .fxh includes, textures) restores exactly as before.
+# ---------------------------------------------------------------------------
+function Get-ShaderNameIndex {
+    $idx = @{}
+    $shaders = Join-Path $BinDir 'reshade-shaders\Shaders'
+    if (Test-Path -LiteralPath $shaders) {
+        Get-ChildItem -LiteralPath $shaders -Recurse -File -Filter *.fx -ErrorAction SilentlyContinue | ForEach-Object {
+            $idx[$_.Name.ToLower()] = $true
+        }
+    }
+    return $idx
+}
+
 function Restore-MissingReShade {
     if (-not (Test-Path -LiteralPath $VaultDir)) {
         Write-Host "  No ReShade vault at $VaultDir yet." -ForegroundColor Yellow
@@ -67,10 +94,16 @@ function Restore-MissingReShade {
     if (-not (Test-Path -LiteralPath $BinDir)) { return 0 }
 
     $restored = 0
+    $shaderNames = $null
     Get-ChildItem -LiteralPath $VaultDir -Recurse -File | ForEach-Object {
         $rel    = $_.FullName.Substring($VaultDir.Length).TrimStart('\')
         $target = Join-Path $BinDir $rel
         if (-not (Test-Path -LiteralPath $target)) {
+            if ($_.Extension -eq '.fx' -and $rel -like 'reshade-shaders\Shaders\*') {
+                if ($null -eq $shaderNames) { $shaderNames = Get-ShaderNameIndex }
+                if ($shaderNames.ContainsKey($_.Name.ToLower())) { return }   # already here under another path - see the note above
+                $shaderNames[$_.Name.ToLower()] = $true
+            }
             $targetDir = Split-Path -Parent $target
             if (-not (Test-Path -LiteralPath $targetDir)) {
                 New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
