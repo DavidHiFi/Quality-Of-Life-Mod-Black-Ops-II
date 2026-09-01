@@ -184,15 +184,63 @@ if ZmQolModLoaded() and CoD and CoD.OptionsControls and CoD.OptionsControls.Crea
 						--  CoD.ButtonList has add* methods and removeAllButtons
 						--  and nothing else, so the only place a row can be put
 						--  in a chosen position is the moment the row above it is
-						--  added. Server half:
-						--  quality_of_life::zmqol_tap_to_interact_watch().
+						--  added.
+						--
+						--  🛑 v2.9.33 - THE MECHANISM IS TWO BINDS, NOT A DVAR.
+						--  The first cut set g_useholdtime; the v2.9.31 boot
+						--  proved that dvar DOES NOT EXIST in T6 (absent from the
+						--  live 3,153-dvar dump AND from t6zm.exe's strings -
+						--  Treyarch removed it after T5). The working route is
+						--  the user's own find (a Buried high-rounds video):
+						--  split the pad's combined use/reload button across the
+						--  engine's two bind slots -
+						--      bind  BUTTON_X "+reload"
+						--      bind2 BUTTON_X "+activate"
+						--  so a tap fires +activate instantly. All pieces
+						--  verified: bind2/unbind2/+activate are in t6zm.exe,
+						--  stock itself uses bind2 (bind2 4 "+reload" in the
+						--  user's bindings_zm.bdg), stock's BUTTON_X row is
+						--  `bind BUTTON_X "+usereload"` with no bind2 - which is
+						--  exactly what OFF restores. Binds persist in the
+						--  PER-MOD bindings file (players\mods\zm_qol\), so the
+						--  stock profile is never touched.
+						--
+						--  Applied on the spot via a selector_changed handler on
+						--  this ButtonList: the LeftRightSelector's own bytecode
+						--  shows dispatchEventToParent({name="selector_changed",
+						--  selector, userRequested}), buttonlist.lua's constant
+						--  table has no selector_changed (nothing clobbered),
+						--  and optionscontrols.lua has none either (nothing
+						--  upstream needed the event - but it is re-dispatched
+						--  anyway).
 						CoD.OptionsSettings.QolToggle(
 							SelfList,
 							ClientIndex,
 							"TAP TO INTERACT",
 							"tap_to_interact",
-							"Interact the moment the button goes down instead of holding it. On a pad, that button then interacts rather than reloading."
+							"Tap to interact instantly instead of holding. The same button still reloads."
 						)
+
+						SelfList:registerEventHandler("selector_changed", function (HandlerList, Event)
+							pcall(function ()
+								if Event and Event.selector and Event.selector.m_profileVarName == "tap_to_interact" and Event.userRequested == true then
+									if Event.selector:getCurrentValue() == "1" then
+										Engine.Exec(ClientIndex, "bind BUTTON_X \"+reload\"")
+										Engine.Exec(ClientIndex, "bind2 BUTTON_X \"+activate\"")
+									else
+										Engine.Exec(ClientIndex, "bind BUTTON_X \"+usereload\"")
+										Engine.Exec(ClientIndex, "unbind2 BUTTON_X")
+									end
+								end
+							end)
+
+							--  Stock had no handler here; keep the event moving
+							--  up the tree exactly as if this handler didn't
+							--  exist.
+							pcall(function ()
+								HandlerList:dispatchEventToParent(Event)
+							end)
+						end)
 					end
 
 					return Selector

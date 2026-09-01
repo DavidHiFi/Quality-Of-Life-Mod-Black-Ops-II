@@ -10020,87 +10020,27 @@ zmqol_no_limited_weapons_watch()
 }
 
 // ============================================================================
-//  TAP TO INTERACT                                          (v2.9.15)
+//  TAP TO INTERACT                                          (v2.9.15 / v2.9.33)
 //  CONTROLS > GAMEPAD, right under AIM ASSIST
 // ----------------------------------------------------------------------------
 //  User, 2026-08-31: *"Add a 'Tap to Interact' toggle option to the in-game UI
-//  under Options > Controls > Gamepad tab. Implement the underlying keybind
-//  logic (similar to console interact binding) so controller users can interact
-//  with objects instantly without holding the interact button."*
+//  under Options > Controls > Gamepad tab."*
 //
-//  🌟 THE ENGINE ALREADY OWNS THIS AND THE DVAR IS NAMED, NOT GUESSED:
-//      g_useholdtime -> "The time to hold down the 'use' button to activate a
-//                        'use' command"
-//  read out of the T6 dvar dump (Black Ops 2 Grand Resources\BO2 Detailed
-//  DVARS.txt:1750). It is milliseconds. A controller's X button is the COMBINED
-//  use/reload button, and this value is the line between the two: release
-//  before it and the press was a reload, hold past it and it was a use. Drop it
-//  to zero and the press interacts the instant it goes down - which is exactly
-//  what the request describes.
+//  🛑 v2.9.33 - THE SERVER HALF IS GONE; THIS SECTION IS NOW ONLY THE RECORD
+//  OF WHY. The first cut (v2.9.15) set g_useholdtime, named out of `BO2
+//  Detailed DVARS.txt:1750`. The v2.9.31 boot disproved that doc for this
+//  build three ways: the shipped probe printed "not a registered dvar" on all
+//  4 map loads, the live 3,153-dvar dump has no such name, and t6zm.exe's
+//  strings carry g_useholdspawndelay but no useholdtime in any case - Treyarch
+//  removed the knob after T5. Classic "the API exists ≠ the API applies here".
 //
-//  📝 NOTHING IN GSC READS IT. Grepped across all 2,093 stock scripts: zero
-//  hits for useholdtime. It is purely engine-side, so a setdvar is the whole
-//  implementation and there is no stock function to hook.
-//
-//  🛑 THE HONEST TRADE-OFF, SAID OUT LOUD RATHER THAN DISCOVERED IN GAME.
-//  Because one button carries both actions on a pad, making the tap interact
-//  means the tap can no longer reload while something interactable is in range.
-//  That is inherent to the combined binding, not to this implementation, and it
-//  is why the row ships OFF by default and why its description says so.
-//
-//  🛑 AND WHAT IS NOT VERIFIED. Nobody here has a gamepad (checkpoint 173
-//  §6 has the same caveat for BETTER DEADSHOT), and whether Plutonium lets a mod
-//  write g_useholdtime at all cannot be settled offline. So this ships a PROBE
-//  as well as a fix: the value is read back after every write and printed, so
-//  one line of console_zm.log says whether the set took:
-//      [zm_qol] tap_to_interact 1 -> g_useholdtime wanted 0, reads 0     took
-//      [zm_qol] tap_to_interact 1 -> g_useholdtime wanted 0, reads 500   refused
-//
-//  📝 THE OFF VALUE IS MEASURED, NOT ASSUMED TO BE 500. The dvar is sampled
-//  once before the row is ever applied and that sample is what OFF restores, so
-//  a server or a future Plutonium build that ships a different default is
-//  preserved exactly.
-// ============================================================================
-zmqol_tap_to_interact_watch()
-{
-    level endon( "end_game" );
-
-    //  Sample the untouched value first. getdvar returns "" if the dvar is not
-    //  registered at all, and in that case there is nothing to restore to and
-    //  nothing this row can do - say so once and stop.
-    str_stock = getdvar( "g_useholdtime" );
-
-    if ( str_stock == "" )
-    {
-        println( "[zm_qol] tap_to_interact: g_useholdtime is not a registered dvar on this build - row inert" );
-        return;
-    }
-
-    n_stock = int( str_stock );
-    n_last = -1;
-
-    for ( ;; )
-    {
-        n_want = getdvarintdefault( "tap_to_interact", 0 );
-
-        if ( n_want != n_last )
-        {
-            n_last = n_want;
-
-            if ( n_want )
-                n_set = 0;
-            else
-                n_set = n_stock;
-
-            setdvar( "g_useholdtime", "" + n_set );
-
-            println( "[zm_qol] tap_to_interact " + n_want + " -> g_useholdtime wanted " + n_set + ", reads " + getdvar( "g_useholdtime" ) + " (stock was " + n_stock + ")" );
-        }
-
-        wait 1;
-    }
-}
-
+//  The working mechanism (user's own find, a Buried high-rounds video) is two
+//  client-side binds that split the pad's combined use/reload button across
+//  the engine's two bind slots. Client code applies them the moment the toggle
+//  row changes - see ui\t6\menus\optionssettings.lua, which carries the full
+//  verification (bind2/unbind2/+activate present in t6zm.exe, stock's own
+//  bind2 usage, per-mod bindings file scoping). Nothing server-side to do:
+//  binds are client console state GSC cannot touch.
 // ============================================================================
 //  STRANDED-ZOMBIE PROBE                                 (v1.75.0)
 //
@@ -11183,11 +11123,14 @@ perks()
     level thread zmqol_aim_assist_watch();
 
     //  v2.9.15 - TAP TO INTERACT, user request 2026-08-31, CONTROLS > GAMEPAD.
-    //  Default 0 = stock hold-to-use. See the banner over
-    //  zmqol_tap_to_interact_watch() for what the engine dvar behind it is and
-    //  what it costs on a controller.
+    //  Default 0 = stock hold-to-use. v2.9.33: the server half is GONE - the
+    //  whole implementation is now client-side binds applied by the toggle row
+    //  itself (ui\t6\menus\optionssettings.lua, the selector_changed handler).
+    //  The first cut's g_useholdtime dvar DOES NOT EXIST in T6 - proven by the
+    //  v2.9.31 boot log (row-inert print on all 4 map loads), the live
+    //  3,153-dvar dump, and t6zm.exe's own strings. The dvar row is kept
+    //  registered so the LUI toggle has something to read and archive.
     create_dvar( "tap_to_interact", 0 );
-    level thread zmqol_tap_to_interact_watch();
 
     //  ========================================================================
     //  THE PATCHES TAB  (v1.99.93, user request 2026-08-20)

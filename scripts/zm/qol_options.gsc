@@ -351,7 +351,10 @@ init()
     //  CONTROLS > GAMEPAD tab, not on one of this mod's own tabs, because that
     //  is where the request put it - optionssettings.lua adds the row next to
     //  AIM ASSIST. Default 0 = stock hold-to-use, so it changes nothing until a
-    //  player throws it. Read by quality_of_life::zmqol_tap_to_interact_watch().
+    //  player throws it. v2.9.33: read by NOTHING server-side any more - the
+    //  row itself applies two client binds on change (optionssettings.lua has
+    //  the mechanism and its verification); this registration just keeps the
+    //  dvar alive for the toggle to read and archive.
     qol_opt_dvar( "tap_to_interact", "0" );
 
     //  Model pop-in. On by default - it is a pure image-quality win with no
