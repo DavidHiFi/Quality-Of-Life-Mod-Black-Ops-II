@@ -302,7 +302,65 @@ f0_local3 = function (f5_arg0, f5_arg1)
 	Engine.Stop3DCinematic(0)
 end
 
+-- ============================================================================
+--  zm_qol v2.10.2 - TAP TO INTERACT: the bind applier.
+--
+--  The v2.9.33 cut applied the two binds ONLY inside a selector_changed
+--  handler, i.e. only at the moment the row was flipped. A profile that
+--  already had tap_to_interact "1" saved from an earlier build never flipped
+--  it again, so the binds were never written. The 2026-09-02 boot showed
+--  exactly that: toggle ON, plutonium_zm.cfg holding `seta tap_to_interact
+--  "1"`, and the mod's bindings_zm.bdg still on stock `bind BUTTON_X
+--  "+usereload"` with no bind2 - so every stock trigger (barriers, perks)
+--  still needed a hold. (Wunderfizz tapped fine only because wunderfizz.gsc
+--  latches the press itself via notifyonplayercommand.)
+--
+--  Now the setting is applied FROM THE DVAR on every lobby build
+--  (mainlobby.lua) and every map load (loading.lua), and the row's own choice
+--  callback applies it again the instant it is flipped. At launch only ON
+--  writes anything - OFF at launch touches nothing, so a player's own X
+--  binding is never clobbered by a setting they never turned on; the OFF
+--  restore happens once, in the row's callback, when they turn it off.
+--
+--  Every application echoes one line into console_zm.log naming its source,
+--  so a boot proves which path ran. The two functions are defined guarded and
+--  duplicated per Lua VM (frontend: optionssettings.lua + mainlobby.lua;
+--  in-game: loading.lua) so load order never matters.
+-- ============================================================================
+if ZmQolApplyTapToInteract == nil then
+	ZmQolApplyTapToInteract = function (ClientIndex, Value, Source)
+		if ClientIndex == nil then
+			ClientIndex = 0
+		end
+		if tostring(Value) == "1" then
+			Engine.Exec(ClientIndex, "bind BUTTON_X \"+reload\"")
+			Engine.Exec(ClientIndex, "bind2 BUTTON_X \"+activate\"")
+			Engine.Exec(ClientIndex, "echo [zm_qol] tap_to_interact ON - BUTTON_X = +reload plus bind2 +activate - source " .. tostring(Source))
+		else
+			Engine.Exec(ClientIndex, "bind BUTTON_X \"+usereload\"")
+			Engine.Exec(ClientIndex, "unbind2 BUTTON_X")
+			Engine.Exec(ClientIndex, "echo [zm_qol] tap_to_interact OFF - BUTTON_X = +usereload and bind2 cleared - source " .. tostring(Source))
+		end
+	end
+end
+
+if ZmQolApplyTapToInteractFromDvar == nil then
+	ZmQolApplyTapToInteractFromDvar = function (ClientIndex, Source)
+		pcall(function ()
+			local Value = UIExpression.DvarString(nil, "tap_to_interact")
+			if Value == "1" then
+				ZmQolApplyTapToInteract(ClientIndex, "1", Source)
+			else
+				Engine.Exec(ClientIndex, "echo [zm_qol] tap_to_interact is off or unset - binds left alone - source " .. tostring(Source))
+			end
+		end)
+	end
+end
+
 LUI.createMenu.Loading = function (f6_arg0)
+	-- zm_qol v2.10.2 - TAP TO INTERACT applied from its saved dvar on every
+	-- map load (f6_arg0 is the controller: stock hands it to setOwner below).
+	pcall(ZmQolApplyTapToInteractFromDvar, f6_arg0, "loading")
 	-- zm_qol: clear the intro-cutscene gate at the TOP of every loading screen.
 	-- Quitting mid-cutscene would otherwise leave it raised, and the next
 	-- match would sit waiting for a video that is never going to play. Only

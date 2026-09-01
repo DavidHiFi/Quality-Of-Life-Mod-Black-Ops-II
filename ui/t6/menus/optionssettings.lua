@@ -132,6 +132,61 @@ end
 --  reordering LUI children after construction, which is not something this
 --  project can verify offline - so it is not attempted.
 -- ============================================================================
+-- ============================================================================
+--  zm_qol v2.10.2 - TAP TO INTERACT: the bind applier.
+--
+--  The v2.9.33 cut applied the two binds ONLY inside a selector_changed
+--  handler, i.e. only at the moment the row was flipped. A profile that
+--  already had tap_to_interact "1" saved from an earlier build never flipped
+--  it again, so the binds were never written. The 2026-09-02 boot showed
+--  exactly that: toggle ON, plutonium_zm.cfg holding `seta tap_to_interact
+--  "1"`, and the mod's bindings_zm.bdg still on stock `bind BUTTON_X
+--  "+usereload"` with no bind2 - so every stock trigger (barriers, perks)
+--  still needed a hold. (Wunderfizz tapped fine only because wunderfizz.gsc
+--  latches the press itself via notifyonplayercommand.)
+--
+--  Now the setting is applied FROM THE DVAR on every lobby build
+--  (mainlobby.lua) and every map load (loading.lua), and the row's own choice
+--  callback applies it again the instant it is flipped. At launch only ON
+--  writes anything - OFF at launch touches nothing, so a player's own X
+--  binding is never clobbered by a setting they never turned on; the OFF
+--  restore happens once, in the row's callback, when they turn it off.
+--
+--  Every application echoes one line into console_zm.log naming its source,
+--  so a boot proves which path ran. The two functions are defined guarded and
+--  duplicated per Lua VM (frontend: optionssettings.lua + mainlobby.lua;
+--  in-game: loading.lua) so load order never matters.
+-- ============================================================================
+if ZmQolApplyTapToInteract == nil then
+	ZmQolApplyTapToInteract = function (ClientIndex, Value, Source)
+		if ClientIndex == nil then
+			ClientIndex = 0
+		end
+		if tostring(Value) == "1" then
+			Engine.Exec(ClientIndex, "bind BUTTON_X \"+reload\"")
+			Engine.Exec(ClientIndex, "bind2 BUTTON_X \"+activate\"")
+			Engine.Exec(ClientIndex, "echo [zm_qol] tap_to_interact ON - BUTTON_X = +reload plus bind2 +activate - source " .. tostring(Source))
+		else
+			Engine.Exec(ClientIndex, "bind BUTTON_X \"+usereload\"")
+			Engine.Exec(ClientIndex, "unbind2 BUTTON_X")
+			Engine.Exec(ClientIndex, "echo [zm_qol] tap_to_interact OFF - BUTTON_X = +usereload and bind2 cleared - source " .. tostring(Source))
+		end
+	end
+end
+
+if ZmQolApplyTapToInteractFromDvar == nil then
+	ZmQolApplyTapToInteractFromDvar = function (ClientIndex, Source)
+		pcall(function ()
+			local Value = UIExpression.DvarString(nil, "tap_to_interact")
+			if Value == "1" then
+				ZmQolApplyTapToInteract(ClientIndex, "1", Source)
+			else
+				Engine.Exec(ClientIndex, "echo [zm_qol] tap_to_interact is off or unset - binds left alone - source " .. tostring(Source))
+			end
+		end)
+	end
+end
+
 if ZmQolModLoaded() and CoD and CoD.OptionsControls and CoD.OptionsControls.CreateGamepadTab then
 	local ZmQolStockGamepadTab = CoD.OptionsControls.CreateGamepadTab
 
@@ -205,42 +260,31 @@ if ZmQolModLoaded() and CoD and CoD.OptionsControls and CoD.OptionsControls.Crea
 						--  PER-MOD bindings file (players\mods\zm_qol\), so the
 						--  stock profile is never touched.
 						--
-						--  Applied on the spot via a selector_changed handler on
-						--  this ButtonList: the LeftRightSelector's own bytecode
-						--  shows dispatchEventToParent({name="selector_changed",
-						--  selector, userRequested}), buttonlist.lua's constant
-						--  table has no selector_changed (nothing clobbered),
-						--  and optionscontrols.lua has none either (nothing
-						--  upstream needed the event - but it is re-dispatched
-						--  anyway).
-						CoD.OptionsSettings.QolToggle(
-							SelfList,
+						--  v2.10.2 - the flip now applies through the selector's OWN
+						--  choice callback (stock addChoice's 5th argument, which
+						--  replaces DvarLeftRightSelector's default Engine.SetDvar
+						--  callback), so there is no event routing between the
+						--  press and the bind. The v2.9.33 selector_changed handler
+						--  is gone; see ZmQolApplyTapToInteract's header above for
+						--  why the flip alone was never enough.
+						local TapSelector = SelfList:addDvarLeftRightSelector(
 							ClientIndex,
-							"TAP TO INTERACT",
+							Engine.Localize("TAP TO INTERACT"),
 							"tap_to_interact",
-							"Tap to interact instantly instead of holding. The same button still reloads."
+							Engine.Localize("Tap to interact instantly instead of holding. The same button still reloads.")
 						)
-
-						SelfList:registerEventHandler("selector_changed", function (HandlerList, Event)
-							pcall(function ()
-								if Event and Event.selector and Event.selector.m_profileVarName == "tap_to_interact" and Event.userRequested == true then
-									if Event.selector:getCurrentValue() == "1" then
-										Engine.Exec(ClientIndex, "bind BUTTON_X \"+reload\"")
-										Engine.Exec(ClientIndex, "bind2 BUTTON_X \"+activate\"")
-									else
-										Engine.Exec(ClientIndex, "bind BUTTON_X \"+usereload\"")
-										Engine.Exec(ClientIndex, "unbind2 BUTTON_X")
-									end
-								end
-							end)
-
-							--  Stock had no handler here; keep the event moving
-							--  up the tree exactly as if this handler didn't
-							--  exist.
-							pcall(function ()
-								HandlerList:dispatchEventToParent(Event)
-							end)
-						end)
+						local TapChoice = function (Params, UserRequested)
+							Engine.SetDvar(Params.parentSelectorButton.m_dvarName, Params.value)
+							--  Stock also runs this callback on a silent refresh
+							--  (menu open). Re-applying ON there is free; only a
+							--  real flip may write the OFF restore.
+							if UserRequested == true or tostring(Params.value) == "1" then
+								pcall(ZmQolApplyTapToInteract, ClientIndex, Params.value, "menu")
+							end
+						end
+						TapSelector:addChoice(ClientIndex, Engine.Localize("MENU_DISABLED_CAPS"), 0, nil, TapChoice)
+						TapSelector:addChoice(ClientIndex, Engine.Localize("MENU_ENABLED_CAPS"), 1, nil, TapChoice)
+						CoD.OptionsSettings.QolArchive("tap_to_interact")
 					end
 
 					return Selector
