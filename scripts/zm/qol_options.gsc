@@ -159,7 +159,8 @@ init()
     //  🛑 The watcher's str_prev_color_timer / _round seeds MUST match these two
     //  strings exactly, or the first pass sees a change and repaints on spawn.
     qol_opt_dvar( "hud_color_timer",       "1 1 1" );   //  white, user 2026-08-31 (was navy blue)
-    qol_opt_dvar( "hud_color_round_timer", "0.3 0.45 0.9" );
+    qol_opt_dvar( "hud_color_round_timer", "1 1 1" );   //  white, directive 2026-09-02 - the 08-31 white
+                                                        //  pass changed the creation colour but left this navy
 
     //  Read by quality_of_life::get_pack_a_punch_weapon_options(). Default 1
     //  keeps the animated camo exactly where this mod already had it.
@@ -1651,10 +1652,11 @@ qol_opt_hud_watcher()
     //  the first pass is a no-op. The elements are created already carrying
     //  these colours (timer() in quality_of_life.gsc and qol_opt_round_timer_hud
     //  below), so the watcher only ever has to act on a real console change.
-    //  v1.95.3 - both are the same dull navy now; these MUST track the two
-    //  qol_opt_dvar defaults above or the first pass repaints on spawn.
-    str_prev_color_timer = "0.3 0.45 0.9";
-    str_prev_color_round = "0.3 0.45 0.9";
+    //  v2.10.1 - both white now; these MUST track the two qol_opt_dvar defaults
+    //  above or the first pass repaints on spawn. (The 08-31 white pass missed
+    //  this pair - the game timer repainted once per spawn until 2026-09-02.)
+    str_prev_color_timer = "1 1 1";
+    str_prev_color_round = "1 1 1";
 
     //  -1 so the first pass always writes the LUI flag once, whatever hud_master
     //  says. Seeding it to 1 would leave the flag unset on a player who joined
