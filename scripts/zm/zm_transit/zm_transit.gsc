@@ -39,14 +39,16 @@ main()
     //  buildable's own .onbought hook instead, one level higher.
     replaceFunc( maps\mp\zombies\_zm_equipment::equipment_give, ::zmqol_equipment_give );
 
-    // --- custom survival start locations: adds Diner, Power Station, Tunnel, Cornfield ---
+    // --- custom survival start locations: adds Diner, Power Station, Tunnel ---
     // Map-specific, so it lives here and not in quality_of_life.gsc (AI_CONTEXT rule 2).
     replaceFunc( maps\mp\zm_transit_gamemodes::init, scripts\zm\replaced\zm_transit_gamemodes::init );
 
-    // Creates + enables zone_amb_tunnel (and the two cornfield zones) for non-classic
-    // gametypes. Without it every Tunnel respawn point stays locked and the player is
-    // dumped at the Bus Depot default spawn and killed instantly - see the header
-    // comment in scripts\zm\replaced\zm_transit.gsc for the full chain.
+    // Creates + enables zone_amb_tunnel (Tunnel) and the five power-station zones
+    // (Power), each gated on its own start location. Without it every Tunnel/Power
+    // respawn point stays locked and the player is dumped at the Bus Depot default
+    // spawn and killed instantly - see the header comment in
+    // scripts\zm\replaced\zm_transit.gsc for the full chain.
+    replaceFunc( maps\mp\zm_transit::transit_zone_init, scripts\zm\replaced\zm_transit::transit_zone_init );
 
     // --- Diner buildable riot shield (server half; client twin in zm_transit.csc) ---
     zmqol_diner_shield_init();

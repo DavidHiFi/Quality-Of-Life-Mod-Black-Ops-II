@@ -658,6 +658,20 @@ function CoD.Loading.GetZMLoadingMapName()
 		return StockName
 	end
 
+	-- zm_qol: caps titles for the restored survival locations that have NO row
+	-- in stock zm\gametypestable.csv (dumped 2026-09-02: power, tunnel and the
+	-- three Die Rise locations are absent; diner/cellblock/street have rows).
+	local ZmQolLocationTitles = {
+		power          = "POWER STATION",
+		tunnel         = "TUNNEL",
+		shopping_mall  = "SHOPPING MALL",
+		dragon_rooftop = "DRAGON ROOFTOP",
+		sweatshop      = "SWEATSHOP",
+	}
+	if ZmQolLocationTitles[location] ~= nil then
+		return ZmQolLocationTitles[location]
+	end
+
 	local LocationKey = UIExpression.TableLookup(nil, CoD.gametypesTable, 0, 5, 3, location, 4)
 	if LocationKey == nil or LocationKey == "" then
 		return StockName

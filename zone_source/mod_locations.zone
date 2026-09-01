@@ -1532,3 +1532,806 @@ attachmentunique,au_peacekeeper_reflex
 // ============================================================================
 image,camo_stellar_ember
 image,camo_goldgrid_nml
+
+// ============================================================================
+//  RESTORED SURVIVAL LOCATIONS (2026-09-02, user request)
+//  Power Station + Tunnel (TranZit), Shopping Mall + Dragon Rooftop + Sweatshop
+//  (Die Rise), Cell Block (Mob), Borough (Buried). Everything below was in the
+//  pre-strip zone (git d722590) except the XANIM section, which is new - and is
+//  the suspected fix for the pre-strip Borough frozen-zombie failure.
+//  Cornfield, Maze, Docks and the four Origins arenas stay out (excluded from
+//  the restoration by the same request).
+// ============================================================================
+
+// --- lobby previews + loading screens for the restored locations.
+//     JSON sources in zone_assets\materials\; the images they reference are in
+//     zone_assets\images\ (and build.bat syncs them into images\ for mod.iwd).
+material,menu_zm_transit_zsurvival_power
+material,menu_zm_transit_zsurvival_tunnel
+material,menu_zm_highrise_zsurvival_shopping_mall
+material,menu_zm_highrise_zsurvival_dragon_rooftop
+material,menu_zm_highrise_zsurvival_sweatshop
+material,menu_zm_buried_zsurvival_street
+material,menu_zm_prison_zsurvival_cellblock
+material,loadscreen_zm_transit_zstandard_power
+material,loadscreen_zm_transit_zstandard_tunnel
+material,loadscreen_zm_highrise_zstandard_shopping_mall
+material,loadscreen_zm_highrise_zstandard_dragon_rooftop
+material,loadscreen_zm_highrise_zstandard_sweatshop
+material,loadscreen_zm_buried_zstandard_street
+material,loadscreen_zm_prison_zstandard_cellblock
+
+// ============================================================================
+//  SURVIVAL PLAYER CHARACTERS (Die Rise + Borough: the CDC/CIA teams)
+// ----------------------------------------------------------------------------
+//  give_team_characters on both maps sets these four models; per the Unlinker
+//  they exist ONLY in so_zencounter_zm_buried.ff, which no zstandard run loads.
+//  A model that was never loaded silently renders nothing - no body, no view
+//  arms, no weapon, no hit geometry.
+// ============================================================================
+xmodel,c_zom_player_cdc_dlc1_fb
+xmodel,c_zom_hazmat_viewhands
+xmodel,c_zom_player_cia_dlc1_fb
+xmodel,c_zom_suit_viewhands
+
+// ============================================================================
+//  MOB OF THE DEAD PERSONALITY CHARACTERS (Cell Block survival)
+// ----------------------------------------------------------------------------
+//  replaced\zm_alcatraz_gamemodes::zstandard_preinit routes character setup to
+//  maps\mp\zm_prison::init_characters (the classic path). These were declared
+//  in the verified pre-strip build; zm_prison_patch.ff also carries them, so
+//  this is belt-and-braces to stay at the verified configuration.
+// ============================================================================
+xmodel,c_zom_player_arlington_fb
+xmodel,c_zom_arlington_coat_viewhands
+xmodel,c_zom_player_deluca_fb
+xmodel,c_zom_deluca_longsleeve_viewhands
+xmodel,c_zom_player_handsome_fb
+xmodel,c_zom_handsome_sleeveless_viewhands
+xmodel,c_zom_player_oleary_fb
+xmodel,c_zom_oleary_shortsleeve_viewhands
+
+// ============================================================================
+//  BURIED GHOST (the Witch) - load-time support only
+// ----------------------------------------------------------------------------
+//  Per the Unlinker, animtrees/zm_buried_ghost.atr and its .asd exist ONLY in
+//  so_zclassic/so_zencounter_zm_buried.ff. "unknown anim tree" is a fatal
+//  COM_ERROR that cannot be guarded around in script. No ghost spawner entity
+//  ships in this mod's mapents, so no witch ever spawns on Borough survival -
+//  these four entries only keep every load-time reference resolvable, matching
+//  the configuration that booted 2026-08-02.
+// ============================================================================
+rawfile,animtrees/zm_buried_ghost.atr
+rawfile,animstatedefs/zm_buried_ghost.asd
+script,aitype/zm_buried_ghost_female.gsc
+script,character/c_zom_zombie_buried_ghost_woman.gsc
+
+// ============================================================================
+//  BURIED BASIC ZOMBIES  -  fixes "no zombies spawn on Borough".
+// ----------------------------------------------------------------------------
+//  On Buried under zstandard there are no AI spawner entities in the world at
+//  all: the 9 "zombie_spawner" entities live in the so_zclassic/so_zencounter
+//  ADDONMAPENTS (an asset type the Unlinker cannot export - the T6-Data-Archive
+//  extraction settles it), and there is no so_zsurvival_zm_buried.ff. So
+//  _zm_spawner::init builds an empty level.zombie_spawners and round_spawning
+//  dies silently on its first iteration.
+//
+//  BO2-Reimagined solves this by moving the spawner entities into the BASE map
+//  entities, which every gametype loads - its maps\mp\zm_buried.d3dbsp carries
+//  the 9 actor_zm_buried_basic_* blocks. This project now does the same (the
+//  blocks are appended to maps\mp\zm_buried.d3dbsp, byte-for-byte Reimagined's,
+//  packed into mod.iwd - entities need no zone entry). This mirrors what the
+//  project already ships for Alcatraz (2 actors) and Die Rise (5).
+//
+//  The ASSETS those nine aitypes need are declared here. Every name was
+//  verified present in so_zclassic_zm_buried.ff (build_ff.bat --loads it, so
+//  the Linker copies them out of it).
+// ============================================================================
+rawfile,animtrees/zm_buried_basic.atr
+rawfile,animstatedefs/zm_buried_basic.asd
+
+script,aitype/zm_buried_basic_03.gsc
+script,aitype/zm_buried_basic_01_char_01.gsc
+script,aitype/zm_buried_basic_01_char_02.gsc
+script,aitype/zm_buried_basic_01_char_03.gsc
+script,aitype/zm_buried_basic_01_char_04.gsc
+script,aitype/zm_buried_basic_01_char_05.gsc
+script,aitype/zm_buried_basic_02_char_01.gsc
+script,aitype/zm_buried_basic_02_char_02.gsc
+script,aitype/zm_buried_basic_02_char_03.gsc
+script,aitype/clientscripts/zm_buried_basic_03.csc
+script,aitype/clientscripts/zm_buried_basic_01_char_01.csc
+script,aitype/clientscripts/zm_buried_basic_01_char_02.csc
+script,aitype/clientscripts/zm_buried_basic_01_char_03.csc
+script,aitype/clientscripts/zm_buried_basic_01_char_04.csc
+script,aitype/clientscripts/zm_buried_basic_01_char_05.csc
+script,aitype/clientscripts/zm_buried_basic_02_char_01.csc
+script,aitype/clientscripts/zm_buried_basic_02_char_02.csc
+script,aitype/clientscripts/zm_buried_basic_02_char_03.csc
+script,character/c_zom_zombie_buried_saloongirl1.gsc
+script,character/c_zom_zombie_buried_saloongirl2.gsc
+script,character/c_zom_zombie_buried_saloongirl3.gsc
+script,character/c_zom_zombie_buried_civilian1.gsc
+script,character/c_zom_zombie_buried_civilian2.gsc
+script,character/c_zom_zombie_buried_civilian2_nohat.gsc
+script,character/c_zom_zombie_buried_civilian3.gsc
+script,character/c_zom_zombie_buried_civilian3_nohat.gsc
+script,character/c_zom_zombie_buried_civilian4.gsc
+script,character/c_zom_zombie_buried_civilian4_nohat.gsc
+script,character/c_zom_zombie_buried_civilian5.gsc
+script,character/c_zom_zombie_buried_civilian5_nohat.gsc
+script,character/c_zom_zombie_buried_miner1.gsc
+script,character/c_zom_zombie_buried_miner2.gsc
+script,character/c_zom_zombie_buried_miner2_nohat.gsc
+script,character/c_zom_zombie_buried_miner3.gsc
+script,character/c_zom_zombie_buried_miner3_nohat.gsc
+script,character/clientscripts/c_zom_zombie_buried_saloongirl1.csc
+script,character/clientscripts/c_zom_zombie_buried_saloongirl2.csc
+script,character/clientscripts/c_zom_zombie_buried_saloongirl3.csc
+script,character/clientscripts/c_zom_zombie_buried_civilian1.csc
+script,character/clientscripts/c_zom_zombie_buried_civilian2.csc
+script,character/clientscripts/c_zom_zombie_buried_civilian2_nohat.csc
+script,character/clientscripts/c_zom_zombie_buried_civilian3.csc
+script,character/clientscripts/c_zom_zombie_buried_civilian3_nohat.csc
+script,character/clientscripts/c_zom_zombie_buried_civilian4.csc
+script,character/clientscripts/c_zom_zombie_buried_civilian4_nohat.csc
+script,character/clientscripts/c_zom_zombie_buried_civilian5.csc
+script,character/clientscripts/c_zom_zombie_buried_civilian5_nohat.csc
+script,character/clientscripts/c_zom_zombie_buried_miner1.csc
+script,character/clientscripts/c_zom_zombie_buried_miner2.csc
+script,character/clientscripts/c_zom_zombie_buried_miner2_nohat.csc
+script,character/clientscripts/c_zom_zombie_buried_miner3.csc
+script,character/clientscripts/c_zom_zombie_buried_miner3_nohat.csc
+script,xmodelalias/c_zom_zombie_buried_female_heads_als.gsc
+script,xmodelalias/c_zom_zombie_buried_male_heads_als.gsc
+script,xmodelalias/c_zom_zombie_buried_sgirl_hair_als.gsc
+script,xmodelalias/c_zom_zombie_buried_miner_hats_als.gsc
+script,xmodelalias/c_zom_zombie_buried_civilian_hat1_als.gsc
+script,xmodelalias/c_zom_zombie_buried_civilian_hat2_als.gsc
+script,xmodelalias/c_zom_zombie_buried_civilian_hat3_als.gsc
+script,xmodelalias/c_zom_zombie_buried_civilian_hat4_als.gsc
+script,xmodelalias/c_zom_zombie_buried_civilian_hat5_als.gsc
+
+// The zombie body/head/hat models the aitype and character scripts resolve.
+// Omitting one produces "Unresolved external" at load - the dependency-chain
+// failure class from checkpoint 10 section 2.
+
+xmodel,c_zom_zombie_buried_civilian_body1
+xmodel,c_zom_zombie_buried_civilian_body2
+xmodel,c_zom_zombie_buried_civilian_body2_nohat
+xmodel,c_zom_zombie_buried_civilian_body3
+xmodel,c_zom_zombie_buried_civilian_body3_nohat
+xmodel,c_zom_zombie_buried_civilian_body4
+xmodel,c_zom_zombie_buried_civilian_body4_nohat
+xmodel,c_zom_zombie_buried_civilian_body5
+xmodel,c_zom_zombie_buried_civilian_body5_nohat
+xmodel,c_zom_zombie_buried_civilian_g_behead
+xmodel,c_zom_zombie_buried_civilian_g_larmoff
+xmodel,c_zom_zombie_buried_civilian_g_larmoff2
+xmodel,c_zom_zombie_buried_civilian_g_larmoff3
+xmodel,c_zom_zombie_buried_civilian_g_larmoff4
+xmodel,c_zom_zombie_buried_civilian_g_larmoff5
+xmodel,c_zom_zombie_buried_civilian_g_legsoff
+xmodel,c_zom_zombie_buried_civilian_g_legsoff2
+xmodel,c_zom_zombie_buried_civilian_g_legsoff3
+xmodel,c_zom_zombie_buried_civilian_g_legsoff4
+xmodel,c_zom_zombie_buried_civilian_g_legsoff5
+xmodel,c_zom_zombie_buried_civilian_g_llegoff
+xmodel,c_zom_zombie_buried_civilian_g_llegoff2
+xmodel,c_zom_zombie_buried_civilian_g_llegoff3
+xmodel,c_zom_zombie_buried_civilian_g_llegoff4
+xmodel,c_zom_zombie_buried_civilian_g_llegoff5
+xmodel,c_zom_zombie_buried_civilian_g_lowclean
+xmodel,c_zom_zombie_buried_civilian_g_lowclean2
+xmodel,c_zom_zombie_buried_civilian_g_lowclean3
+xmodel,c_zom_zombie_buried_civilian_g_lowclean4
+xmodel,c_zom_zombie_buried_civilian_g_lowclean5
+xmodel,c_zom_zombie_buried_civilian_g_rarmoff
+xmodel,c_zom_zombie_buried_civilian_g_rarmoff2
+xmodel,c_zom_zombie_buried_civilian_g_rarmoff3
+xmodel,c_zom_zombie_buried_civilian_g_rarmoff4
+xmodel,c_zom_zombie_buried_civilian_g_rarmoff5
+xmodel,c_zom_zombie_buried_civilian_g_rlegoff
+xmodel,c_zom_zombie_buried_civilian_g_rlegoff2
+xmodel,c_zom_zombie_buried_civilian_g_rlegoff3
+xmodel,c_zom_zombie_buried_civilian_g_rlegoff4
+xmodel,c_zom_zombie_buried_civilian_g_rlegoff5
+xmodel,c_zom_zombie_buried_civilian_g_upclean
+xmodel,c_zom_zombie_buried_civilian_g_upclean2
+xmodel,c_zom_zombie_buried_civilian_g_upclean3
+xmodel,c_zom_zombie_buried_civilian_g_upclean4
+xmodel,c_zom_zombie_buried_civilian_g_upclean5
+xmodel,c_zom_zombie_buried_civilian_hats1
+xmodel,c_zom_zombie_buried_civilian_hats2
+xmodel,c_zom_zombie_buried_civilian_hats3
+xmodel,c_zom_zombie_buried_civilian_hats4
+xmodel,c_zom_zombie_buried_civilian_nohat
+xmodel,c_zom_zombie_buried_ghost_woman_fb
+xmodel,c_zom_zombie_buried_male_hair1
+xmodel,c_zom_zombie_buried_male_hair2
+xmodel,c_zom_zombie_buried_male_hair3
+xmodel,c_zom_zombie_buried_male_head1
+xmodel,c_zom_zombie_buried_male_head2
+xmodel,c_zom_zombie_buried_male_head3
+xmodel,c_zom_zombie_buried_miner_body1
+xmodel,c_zom_zombie_buried_miner_body2
+xmodel,c_zom_zombie_buried_miner_body2_nohat
+xmodel,c_zom_zombie_buried_miner_body3
+xmodel,c_zom_zombie_buried_miner_body3_nohat
+xmodel,c_zom_zombie_buried_miner_g_larmoff
+xmodel,c_zom_zombie_buried_miner_g_larmoff2
+xmodel,c_zom_zombie_buried_miner_g_larmoff3
+xmodel,c_zom_zombie_buried_miner_g_legsoff
+xmodel,c_zom_zombie_buried_miner_g_legsoff2
+xmodel,c_zom_zombie_buried_miner_g_legsoff3
+xmodel,c_zom_zombie_buried_miner_g_llegoff
+xmodel,c_zom_zombie_buried_miner_g_llegoff2
+xmodel,c_zom_zombie_buried_miner_g_llegoff3
+xmodel,c_zom_zombie_buried_miner_g_lowclean
+xmodel,c_zom_zombie_buried_miner_g_lowclean2
+xmodel,c_zom_zombie_buried_miner_g_lowclean3
+xmodel,c_zom_zombie_buried_miner_g_rarmoff
+xmodel,c_zom_zombie_buried_miner_g_rarmoff2
+xmodel,c_zom_zombie_buried_miner_g_rarmoff3
+xmodel,c_zom_zombie_buried_miner_g_rlegoff
+xmodel,c_zom_zombie_buried_miner_g_rlegoff2
+xmodel,c_zom_zombie_buried_miner_g_rlegoff3
+xmodel,c_zom_zombie_buried_miner_g_upclean
+xmodel,c_zom_zombie_buried_miner_g_upclean2
+xmodel,c_zom_zombie_buried_miner_g_upclean3
+xmodel,c_zom_zombie_buried_miner_hats1
+xmodel,c_zom_zombie_buried_miner_hats2
+xmodel,c_zom_zombie_buried_miner_nohat
+xmodel,c_zom_zombie_buried_sgirl_body1
+xmodel,c_zom_zombie_buried_sgirl_body2
+xmodel,c_zom_zombie_buried_sgirl_body3
+xmodel,c_zom_zombie_buried_sgirl_g_behead
+xmodel,c_zom_zombie_buried_sgirl_g_larmoff
+xmodel,c_zom_zombie_buried_sgirl_g_larmoff2
+xmodel,c_zom_zombie_buried_sgirl_g_larmoff3
+xmodel,c_zom_zombie_buried_sgirl_g_legsoff
+xmodel,c_zom_zombie_buried_sgirl_g_legsoff2
+xmodel,c_zom_zombie_buried_sgirl_g_legsoff3
+xmodel,c_zom_zombie_buried_sgirl_g_llegoff
+xmodel,c_zom_zombie_buried_sgirl_g_llegoff2
+xmodel,c_zom_zombie_buried_sgirl_g_llegoff3
+xmodel,c_zom_zombie_buried_sgirl_g_lowclean
+xmodel,c_zom_zombie_buried_sgirl_g_lowclean2
+xmodel,c_zom_zombie_buried_sgirl_g_lowclean3
+xmodel,c_zom_zombie_buried_sgirl_g_rarmoff
+xmodel,c_zom_zombie_buried_sgirl_g_rarmoff2
+xmodel,c_zom_zombie_buried_sgirl_g_rarmoff3
+xmodel,c_zom_zombie_buried_sgirl_g_rlegoff
+xmodel,c_zom_zombie_buried_sgirl_g_rlegoff2
+xmodel,c_zom_zombie_buried_sgirl_g_rlegoff3
+xmodel,c_zom_zombie_buried_sgirl_g_upclean
+xmodel,c_zom_zombie_buried_sgirl_g_upclean2
+xmodel,c_zom_zombie_buried_sgirl_g_upclean3
+xmodel,c_zom_zombie_buried_sgirl_hair1
+xmodel,c_zom_zombie_buried_sgirl_hair1_2
+xmodel,c_zom_zombie_buried_sgirl_hair1_3
+xmodel,c_zom_zombie_buried_sgirl_hair2
+xmodel,c_zom_zombie_buried_sgirl_hair2_2
+xmodel,c_zom_zombie_buried_sgirl_head1
+xmodel,c_zom_zombie_buried_sgirl_head2
+
+// ============================================================================
+//  BURIED ZOMBIE XANIMS - NEW vs the pre-strip build; the suspected frozen-
+//  zombie fix.
+// ----------------------------------------------------------------------------
+//  The pre-strip Borough boot (2026-08-02/03) spawned zombies that stood
+//  frozen with everything else measured correct. The pre-strip zone declared
+//  the aitypes, characters and xmodels but not ONE xanim - and, measured
+//  2026-09-02 with the Unlinker: zm_buried.ff (base, all gametypes) carries
+//  NONE of the 495 zombie locomotion/attack/traverse anims; they exist only in
+//  so_zclassic_zm_buried.ff (495) / so_zencounter_zm_buried.ff (480). An AI
+//  whose animations are not loaded cannot move. BO2-Reimagined's own
+//  zone_source\includes\zm_buried.zone declares 433 xanims for exactly this
+//  reason; the list below is the measured gap (classic addon minus base map),
+//  which is a superset of Reimagined's.
+//
+//  MOD.FF LOADS ON EVERY MAP, so shared anim NAMES override other maps'
+//  copies. Measured before shipping: of the 495, the copies shared with
+//  zm_highrise (247), zm_prison (250), zm_tomb (236) and zm_nuked (261 of 263)
+//  are BYTE-IDENTICAL to Buried's. The only two that differ anywhere are
+//  ai_zombie_jump_up_154 / ai_zombie_crawl_jump_up_154 on zm_nuked (28,983B vs
+//  29,018B and 20,781B vs 20,788B) - Nuketown's two 154-unit jump-up traverses
+//  will play Buried's near-identical copy. zm_transit shares zero names (its
+//  zombie anims live in its own so_ addons). Accepted, documented residual.
+// ============================================================================
+
+xanim,ai_zombie_attack_crawl
+xanim,ai_zombie_attack_crawl_lunge
+xanim,ai_zombie_attack_forward_v1
+xanim,ai_zombie_attack_forward_v2
+xanim,ai_zombie_attack_v1
+xanim,ai_zombie_attack_v2
+xanim,ai_zombie_attack_v4
+xanim,ai_zombie_attack_v6
+xanim,ai_zombie_barricade_enter_l
+xanim,ai_zombie_barricade_enter_m_nolegs
+xanim,ai_zombie_barricade_enter_m_v1
+xanim,ai_zombie_barricade_enter_m_v2
+xanim,ai_zombie_barricade_enter_m_v3
+xanim,ai_zombie_barricade_enter_m_v4
+xanim,ai_zombie_barricade_enter_m_v5
+xanim,ai_zombie_barricade_enter_m_v6
+xanim,ai_zombie_barricade_enter_m_v7
+xanim,ai_zombie_barricade_enter_r
+xanim,ai_zombie_barricade_enter_run_l
+xanim,ai_zombie_barricade_enter_run_r
+xanim,ai_zombie_barricade_enter_sprint_l
+xanim,ai_zombie_barricade_enter_sprint_r
+xanim,ai_zombie_boardtear_aligned_l_1_grab
+xanim,ai_zombie_boardtear_aligned_l_1_hold
+xanim,ai_zombie_boardtear_aligned_l_1_pull
+xanim,ai_zombie_boardtear_aligned_l_2_grab
+xanim,ai_zombie_boardtear_aligned_l_2_hold
+xanim,ai_zombie_boardtear_aligned_l_2_pull
+xanim,ai_zombie_boardtear_aligned_l_3_grab
+xanim,ai_zombie_boardtear_aligned_l_3_hold
+xanim,ai_zombie_boardtear_aligned_l_3_pull
+xanim,ai_zombie_boardtear_aligned_l_4_grab
+xanim,ai_zombie_boardtear_aligned_l_4_hold
+xanim,ai_zombie_boardtear_aligned_l_4_pull
+xanim,ai_zombie_boardtear_aligned_l_5_grab
+xanim,ai_zombie_boardtear_aligned_l_5_hold
+xanim,ai_zombie_boardtear_aligned_l_5_pull
+xanim,ai_zombie_boardtear_aligned_l_6_grab
+xanim,ai_zombie_boardtear_aligned_l_6_hold
+xanim,ai_zombie_boardtear_aligned_l_6_pull
+xanim,ai_zombie_boardtear_aligned_m_1_grab
+xanim,ai_zombie_boardtear_aligned_m_1_hold
+xanim,ai_zombie_boardtear_aligned_m_1_pull
+xanim,ai_zombie_boardtear_aligned_m_2_grab
+xanim,ai_zombie_boardtear_aligned_m_2_hold
+xanim,ai_zombie_boardtear_aligned_m_2_pull
+xanim,ai_zombie_boardtear_aligned_m_3_grab
+xanim,ai_zombie_boardtear_aligned_m_3_hold
+xanim,ai_zombie_boardtear_aligned_m_3_pull
+xanim,ai_zombie_boardtear_aligned_m_4_grab
+xanim,ai_zombie_boardtear_aligned_m_4_hold
+xanim,ai_zombie_boardtear_aligned_m_4_pull
+xanim,ai_zombie_boardtear_aligned_m_5_grab
+xanim,ai_zombie_boardtear_aligned_m_5_hold
+xanim,ai_zombie_boardtear_aligned_m_5_pull
+xanim,ai_zombie_boardtear_aligned_m_6_grab
+xanim,ai_zombie_boardtear_aligned_m_6_hold
+xanim,ai_zombie_boardtear_aligned_m_6_pull
+xanim,ai_zombie_boardtear_aligned_r_1_grab
+xanim,ai_zombie_boardtear_aligned_r_1_hold
+xanim,ai_zombie_boardtear_aligned_r_1_pull
+xanim,ai_zombie_boardtear_aligned_r_2_grab
+xanim,ai_zombie_boardtear_aligned_r_2_hold
+xanim,ai_zombie_boardtear_aligned_r_2_pull
+xanim,ai_zombie_boardtear_aligned_r_3_grab
+xanim,ai_zombie_boardtear_aligned_r_3_hold
+xanim,ai_zombie_boardtear_aligned_r_3_pull
+xanim,ai_zombie_boardtear_aligned_r_4_grab
+xanim,ai_zombie_boardtear_aligned_r_4_hold
+xanim,ai_zombie_boardtear_aligned_r_4_pull
+xanim,ai_zombie_boardtear_aligned_r_5_grab
+xanim,ai_zombie_boardtear_aligned_r_5_hold
+xanim,ai_zombie_boardtear_aligned_r_5_pull
+xanim,ai_zombie_boardtear_aligned_r_6_grab
+xanim,ai_zombie_boardtear_aligned_r_6_hold
+xanim,ai_zombie_boardtear_aligned_r_6_pull
+xanim,ai_zombie_ceiling_attack_01
+xanim,ai_zombie_ceiling_attack_02
+xanim,ai_zombie_ceiling_death
+xanim,ai_zombie_ceiling_dropdown_01
+xanim,ai_zombie_ceiling_emerge_01
+xanim,ai_zombie_ceiling_fall_land
+xanim,ai_zombie_ceiling_fall_land_02
+xanim,ai_zombie_ceiling_fall_loop
+xanim,ai_zombie_crawl
+xanim,ai_zombie_crawl_barricade_enter_l
+xanim,ai_zombie_crawl_barricade_enter_r
+xanim,ai_zombie_crawl_barricade_enter_run_l
+xanim,ai_zombie_crawl_barricade_enter_run_r
+xanim,ai_zombie_crawl_barricade_enter_sprint_l
+xanim,ai_zombie_crawl_barricade_enter_sprint_r
+xanim,ai_zombie_crawl_boardtear_aligned_l_1_grab
+xanim,ai_zombie_crawl_boardtear_aligned_l_1_hold
+xanim,ai_zombie_crawl_boardtear_aligned_l_1_pull
+xanim,ai_zombie_crawl_boardtear_aligned_l_2_grab
+xanim,ai_zombie_crawl_boardtear_aligned_l_2_hold
+xanim,ai_zombie_crawl_boardtear_aligned_l_2_pull
+xanim,ai_zombie_crawl_boardtear_aligned_l_3_grab
+xanim,ai_zombie_crawl_boardtear_aligned_l_3_hold
+xanim,ai_zombie_crawl_boardtear_aligned_l_3_pull
+xanim,ai_zombie_crawl_boardtear_aligned_l_4_grab
+xanim,ai_zombie_crawl_boardtear_aligned_l_4_hold
+xanim,ai_zombie_crawl_boardtear_aligned_l_4_pull
+xanim,ai_zombie_crawl_boardtear_aligned_l_5_grab
+xanim,ai_zombie_crawl_boardtear_aligned_l_5_hold
+xanim,ai_zombie_crawl_boardtear_aligned_l_5_pull
+xanim,ai_zombie_crawl_boardtear_aligned_l_6_grab
+xanim,ai_zombie_crawl_boardtear_aligned_l_6_hold
+xanim,ai_zombie_crawl_boardtear_aligned_l_6_pull
+xanim,ai_zombie_crawl_boardtear_aligned_m_1_grab
+xanim,ai_zombie_crawl_boardtear_aligned_m_1_hold
+xanim,ai_zombie_crawl_boardtear_aligned_m_1_pull
+xanim,ai_zombie_crawl_boardtear_aligned_m_2_grab
+xanim,ai_zombie_crawl_boardtear_aligned_m_2_hold
+xanim,ai_zombie_crawl_boardtear_aligned_m_2_pull
+xanim,ai_zombie_crawl_boardtear_aligned_m_3_grab
+xanim,ai_zombie_crawl_boardtear_aligned_m_3_hold
+xanim,ai_zombie_crawl_boardtear_aligned_m_3_pull
+xanim,ai_zombie_crawl_boardtear_aligned_m_4_grab
+xanim,ai_zombie_crawl_boardtear_aligned_m_4_hold
+xanim,ai_zombie_crawl_boardtear_aligned_m_4_pull
+xanim,ai_zombie_crawl_boardtear_aligned_m_5_grab
+xanim,ai_zombie_crawl_boardtear_aligned_m_5_hold
+xanim,ai_zombie_crawl_boardtear_aligned_m_5_pull
+xanim,ai_zombie_crawl_boardtear_aligned_m_6_grab
+xanim,ai_zombie_crawl_boardtear_aligned_m_6_hold
+xanim,ai_zombie_crawl_boardtear_aligned_m_6_pull
+xanim,ai_zombie_crawl_boardtear_aligned_r_1_grab
+xanim,ai_zombie_crawl_boardtear_aligned_r_1_hold
+xanim,ai_zombie_crawl_boardtear_aligned_r_1_pull
+xanim,ai_zombie_crawl_boardtear_aligned_r_2_grab
+xanim,ai_zombie_crawl_boardtear_aligned_r_2_hold
+xanim,ai_zombie_crawl_boardtear_aligned_r_2_pull
+xanim,ai_zombie_crawl_boardtear_aligned_r_3_grab
+xanim,ai_zombie_crawl_boardtear_aligned_r_3_hold
+xanim,ai_zombie_crawl_boardtear_aligned_r_3_pull
+xanim,ai_zombie_crawl_boardtear_aligned_r_4_grab
+xanim,ai_zombie_crawl_boardtear_aligned_r_4_hold
+xanim,ai_zombie_crawl_boardtear_aligned_r_4_pull
+xanim,ai_zombie_crawl_boardtear_aligned_r_5_grab
+xanim,ai_zombie_crawl_boardtear_aligned_r_5_hold
+xanim,ai_zombie_crawl_boardtear_aligned_r_5_pull
+xanim,ai_zombie_crawl_boardtear_aligned_r_6_grab
+xanim,ai_zombie_crawl_boardtear_aligned_r_6_hold
+xanim,ai_zombie_crawl_boardtear_aligned_r_6_pull
+xanim,ai_zombie_crawl_death_v1
+xanim,ai_zombie_crawl_death_v2
+xanim,ai_zombie_crawl_inert_2_run_v1
+xanim,ai_zombie_crawl_inert_2_run_v2
+xanim,ai_zombie_crawl_inert_2_sprint_v1
+xanim,ai_zombie_crawl_inert_2_sprint_v2
+xanim,ai_zombie_crawl_inert_2_walk_v1
+xanim,ai_zombie_crawl_inert_v1
+xanim,ai_zombie_crawl_inert_v2
+xanim,ai_zombie_crawl_inert_v3
+xanim,ai_zombie_crawl_inert_v4
+xanim,ai_zombie_crawl_inert_v5
+xanim,ai_zombie_crawl_inert_v6
+xanim,ai_zombie_crawl_inert_v7
+xanim,ai_zombie_crawl_jump_across_120
+xanim,ai_zombie_crawl_jump_down_127
+xanim,ai_zombie_crawl_jump_down_176
+xanim,ai_zombie_crawl_jump_down_189
+xanim,ai_zombie_crawl_jump_down_222
+xanim,ai_zombie_crawl_jump_down_240
+xanim,ai_zombie_crawl_jump_down_48
+xanim,ai_zombie_crawl_jump_down_72
+xanim,ai_zombie_crawl_jump_down_96
+xanim,ai_zombie_crawl_jump_down_startrailing
+xanim,ai_zombie_crawl_jump_up_127
+xanim,ai_zombie_crawl_jump_up_154
+xanim,ai_zombie_crawl_jump_up_222
+xanim,ai_zombie_crawl_jump_up_96
+xanim,ai_zombie_crawl_jump_up_grabbed_48
+xanim,ai_zombie_crawl_jump_up_startrailing
+xanim,ai_zombie_crawl_slipslide_fast
+xanim,ai_zombie_crawl_slipslide_recover
+xanim,ai_zombie_crawl_slipslide_slow
+xanim,ai_zombie_crawl_sprint
+xanim,ai_zombie_crawl_sprint_1
+xanim,ai_zombie_crawl_sprint_2
+xanim,ai_zombie_crawl_traverse_48
+xanim,ai_zombie_crawl_v1
+xanim,ai_zombie_crawl_v2
+xanim,ai_zombie_crawl_v3
+xanim,ai_zombie_crawl_v4
+xanim,ai_zombie_crawl_v5
+xanim,ai_zombie_crawler_crawlerhold_idle
+xanim,ai_zombie_crawler_crawlerhold_idle_hunched
+xanim,ai_zombie_crawler_crawlerhold_walk
+xanim,ai_zombie_crawler_crawlerhold_walk_hunched
+xanim,ai_zombie_crawler_crawlerhold_walk_hunched_turn_180
+xanim,ai_zombie_crawler_crawlerhold_walk_turn_180
+xanim,ai_zombie_crawler_pickup_by_sloth
+xanim,ai_zombie_crawler_pickup_by_sloth_hunched
+xanim,ai_zombie_crawler_putdown_by_sloth
+xanim,ai_zombie_crawler_putdown_by_sloth_hunched
+xanim,ai_zombie_crawler_sloth_crawlerhold_sling
+xanim,ai_zombie_crawler_sloth_crawlerhold_sling_hunched
+xanim,ai_zombie_crawler_sloth_crawlerhold_slung_idle
+xanim,ai_zombie_crawler_sloth_crawlerhold_unsling
+xanim,ai_zombie_crawler_sloth_crawlerhold_unsling_hunched
+xanim,ai_zombie_crawler_slothkill_stomp
+xanim,ai_zombie_crawler_slothkill_stomp_hunched
+xanim,ai_zombie_crawler_slothkill_suplex
+xanim,ai_zombie_crawler_slothkill_suplex_hunched
+xanim,ai_zombie_fast_sprint_01
+xanim,ai_zombie_fast_sprint_02
+xanim,ai_zombie_ghost_float_death
+xanim,ai_zombie_ghost_float_death_b
+xanim,ai_zombie_ghost_ground_pain
+xanim,ai_zombie_ghost_idle
+xanim,ai_zombie_ghost_jump_across_120
+xanim,ai_zombie_ghost_jump_down_127
+xanim,ai_zombie_ghost_jump_down_154
+xanim,ai_zombie_ghost_jump_down_176
+xanim,ai_zombie_ghost_jump_down_190
+xanim,ai_zombie_ghost_jump_down_222
+xanim,ai_zombie_ghost_jump_down_240
+xanim,ai_zombie_ghost_jump_down_48
+xanim,ai_zombie_ghost_jump_down_72
+xanim,ai_zombie_ghost_jump_down_96
+xanim,ai_zombie_ghost_jump_down_startrailing
+xanim,ai_zombie_ghost_jump_up_127
+xanim,ai_zombie_ghost_jump_up_154
+xanim,ai_zombie_ghost_jump_up_176
+xanim,ai_zombie_ghost_jump_up_190
+xanim,ai_zombie_ghost_jump_up_222
+xanim,ai_zombie_ghost_jump_up_240
+xanim,ai_zombie_ghost_jump_up_48
+xanim,ai_zombie_ghost_jump_up_72
+xanim,ai_zombie_ghost_jump_up_96
+xanim,ai_zombie_ghost_jump_up_startrailing
+xanim,ai_zombie_ghost_melee
+xanim,ai_zombie_ghost_playing_piano
+xanim,ai_zombie_ghost_pointdrain
+xanim,ai_zombie_ghost_spawn
+xanim,ai_zombie_ghost_supersprint
+xanim,ai_zombie_ghost_walk
+xanim,ai_zombie_hedgemaze_emerge_fast
+xanim,ai_zombie_hedgemaze_emerge_slow
+xanim,ai_zombie_idle_crawl_delta
+xanim,ai_zombie_idle_v1_delta
+xanim,ai_zombie_inert_2_run_v1
+xanim,ai_zombie_inert_2_run_v2
+xanim,ai_zombie_inert_2_sprint_v1
+xanim,ai_zombie_inert_2_sprint_v2
+xanim,ai_zombie_inert_2_walk_v11
+xanim,ai_zombie_inert_2_walk_v12
+xanim,ai_zombie_inert_2_walk_v13
+xanim,ai_zombie_inert_2_walk_v14
+xanim,ai_zombie_inert_circle_v1
+xanim,ai_zombie_inert_look_v1
+xanim,ai_zombie_inert_look_v2
+xanim,ai_zombie_inert_stagger_v1
+xanim,ai_zombie_inert_stagger_v2
+xanim,ai_zombie_inert_stagger_v3
+xanim,ai_zombie_inert_stagger_v4
+xanim,ai_zombie_jump_across_120
+xanim,ai_zombie_jump_down_127
+xanim,ai_zombie_jump_down_176
+xanim,ai_zombie_jump_down_190
+xanim,ai_zombie_jump_down_222
+xanim,ai_zombie_jump_down_240
+xanim,ai_zombie_jump_down_48
+xanim,ai_zombie_jump_down_72
+xanim,ai_zombie_jump_down_96
+xanim,ai_zombie_jump_down_startrailing
+xanim,ai_zombie_jump_up_127
+xanim,ai_zombie_jump_up_154
+xanim,ai_zombie_jump_up_222
+xanim,ai_zombie_jump_up_96
+xanim,ai_zombie_jump_up_grabbed_48
+xanim,ai_zombie_jump_up_startrailing
+xanim,ai_zombie_run_attack_v1
+xanim,ai_zombie_run_attack_v2
+xanim,ai_zombie_run_attack_v3
+xanim,ai_zombie_run_slipslide
+xanim,ai_zombie_run_slipslide_a
+xanim,ai_zombie_run_v2
+xanim,ai_zombie_run_v3
+xanim,ai_zombie_run_v4
+xanim,ai_zombie_slipslide_collapse
+xanim,ai_zombie_sloth_attack_v1
+xanim,ai_zombie_sloth_attack_v2
+xanim,ai_zombie_sloth_attack_v3
+xanim,ai_zombie_sloth_attack_v4
+xanim,ai_zombie_sloth_cower_2_close_door
+xanim,ai_zombie_sloth_crawlerhold_idle
+xanim,ai_zombie_sloth_crawlerhold_idle_hunched
+xanim,ai_zombie_sloth_crawlerhold_sling
+xanim,ai_zombie_sloth_crawlerhold_sling_hunched
+xanim,ai_zombie_sloth_crawlerhold_unsling
+xanim,ai_zombie_sloth_crawlerhold_unsling_hunched
+xanim,ai_zombie_sloth_crawlerhold_walk
+xanim,ai_zombie_sloth_crawlerhold_walk_hunched
+xanim,ai_zombie_sloth_cycle_magicbox
+xanim,ai_zombie_sloth_cycle_powerup
+xanim,ai_zombie_sloth_dance_before_vomit
+xanim,ai_zombie_sloth_death
+xanim,ai_zombie_sloth_door_close
+xanim,ai_zombie_sloth_door_open
+xanim,ai_zombie_sloth_drinkbooze
+xanim,ai_zombie_sloth_drinkbooze_aim
+xanim,ai_zombie_sloth_drop_equipment
+xanim,ai_zombie_sloth_eatcandy
+xanim,ai_zombie_sloth_frantic_run
+xanim,ai_zombie_sloth_frantic_run_hunched
+xanim,ai_zombie_sloth_gimme_booze
+xanim,ai_zombie_sloth_gimme_candy
+xanim,ai_zombie_sloth_hit_barrier
+xanim,ai_zombie_sloth_hit_wall
+xanim,ai_zombie_sloth_idle
+xanim,ai_zombie_sloth_idle_cower
+xanim,ai_zombie_sloth_idle_cower_jumpback
+xanim,ai_zombie_sloth_idle_holding_equipment
+xanim,ai_zombie_sloth_idle_jail
+xanim,ai_zombie_sloth_idle_jail_2_cower
+xanim,ai_zombie_sloth_idle_jail_2_cower_jumpback
+xanim,ai_zombie_sloth_idle_protect
+xanim,ai_zombie_sloth_jump_across_120
+xanim,ai_zombie_sloth_jump_down_127
+xanim,ai_zombie_sloth_jump_down_127_bank_back
+xanim,ai_zombie_sloth_jump_down_127_barncorner
+xanim,ai_zombie_sloth_jump_down_127_candystore_alley
+xanim,ai_zombie_sloth_jump_down_127_saloon_int
+xanim,ai_zombie_sloth_jump_down_154_equip
+xanim,ai_zombie_sloth_jump_down_176
+xanim,ai_zombie_sloth_jump_down_176_equip
+xanim,ai_zombie_sloth_jump_down_190
+xanim,ai_zombie_sloth_jump_down_190_equip
+xanim,ai_zombie_sloth_jump_down_190_gunshop_ext
+xanim,ai_zombie_sloth_jump_down_190_gunshop_ext_equip
+xanim,ai_zombie_sloth_jump_down_222
+xanim,ai_zombie_sloth_jump_down_222_equip
+xanim,ai_zombie_sloth_jump_down_222_mineshaft_gunsmith
+xanim,ai_zombie_sloth_jump_down_222_mineshaft_gunsmith_equip
+xanim,ai_zombie_sloth_jump_down_240
+xanim,ai_zombie_sloth_jump_down_240_equip
+xanim,ai_zombie_sloth_jump_down_48
+xanim,ai_zombie_sloth_jump_down_48_bank
+xanim,ai_zombie_sloth_jump_down_72
+xanim,ai_zombie_sloth_jump_down_96
+xanim,ai_zombie_sloth_jump_down_96_powerroom
+xanim,ai_zombie_sloth_jump_down_startrailing
+xanim,ai_zombie_sloth_jump_up_127
+xanim,ai_zombie_sloth_jump_up_127_powerroom
+xanim,ai_zombie_sloth_jump_up_154
+xanim,ai_zombie_sloth_jump_up_154_bank_back
+xanim,ai_zombie_sloth_jump_up_154_bankroof_hole
+xanim,ai_zombie_sloth_jump_up_154_genstore_back
+xanim,ai_zombie_sloth_jump_up_222
+xanim,ai_zombie_sloth_jump_up_222_church
+xanim,ai_zombie_sloth_jump_up_222_gunshop_ext
+xanim,ai_zombie_sloth_jump_up_48
+xanim,ai_zombie_sloth_jump_up_96
+xanim,ai_zombie_sloth_kick_old_equipment
+xanim,ai_zombie_sloth_kill_crawler_stomp
+xanim,ai_zombie_sloth_kill_crawler_stomp_hunched
+xanim,ai_zombie_sloth_kill_crawler_suplex
+xanim,ai_zombie_sloth_kill_crawler_suplex_hunched
+xanim,ai_zombie_sloth_lock_magicbox
+xanim,ai_zombie_sloth_magicbox_point
+xanim,ai_zombie_sloth_make_buildable
+xanim,ai_zombie_sloth_make_buildable_intro
+xanim,ai_zombie_sloth_pain
+xanim,ai_zombie_sloth_pickup_crawler
+xanim,ai_zombie_sloth_pickup_crawler_hunched
+xanim,ai_zombie_sloth_pickup_equipment
+xanim,ai_zombie_sloth_pickup_part
+xanim,ai_zombie_sloth_place_magicbox
+xanim,ai_zombie_sloth_pull_magicbox
+xanim,ai_zombie_sloth_putdown_crawler
+xanim,ai_zombie_sloth_putdown_crawler_hunched
+xanim,ai_zombie_sloth_run
+xanim,ai_zombie_sloth_run_berserk
+xanim,ai_zombie_sloth_run_holding_equipment
+xanim,ai_zombie_sloth_run_holding_equipment_turn_180
+xanim,ai_zombie_sloth_run_holding_magicbox
+xanim,ai_zombie_sloth_run_holding_magicbox_turn_180
+xanim,ai_zombie_sloth_run_hunched
+xanim,ai_zombie_sloth_run_hunched_turn_180
+xanim,ai_zombie_sloth_run_into_jail_2_cower
+xanim,ai_zombie_sloth_run_into_jail_2_idle_jail
+xanim,ai_zombie_sloth_run_protect
+xanim,ai_zombie_sloth_run_protect_turn_180
+xanim,ai_zombie_sloth_run_scared
+xanim,ai_zombie_sloth_run_turn_180
+xanim,ai_zombie_sloth_run_wounded
+xanim,ai_zombie_sloth_run_wounded_turn_180
+xanim,ai_zombie_sloth_skip
+xanim,ai_zombie_sloth_sling_equipment
+xanim,ai_zombie_sloth_sling_magicbox
+xanim,ai_zombie_sloth_smell_react
+xanim,ai_zombie_sloth_traverse_v1
+xanim,ai_zombie_sloth_unsling_equipment
+xanim,ai_zombie_sloth_unsling_magicbox
+xanim,ai_zombie_sloth_vomit
+xanim,ai_zombie_sloth_walk
+xanim,ai_zombie_sloth_walk_crawlerhold_hunched_turn_180
+xanim,ai_zombie_sloth_walk_crawlerhold_turn_180
+xanim,ai_zombie_sloth_walk_hunched
+xanim,ai_zombie_sloth_walk_hunched_turn_180
+xanim,ai_zombie_sloth_walk_scare_turn_180
+xanim,ai_zombie_sloth_walk_scared
+xanim,ai_zombie_sloth_walk_turn_180
+xanim,ai_zombie_sloth_wallbuy_add
+xanim,ai_zombie_sloth_wallbuy_remove
+xanim,ai_zombie_spets_roll_a
+xanim,ai_zombie_spets_roll_b
+xanim,ai_zombie_spets_roll_c
+xanim,ai_zombie_spets_sidestep_left_a
+xanim,ai_zombie_spets_sidestep_left_b
+xanim,ai_zombie_spets_sidestep_right_a
+xanim,ai_zombie_spets_sidestep_right_b
+xanim,ai_zombie_sprint_slipslide
+xanim,ai_zombie_sprint_slipslide_a
+xanim,ai_zombie_sprint_v1
+xanim,ai_zombie_sprint_v2
+xanim,ai_zombie_stand_slipslide_recover
+xanim,ai_zombie_taunts_4
+xanim,ai_zombie_taunts_5b
+xanim,ai_zombie_taunts_5c
+xanim,ai_zombie_taunts_5d
+xanim,ai_zombie_taunts_5e
+xanim,ai_zombie_taunts_5f
+xanim,ai_zombie_taunts_7
+xanim,ai_zombie_taunts_9
+xanim,ai_zombie_thundergun_getup
+xanim,ai_zombie_thundergun_getup_a
+xanim,ai_zombie_thundergun_getup_b
+xanim,ai_zombie_thundergun_getup_c
+xanim,ai_zombie_thundergun_getup_quick_a
+xanim,ai_zombie_thundergun_getup_quick_b
+xanim,ai_zombie_thundergun_getup_quick_c
+xanim,ai_zombie_thundergun_hit
+xanim,ai_zombie_thundergun_hit_armslegsforward
+xanim,ai_zombie_thundergun_hit_deadfallknee
+xanim,ai_zombie_thundergun_hit_doublebounce
+xanim,ai_zombie_thundergun_hit_faceplant
+xanim,ai_zombie_thundergun_hit_flatonback
+xanim,ai_zombie_thundergun_hit_forwardtoface
+xanim,ai_zombie_thundergun_hit_jackiespin_left
+xanim,ai_zombie_thundergun_hit_jackiespin_right
+xanim,ai_zombie_thundergun_hit_jackiespin_vertical
+xanim,ai_zombie_thundergun_hit_legsout_left
+xanim,ai_zombie_thundergun_hit_legsout_right
+xanim,ai_zombie_thundergun_hit_stumblefall
+xanim,ai_zombie_thundergun_hit_upontoback
+xanim,ai_zombie_traverse_48
+xanim,ai_zombie_traverse_crawl_v1
+xanim,ai_zombie_traverse_ground_climbout_fast
+xanim,ai_zombie_traverse_ground_v1_deathinside
+xanim,ai_zombie_traverse_ground_v1_deathinside_alt
+xanim,ai_zombie_traverse_ground_v1_deathoutside
+xanim,ai_zombie_traverse_ground_v1_deathoutside_alt
+xanim,ai_zombie_traverse_ground_v1_run
+xanim,ai_zombie_traverse_ground_v1_walk
+xanim,ai_zombie_traverse_v1
+xanim,ai_zombie_traverse_v2
+xanim,ai_zombie_traverse_v4
+xanim,ai_zombie_traverse_v5
+xanim,ai_zombie_traverse_v6
+xanim,ai_zombie_traverse_v7
+xanim,ai_zombie_walk_attack_v1
+xanim,ai_zombie_walk_attack_v2
+xanim,ai_zombie_walk_attack_v3
+xanim,ai_zombie_walk_attack_v4
+xanim,ai_zombie_walk_fast_v1
+xanim,ai_zombie_walk_fast_v2
+xanim,ai_zombie_walk_fast_v3
+xanim,ai_zombie_walk_on_hands_a
+xanim,ai_zombie_walk_on_hands_b
+xanim,ai_zombie_walk_on_hands_shot_a
+xanim,ai_zombie_walk_on_hands_shot_b
+xanim,ai_zombie_walk_slipslide
+xanim,ai_zombie_walk_slipslide_a
+xanim,ai_zombie_walk_v1
+xanim,ai_zombie_walk_v2
+xanim,ai_zombie_walk_v3
+xanim,ai_zombie_walk_v4
+xanim,ai_zombie_walk_v6
+xanim,ai_zombie_walk_v7
+xanim,ai_zombie_walk_v9
+xanim,ai_zombie_window_attack_arm_l_out
+xanim,ai_zombie_window_attack_arm_r_out
+xanim,ch_dazed_a_death
+xanim,ch_dazed_b_death
+xanim,ch_dazed_c_death
+xanim,ch_dazed_d_death
+xanim,o_zombie_sloth_cower_2_close_door
+xanim,o_zombie_sloth_idle_jail_2_cower_door
+xanim,o_zombie_sloth_idle_jail_2_cower_jumpback_door
+xanim,o_zombie_sloth_run_into_jail_2_cower_door
+xanim,o_zombie_sloth_run_into_jail_2_idle_jail

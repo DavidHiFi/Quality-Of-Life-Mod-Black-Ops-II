@@ -57,7 +57,7 @@ its model, and a fake was not an option.)
 | **The campaign SPAS-12** | In the box on every map, with Black Ops 1's own numbers, and it Packs into the SPAZ-24. |
 | **All 12 perks** | On every map with room for them, and Wunderfizz on every one of them. Buried keeps its own seven and Origins trades Who's Who for Tombstone — the engine's network budget is full on those two, and the details are in the known-issues table. |
 | **13 more guns in the box** | Multiplayer and campaign weapons with real models, animations and audio — SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6, Tac-45 and the campaign Dragunov. |
-| **Diner as a Survival map** | The TranZit location Treyarch built and never shipped, with its own Pack-a-Punch, wall buys, buildable shield and secret song. |
+| **Eight extra Survival maps** | Diner, Power Station and Tunnel on TranZit; Shopping Mall, Dragon Rooftop and Sweatshop on Die Rise; Cell Block on Mob of the Dead; Borough on Buried. Locations Treyarch built and never shipped as Survival starts, each with perks, a box or Pack-a-Punch, and wall buys. Diner is play-tested; the other seven are restored from an earlier build of this mod (all but Borough were verified in game back then) and are awaiting a fresh play-through. |
 | **The Death Machine** | A new power-up drop, announcer lines and all. |
 | **A menu for all of it** | Four tabs in the options menu. Almost everything here is a switch you can turn back off. |
 
@@ -230,6 +230,7 @@ Each of these is already in the current build — it just has not been seen in g
 
 | Change | Detail |
 |---|---|
+| **Seven restored Survival maps** | Power Station, Tunnel, the three Die Rise locations, Cell Block and Borough are back after being cut in August. All but Borough were verified in game before the cut and come back with their old fixes intact. Borough is the one that never worked — its zombies spawned but stood frozen — and this build ships the suspected missing piece (the zombie animations, which the base map only loads in Classic and Grief). None of the seven has been booted since the restore. |
 | **The Bouncing Betty now detonates** | Planted Betties ignored zombies and gunfire alike: the weapon file was missing the one flag that marks it as a planted mine, so the trip logic waited forever. The flag is set, mines are also shootable without being silently destroyed, and claymores got the same shooting fix. Not yet seen exploding in game. |
 | **Launch-day recoil on the DSR 50 and Five-Seven** | The last two of the eight de-nerfed guns now load their original recoil. Nobody has fired them since. |
 | **Who's Who's ballistic knife** | The maps it plays on contain no part of that knife, so the mod carries its own copy from Buried. Untested until someone goes down with the perk. |
@@ -271,7 +272,7 @@ without tools that don't exist.
 | **sehteria** — *T6-ZM-Expanded* | The mod this one grew out of. Most of the original scripts came from here: BO4 Max Ammo, instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers, the area notifier, the Cold War round HUD and secret song survival. |
 | **SadSlothXL** | The Death Machine power-up — the drop, the weapon swap and its sounds. |
 | **Aranella, Frozedy & Skwll** — *Ezz Primary Mod* | The converted Zap Gun models, animations, effects and sounds — the halves of that port nothing on this machine can produce from Black Ops 1 directly. The gameplay is written against Treyarch's own Black Ops 1 script rather than theirs. The animated Pack-a-Punch camo's textures are theirs too. |
-| **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | Diner as a Survival location, and the extra gamemodes. Treyarch left the data in the game files and never shipped it; Reimagined is the implementation that works. The Bouncing Betty's carry animations follow Reimagined's solution too. |
+| **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | The extra Survival locations — Diner, Power Station, Tunnel, the three Die Rise starts, Cell Block and Borough. Treyarch left the data in the game files and never shipped it; Reimagined is the implementation that works, and its Buried map entities are what make Borough's zombies possible at all. The Bouncing Betty's carry animations follow Reimagined's solution too. |
 | **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The Die Rise weapon changes — the Sliquifier's pre-nerf behaviour, and the Semtex wall buy down to its exact position and angle. |
 | **Fraaagaaa** — [Strat Tester](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the teleport list. |
 | **B2ORG** — [T6-B2OP-PATCH](https://github.com/B2ORG/T6-B2OP-PATCH)<br><sub>built with **Astrox** and **NoMoleMan**</sub> | The basis for most of the patches — the network frame fix, the backspeed values, the 24-zombie solo cap, instakill rounds, Double Tap 1.0 and barrier attacks. Used as a reference and rebuilt against the game's own scripts, not copied wholesale. |

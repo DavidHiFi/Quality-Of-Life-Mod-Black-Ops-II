@@ -139,6 +139,18 @@ if ZmQolDinerAllowed then
 end
 ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_transit", "farm",    "FARM")
 ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_transit", "town",    "TOWN")
+-- Restored survival locations (2026-09-02, user request). Same gate as Diner:
+-- server-side registration only exists when this mod is loaded, and offering a
+-- location the server does not register would hang the lobby at launch.
+if ZmQolDinerAllowed then
+	ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_transit",  "power",          "POWER STATION")   -- added by this mod
+	ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_transit",  "tunnel",         "TUNNEL")          -- added by this mod
+	ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_highrise", "shopping_mall",  "SHOPPING MALL")   -- added by this mod
+	ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_highrise", "dragon_rooftop", "DRAGON ROOFTOP")  -- added by this mod
+	ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_highrise", "sweatshop",      "SWEATSHOP")       -- added by this mod
+	ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_buried",   "street",         "BOROUGH")         -- added by this mod
+	ZmQolAddLoc(CoD.SelectMapListZombie.Locations, "zm_prison",   "cellblock",      "CELL BLOCK")      -- added by this mod
+end
 
 CoD.SelectMapListZombie.GriefLocations = {}
 ZmQolAddLoc(CoD.SelectMapListZombie.GriefLocations, "zm_transit", "transit", "BUS DEPOT")

@@ -9,6 +9,9 @@
 main()
 {
     replaceFunc(clientscripts\mp\zm_prison::include_weapons, ::include_weapons);
+    // --- Cell Block survival (client half; server half in
+    //     replaced\zm_alcatraz_gamemodes.gsc) ---
+    replaceFunc(clientscripts\mp\zm_prison::init_gamemodes, ::init_gamemodes);
 }
 
 // ============================================================================

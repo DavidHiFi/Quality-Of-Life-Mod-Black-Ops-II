@@ -15,19 +15,24 @@
 #include common_scripts\utility;
 
 // ============================================================================
-//  Everything here except the four DINER lines is a verbatim copy of stock
-//  maps\mp\zm_transit_gamemodes::init. Diner is the only added location this
-//  mod still ships - Power Station, Tunnel and Cornfield were removed in
-//  v1.15.0 along with the Die Rise, Buried, Alcatraz and Origins locations.
+//  Everything here except the DINER / POWER / TUNNEL lines is a verbatim copy
+//  of stock maps\mp\zm_transit_gamemodes::init. Stock registers only transit,
+//  farm and town on each mode (verified against the stock dump), so all three
+//  custom locations are entirely additions here.
 //
-//  Diner is registered for BOTH zstandard and zgrief because stock registers
-//  it for NEITHER: the stock dump's zm_transit_gamemodes has only transit,
-//  farm and town on each mode. Diner is entirely an addition here.
+//  Power Station and Tunnel were first shipped pre-v1.15.0, verified in game
+//  2026-08-02 (checkpoint 12), stripped in v1.15.0 at the user's call, and
+//  restored 2026-09-02 at the user's request. Cornfield stays out (excluded
+//  from the restoration by the same request). Registration lines are byte-for-
+//  byte the pre-strip ones (git d722590).
 //
-//  Diner is also the one location that never needed the transit_zone_init
-//  override - its zones (zone_gas / zone_roadside_east / zone_roadside_west)
-//  all have stock adjacency edges, so they come up on their own. That override
-//  existed only for Tunnel and Cornfield and is gone with them.
+//  Diner is the one location that never needed the transit_zone_init override -
+//  its zones (zone_gas / zone_roadside_east / zone_roadside_west) all have
+//  stock adjacency edges, so they come up on their own. Tunnel and Power need
+//  the override in scripts\zm\replaced\zm_transit.gsc: Tunnel's zone is an
+//  island with no adjacency edge, and Power's five zones are outside the
+//  non-classic init set. Both are hooked from scripts\zm\zm_transit\
+//  zm_transit.gsc::main().
 // ============================================================================
 init()
 {
@@ -41,12 +46,20 @@ init()
 	add_map_location_gamemode("zstandard", "farm", maps\mp\zm_transit_standard_farm::precache, maps\mp\zm_transit_standard_farm::main);
 	add_map_location_gamemode("zstandard", "town", maps\mp\zm_transit_standard_town::precache, maps\mp\zm_transit_standard_town::main);
 	add_map_location_gamemode("zstandard", "diner", scripts\zm\locs\zm_transit_loc_diner::precache, scripts\zm\locs\zm_transit_loc_diner::main);
+	add_map_location_gamemode("zstandard", "power", scripts\zm\locs\zm_transit_loc_power::precache, scripts\zm\locs\zm_transit_loc_power::main);
+	add_map_location_gamemode("zstandard", "tunnel", scripts\zm\locs\zm_transit_loc_tunnel::precache, scripts\zm\locs\zm_transit_loc_tunnel::main);
 
 	add_map_location_gamemode("zgrief", "transit", maps\mp\zm_transit_grief_station::precache, maps\mp\zm_transit_grief_station::main);
 	add_map_location_gamemode("zgrief", "farm", maps\mp\zm_transit_grief_farm::precache, maps\mp\zm_transit_grief_farm::main);
 	add_map_location_gamemode("zgrief", "town", maps\mp\zm_transit_grief_town::precache, maps\mp\zm_transit_grief_town::main);
 	add_map_location_gamemode("zgrief", "diner", scripts\zm\locs\zm_transit_loc_diner::precache, scripts\zm\locs\zm_transit_loc_diner::main);
+	add_map_location_gamemode("zgrief", "power", scripts\zm\locs\zm_transit_loc_power::precache, scripts\zm\locs\zm_transit_loc_power::main);
+	add_map_location_gamemode("zgrief", "tunnel", scripts\zm\locs\zm_transit_loc_tunnel::precache, scripts\zm\locs\zm_transit_loc_tunnel::main);
 
 	scripts\zm\replaced\utility::add_struct_location_gamemode_func("zstandard", "diner", scripts\zm\locs\zm_transit_loc_diner::struct_init);
 	scripts\zm\replaced\utility::add_struct_location_gamemode_func("zgrief", "diner", scripts\zm\locs\zm_transit_loc_diner::struct_init);
+	scripts\zm\replaced\utility::add_struct_location_gamemode_func("zstandard", "power", scripts\zm\locs\zm_transit_loc_power::struct_init);
+	scripts\zm\replaced\utility::add_struct_location_gamemode_func("zgrief", "power", scripts\zm\locs\zm_transit_loc_power::struct_init);
+	scripts\zm\replaced\utility::add_struct_location_gamemode_func("zstandard", "tunnel", scripts\zm\locs\zm_transit_loc_tunnel::struct_init);
+	scripts\zm\replaced\utility::add_struct_location_gamemode_func("zgrief", "tunnel", scripts\zm\locs\zm_transit_loc_tunnel::struct_init);
 }

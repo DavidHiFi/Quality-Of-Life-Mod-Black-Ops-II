@@ -11,7 +11,12 @@
 main()
 {
     replaceFunc(clientscripts\mp\zm_buried::include_weapons, ::include_weapons);
+    // --- Borough survival (client halves; server halves in zm_buried.gsc /
+    //     replaced\zm_buried_gamemodes.gsc) ---
+    replaceFunc(clientscripts\mp\zm_buried::init_gamemodes, ::init_gamemodes);
+    replaceFunc(clientscripts\mp\zm_buried_grief_street::precache, ::grief_street_precache);
 
+    zmqol_enable_vulture_on_borough();
 }
 
 // ============================================================================

@@ -8,6 +8,9 @@
 main()
 {
     replaceFunc(clientscripts\mp\zm_highrise::include_weapons, ::include_weapons);
+    // --- Die Rise survival locations (client half; server half in
+    //     replaced\zm_highrise_gamemodes.gsc) ---
+    replaceFunc(clientscripts\mp\zm_highrise::init_gamemodes, ::init_gamemodes);
 }
 
 // ============================================================================

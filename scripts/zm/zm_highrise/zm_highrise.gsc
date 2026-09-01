@@ -17,6 +17,7 @@ main()
     replaceFunc( maps\mp\zombies\_zm_weap_slipgun::explode_to_near_zombies, ::zmqol_explode_to_near_zombies );
 
     // --- custom survival start locations: adds Shopping Mall, Dragon Rooftop, Sweatshop ---
+    replaceFunc( maps\mp\zm_highrise_gamemodes::init, scripts\zm\replaced\zm_highrise_gamemodes::init );
 
     zmqol_register_survival_clientfields();
 }

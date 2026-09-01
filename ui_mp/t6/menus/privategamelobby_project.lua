@@ -1556,7 +1556,8 @@ end
 --      unlinking ui_zm.ff and patch_ui_zm.ff), and
 --    * it would now override the correct per-map art with a worse match.
 --
---  All 30 materials are built into mod.ff instead - see zone_source/
---  mod_locations.zone and build_ff.bat. The stock name-deriving functions
---  therefore resolve correctly on their own and are left alone.
+--  The preview/loadscreen materials are built into mod.ff instead (2 Diner +
+--  1 Mob-classic + 14 for the locations restored 2026-09-02) - see
+--  zone_source/mod_locations.zone and build_ff.bat. The stock name-deriving
+--  functions therefore resolve correctly on their own and are left alone.
 -- ============================================================================

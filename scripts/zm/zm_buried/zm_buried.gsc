@@ -10,18 +10,77 @@
 
 // zm_qol: Buried map hooks.
 //
-// v1.15.0 stripped this file back. The Borough/Maze survival port that used to
-// live here - the zm_buried_gamemodes replaceFunc, the Vulture Aid registration,
-// the survival character precache and the spawner/zone probes - is gone with the
-// rest of the custom survival locations. What is left is the two Buried features
-// that are part of the base mod, plus one open diagnostic.
+// v1.15.0 stripped this file back; 2026-09-02 restored the BOROUGH ("street")
+// survival registration at the user's request. Maze stays out (excluded from
+// the restoration). The suspected missing piece from the pre-strip attempt -
+// the buried zombie xanims - is now declared in zone_source\
+// mod_locations.zone; see scripts\zm\replaced\zm_buried_gamemodes.gsc.
 
 main()
 {
+    // --- custom survival start location: BOROUGH ("street" on zstandard) ---
+    replaceFunc( maps\mp\zm_buried_gamemodes::init, scripts\zm\replaced\zm_buried_gamemodes::init );
+
+    zmqol_enable_vulture_on_borough();
+}
+
+// ============================================================================
+//  zmqol_enable_vulture_on_borough
+//
+//  🛑 Fixes: "where the Vulture Aid machine is meant to be, a Speed Cola machine
+//  is there instead" - reported in game on Borough survival, 2026-08-02.
+//
+//  The struct is NOT wrong. street_struct_init registers specialty_nomotionsensor
+//  with model p6_zm_vending_vultureaid at (1450.33, 2302.68, 12), matching the
+//  zm_buried mapents byte for byte, and the vultureaid xmodels are in the BASE
+//  zm_buried.ff (Unlinker: 7 assets), which every gametype loads.
+//
+//  What actually happens is in _zm_perks::perk_machine_spawn_init. It switches on
+//  the perk name to tag the machine, and specialty_nomotionsensor - a DLC perk -
+//  has no case, so it falls into `default:` at _zm_perks.gsc:3057 and is tagged
+//  as Speed Cola. The escape hatch (:3071) reads
+//  level._custom_perks[perk].perk_machine_set_kvps, which for Vulture Aid is
+//  populated only by enable_vulture_perk_for_level() - and stock zm_buried.gsc:263
+//  calls that inside `if ( is_gametype_active( "zclassic" ) )`. Borough is
+//  zstandard, so on survival the perk is never registered.
+//
+//  main() is early enough and is not destructive: initialize_custom_perk_arrays()
+//  and _register_undefined_perk() both only create when undefined, so registering
+//  ahead of _zm_perks::init survives it.
+//
+//  🛑 The client half is MANDATORY. register_perk_clientfields() registers a
+//  clientfield server-side; clientscripts\mp\zm_buried.csc:49 has the identical
+//  zclassic-only gate, so doing this on the server alone produces
+//  EXE_CLIENT_FIELD_MISMATCH. See zm_buried.csc for the matching call.
+//
+//  Scoped to Borough only: it is the one location whose perk set contains Vulture
+//  Aid. Classic is left completely alone.
+// ============================================================================
+zmqol_enable_vulture_on_borough()
+{
+    if ( getdvar( "g_gametype" ) != "zstandard" )
+        return;
+
+    if ( getdvar( "ui_zm_mapstartlocation" ) != "street" )
+        return;
+
+    maps\mp\zombies\_zm_perk_vulture::enable_vulture_perk_for_level();
+}
+
+// Borough survival players are the CDC/CIA teams (replaced\zm_buried_gamemodes::
+// survival_init assigns give_team_characters); their models have to be precached
+// before use. Stock only precaches them on the gametypes that use them.
+zmqol_precache_survival_characters()
+{
+    if ( is_classic() )
+        return;
+
+    maps\mp\zm_buried::precache_team_characters();
 }
 
 init()
 {
+    zmqol_precache_survival_characters();
     added_weapons();
     move_divetonuke_collision();
 
