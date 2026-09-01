@@ -130,15 +130,29 @@ script,scripts/zm/thundergun.csc
 //  DEPLOYED, NOT BOOTED - if Diner dies at load with 0x80000003 and no script
 //  error, THIS is the first suspect: comment the eight lines and relink.
 // ============================================================================
-rawfile,animtrees/zm_transit_basic.atr
-rawfile,animstatedefs/zm_transit_basic.asd
-rawfile,animtrees/zm_nuked_basic.atr
-rawfile,animstatedefs/zm_nuked_basic.asd
-rawfile,animtrees/zm_highrise_basic.atr
-rawfile,animstatedefs/zm_highrise_basic.asd
-rawfile,animtrees/zm_prison_basic.atr
-rawfile,animstatedefs/zm_prison_basic.asd
+// v2.10.6 REVERTED (BG_AnimStateDef_Parse error, see below): rawfile,animtrees/zm_transit_basic.atr
+// v2.10.6 REVERTED (BG_AnimStateDef_Parse error, see below): rawfile,animstatedefs/zm_transit_basic.asd
+// v2.10.6 REVERTED (BG_AnimStateDef_Parse error, see below): rawfile,animtrees/zm_nuked_basic.atr
+// v2.10.6 REVERTED (BG_AnimStateDef_Parse error, see below): rawfile,animstatedefs/zm_nuked_basic.asd
+// v2.10.6 REVERTED (BG_AnimStateDef_Parse error, see below): rawfile,animtrees/zm_highrise_basic.atr
+// v2.10.6 REVERTED (BG_AnimStateDef_Parse error, see below): rawfile,animstatedefs/zm_highrise_basic.asd
+// v2.10.6 REVERTED (BG_AnimStateDef_Parse error, see below): rawfile,animtrees/zm_prison_basic.atr
+// v2.10.6 REVERTED (BG_AnimStateDef_Parse error, see below): rawfile,animstatedefs/zm_prison_basic.asd
 // still NOT shipped (guns gated off there): zm_tomb_basic, zm_buried_basic
+// ============================================================================
+//  🛑 v2.10.6 - REVERTED. BOOTED 2026-09-02 and the map refused to load with:
+//    BG_AnimStateDef_Parse: state 'zm_death_tesla_t5' has subState with anim
+//    'ai_zombie_tesla_death_a' that was not found in its animtree. A reconvert
+//    of aitypes using this animtree is probably required. (file zm_transit_basic, line 4)
+//  So the .asd rawfile IS parsed at runtime, but the anim set it is checked
+//  against is the one COMPILED INTO THE AITYPE assets, not the .atr text. The
+//  xanims being present in mod.ff does not matter; the aitype's own anim list
+//  is what must contain them, and that is baked by Treyarch's converter (no
+//  BO2 mod tools exist). This is the true cause of the v1.69.0 crash class -
+//  not 'anims absent' - and it cannot be fixed by declaring assets. The
+//  reaction animations are therefore NOT restorable on this toolchain unless
+//  OAT can relink aitypes from source, which is the one thing left to check.
+// ============================================================================
 // zm_qol: REMOVED. These files exist only so the Linker walks their %anim
 // references - which it does not do (see the xanim block below). With the
 // modified animtrees no longer shipped, every %ai_zombie_thundergun_* they name

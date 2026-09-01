@@ -97,7 +97,7 @@ On **Linux** (Wine, Proton, Lutris, Bottles) there is no automated installer —
 > **Cloning this repo does not give you a playable mod** — `mod.iwd` is a build output and is not tracked in git. Use the release.
 
 > [!NOTE]
-> **The newest changes are still awaiting a fresh play-through:** the restored Survival locations beyond Diner and Power Station (which has now loaded and played), the Bouncing Betty detonation fix, the camo band coverage, the Ray Gun hand tunable, Nuketown's teleport destinations, and the zombie reaction animations for the BO1 wonder weapons (the Winter's Howl freeze pose and shatter, the Thundergun knockdown, the Wunderwaffe death) are all in the current build but have not been verified in game since landing. Anything that fails will be fixed or pulled, not left broken.
+> **The newest changes are still awaiting a fresh play-through:** the restored Survival locations beyond Diner and Power Station (which has now loaded and played), the Bouncing Betty detonation fix, the camo band coverage, the Ray Gun hand tunable, and Nuketown's teleport destinations are all in the current build but have not been verified in game since landing. Anything that fails will be fixed or pulled, not left broken.
 
 > [!NOTE]
 > **Most of this mod was written by [Claude Code](https://claude.com/claude-code)**, Anthropic's AI coding agent, directed and tested in game by me across a long run of sessions. Plenty of people want nothing to do with AI-written code, which is fair — so you should know before you download rather than after.

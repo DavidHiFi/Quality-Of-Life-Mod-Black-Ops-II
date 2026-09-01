@@ -299,8 +299,11 @@ srs_ww_anims_supported()
     // false took the package's own degrade path: sound + full knockdown
     // damage, normal death, no fall/getup animation.
     //
-    // v2.10.5 - the modified trees are declared again (zone_source/
-    // mod_wonderweapons.zone has the measurements), so this is now the donor's
+    // v2.10.5 declared the modified trees again; v2.10.6 REVERTED that after the
+    // boot: BG_AnimStateDef_Parse rejects any state whose anim is not in the
+    // aitype's COMPILED anim list (see mod_wonderweapons.zone). The runtime
+    // check below is kept - it is false on every map today and costs nothing.
+    // What remains here is the donor's
     // own animname test (SRS_T5_WonderWeapons_portable ..._zm_weap_thundergun
     // .gsc:234 - "zombie" / "zombie_dog" are the only animnames those states
     // are defined against) PLUS a runtime check that the state really exists
