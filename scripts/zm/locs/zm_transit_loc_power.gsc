@@ -166,11 +166,56 @@ generatebuildabletarps()
 disable_zombie_spawn_locations()
 {
 	level.zones["zone_trans_8"].is_spawning_allowed = 0;
+
+	// v2.10.3 - THE RISER IN THE WRECKED COUPE (user: a zombie clipping through
+	// a barrier car ~30 s in). Measured, not guessed: the POWERSPAWN probe below
+	// printed zone_pow's seven enabled spawn locations on the 2026-09-02 boot,
+	// and zm_transit.d3dbsp (T6-Data-Archive mapents, guid D3905FC0) names the
+	// one at (10010, 7243, -561.3) as a "riser_location" struct of
+	// zone_pow_spawners. init_barriers() puts the "fog before power station"
+	// wall at (10215, 7275, -570) yaw 5 and the dead coupe at forward*-105 /
+	// right*48 of it, i.e. centred near (10110, 7218) - so that riser sits
+	// ~14 units on the bus-route side of the wall, inside the coupe's
+	// footprint, and every zombie it raises climbs out through the car. The
+	// other six zone_pow spawns and the prr / warehouse ones are inside the
+	// arena (all origins in checkpoint 191).
+	//
+	// Same mechanism BO2-Reimagined's zm_prison_loc_docks uses for its two
+	// stray docks spawns (spawn_locations[i].is_enabled = false). _zm_zonemgr
+	// sets is_enabled in zone_init and enable_zone never resets it; main() runs
+	// after transit_zone_init (see scripts\zm\replaced\zm_transit.gsc), so
+	// this sticks. The probe thread below prints the result 3 s later.
+	zmqol_disable_spawn_location_at( "zone_pow", ( 10010, 7243, -561.3 ) );
+
 	level thread zmqol_log_active_spawn_locations();
 }
 
+zmqol_disable_spawn_location_at( str_zone, v_origin )
+{
+	if ( !isdefined( level.zones ) || !isdefined( level.zones[str_zone] ) || !isdefined( level.zones[str_zone].spawn_locations ) )
+	{
+		println( "[zm_qol] POWERSPAWN disable: " + str_zone + " has no spawn_locations yet" );
+		return;
+	}
+
+	zone = level.zones[str_zone];
+	n_hit = 0;
+
+	for ( i = 0; i < zone.spawn_locations.size; i++ )
+	{
+		if ( distancesquared( zone.spawn_locations[i].origin, v_origin ) < 64 )
+		{
+			zone.spawn_locations[i].is_enabled = 0;
+			n_hit++;
+		}
+	}
+
+	println( "[zm_qol] POWERSPAWN disable: " + str_zone + " " + v_origin + " -> " + n_hit + " location(s) disabled" );
+}
+
 // ============================================================================
-//  zm_qol TEMPORARY DIAGNOSTIC - delete once Power's stray spawn is fixed.
+//  zm_qol DIAGNOSTIC - kept one boot past v2.10.3 to prove the coupe riser
+//  above now prints enabled=0; delete after that.
 //
 //  Enabling zone_prr / zone_pow / zone_pow_warehouse (needed to stop the instant
 //  death - see scripts\zm\replaced\zm_transit.gsc) also activates every zombie
