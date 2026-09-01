@@ -3682,6 +3682,11 @@ nofog_onplayerspawned()
 //  the lever is dead and the honest answer is "engine limit" - either way the
 //  boot settles it.
 //
+//  v2.9.34 - the front-end is now the `.rayhand` chat command (a preset
+//  cycler; see its branch in the command dispatcher), because vector-typing
+//  at the console went unused for two sessions on a pad. This watch is
+//  unchanged - it is the single writer either way.
+//
 //  🛑 ONE WRITER, ONLY ON CHANGE - same reliable-command-ring rule as
 //  zmqol_fog_dvar_watch above. Writes happen only on equip/unequip/retune.
 // ============================================================================
@@ -5055,6 +5060,8 @@ zmqol_console_command_names()
     a[a.size] = "bloodmoney";
     //  v1.99.63 - the console/bind twin of .machines (Nuketown only).
     a[a.size] = "machines";     a[a.size] = "dropmachines";
+    //  v2.9.34 - the Ray Gun hand-offset preset cycler (tuning tool).
+    a[a.size] = "rayhand";
 
     return a;
 }
@@ -5453,6 +5460,65 @@ zmqol_dev_command_listener()
             else
             {
                 player iprintln( "^3[zm_qol] ^3.fog on ^7or ^3.fog off ^8(on by default)" );
+            }
+        }
+        else if ( cmd == "rayhand" )
+        {
+            //  v2.9.34 - the controller-friendly front-end for the v2.9.31 Ray
+            //  Gun floating-left-hand tunable. The console route
+            //  (`zmqol_raygun_hand_ofs f r u`) went unused for two sessions -
+            //  typing vectors on a pad is why - so this walks a preset ladder
+            //  instead: hold the Ray Gun, type .rayhand to step through
+            //  candidate viewmodel shifts (right/down combinations that push
+            //  the floating hand toward the screen edge), stop on the one that
+            //  hides it and report the number - it then ships as the default.
+            //  .rayhand off resets; .rayhand <n> jumps; .rayhand f r u still
+            //  takes a custom triple. The offsets land through the existing
+            //  zmqol_raygun_hand_watch() poll (applies only while a Ray Gun is
+            //  held, resets on switch), so this branch only writes the dvar.
+            //  Deliberately NOT in .help - it is a tuning tool, gone once the
+            //  winning value is known.
+            a_presets = [];
+            a_presets[a_presets.size] = "0 1 -1";
+            a_presets[a_presets.size] = "0 2 -2";
+            a_presets[a_presets.size] = "0 3 -2";
+            a_presets[a_presets.size] = "0 4 -3";
+            a_presets[a_presets.size] = "1 2 -2";
+            a_presets[a_presets.size] = "2 3 -2";
+            a_presets[a_presets.size] = "0 2 0";
+            a_presets[a_presets.size] = "0 0 -3";
+
+            str_arg = "";
+
+            if ( tokens.size > 1 )
+                str_arg = tokens[1];
+
+            if ( tokens.size >= 4 )
+            {
+                str_set = tokens[1] + " " + tokens[2] + " " + tokens[3];
+                setdvar( "zmqol_raygun_hand_ofs", str_set );
+                level.zmqol_rayhand_idx = undefined;
+                player iprintln( "^2[zm_qol] Ray Gun hand offset ^7" + str_set + " ^8(custom - hold the Ray Gun)" );
+            }
+            else if ( str_arg == "off" || str_arg == "0" )
+            {
+                setdvar( "zmqol_raygun_hand_ofs", "0 0 0" );
+                level.zmqol_rayhand_idx = undefined;
+                player iprintln( "^1[zm_qol] Ray Gun hand offset OFF ^7(stock view)" );
+            }
+            else
+            {
+                if ( str_arg != "" && int( str_arg ) >= 1 && int( str_arg ) <= a_presets.size )
+                    n_idx = int( str_arg ) - 1;
+                else if ( isdefined( level.zmqol_rayhand_idx ) )
+                    n_idx = ( level.zmqol_rayhand_idx + 1 ) % a_presets.size;
+                else
+                    n_idx = 0;
+
+                level.zmqol_rayhand_idx = n_idx;
+                setdvar( "zmqol_raygun_hand_ofs", a_presets[n_idx] );
+                player iprintln( "^2[zm_qol] Ray Gun hand preset ^3" + ( n_idx + 1 ) + "^7/" + a_presets.size + " (" + a_presets[n_idx] + ")" );
+                player iprintln( "^8hold the Ray Gun - ^3.rayhand ^8again for next, ^3.rayhand off ^8to reset" );
             }
         }
         else if ( cmd == "brutus" || cmd == "panzer" || cmd == "jumpingjacks" || cmd == "jacks" )
