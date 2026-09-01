@@ -3581,6 +3581,16 @@ nofog_onplayerconnect()
         player setclientdvar( "r_fog", getdvarintdefault( "fog_enabled", 1 ) );
         player thread zmqol_fog_dvar_watch();
 
+        //  v2.9.31 - explicit zeros on every connect, for the same reason the
+        //  fog line above sets 1 explicitly: zmqol_raygun_hand_watch() below
+        //  writes these while a Ray Gun is held, and a match that ends mid-hold
+        //  would otherwise leave the whole viewmodel shifted for every gun in
+        //  the player's next game. Deterministic, not inherited.
+        player setclientdvar( "cg_gun_ofs_f", 0 );
+        player setclientdvar( "cg_gun_ofs_r", 0 );
+        player setclientdvar( "cg_gun_ofs_u", 0 );
+        player thread zmqol_raygun_hand_watch();
+
         //  🛑 v1.99.54 - r_dof_enable IS NO LONGER FORCED TO 0 HERE, and this
         //  line has to go for the new ADVANCED-tab DEPTH OF FIELD row to mean
         //  anything. That row is the single owner of r_dof_enable now (see
@@ -3644,6 +3654,83 @@ nofog_onplayerspawned()
     self endon( "disconnect" );
     for (;;)
         self waittill( "spawned_player" );
+}
+
+// ============================================================================
+//  zmqol_raygun_hand_watch  -  v2.9.31, the Ray Gun floating-left-hand PROBE
+// ----------------------------------------------------------------------------
+//  User, 2026-09-01: at high FOV the character's left hand floats in view while
+//  the Ray Gun is held. Measured before writing this: the floating hand is the
+//  player's view-arms model posed by viewmodel_raygun_t6_idle, NOT part of the
+//  gun (t6_wpn_zmb_raygun_view's glb dump holds only gun bones - j_gun,
+//  tag_battery_*, no arm geometry), and stock hideTags only ever hide gun parts
+//  (sights/rails/mags - surveyed across every zm_nuked.ff weapon def). A true
+//  fix means re-authoring the xanim, and no tool that can do that exists - the
+//  same tooling wall as the Winter's Howl frozen pose.
+//
+//  What CAN move is the whole viewmodel: cg_gun_ofs_f/r/u exist in this game's
+//  own dvar dump (all 0 stock). They are client dvars, driven here through
+//  setclientdvar exactly like the FOG row drives cheat-protected r_fog. Whether
+//  the renderer still honours them is the one thing not answerable offline -
+//  which is why this ships as a TUNABLE, OFF BY DEFAULT:
+//
+//      zmqol_raygun_hand_ofs "0 0 0"     (forward right up; "0 0 0" = stock)
+//
+//  Set it at the console while holding a Ray Gun and the offsets apply live;
+//  switch guns and they reset to 0. Once values that hide the hand are known
+//  they become the shipped default. If no values change anything on screen,
+//  the lever is dead and the honest answer is "engine limit" - either way the
+//  boot settles it.
+//
+//  🛑 ONE WRITER, ONLY ON CHANGE - same reliable-command-ring rule as
+//  zmqol_fog_dvar_watch above. Writes happen only on equip/unequip/retune.
+// ============================================================================
+zmqol_raygun_hand_watch()
+{
+    if ( zmqol_minimal() )
+        return;
+
+    self endon( "disconnect" );
+    level endon( "game_ended" );
+
+    //  "" means the stock zeros are in place (the connect hook just wrote them).
+    str_applied = "";
+
+    for ( ;; )
+    {
+        wait 0.25;
+
+        str_want = "";
+        str_weapon = self getcurrentweapon();
+
+        if ( str_weapon == "ray_gun_zm" || str_weapon == "ray_gun_upgraded_zm" )
+        {
+            str_ofs = getdvar( "zmqol_raygun_hand_ofs" );
+
+            //  Malformed or all-zero input counts as OFF, so a bad console set
+            //  can never strand a stale offset on the client.
+            if ( str_ofs != "" && str_ofs != "0 0 0" && strtok( str_ofs, " " ).size >= 3 )
+                str_want = str_ofs;
+        }
+
+        if ( str_want == str_applied )
+            continue;
+
+        str_applied = str_want;
+
+        if ( str_want == "" )
+        {
+            self setclientdvar( "cg_gun_ofs_f", 0 );
+            self setclientdvar( "cg_gun_ofs_r", 0 );
+            self setclientdvar( "cg_gun_ofs_u", 0 );
+            continue;
+        }
+
+        a_ofs = strtok( str_want, " " );
+        self setclientdvar( "cg_gun_ofs_f", string_to_float( a_ofs[0] ) );
+        self setclientdvar( "cg_gun_ofs_r", string_to_float( a_ofs[1] ) );
+        self setclientdvar( "cg_gun_ofs_u", string_to_float( a_ofs[2] ) );
+    }
 }
 
 // ============================================================================

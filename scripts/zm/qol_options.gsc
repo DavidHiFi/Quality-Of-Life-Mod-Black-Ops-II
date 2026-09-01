@@ -76,6 +76,11 @@ init()
     //  exists because r_fog is cheat-protected and therefore never archived,
     //  which is why FOG was the one menu row that did not survive a restart.
     qol_opt_dvar( "fog_enabled",           "1" );
+    //  v2.9.31 - the Ray Gun floating-left-hand probe (high-FOV artifact).
+    //  "f r u" viewmodel offsets applied only while a Ray Gun is held; "0 0 0"
+    //  is stock. See quality_of_life::zmqol_raygun_hand_watch() for the full
+    //  story and why this ships as a tunable rather than a fix.
+    qol_opt_dvar( "zmqol_raygun_hand_ofs", "0 0 0" );
 
     //  v1.85.0 - THE MASTER SWITCH, driven by ".hud on" / ".hud off".
     //  hud_all forces the individual hud_* options ON; hud_master overrides the
