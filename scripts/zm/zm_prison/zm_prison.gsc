@@ -4,6 +4,11 @@
 #include maps\mp\zombies\_zm_weapons;
 #include maps\mp\zm_prison;
 
+// v2.10.7 - needed by zmqol_grief_soul_catcher_state_manager() below (the two
+// %o_zombie_dreamcatcher_* lengths in its grief branch); same placement as
+// wunderfizz.gsc:10. This file has no other anim references.
+#using_animtree( "fxanim_props" );
+
 main()
 {
 	replaceFunc( maps\mp\zm_prison::delete_perk_machine_clip, ::delete_perk_machine_clip );
@@ -18,6 +23,88 @@ main()
 	// enabled zones disagreed and in_enabled_playable_area() was false at spawn.
 	// See the long comment in scripts\zm\replaced\zm_prison.gsc.
 	replaceFunc( maps\mp\zm_prison::working_zone_init, scripts\zm\replaced\zm_prison::working_zone_init );
+
+	// v2.10.7 - the three Hell's Retriever dog heads are OFF on Cell Block
+	// survival. See zmqol_grief_soul_catcher_state_manager() below.
+	replaceFunc( maps\mp\zm_alcatraz_weap_quest::grief_soul_catcher_state_manager, ::zmqol_grief_soul_catcher_state_manager );
+}
+
+// ============================================================================
+//  zmqol_grief_soul_catcher_state_manager  -  replaces
+//  maps\mp\zm_alcatraz_weap_quest::grief_soul_catcher_state_manager  (v2.10.7)
+//
+//  User, 2026-09-02: *"Disable the three wall-mounted Hellhound heads (feeding
+//  mechanism for the Hell's Retriever) on Cell Block Survival so zombie corpses
+//  are not absorbed by out-of-bounds map entities."*
+//
+//  WHY THEY WERE LIVE. zm_prison::main() threads zm_alcatraz_weap_quest::init()
+//  unconditionally (zm_prison.gsc:210), and init() picks the GRIEF state
+//  manager for every non-classic mode (weap_quest.gsc:46-49). So on Cell Block
+//  survival all three heads (rune_1 in the cell block at (521,9677,1492),
+//  rune_2 at the docks, rune_3 by the infirmary - the last two outside the
+//  arena) were armed: zombie_killed_override() swaps any zombie killed while
+//  touching a head's volume onto zombie_soul_catcher_death(), which ghosts the
+//  body, plays the wall-consume clone and deletes it - and
+//  check_for_zombie_in_wolf_area() blocks gibbing in those volumes.
+//
+//  THE MECHANISM, and it is Reimagined's: every one of those paths is gated on
+//  `!soul_catcher.is_charged` (weap_quest.gsc:241, :258). Marking all three
+//  charged up front turns the whole quest off in one place - no volume is
+//  deleted, no clientfield changes width (soul_catcher_1/2/3 stay registered on
+//  both sides at 3 bits), and the heads keep the dormant
+//  p6_zm_al_dream_catcher_off model that wolf_head_removal() gives them at
+//  init. BO2-Reimagined does exactly this for its "pro" games
+//  (scripts\zm\replaced\zm_alcatraz_weap_quest.gsc:12-19).
+//
+//  GRIEF AND CLASSIC ARE UNTOUCHED. Classic never reaches this function
+//  (init() picks soul_catcher_state_manager there), and the grief branch below
+//  is stock's body verbatim (weap_quest.gsc:150-184) with its two unqualified
+//  calls qualified - this is a Mob-only map script, so those references are
+//  legal here (AI_CONTEXT rule 2).
+// ============================================================================
+zmqol_grief_soul_catcher_state_manager()
+{
+	wait 1;
+
+	if ( is_gametype_active( "zstandard" ) )
+	{
+		for ( i = 0; i < level.soul_catchers.size; i++ )
+			level.soul_catchers[i].is_charged = 1;
+
+		println( "[zm_qol] CELLBLOCK dog heads: " + level.soul_catchers.size + " soul catcher(s) marked charged - feeding disabled" );
+		return;
+	}
+
+	while ( true )
+	{
+		level setclientfield( self.script_parameters, 0 );
+		self waittill( "first_zombie_killed_in_zone" );
+
+		if ( isdefined( level.soul_catcher_clip[self.script_noteworthy] ) )
+			level.soul_catcher_clip[self.script_noteworthy] setvisibletoall();
+
+		level setclientfield( self.script_parameters, 1 );
+		anim_length = getanimlength( %o_zombie_dreamcatcher_intro );
+		wait( anim_length );
+
+		while ( !self.is_charged )
+		{
+			level setclientfield( self.script_parameters, 2 );
+			self waittill_either( "fully_charged", "finished_eating" );
+		}
+
+		level setclientfield( self.script_parameters, 6 );
+		anim_length = getanimlength( %o_zombie_dreamcatcher_outtro );
+		wait( anim_length );
+
+		if ( isdefined( level.soul_catcher_clip[self.script_noteworthy] ) )
+			level.soul_catcher_clip[self.script_noteworthy] delete();
+
+		self.souls_received = 0;
+		level thread maps\mp\zm_alcatraz_weap_quest::wolf_spit_out_powerup();
+		wait 20;
+		self thread maps\mp\zm_alcatraz_weap_quest::soul_catcher_check();
+	}
 }
 
 init()

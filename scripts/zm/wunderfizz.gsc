@@ -908,7 +908,33 @@ zmqol_wf_place()
 
 	if( !is_classic() )
 	{
-		a_near = zmqol_wf_filter_to_play_area( a_place );
+		//  v2.10.7 - CELL BLOCK: FILTER BY ZONE, NOT BY SPAWN DISTANCE.
+		//
+		//  User, 2026-09-02: the Cell Block machines "remain stuck/static". The
+		//  6:33 AM boot log has the mechanism: all SIX Mob candidates passed the
+		//  play-area filter ("candidate 1 is 585 from the nearest spawn" ...
+		//  "placed 6 of 6"), so the orb cycled through the Docks (z -8448) and
+		//  the Cafeteria as well as the Cell Block, and from inside the arena
+		//  it simply vanished for most of the match. The spawn-distance filter
+		//  cannot work on Mob: _zm_gametype::get_player_spawns_for_gametype()
+		//  keeps every player_respawn_point WITHOUT a script_string, and the
+		//  shipped zm_prison mapents has 25 of 27 untagged - so "nearest spawn"
+		//  is a map-wide set and every candidate is within 600 units of one.
+		//
+		//  The zone manager already knows the arena. Stock's own
+		//  _zm_zonemgr::get_zone_from_position() (script_origin + istouching)
+		//  names the zone a point sits in, and the Cell Block arena is exactly
+		//  the zone list stock's grief main keeps its zbarriers for
+		//  (zm_alcatraz_grief_cellblock.gsc:207-216). Falls back to the old
+		//  spawn filter if the zone test keeps nothing, so a mismatch can never
+		//  ship a map with no machine.
+		a_near = [];
+
+		if( level.script == "zm_prison" )
+			a_near = zmqol_wf_filter_to_zones( a_place, zmqol_wf_prison_survival_zones() );
+
+		if( a_near.size < 1 )
+			a_near = zmqol_wf_filter_to_play_area( a_place );
 
 		if( a_near.size > 0 )
 			a_place = a_near;
@@ -1457,6 +1483,98 @@ zmqol_wf_filter_to_play_area( a_place )
 	}
 
 	return a_keep;
+}
+
+// ============================================================================
+//  zmqol_wf_filter_to_zones  -  keep the candidates that stand inside one of
+//  the named zones (v2.10.7, Cell Block).
+//
+//  Uses stock maps\mp\zombies\_zm_zonemgr::get_zone_from_position( v, 1 ):
+//  it spawns a script_origin at the point and asks entity_in_zone() for every
+//  zone in level.zones, ignoring the enabled state (1) because at placement
+//  time only the start zone is enabled and the arena's other zones open with
+//  the doors. Zones exist as soon as the map's zone_manager_init_func has run
+//  - manage_zones() is threaded from zm_prison::main() (:207) and calls it
+//  before its first wait - but this still waits (bounded) for the first named
+//  zone to have volumes, the same shape as the spawn wait above.
+//
+//  Returns an empty array when nothing matched; the caller falls back.
+// ============================================================================
+zmqol_wf_filter_to_zones( a_place, a_zones )
+{
+	a_keep = [];
+
+	if( !isdefined( a_zones ) || a_zones.size < 1 )
+		return a_keep;
+
+	n_wait = 0;
+	while( n_wait < 400 )
+	{
+		if( isdefined( level.zones ) && isdefined( level.zones[ a_zones[0] ] ) && isdefined( level.zones[ a_zones[0] ].volumes ) )
+			break;
+
+		wait 0.05;
+		n_wait++;
+	}
+
+	if( !isdefined( level.zones ) || !isdefined( level.zones[ a_zones[0] ] ) )
+	{
+		println( "[zm_qol] wunderfizz: zone filter - zone " + a_zones[0] + " never appeared, falling back" );
+		return a_keep;
+	}
+
+	for( i = 0; i < a_place.size; i++ )
+	{
+		str_zone = maps\mp\zombies\_zm_zonemgr::get_zone_from_position( a_place[i].origin, 1 );
+
+		b_keep = 0;
+		if( isdefined( str_zone ) )
+		{
+			for( j = 0; j < a_zones.size; j++ )
+			{
+				if( a_zones[j] == str_zone )
+				{
+					b_keep = 1;
+					break;
+				}
+			}
+		}
+
+		if( !isdefined( str_zone ) )
+			str_zone = "NONE";
+
+		println( "[zm_qol] wunderfizz: candidate " + ( i + 1 ) + " " + a_place[i].origin + " zone=" + str_zone + " keep=" + b_keep );
+
+		if( b_keep )
+			a_keep[ a_keep.size ] = a_place[i];
+	}
+
+	return a_keep;
+}
+
+// ============================================================================
+//  zmqol_wf_prison_survival_zones  -  the Cell Block arena, as stock defines it.
+//
+//  Copied from zm_alcatraz_grief_cellblock.gsc:207-216 (a_str_zones), the list
+//  stock keeps zbarriers for and deletes everything else - i.e. the playable
+//  Cell Block. The same script runs Cell Block survival here (see
+//  scripts\zmeplaced\zm_alcatraz_gamemodes.gsc). Docks, cafeteria-side
+//  citadel, infirmary and roof are deliberately NOT in it.
+// ============================================================================
+zmqol_wf_prison_survival_zones()
+{
+	a = [];
+	a[a.size] = "zone_start";
+	a[a.size] = "zone_library";
+	a[a.size] = "zone_cafeteria";
+	a[a.size] = "zone_cafeteria_end";
+	a[a.size] = "zone_warden_office";
+	a[a.size] = "zone_cellblock_east";
+	a[a.size] = "zone_cellblock_west_warden";
+	a[a.size] = "zone_cellblock_west_barber";
+	a[a.size] = "zone_cellblock_west";
+	a[a.size] = "zone_cellblock_west_gondola";
+	return a;
 }
 
 zmqol_wf_dist_to_nearest( v_origin, a_spawns )

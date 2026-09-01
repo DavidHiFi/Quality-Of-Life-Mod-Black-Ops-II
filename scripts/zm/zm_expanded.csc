@@ -2299,7 +2299,13 @@ zmqol_enable_electric_cherry()
 	//  quality_of_life.gsc::zmqol_enable_electric_cherry(). Buried failed to
 	//  load at 71/63 toplayer bits; the two lists must stay identical or it is
 	//  EXE_CLIENT_FIELD_MISMATCH before the map starts.
-	if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" )
+	//  v2.10.7 - zm_prison NON-CLASSIC (Cell Block survival) added, EXACT
+	//  TWIN of quality_of_life.gsc::zmqol_enable_electric_cherry(). is_classic()
+	//  reads the ui_zm_gamemodegroup dvar on both sides (_zm_utility.csc:392),
+	//  so the two evaluate one value. Precedent: BO2-Reimagined
+	//  zm_prison_reimagined.csc:22-25. Standard (classic) Mob is native and
+	//  untouched; registering it twice there would be fatal.
+	if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" && !( map == "zm_prison" && !is_classic() ) )
 		return;
 
 	if ( isDefined( level._custom_perks ) && isDefined( level._custom_perks[ "specialty_grenadepulldeath" ] ) )

@@ -14005,8 +14005,49 @@ zmqol_enable_electric_cherry()
     //  in zm_expanded.csc::zmqol_enable_electric_cherry() changed in the same
     //  edit and MUST stay identical - one side wider is
     //  EXE_CLIENT_FIELD_MISMATCH before the map starts.
-    if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" )
+    //  v2.10.7 - MOB OF THE DEAD, NON-CLASSIC (Cell Block survival). User,
+    //  2026-09-02: *"Guarantee Electric Cherry remains present and fully
+    //  functional on Mob of the Dead (both standard Mob of the Dead and Cell
+    //  Block Survival)."* Standard Mob is classic and native - untouched. On
+    //  Cell Block the perk did not exist at all: stock zm_prison::main() only
+    //  enables it inside `if ( is_gametype_active( "zclassic" ) )`
+    //  (zm_prison.gsc:108-112), and the 6:33 AM Cell Block log printed a
+    //  Wunderfizz "perk list (8)" with no specialty_grenadepulldeath in it.
+    //  BO2-Reimagined enables it for every non-classic Mob mode
+    //  (scripts\zm\zm_prison\zm_prison_reimagined.gsc:94-100, and the client
+    //  twin at zm_prison_reimagined.csc:22-25) - the working precedent. No
+    //  machine struct is tagged for cellblock in stock or Reimagined, so the
+    //  Wunderfizz dispenses it, exactly like Jugg / Double Tap / Mule Kick /
+    //  PhD there.
+    //
+    //  BUDGET (ERROR_CATALOGUE section 2: toplayer proven-safe ceiling 63).
+    //  Cell Block survival, counted from the T6-Data-Archive zgrief_cellblock
+    //  dump (41 toplayer bits stock; the same registrations run on zstandard)
+    //  plus what this mod adds on zm_prison: perk_marathon 2, perk_tombstone 2,
+    //  vulture_perk_toplayer 1 + sndVultureStink 1 + perk_vulture 2 (the 5-bit
+    //  disease meter is already skipped on Mob), overlay_slot 1 + overlay_lerp 5
+    //  (Vulture's 31-step stink overlay) = 55, and this perk's
+    //  perk_electric_cherry adds 1 = 56. Zombie Blood and Who's Who are off
+    //  on Mob already. allplayers: 17 stock + electric_cherry_reload_fx 2 = 19
+    //  of 32. So the user's stated priority - "if the limits are exceeded,
+    //  keep Electric Cherry over Vulture Aid" - is not triggered by this
+    //  arithmetic; if a Cell Block boot ever fails with "Client Field Set
+    //  toplayer is out of space", the documented lever is
+    //  zmqol_vulture_enabled() (both twins) returning 0 for zm_prison, which
+    //  frees 12 bits (5 of them the overlay_lerp only Vulture needs).
+    //
+    //  is_classic() reads the ui_zm_gamemodegroup dvar on BOTH sides
+    //  (_zm_utility.gsc:23-27 / _zm_utility.csc:392-396), so the client twin
+    //  in zm_expanded.csc::zmqol_enable_electric_cherry() evaluates the same
+    //  condition from the same dvar. Change neither without the other.
+    if ( map != "zm_transit" && map != "zm_nuked" && map != "zm_highrise" && !( map == "zm_prison" && !is_classic() ) )
         return;
+
+    //  Stock's classic branch sets this beside the enable; _zm_ai_brutus reads
+    //  it to add "vendingelectric_cherry" machines to his zone list (:2402) -
+    //  harmless with no machine, kept for fidelity.
+    if ( map == "zm_prison" )
+        level.zombiemode_using_electric_cherry_perk = 1;
 
     // 🛑 THIS GUARD IS WHY THE PERK WENT HALF-DEAD - user: "with electric cherry
     // I see the visual effects but the sound effects are missing, also the
