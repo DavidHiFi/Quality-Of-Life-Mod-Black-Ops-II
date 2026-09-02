@@ -431,7 +431,10 @@ zmqol_betty_proximity()
 
     //  Armed. The alert alias is played for parity with the claymore's own
     //  code path; note it is a stock dangler in every zombies bank.
-    self playsound( "wpn_claymore_alert" );
+    //  v2.10.12 - the "wpn_claymore_alert" that used to play here does not
+    //  exist in any zombies bank (measured against every map's runtime alias
+    //  list), so it was silent; MP's real Betty has no separate alert either -
+    //  its trigger sound is the jump sound, zmqol_betty_jump, played in _pop().
     wait( level.zmqol_betty_activation_delay );
 
     if ( !isdefined( self ) )
@@ -464,7 +467,7 @@ zmqol_betty_pop( damagearea )
     minemover moveto( explodepos, level.zmqol_betty_jump_time, level.zmqol_betty_jump_time, 0 );
     playfx( level._effect["betty_launch"], org );
     minemover rotatevelocity( level.zmqol_betty_rotate_velocity, level.zmqol_betty_jump_time, 0, level.zmqol_betty_jump_time );
-    minemover playsound( "fly_betty_jump" );
+    minemover playsound( "zmqol_betty_jump" );
     wait( level.zmqol_betty_jump_time );
 
     if ( !isdefined( minemover ) )
