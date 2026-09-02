@@ -132,7 +132,17 @@ init_vulture()
     //  at all, and its toplayer set refused visionset_slot's 3 bits on the
     //  2026-08-31 boot; these 3 are exactly that space. The stink overlay
     //  snaps instead of fading on mod-ported maps; Buried keeps native 31.
-    maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, 1, 1 );
+    //
+    //  🛑 v2.10.9 - "Buried keeps native 31" WAS A COMMENT, NOT CODE. This call
+    //  passed a flat 1 on every map, Buried included, and Buried is the one map
+    //  where the client half is NOT ours: it is the map's own COMPILED
+    //  _zm_perk_vulture.csc, which registers 31 (measured in the 2026-09-02
+    //  8:27 AM log - client overlay_lerp Float 5 bits, server field absent).
+    //  At 1 step the finalizer skips overlay_lerp server-side while the client
+    //  sizes it at 5 bits, so every player is dropped at connect with
+    //  EXE_CLIENT_FIELD_MISMATCH. The step count now asks the same question the
+    //  rest of this file's gates ask - who owns the client half.
+    maps\mp\_visionset_mgr::vsmgr_register_info( "overlay", "vulture_stink_overlay", 12000, 120, zmqol_vulture_stink_lerp_steps(), 1 );
     maps\mp\zombies\_zm_spawner::add_cusom_zombie_spawn_logic( ::vulture_zombie_spawn_func );
     register_zombie_death_event_callback( ::zombies_drop_stink_on_death );
     level thread vulture_perk_watch_mystery_box();
@@ -277,6 +287,37 @@ zmqol_vulture_has_disease_meter()
 zmqol_vulture_has_scriptmover_field()
 {
     return getdvar( "mapname" ) != "zm_tomb";
+}
+
+// ============================================================================
+//  zmqol_vulture_stink_lerp_steps  -  WIDTH OF overlay_lerp        (v2.10.9)
+// ----------------------------------------------------------------------------
+//  Same rule as zmqol_vulture_marker_enabled() above: the answer is decided by
+//  WHO OWNS THE CLIENT HALF, never by who has the perk.
+//
+//      Buried      -> the map's own compiled client script for this perk
+//                     (clientscripts/mp/zombies/_zm_perk_vulture.csc,
+//                     compiled) registers 31, and this file cannot
+//                     change it (it is bytecode, and the decompile is lossy -
+//                     see zm_expanded.csc::zmqol_init_vulture_trimmed()).
+//                     So the server matches it at 31.
+//      every other -> zm_expanded.csc::zmqol_init_vulture_trimmed() supplies
+//      map            the client half and registers 1, which makes the
+//                     visionset manager's finalizer skip overlay_lerp on both
+//                     sides. That is the v2.9.22 bit saving and it stands.
+//
+//  🛑 THE TWO NUMBERS BELOW ARE TWINS OF CLIENT CODE, NOT PREFERENCES. 31 is
+//  the stock compiled csc's; 1 is zm_expanded.csc line ~1512. Changing either
+//  without its client twin resizes overlay_lerp on one side only, which is
+//  EXE_CLIENT_FIELD_MISMATCH at load for every player - the exact failure this
+//  function was added to fix, and the third time Vulture has caused it.
+// ============================================================================
+zmqol_vulture_stink_lerp_steps()
+{
+    if ( getdvar( "mapname" ) == "zm_buried" )
+        return 31;
+
+    return 1;
 }
 
 // ============================================================================

@@ -56,14 +56,30 @@ main()
 //  Scoped to Borough only: it is the one location whose perk set contains Vulture
 //  Aid. Classic is left completely alone.
 // ============================================================================
+//  🛑 v2.10.9 - READS ui_gametype, NOT g_gametype. The client twin in
+//  zm_buried.csc has always read ui_gametype; this half read g_gametype, so the
+//  two were never the same test. STOCK_REFERENCE.md #2 names ui_gametype and
+//  ui_zm_mapstartlocation as the pair that carries gametype and location before
+//  level.scr_zm_* exist, and the rest of this mod reads that pair everywhere;
+//  g_gametype appears in only one other place. Two halves that decide a
+//  clientfield registration must be the SAME test, character for character.
+//
+//  The println is not decoration: nothing else in the log distinguishes "the
+//  server gate refused" from "the gate passed and registration went wrong", and
+//  the 2026-09-02 8:27 AM boot could not be told apart on that point offline.
+//  One line per load settles it for the next one.
 zmqol_enable_vulture_on_borough()
 {
-    if ( getdvar( "g_gametype" ) != "zstandard" )
-        return;
+    str_gametype = getdvar( "ui_gametype" );
+    str_location = getdvar( "ui_zm_mapstartlocation" );
 
-    if ( getdvar( "ui_zm_mapstartlocation" ) != "street" )
+    if ( str_gametype != "zstandard" || str_location != "street" )
+    {
+        println( "[zm_qol] borough vulture: SKIPPED (ui_gametype=" + str_gametype + " location=" + str_location + ")" );
         return;
+    }
 
+    println( "[zm_qol] borough vulture: enabling server half (ui_gametype=" + str_gametype + " location=" + str_location + ")" );
     maps\mp\zombies\_zm_perk_vulture::enable_vulture_perk_for_level();
 }
 
