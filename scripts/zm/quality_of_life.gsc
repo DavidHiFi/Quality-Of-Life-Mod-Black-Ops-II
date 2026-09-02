@@ -1566,11 +1566,28 @@ get_pack_a_punch_weapon_options( weapon )
     //  into the weapon the player is carrying and only a re-give would change
     //  them. Flipping this row therefore changes every gun PaP'd from then on.
     anim_camo_master = getdvarintdefault( "anim_pap_camo", 1 );
+    //  🛑 v2.10.11 - THE SLOWGUN / RNMA EXCEPTION IS GONE. User, 2026-09-02:
+    //  "paralyzer is missing animated pap camo, make sure every gun in the game
+    //  has animated pap camos if the option is set to enabled."
+    //
+    //  The exception pinned the Paralyzer and the Ray Gun Mark II to camo 39 on
+    //  Buried, inherited from buried_animated_camo.gsc with no reason recorded.
+    //  Measured 2026-09-02, both halves:
+    //    - camo_rnma is one of the 74 camo assets mod.ff owns, and ALL 74 carry
+    //      mc/mtl_weapon_camo_zmb_dlc2 at index 40. The Mark II never needed the
+    //      exception at all.
+    //    - camo_slowgun was the one asset in the whole game whose index-40 slot
+    //      had no camo material (dumped from every zombies fastfile and read
+    //      slot by slot), which is a real reason to have pinned it - and is now
+    //      fixed at the source: mod.ff owns camo_slowgun as of this version and
+    //      its index-40 slot overrides the Paralyzer's body material with the
+    //      animated one. See zone_source\mod_base.zone for the measurement.
+    //
+    //  With that asset fixed there is no gun left in the game that index 40
+    //  cannot render, so Buried is now the same flat branch as every other map.
     if ( level.script == "zm_buried" )
     {
-        if ( base == "slowgun_zm" || base == "slowgun_upgraded_zm" || ( base == "rnma_zm" || base == "rnma_upgraded_zm" ) )
-            camo_index = 39;
-        else if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_buried", 1 ) )
+        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_buried", 1 ) )
             camo_index = 40;
     }
     else if ( level.script == "zm_prison" )

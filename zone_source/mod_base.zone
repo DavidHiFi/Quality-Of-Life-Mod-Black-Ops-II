@@ -2484,6 +2484,37 @@ material,menu_zm_weapons_rnma
 camo,camo_rnma
 weapon,rnma_zm
 weapon,rnma_upgraded_zm
+
+// ============================================================================
+//  v2.10.11 - THE PARALYZER'S CAMO, THE LAST GUN IN THE GAME WITHOUT AN
+//  ANIMATED PACK-A-PUNCH CAMO.  User, 2026-09-02: "paralyzer is missing
+//  animated pap camo, make sure every gun in the game has animated pap camos".
+//
+//  Measured, not assumed. Every camo asset in all six zombies fastfiles was
+//  dumped (Unlinker --include-assets camo) and its index-40 slot read:
+//      mod.ff's own 74 camos ......... 74 / 74 carry mc/mtl_weapon_camo_zmb_dlc2
+//      zm_transit / zm_highrise /
+//      zm_prison / zm_nuked / zm_tomb  every map-owned camo already animated
+//      zm_buried ..................... camo_slowgun ALONE has no override at
+//                                      that slot - the Paralyzer, and nothing
+//                                      else in the game.
+//  That is why quality_of_life::get_pack_a_punch_weapon_options carried a
+//  slowgun exception pinning it to camo 39: index 40 on the map's own copy
+//  resolves to a slot with no camo material at all.
+//
+//  This declaration makes mod.ff own the asset, and the raw JSON beside it
+//  (zone_assets/camo/camo_slowgun.json) is retail's copy with ONE slot
+//  changed - index 40 now
+//  overrides mc/mtl_t6_wpn_zmb_slowgun with mc/mtl_weapon_camo_zmb_dlc2, at
+//  Treyarch's own scale for this gun (shaderConsts 3,3,0,0 and the same map
+//  flags, copied from the zombies-camo slot they authored for it). The body
+//  material only - the chain and the two glow materials are left alone,
+//  exactly as Treyarch's own camo slot for this weapon does.
+//
+//  The weapon defs are NOT declared here: slowgun_zm stays the map's own.
+//  Only the camo changes hands.
+// ============================================================================
+camo,camo_slowgun
 image,~~-gmtl_t6_wpn_shotty_olympia~fe768c4a
 image,mtl_t6_wpn_shotty_olympia_nml
 image,~mtl_t6_wpn_shotty_olympia_ao~2bd95fd2
