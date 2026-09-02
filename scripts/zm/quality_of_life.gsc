@@ -1631,6 +1631,41 @@ get_pack_a_punch_weapon_options( weapon )
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_mob", 1 ) )
             camo_index = 44;
     }
+    //  🛑🛑 v2.10.18 - GREEN RUN, DIE RISE AND NUKETOWN CANNOT RENDER THE ANIMATED
+    //  CAMO AT ALL, and sending 44 there rendered NOTHING - worse than stock,
+    //  which is what the user was seeing ("m1911 is missing its pap camo").
+    //
+    //  🌟 THE ASSET THAT DRAWS IS THE MAP'S, NOT mod.ff's. Measured 2026-09-03
+    //  from a natural experiment on Green Run, and it overturns what §42 assumed:
+    //    - camo_xpr50 exists ONLY in mod.ff (absent from zm_transit.ff AND
+    //      zm_transit_patch.ff) -> mod.ff's 15-slot copy draws -> index 44 lands
+    //      on slot 8 and the animated camo APPEARS on the XPR-50.
+    //    - camo_m1911 exists in BOTH. mod.ff's slot 8 maps
+    //      mtl_t6_wpn_pistol_m1911 and _camo1, which are EXACTLY the two
+    //      materials t6_wpn_pistol_m1911_view uses - so if mod.ff's copy were
+    //      drawing it could not fail. It shows no camo. The map's 4-slot copy
+    //      wins, and slot 8 does not exist in it.
+    //  Load order from the live log agrees on the direction: mod (718) ->
+    //  zm_transit_patch (943) -> zm_transit (944); the last one loaded wins.
+    //
+    //  So the ceiling is whatever each MAP's own tables carry (measured across
+    //  every camo asset in each base fastfile):
+    //      Green Run  37 assets, 4 slots  -> max index 39 (slot 3, zombies)
+    //      Nuketown   39 assets, 4 slots  -> max index 39
+    //      Die Rise   40 assets, 7 slots  -> max index 42 (slot 4 glow 31/40)
+    //      Buried     39 assets, 12 slots -> slot 8 live 37/39  ✅ 44 works
+    //      Mob        28 assets, 12 slots -> slot 8 live 28/28  ✅ 44 works
+    //      Origins    34 assets, 14 slots -> slot 8 live 32/34  ✅ 44 works
+    //
+    //  These three therefore fall back to 39 - slot 3, the stock zombies camo,
+    //  the best their own tables can render (35/37, 32/39, 33/40 populated).
+    //  Die Rise could take 40 (glow) but its slot 4 is live in only 31 of 40,
+    //  so nine guns would come out bare; coverage wins over novelty.
+    //  🛑 Staging 13-slot copies in mod.ff CANNOT fix this - the map overrides
+    //  them. The only guns that get the animated camo on these three maps are
+    //  the ones whose camo table the map does not ship at all (the XPR-50 and
+    //  the other mod-added guns), and those keep working because mod.ff's copy
+    //  is then the only one.
     //  v2.9.12, queue item 9 - GREEN RUN. User, 2026-08-31: they spectated a
     //  player on the "ezz" server running animated camos on Town survival, so
     //  it is demonstrably possible off the DLC maps. Measured here before
@@ -1657,7 +1692,7 @@ get_pack_a_punch_weapon_options( weapon )
     else if ( level.script == "zm_transit" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_transit", 1 ) )
-            camo_index = 44;
+            camo_index = 39;
     }
     //  v2.9.16 - DIE RISE AND NUKETOWN JOIN, user request 2026-08-31 ("Enable
     //  working animated camos across ALL Zombies maps"). The evidence the
@@ -1671,12 +1706,12 @@ get_pack_a_punch_weapon_options( weapon )
     else if ( level.script == "zm_highrise" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_highrise", 1 ) )
-            camo_index = 44;
+            camo_index = 39;
     }
     else if ( level.script == "zm_nuked" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_nuked", 1 ) )
-            camo_index = 44;
+            camo_index = 39;
     }
     else if ( level.script == "zm_tomb" )
     {
