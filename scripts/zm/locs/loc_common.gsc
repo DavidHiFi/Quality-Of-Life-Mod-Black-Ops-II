@@ -500,31 +500,3 @@ swap_buildable_fields_model_offset(stub1, stub2)
 	stub1.model.origin += (anglesToForward(model1_angle) * origin_offset[0]) + (anglesToRight(model1_angle) * origin_offset[1]) + (anglesToUp(model1_angle) * origin_offset[2]);
 	stub2.model.origin -= (anglesToForward(model2_angle) * origin_offset[0]) + (anglesToRight(model2_angle) * origin_offset[1]) + (anglesToUp(model2_angle) * origin_offset[2]);
 }
-
-
-// ============================================================================
-//  spawn_wallbuy_plywood - used by zm_tomb_loc_excavation_site.
-//
-//  zm_qol: carried here from Reimagined's scripts\zm\zm_tomb\zm_tomb_reimagined,
-//  which this project does not port. Self-contained (spawn/setmodel and vector
-//  builtins only); the models it uses are Origins assets, so it is only ever
-//  called from the Origins location scripts.
-// ============================================================================
-spawn_wallbuy_plywood(origin, angles)
-{
-	model1 = spawn("script_model", origin);
-	model1.angles = angles + (-90, 0, 0);
-	model1 setmodel("p6_pak_old_plywood_small");
-
-	model2 = spawn("script_model", origin + anglestoforward(angles) * 2 + anglestoup(angles) * -15);
-	model2.angles = angles + (0, 90, 0);
-	model2 setmodel("p6_zm_tm_wood_post_thin_01_tall");
-
-	model3 = spawn("script_model", origin + anglestoforward(angles) * 1 + anglestoright(angles) * -25 + anglestoup(angles) * -15);
-	model3.angles = angles;
-	model3 setmodel("p6_zm_tm_wood_post_thin_01_tall");
-
-	model4 = spawn("script_model", origin + anglestoforward(angles) * 1 + anglestoright(angles) * 25 + anglestoup(angles) * -15);
-	model4.angles = angles + (0, 180, 0);
-	model4 setmodel("p6_zm_tm_wood_post_thin_01_tall");
-}

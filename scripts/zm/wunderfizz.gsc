@@ -1686,51 +1686,6 @@ getPerkName(perk)
 		return "Vulture Aid";
 }
 
-getPerkModel(perk)
-{
-	if(perk == "specialty_armorvest")
-	{
-		if( level.script == "zm_prison" )
-			return zmqol_wf_machine_model();
-		else
-			return zmqol_wf_machine_model();
-	}
-	if(perk == "specialty_nomotionsensor")
-		return "p6_zm_vending_vultureaid";
-	if(perk == "specialty_rof")
-	{
-		if(level.script == "zm_prison")
-			return "p6_zm_al_vending_doubletap2_on";
-		else
-			return "zombie_vending_doubletap2";
-	}
-	if(perk == "specialty_longersprint")
-		return "zombie_vending_marathon";
-	if(perk == "specialty_fastreload")
-	{
-		if( level.script == "zm_prison" )
-			return "p6_zm_al_vending_sleight_on";
-		else
-			return "zombie_vending_sleight";
-	}
-	if(perk == "specialty_quickrevive")
-		return "zombie_vending_revive";
-	if(perk == "specialty_scavenger")
-		return "zombie_vending_tombstone";
-	if(perk == "specialty_finalstand")
-		return "p6_zm_vending_chugabud";
-	if(perk == "specialty_grenadepulldeath")
-		return "p6_zm_vending_electric_cherry_on";
-	if(perk == "specialty_additionalprimaryweapon")
-		return "zombie_vending_three_gun";
-	if(perk == "specialty_deadshot")
-	{
-		if(level.script == "zm_prison")
-			return "p6_zm_al_vending_ads_on";
-		else
-			return "zombie_vending_ads";
-	}
-}
 getPerkBottleModel(perk)
 {
 	if(perk == "specialty_armorvest")
@@ -1845,8 +1800,8 @@ wunderfizzSetup(origin, angles, model)
 	//  "never offered by the Wunderfizz" on Origins, yet every offline check says
 	//  it should be: zmqol_whoswho_enabled() excludes only Die Rise and Mob, the
 	//  flag is set in perks() during main() which runs well before this, the boot
-	//  log confirms stock's turn_chugabud_on ran, and getPerkName/getPerkModel/
-	//  getPerkBottleModel all have specialty_finalstand entries.
+	//  log confirms stock's turn_chugabud_on ran, and getPerkName/
+	//  getPerkBottleModel both have specialty_finalstand entries.
 	//
 	//  So rather than guess a fifth time, print what this machine was ACTUALLY
 	//  built with. The list is snapshotted HERE, once, and never rebuilt - so if

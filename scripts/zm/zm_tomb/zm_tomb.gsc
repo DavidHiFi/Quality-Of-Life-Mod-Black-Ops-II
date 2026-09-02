@@ -261,8 +261,8 @@ init()
     //  stops the mod taking their HUD down for half a second at every spawn.
 
     //  🛑 v1.94.0 - zmqol_capture_objectives_fix() AND zmqol_capture_hud_nudge()
-    //  ARE NO LONGER STARTED. Both are left in the file, unreferenced, because
-    //  their comments record real measurements worth keeping.
+    //  ARE NO LONGER STARTED. v2.10.12 deleted both as dead code (git history
+    //  keeps their measurements); the summary that matters is below.
     //
     //  Two reasons, and the second is the important one:
     //
@@ -282,9 +282,8 @@ init()
     //  timed reliable traffic is worth doing on its own merits. This is NOT
     //  claimed as the fix for that crash - see the queue entry.
     //
-    //  ▶️ v1.95.4 - THE REAL FIX IS zmqol_ring_hud_visibility() ABOVE. Both of
-    //  these stay unreferenced; read their comments for what was measured, not
-    //  for what to do.
+    //  ▶️ v1.95.4 tried zmqol_ring_hud_visibility() next (also deleted in
+    //  v2.10.12); v1.95.7 above records why every server-side flag flip lost.
     zmqol_register_survival_visionset();
     level thread zmqol_power_up_all_generators();
     level thread zmqol_disable_staff_relay_switches();
@@ -487,182 +486,6 @@ zmqol_tomb_perk_is_stock( str_perk )
     return isinarray( a_stock, str_perk );
 }
 
-// ============================================================================
-//  zmqol_power_up_all_generators
-//
-//  🛑 Origins survival should not have generators at all.
-//
-//  Stock maps\mp\zm_tomb_capture_zones::init_capture_zones() runs on EVERY gametype -
-//  it flag_wait("start_zombie_round_logic")s and then threads init_capture_zone() on
-//  every s_generator struct in the map, regardless of start location. So on Trenches /
-//  Excavation Site / Church / Crazy Place you get the full classic-Origins economy:
-//    - a "Hold [F] to activate generator" unitrigger on each generator
-//    - the mystery box locked behind "turn on the power"
-//    - perk machines that belong to an uncaptured generator zone never finishing their
-//      spawn (this is the real reason Speed Cola was missing on Trenches - its machine
-//      is owned by generator_mid_trench)
-//    - Pack-a-Punch gated behind all_zones_captured
-//  ...on an arena where no generator can be captured, so none of it is ever obtainable.
-//
-//  This is BO2-Reimagined's fix, ported: scripts/zm/zm_tomb/zm_tomb_reimagined.gsc::
-//  power_up_all_generators(). It marks every capture zone player-controlled at round
-//  start, which is the single lever that resolves all four symptoms at once, because
-//  stock set_player_controlled_zone() (zm_tomb_capture_zones.gsc:1410) does:
-//        ent_flag_set("player_controlled")   -> generator_trigger_prompt_and_visibility()
-//                                               returns 0, so the prompt disappears
-//        enable_perk_machines_in_zone()      -> the perk machines actually spawn
-//        enable_random_perk_machines_in_zone()
-//        enable_mystery_boxes_in_zone()      -> box unlocks, no power prompt
-//        update_captured_zone_count()        -> all 6 captured -> flag "all_zones_captured"
-//                                               -> pack_a_punch_think() -> pack_a_punch_enable()
-//                                               -> flag_set("power_on")
-//
-//  Threaded from init() (Reimagined calls it synchronously, which would block everything
-//  after it on the flag_wait; threading is the safe form).
-//
-//  is_classic() gated: CLASSIC ORIGINS STILL REQUIRES POWERING THE GENERATORS BY HAND.
-//
-//  The wait: init_capture_zones() populates level.zone_capture.zones from inside the same
-//  flag_wait, so we take one network frame after the flag before reading it, then guard on
-//  isdefined rather than assuming.
-//
-//  🛑 NOT verified in game yet.
-// ============================================================================
-// ============================================================================
-// ============================================================================
-//  zmqol_capture_objectives_fix  -  THE GENERATOR CAPTURE RING, FIXED  (v1.90.2)
-//
-//  User, 2026-08-13: "on origins during powering up a generator, the progress
-//  overlay is still absent, fix it as well for good."
-//
-//  🌟 THE PROBE ALREADY ANSWERED THIS. zmqol_probe_capture_zones() below had
-//  been running for several boots and 299 of its lines were sitting in today's
-//  logs unread. They say the server side is PERFECT:
-//
-//      [zm_qol] capture probe: 6 zone(s) registered
-//      ... zone generator_church progress 5      obj=0 contested=1 inzone=1
-//      ... zone generator_church progress 13.3333 obj=0 contested=1 inzone=1
-//      ... (smooth ramp) ...
-//      ... zone generator_church progress 100    obj=unset contested=0 inzone=1
-//
-//  Progress climbs, the zone is contested, the player is detected inside it, and
-//  n_objective_index is a real index. The probe's own header states the
-//  conclusion that follows: "if progress climbs while obj is a real index and the
-//  zone is contested, the server did everything it is supposed to and the failure
-//  is purely client-side."
-//
-//  🛑 THE RACE, and why it was intermittent for weeks.
-//
-//  The ring is the OBJECTIVE system - zm_tomb_capture_zones.gsc:1506 calls
-//  objective_setprogress( self.n_objective_index, ... ), and the mid-screen meter
-//  is LUI's TCZWaypoint, which inherits ObjectiveWaypoint and is selected by the
-//  objective's NAME. The four objectives are created ONCE, at map init:
-//
-//      declare_objectives()                     zm_tomb_capture_zones.gsc:80
-//          objective_add( 0, "invisible", (0,0,0), &"ZM_TOMB_OBJ_CAPTURE_1" );
-//          objective_add( 1..3, ... )
-//
-//  objective_add sends the objective to the clients that are connected AT THAT
-//  MOMENT. A player who finishes connecting afterwards never receives it, so
-//  objective_setprogress later updates an objective their client does not have -
-//  the capture completes and nothing draws.
-//
-//  🌟 That is exactly the one logged difference between the two back-to-back
-//  Origins games recorded in quality_of_life.gsc::zmqol_intro_hold_time:
-//        game A   solo status: expected=1 connected=0   -> NO ring
-//        game B   solo status: expected=1 connected=1   -> ring
-//  A connect race explains an intermittent failure; the startup-hold theory that
-//  was tested before could not, and was correctly falsified (identical 1.6s hold,
-//  opposite outcomes). This is the variable that actually differed.
-//
-//  THE FIX: re-issue the declaration after players are actually connected.
-//  objective_add on an index that already exists simply re-defines it, and stock
-//  calls objective_setprogress continuously while a zone is being captured, so a
-//  redundant re-declare costs nothing and cannot lose progress. Re-declaring is
-//  confined to the opening seconds of the match, before any generator can be
-//  captured, plus once per player connect so co-op joins are covered too.
-//
-//  📝 declare_objectives() is called QUALIFIED, and that is safe from this file
-//  for the same reason the probe below already calls
-//  maps\mp\zm_tomb_capture_zones::get_players_in_capture_zone() - this script
-//  loads only on Origins. It must never be named from a root script.
-//
-//  📝 The probe is deliberately LEFT IN. It is println-only, and it is the
-//  instrument that verifies this fix: if the ring still fails, its lines say
-//  immediately whether the server side changed.
-// ============================================================================
-zmqol_capture_objectives_fix()
-{
-    level endon( "end_game" );
-
-    //  Classic Origins only. The survival arenas have no generators to capture.
-    if ( !is_classic() )
-        return;
-
-    level thread zmqol_capture_objectives_on_connect();
-
-    //  Covers the HOST, who is normally already connected before this thread
-    //  starts and therefore never fires a "connected" notify to listen for.
-    //
-    //  🛑 v1.90.7 - THE ORIGINAL COMMENT HERE WAS AN ASSUMPTION AND IT WAS WRONG.
-    //  It read "a generator cannot be captured that early, so no in-progress ring
-    //  can be disturbed". Stock's own source says otherwise:
-    //
-    //      declare_objectives()            zm_tomb_capture_zones.gsc:82
-    //          objective_add( 0, "invisible", ... )
-    //
-    //  while the thing that MAKES the ring appear is, at :1696-1698,
-    //          objective_state( self.n_objective_index, "active" )
-    //
-    //  and a normal generator always takes index 0 (:1558). So every re-declare
-    //  resets objective 0 to "invisible" - i.e. this fix could HIDE the very ring
-    //  it was added to restore, whenever it lands mid-capture. That matches the
-    //  user's report exactly: missing early in the match, fine later on.
-    //
-    //  The re-declare is now skipped while any zone holds an objective index,
-    //  which is precisely the window in which it would be destructive.
-    //  🌟 v1.90.9 - WHY THE WINDOW IS 20 SECONDS AND NOT 6.
-    //
-    //  The user found the decisive clue: the ring is absent, and then appears the
-    //  instant the scoreboard is opened and closed. Toggling the scoreboard fires
-    //  hud_update_bit_<BIT_SCOREBOARD_OPEN>, which forces the Origins HUD to
-    //  re-evaluate visibility - so the widget exists and simply never learned
-    //  about the objective.
-    //
-    //  The log says why. In the failing match:
-    //        4740  capture objectives: re-declared 6 time(s), skipped 0
-    //        4743  Loaded menu file: ui_mp/t6/zombie/hudcraftablestombzombie.lua
-    //
-    //  Every objective_add - stock's at map init AND all six of v1.90.2's -
-    //  completed BEFORE the client's Origins HUD menu was created. objective_add
-    //  only reaches what exists at that instant, so the objective was announced to
-    //  a HUD that had not been built yet.
-    //
-    //  🛑 v1.90.10 - THE 20-SECOND WINDOW IS REVERTED TO 6. It did NOT fix the
-    //  ring, and it made loading choppy in solo: 20 declare_objectives() calls
-    //  landing across the intro cutscene is real work at the worst moment.
-    //  Re-declaring more was treating the symptom. See zmqol_capture_hud_nudge()
-    //  below for the actual mechanism.
-    n_pass = 0;
-    n_skipped = 0;
-
-    while ( n_pass + n_skipped < 6 )
-    {
-        wait 1;
-
-        if ( zmqol_any_zone_capturing() )
-        {
-            n_skipped++;
-            continue;
-        }
-
-        maps\mp\zm_tomb_capture_zones::declare_objectives();
-        n_pass++;
-    }
-
-    println( "[zm_qol] capture objectives: re-declared " + n_pass + " time(s), skipped " + n_skipped + " (capture in progress)" );
-}
-
 //  True while any capture zone currently owns an objective index - stock assigns
 //  it on acquire and clears it on release (zm_tomb_capture_zones.gsc:1548/:1715),
 //  so this is exactly "a ring is live right now". Written defensively because it
@@ -679,216 +502,6 @@ zmqol_any_zone_capturing()
     }
 
     return 0;
-}
-
-//  zmqol_capture_hud_nudge  -  THE ACTUAL FIX FOR THE GENERATOR RING (v1.90.10)
-//
-//  🌟 The user's own finding is the whole diagnosis: the ring is missing, and it
-//  appears the moment the scoreboard is opened and released. Nothing about the
-//  generator changes in between - the probe proves the server side is already
-//  perfect (progress ramps 0->100, contested=1, inzone=1, obj=0).
-//
-//  Opening/closing the scoreboard fires hud_update_bit_<BIT_SCOREBOARD_OPEN>.
-//  Origins' HUD registers CoD.CraftablesTomb.UpdateVisibility against that bit
-//  AND against BIT_HUD_VISIBLE (hudcraftablestombzombie.lua). So the widget was
-//  built before the objective was announced, and only a visibility-bit event
-//  makes it re-evaluate and draw. The scoreboard is simply the one such event a
-//  player can trigger by hand.
-//
-//  So: fire that same event once from script, after the HUD exists and the
-//  objectives have been declared. This is the scoreboard press, done for them.
-//
-//  📝 setclientuivisibilityflag( "hud_visible", 0/1 ) is VERIFIED STOCK, not
-//  assumed - zm_nuked.gsc:1321, _zm.gsc:250 and :5300, _zm_gametype.gsc:985 and
-//  _globallogic_player.gsc:79/:260 all call it on a player, and "hud_visible" is
-//  the flag backing BIT_HUD_VISIBLE.
-//
-//  One frame off then on. Done once per player per match, well after the
-//  blackscreen, so there is nothing on screen to flicker at that moment.
-zmqol_capture_hud_nudge()
-{
-    level endon( "end_game" );
-
-    if ( !is_classic() )
-        return;
-
-    for ( ;; )
-    {
-        level waittill( "connected", player );
-        player thread zmqol_capture_hud_nudge_player();
-    }
-}
-
-zmqol_capture_hud_nudge_player()
-{
-    self endon( "disconnect" );
-    level endon( "end_game" );
-
-    self waittill( "spawned_player" );
-    flag_wait( "initial_blackscreen_passed" );
-
-    //  🛑 v1.90.11 - TIMING WAS THE FLAW IN v1.90.10, NOT THE MECHANISM.
-    //  The nudge fired once at t+8s and the log proves it ran:
-    //        4710  capture hud: visibility nudged
-    //  ...and the ring still did not appear. The difference from the user's
-    //  scoreboard press is WHEN: they open the scoreboard *while a generator is
-    //  being captured*. A visibility re-evaluation at t+8s, when no objective is
-    //  active, finds nothing to draw and the HUD goes straight back to sleep.
-    //
-    //  So the refresh has to land DURING an active capture. Wait for a zone to
-    //  actually hold an objective index, then nudge.
-    //
-    //  Also: 0.05s was likely too short to survive snapshot coalescing - two
-    //  flag writes inside one client update can collapse to no net change. The
-    //  hold is now 0.25s, which is what the user's own scoreboard press
-    //  effectively does.
-    b_done = 0;
-
-    for ( ;; )
-    {
-        wait 0.25;
-
-        if ( !zmqol_any_zone_capturing() )
-        {
-            b_done = 0;      //  re-arm for the next generator
-            continue;
-        }
-
-        if ( b_done )
-            continue;
-
-        self setclientuivisibilityflag( "hud_visible", 0 );
-        wait 0.25;
-        self setclientuivisibilityflag( "hud_visible", 1 );
-        b_done = 1;
-
-        println( "[zm_qol] capture hud: nudged DURING an active capture" );
-    }
-}
-
-// ============================================================================
-//  zmqol_ring_hud_visibility  -  THE GENERATOR RING, FIXED PROPERLY  (v1.95.4)
-//
-//  User, 2026-08-14: *"make it behave like the vanilla base game so the progress
-//  icon in the middle of the screen shows up like normal when it's supposed to
-//  when ur powering up a generator, and i don't have to pull up the in-game
-//  scoreboard for it to be fixed."*
-//
-//  🌟 THE MECHANISM, END TO END, EVERY STEP READ OUT OF STOCK SOURCE OR THIS
-//  PROJECT'S OWN LOGS. No part of this is inferred from what an API "should" do.
-//
-//  1. The ring lives in ui_mp\t6\zombie\tombcapturezonedisplay.lua. Dumped from
-//     the retail zm_tomb_patch.ff, its menu is built by CoD.GametypeBase.new(),
-//     which ENDS IN setAlpha(0) (gametypebase.lua:26). The menu starts hidden.
-//  2. Only CoD.TCZWaypoint.UpdateVisibility ever raises that alpha, and it runs
-//     ONLY on an incoming `hud_update_bit_<N>` event or on `hud_update_refresh`.
-//     Adding an objective does NOT raise it: GametypeBase.NewObjectiveEvent
-//     (:36-41) creates the waypoint child and calls update() on it, and never
-//     touches the parent's alpha. That is why every re-declare attempt failed.
-//  3. Of the eleven bits that menu registers, exactly ONE is settable from GSC:
-//     BIT_HUD_VISIBLE, via setclientuivisibilityflag( "hud_visible", ... ).
-//  4. In stock zombies that flag is written in exactly two places:
-//        _zm.gsc:250   the end of the intro screen, for every CONNECTED player
-//        _zm.gsc:5301  zm_on_player_connect(), if the intro already finished
-//     It is never set to 0 - it simply starts clear. So the single 0 -> 1 write
-//     at the end of the intro is what un-hides this menu in a normal game.
-//
-//  🛑 AND THAT IS THE BUG. A player who is not connected yet when the intro
-//  function runs gets their write from zm_on_player_connect() instead - at
-//  CONNECT time, before their client has built its HUD menus. The menu is then
-//  created with the bit ALREADY 1, so no change event ever arrives and the alpha
-//  stays 0 for the rest of the match. Opening the scoreboard is the player
-//  hand-firing BIT_SCOREBOARD_OPEN, which is why that "fixes" it.
-//
-//  🌟 THE MOD'S OWN A/B ALREADY PROVED THIS AND IT WAS MISREAD AT THE TIME.
-//  quality_of_life.gsc::zmqol_intro_hold_time()'s note records two back-to-back
-//  Origins games, same build, same 1.6s hold, opposite outcomes:
-//        game A   solo status: expected=1 connected=0   -> ring did NOT draw
-//        game B   solo status: expected=1 connected=1   -> ring DID draw
-//  `connected` is the count at intro time. Connected=0 means the intro's write
-//  reached nobody. The 2026-08-14 session that reported this again logs
-//  `connected=0` too - three observations, one mechanism.
-//
-//  THE FIX: give every player the same 0 -> 1 transition vanilla gives them, at
-//  a point where their client is definitely up. Hold the flag at 0 from connect
-//  (which is where stock leaves it anyway, for the whole load), then raise it
-//  once, after they have spawned and the black screen has gone.
-//
-//  📝 NOTHING FLASHES. v1.90.11's rejected nudge blinked the HUD mid-capture
-//  because it drove 1 -> 0 -> 1 while the player was looking at it. Here the 0
-//  covers the loading screen, exactly as stock does during its intro, and the 1
-//  lands while the intro shader is still fading out (fade is 1.5s, the flag
-//  fires 0.05s in - see fade_out_intro_screen_zm_instant). The HUD appears as
-//  the screen clears, which is what the base game looks like.
-//
-//  📝 TWO reliable commands per player for the whole match, both event-driven.
-//  No timer, no loop - deliberate, given Origins is the map still dying with
-//  EXE_ERR_RELIABLE_CYCLED_OUT.
-//
-//  🛑 THE RESIDUAL RISK, STATED PLAINLY: if a client builds its HUD menus LATER
-//  than the raise below, the event is missed again and the ring stays hidden.
-//  That window cannot be measured from the server, so both timings are dvars:
-//        zmqol_ring_hud_delay   seconds after the black screen before raising
-//        zmqol_ring_hud_hide    0 to disable this entirely
-//  If the ring is still missing, raise zmqol_ring_hud_delay to 2 or 3 and try
-//  again - that distinguishes "wrong moment" from "wrong mechanism" without a
-//  rebuild.
-// ============================================================================
-zmqol_ring_hud_visibility()
-{
-    if ( !getdvarintdefault( "zmqol_ring_hud_hide", 1 ) )
-        return;
-
-    //  The host is normally already connected before init() runs and therefore
-    //  never fires a "connected" notify to listen for.
-    foreach ( player in get_players() )
-        player thread zmqol_ring_hud_visibility_player();
-
-    for ( ;; )
-    {
-        level waittill( "connected", player );
-        player thread zmqol_ring_hud_visibility_player();
-    }
-}
-
-zmqol_ring_hud_visibility_player()
-{
-    //  🛑 self endon( "disconnect" ) ONLY. No level endon: if end_game killed
-    //  this thread between the 0 and the 1 the player would be left with no HUD
-    //  at all, which is far worse than a missing ring.
-    self endon( "disconnect" );
-
-    if ( is_true( self.zmqol_ring_hud_done ) )
-        return;
-
-    self.zmqol_ring_hud_done = 1;
-
-    //  🛑 ORDER MATTERS AND IT IS NOT A PREFERENCE. Both stock writes of this
-    //  flag put it at 1: the intro function for players already connected, and
-    //  zm_on_player_connect() for anyone later. Writing our 0 before either of
-    //  those would just be overwritten and change nothing. So wait for BOTH
-    //  conditions - the client is in the game, and the intro has finished - and
-    //  only then take the flag down.
-    self waittill( "spawned_player" );
-    flag_wait( "initial_blackscreen_passed" );
-    wait 0.05;
-
-    //  🛑 STAND DOWN IF THE PLAYER ASKED FOR NO HUD. qol_options.gsc's
-    //  hud_master watcher owns this same flag while ".hud off" is set and
-    //  re-asserts 0 every 2s (:952-956). Raising it here would flash their HUD
-    //  back on for up to two seconds - the exact class of bug this replaces.
-    //  Same single-owner rule as everywhere else in this project.
-    if ( !getdvarintdefault( "hud_master", 1 ) )
-        return;
-
-    //  Belt and braces: whatever happens below, the HUD comes back.
-    self thread zmqol_ring_hud_failsafe();
-
-    self setclientuivisibilityflag( "hud_visible", 0 );
-    wait( getdvarfloatdefault( "zmqol_ring_hud_delay", 0.5 ) );
-    self setclientuivisibilityflag( "hud_visible", 1 );
-
-    println( "[zm_qol] ring hud: hud_visible cycled 0->1 for one player" );
 }
 
 //  If anything at all goes wrong between the 0 and the 1 above, the flag is
@@ -1137,10 +750,10 @@ zmqol_tomb_mp40_stalker_wallbuys()
 //  you just had it working with the adjustable stock stop reverting that
 //  change."*
 //
-//  📝 NOTHING WAS REVERTED, and this is checkable rather than asserted: the most
-//  recent commit touching this file IS the v1.79.0 fix, and both
-//  zmqol_mp40_push_to_live_triggers and zmqol_mp40_watch_triggers are present in
-//  the deployed mod.iwd. The feature has never been removed at any point.
+//  📝 NOTHING WAS REVERTED, and this was checkable rather than asserted: the
+//  v1.79.0 fix (zmqol_mp40_push_to_live_triggers) has shipped in every build
+//  since. Its read-only twin zmqol_mp40_watch_triggers, which only printed the
+//  trigger census, was deleted as dead code in v2.10.12.
 //
 //  🛑 AND v1.79.0 WAS AIMED AT THE WRONG THING. Said plainly because it was
 //  shipped as "verified mechanism, unproven cause" and the log has now answered:
@@ -1273,54 +886,6 @@ zmqol_mp40_push_to_live_triggers()
     }
 
     return n;
-}
-
-// ============================================================================
-//  zmqol_mp40_watch_triggers  -  READ-ONLY. Proves or kills the theory above.
-//
-//  Every 2s for 5 minutes, for each retagged stub: if a live trigger exists and
-//  its weapon disagrees with its stub's, say so once. A trigger built AFTER the
-//  retag copies the corrected stub and must agree - so any mismatch printed here
-//  is a trigger that outlived the retag, which is the mechanism, in the log,
-//  rather than in an argument.
-//
-//  It also corrects what it finds. That makes it a safety net as well as a
-//  probe, and costs nothing: writing a value that already matches is a no-op.
-// ============================================================================
-zmqol_mp40_watch_triggers( a_stubs )
-{
-    level endon( "end_game" );
-
-    if ( !isdefined( a_stubs ) || a_stubs.size == 0 )
-        return;
-
-    n_ticks    = 0;
-    n_reported = 0;
-
-    while ( n_ticks < 150 )
-    {
-        for ( i = 0; i < a_stubs.size; i++ )
-        {
-            if ( !isdefined( a_stubs[i] ) || !isdefined( a_stubs[i].trigger ) )
-                continue;
-
-            if ( !isdefined( a_stubs[i].trigger.zombie_weapon_upgrade ) )
-                continue;
-
-            if ( a_stubs[i].trigger.zombie_weapon_upgrade == a_stubs[i].zombie_weapon_upgrade )
-                continue;
-
-            println( "[zm_qol] origins mp40 WATCH: live trigger says " + a_stubs[i].trigger.zombie_weapon_upgrade + " but stub says " + a_stubs[i].zombie_weapon_upgrade + " - correcting" );
-
-            a_stubs[i] zmqol_mp40_push_to_live_triggers();
-            n_reported++;
-        }
-
-        wait 2;
-        n_ticks++;
-    }
-
-    println( "[zm_qol] origins mp40 WATCH: done, " + n_reported + " divergence(s) seen in 5 min" );
 }
 
 zmqol_tomb_no_native_wunderfizz()

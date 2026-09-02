@@ -1608,8 +1608,9 @@ zmqol_init_vulture_trimmed()
 	level.perk_vulture.custom_funcs_enable = [];
 	level.perk_vulture.custom_funcs_disable = [];
 
-	//  Our perk-machine markers replace stock's entirely - see the banner over
-	//  zmqol_vulture_machines_build(). custom_funcs_enable / _disable are stock's
+	//  Our perk-machine markers replace stock's entirely - the list comes from
+	//  the server over the zmqol_vulture_marker clientfield, see
+	//  zmqol_vulture_machines_enable(). custom_funcs_enable / _disable are stock's
 	//  own published extension point (vulture_add_custom_func_on_enable,
 	//  _zm_perk_vulture.csc:98/106); assigning the slots directly is the same
 	//  thing without needing level.perk_vulture to already exist.
@@ -1742,7 +1743,6 @@ zmqol_vulture_perks_match_string()
 
 	return str_gametype + "_perks_" + str_location;
 }
-
 
 
 // ============================================================================
@@ -2005,82 +2005,6 @@ zmqol_vulture_marker_height_watch()
 	}
 }
 
-//  🛑 v1.99.68 - NO LONGER CALLED. The marker list comes from the server now,
-//  through the zmqol_vulture_marker clientfield - see zmqol_vulture_machines_enable().
-//  Kept only because the reasoning below documents exactly why the struct route
-//  cannot work off Buried, which is the whole justification for the clientfield.
-zmqol_vulture_machines_build()
-{
-	a_out = [];
-	a_structs = getstructarray( "zm_perk_machine", "targetname" );
-
-	if ( !isDefined( a_structs ) || a_structs.size < 1 )
-		return a_out;
-
-	str_match = zmqol_vulture_perks_match_string();
-
-	for ( i = 0; i < a_structs.size; i++ )
-	{
-		s_spot = a_structs[i];
-
-		if ( !isDefined( s_spot.origin ) || !isDefined( s_spot.script_noteworthy ) )
-			continue;
-
-		if ( isDefined( s_spot.script_string ) )
-		{
-			//  Empty match string means the location could not be resolved. Take
-			//  nothing rather than guess - a marker in the wrong place is worse
-			//  than no marker, and the log line below says so out loud.
-			if ( str_match == "" )
-				continue;
-
-			b_match = 0;
-			a_tokens = strtok( s_spot.script_string, " " );
-
-			for ( t = 0; t < a_tokens.size; t++ )
-			{
-				if ( a_tokens[t] == str_match )
-					b_match = 1;
-			}
-
-			if ( !b_match )
-				continue;
-		}
-
-		a_out[a_out.size] = s_spot;
-	}
-
-	println( "[zm_qol] CLIENT vulture machines: " + a_out.size + " of " + a_structs.size + " structs match '" + str_match + "'" );
-
-	return a_out;
-}
-
-//  Stock registers glow fx for only EIGHT perks (setup_perk_machine_fx), because
-//  Buried has only those eight machines. Every other machine falls through to
-//  stock's fallback, which is the SPEED COLA glow - actively wrong on the perks
-//  this mod adds to maps. There is no Tombstone / Deadshot / Who's Who /
-//  Electric Cherry / PhD glow effect anywhere in BO2 and new fx cannot be
-//  authored (OpenAssetTools dumps no .efx, so there is no round trip), so those
-//  five get the neutral "?" - level._effect["vulture_perk_wallbuy_dynamic"],
-//  which is maps/zombie/fx_zm_vulture_glow_question, already loaded above.
-//  It reads as "a machine is here" instead of naming the wrong perk.
-zmqol_vulture_machine_fx( str_perk )
-{
-	switch ( str_perk )
-	{
-		case "specialty_armorvest":               return "vulture_perk_machine_glow_juggernog";
-		case "specialty_rof":                     return "vulture_perk_machine_glow_doubletap";
-		case "specialty_quickrevive":             return "vulture_perk_machine_glow_revive";
-		case "specialty_fastreload":              return "vulture_perk_machine_glow_speed";
-		case "specialty_weapupgrade":             return "vulture_perk_machine_glow_pack_a_punch";
-		case "specialty_longersprint":            return "vulture_perk_machine_glow_marathon";
-		case "specialty_additionalprimaryweapon": return "vulture_perk_machine_glow_mule_kick";
-		case "specialty_nomotionsensor":          return "vulture_perk_machine_glow_vulture";
-	}
-
-	return "vulture_perk_wallbuy_dynamic";
-}
-
 //  Stock's gate, kept exactly: Pack-a-Punch and Vulture Aid always show, every
 //  other machine only while the player does NOT hold that perk - the point of
 //  the perk being to find what you still need. Solo Quick Revive obeys the same
@@ -2267,8 +2191,11 @@ zmqol_enable_vulture()
 
 	// Registered AFTER stock's own vulture_setup_on_player_connect (the line
 	// above put it there), so it runs second and can empty the perk-machine list
-	// stock's vulture_vision_init has just filled. See the banner over
-	// zmqol_vulture_machines_build() for why that list is unusable off Buried.
+	// stock's vulture_vision_init has just filled. That list is unusable off
+	// Buried: stock builds it from "zm_perk_machine" structs, and on every other
+	// map those structs describe machines the mod has moved or replaced (the
+	// client-side struct walk zmqol_vulture_machines_build() that proved it was
+	// deleted as dead code in v2.10.12).
 	onplayerconnect_callback( ::zmqol_vulture_after_connect );
 
 	// Stock set this to its own callback one line ago; ours calls that and then

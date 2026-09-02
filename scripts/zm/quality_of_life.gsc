@@ -3466,22 +3466,6 @@ qol_pap_mode_watch( qol_trigger, stock_trigger )
     }
 }
 
-//  🛑 NO LONGER CALLED as of v1.99.30 and deliberately kept, because what it did
-//  is the thing that broke the switch: it re-fired level notify(
-//  "Pack_A_Punch_off" ) every time power came back, which permanently killed
-//  stock's vending_weapon_upgrade() thread and left nothing to switch back to.
-//  Kept here, unreferenced, so the next reader can see what was removed.
-pap_off()
-{
-    wait 5;
-    for(;;)
-    {
-        level waittill("Pack_A_Punch_on");
-        wait 1;
-        level notify("Pack_A_Punch_off");
-    }
-}
-
 pap_effects( current_weapon, upgrade_weapon, packa_rollers, perk_machine, trigger )
 {
     level endon( "Pack_A_Punch_off" );
