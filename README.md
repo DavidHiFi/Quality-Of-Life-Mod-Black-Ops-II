@@ -26,9 +26,9 @@ Expanded weapon pools, legacy wonder weapons, restored survival map variants, pe
 
 * **Expanded Mystery Box Arsenal:** Campaign and Multiplayer weapons added directly to the box, complete with working Pack-a-Punch functionality, camos, audio, and proper stats.
 * **Classic BO1 Wonder Weapons:** Ported Wonder Weapons integrated across supported maps with balanced ammo pools, authentic visual/audio effects, and boss zombie hit logic.
-* **Global Animated Pack-a-Punch Camo:** Applies the EZZ pink/galaxy animated camo across all weapons and maps without default texture missing bands.
+* **Global Animated Pack-a-Punch Camo:** Applies the Ezz galaxy animated camo to every Pack-a-Punched gun on every map, including the map-specific ones the stock camo tables skip (Paralyzer, Blundergat, MG08, C96). Switch it off and each map shows its own stock Pack-a-Punch camo.
 * **Restored Survival Maps:** Playable standalone Survival map variants for Die Rise, Mob of the Dead (Cell Block), Buried (Borough), and TranZit (Diner, Power Station, Tunnel).
-* **Perk & Utility Adjustments:** Configurable perk limits (1–12), Der Wunderfizz integration, working Bouncing Betties and Claymores, and permanent Pack-a-Punch access options.
+* **Perk & Utility Adjustments:** No perk limit by default (or set one, 1–12, from the console with `perk_limit`), Der Wunderfizz on every map, Bouncing Betties alongside the Claymores, and instant Pack-a-Punch that can be switched back to the stock machine.
 * **In-Game Mod Menu & Customisable HUD:** Toggle mechanics, gameplay rules, hitmarkers, timers, and visual options live in-game without console commands.
 
 ---
@@ -45,7 +45,7 @@ Expanded weapon pools, legacy wonder weapons, restored survival map variants, pe
 
 ## Quality of Life & HUD Customisation
 
-* **Game Timers & Visuals:** The Global Game Timer now defaults to clean white text, and both timers' colours are configurable. Includes a Cold War-style round counter and customisable hitmarkers with 8 sound presets.
+* **Game Timers & Visuals:** Game and round timers with configurable colours, a Cold War-style round counter, and hitmarkers with selectable hit, kill, crit and downed sounds.
 * **FOV & Viewmodel Fixes:** A view-nudge tunable for the Ray Gun's floating left hand at high FOV (`.rayhand` in chat) — it becomes the default once the confirmed value lands.
 * **Controls & Interactivity:** Native "Tap to Interact" controller support available under the standard Gamepad controls menu.
 * **Custom ReShade Integration:** Bundled with an updated, tailored *Cinematic Colour Grading* ReShade preset.
@@ -97,7 +97,7 @@ On **Linux** (Wine, Proton, Lutris, Bottles) there is no automated installer —
 > **Cloning this repo does not give you a playable mod** — `mod.iwd` is a build output and is not tracked in git. Use the release.
 
 > [!NOTE]
-> **The newest changes are still awaiting a fresh play-through:** the restored Survival locations beyond Diner and Power Station (which has now loaded and played), the Bouncing Betty detonation fix, the camo band coverage, the Ray Gun hand tunable, and Nuketown's teleport destinations are all in the current build but have not been verified in game since landing. Anything that fails will be fixed or pulled, not left broken.
+> **The newest changes are still awaiting a fresh play-through:** the Paralyzer's animated camo and the wider camo coverage (XM8, M27, MSMC, EOTech sight, MG08, C96, Blundergat), the Bouncing Betty's real deploy and trigger sounds and its detonation fix, the Ray Gun hand tunable, and Nuketown's teleport destinations are all in the current build but have not been verified in game since landing. Anything that fails will be fixed or pulled, not left broken.
 
 > [!NOTE]
 > **Most of this mod was written by [Claude Code](https://claude.com/claude-code)**, Anthropic's AI coding agent, directed and tested in game by me across a long run of sessions. Plenty of people want nothing to do with AI-written code, which is fair — so you should know before you download rather than after.
@@ -141,9 +141,9 @@ Commands can be executed using `.`, `!`, or `/` prefix, or bound directly to key
 | **Fraaagaaa** — [Strat Tester](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the teleport list, except Nuketown's three, which are the map's own player respawn points. |
 | **B2ORG** — [T6-B2OP-PATCH](https://github.com/B2ORG/T6-B2OP-PATCH)<br><sub>built with **Astrox** and **NoMoleMan**</sub> | The basis for most of the patches — rebuilt against the game's own scripts, not copied wholesale. |
 
-Built on [**Plutonium**](https://plutonium.pw), with **OpenAssetTools** and **xensik**'s **gsc-tool**. The optional ReShade install ships work by **crosire** ([ReShade](https://reshade.me)), **Barbatos Bachiko**, **Alex Tuduran**, **Marot Satil** and the **GShade** project, **Ioxa**, **Lord of Lunacy**, **prod80**, and **NVIDIA** — all shipped as released, and all credit for them is theirs.
+Built on [**Plutonium**](https://plutonium.pw), with **OpenAssetTools** and **xensik**'s **gsc-tool**. The optional ReShade install ships unmodified work by **crosire** ([ReShade](https://reshade.me)), **Barbatos Bachiko**, **Alex Tuduran**, **Marot Satil** and the **GShade** project, **Ioxa**, **Lord of Lunacy**, **prod80**, and **NVIDIA**.
 
-> **Did we miss you?** Then it was an oversight, not a decision. If any of this builds on your work and you are not credited — or credited under the wrong name — open an issue and it gets fixed. No proof needed and no argument required.
+> Missing or wrong credit? Open an issue and it will be fixed.
 
 <div align="center">
 <br>
