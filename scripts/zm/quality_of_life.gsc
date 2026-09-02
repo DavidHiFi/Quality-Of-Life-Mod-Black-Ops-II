@@ -1663,22 +1663,12 @@ get_pack_a_punch_weapon_options( weapon )
         //  for on 2026-08-28 ("origins should show its own blue camo"). Every
         //  camo asset mod.ff owns was audited 2026-08-30: slot 12 is live on all
         //  63, so no gun can come out blank.
-        //  🛑 v2.9.13 - THE BALLISTIC KNIFE IS THE ONE EXCEPTION TO 44 HERE.
-        //  Origins had no knife_ballistic asset at all until this version, so
-        //  its camo now comes from the copy mod.ff took from zm_buried - and
-        //  Buried's camo assets carry 12 slots, not the 13+ the rest of this
-        //  mod's do. Index 44 is slot 12, which therefore does NOT exist on
-        //  this one weapon, and asking for it renders no camo at all - exactly
-        //  the blank-gun failure that made stock's index 45 wrong here in
-        //  v2.9.8. Slot 8 (index 40) IS present and populated
-        //  (mc/mtl_weapon_camo_zmb_dlc2, verified in the rebuilt ff), so the
-        //  knife takes that whatever the animated-camo row says.
-        //  No other weapon is affected: every other camo mod.ff owns has 13-15
-        //  slots.
-        else if ( base == "knife_ballistic_zm" || base == "knife_ballistic_upgraded_zm" ||
-                  base == "knife_ballistic_bowie_zm" || base == "knife_ballistic_bowie_upgraded_zm" ||
-                  base == "knife_ballistic_no_melee_zm" || base == "knife_ballistic_no_melee_upgraded_zm" )
-            camo_index = 40;
+        //  v2.10.12 - the v2.9.13 ballistic-knife exception (pinned to 40 because
+        //  the 12-slot camo_ballistic_knife_80s copy mod.ff took from zm_buried
+        //  had no slot 12) is gone: mod.ff now ships zm_transit_patch's 13-slot
+        //  copy of that asset, whose slot 12 is mtl_weapon_camo_3layer on
+        //  mtl_ballistic_knife (zone_assets\camo\camo_ballistic_knife_80s.json),
+        //  so the knife takes 44 like every other gun.
         else
             camo_index = 44;
     }
