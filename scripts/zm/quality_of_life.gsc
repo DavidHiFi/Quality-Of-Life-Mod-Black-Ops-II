@@ -1544,7 +1544,43 @@ get_pack_a_punch_weapon_options( weapon )
 
     //  anim_pap_camo_buried / _mob / _origins, all defaulting to 1 so the
     //  behaviour is unchanged unless someone turns one off at the console.
-    //  Camo 40 is the animated one, 39 the static default.
+    //  Camo 44 is the animated one, 39 the static default.
+    //
+    //  🛑🛑 v2.10.15 - THE INDEX->SLOT MAPPING WAS OFF BY FOUR FOR MONTHS, and it
+    //  is why every "animated PaP camo is missing" report since v2.9.12 was real
+    //  (the Paralyzer 2026-09-02, the Ray Gun 2026-09-03). The rule, MEASURED
+    //  2026-09-03 from three retail zones, not inferred:
+    //
+    //      camoMaterials slot  =  camo_index - 36
+    //
+    //  The proof is that the old belief (slot = index - 32) is IMPOSSIBLE in two
+    //  of the three maps whose stock index we know:
+    //    - zm_transit.ff: all 37 camo assets have exactly FOUR slots (0-3), and
+    //      slot 3 is populated in 35 of them with mtl_weapon_camo_zombies - the
+    //      standard zombies PaP camo. Stock TranZit is index 39. 39-36=3 lands on
+    //      it; 39-32=7 is past the end of a 4-slot array, i.e. stock TranZit would
+    //      Pack-a-Punch with no camo at all, which it plainly does not.
+    //    - zm_tomb.ff: 13 slots (0-12). Stock Origins is index 45. 45-36=9 exists;
+    //      45-32=13 exists in exactly ONE of the 34 assets and is blank there.
+    //    - zm_prison.ff: 12 slots, stock index 40. 40-36=4 = mtl_weapon_camo_ghost,
+    //      populated in all 28 - the afterlife camo, which is Mob's own.
+    //
+    //  So the slot table (identified by camoMaterial name across all 34 zm_tomb
+    //  assets) is: 0 gold, 1 carbon_fiber, 2 diamond, 3 zombies, 4 ghost, 5 bacon,
+    //  6 armor, 7 muertos, 8 zmb_dlc2, 9 cybertron, 10 etching, 11 dragon,
+    //  12 3layer/zmb_dlc4_alt - i.e. indices 36..48.
+    //
+    //  🌟 THE ANIMATED CAMO IS mtl_weapon_camo_zmb_dlc2 = SLOT 8 = INDEX 44.
+    //  Index 40 was landing on slot 4, the STATIC ghost camo - a camo, so nothing
+    //  ever errored and it never looked blank enough to be obviously wrong.
+    //  Slot 8 is populated in all 75 camo assets mod.ff owns (re-audited
+    //  2026-09-03), so no gun can come out untextured at 44.
+    //
+    //  The Origins OFF path moved 44 -> 48 in the same pass: under the corrected
+    //  mapping 44 is the animated DLC2 camo, so "animated camo OFF" on Origins was
+    //  handing back the animated camo. 48 is slot 12 = 3layer/zmb_dlc4_alt, the
+    //  blue etched camo the v2.9.8 note was aiming at all along. Slot 12 is live in
+    //  74 of 75 - the one gap is camo_slowgun, and the Paralyzer is Buried-only.
     //
     //  v1.99.83, queue item 11 - ANIMATED CAMO PATCH on the GAME tab. The
     //  master dvar anim_pap_camo gates all three maps at once; the per-map
@@ -1588,19 +1624,22 @@ get_pack_a_punch_weapon_options( weapon )
     if ( level.script == "zm_buried" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_buried", 1 ) )
-            camo_index = 40;
+            camo_index = 44;
     }
     else if ( level.script == "zm_prison" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_mob", 1 ) )
-            camo_index = 40;
+            camo_index = 44;
     }
     //  v2.9.12, queue item 9 - GREEN RUN. User, 2026-08-31: they spectated a
     //  player on the "ezz" server running animated camos on Town survival, so
     //  it is demonstrably possible off the DLC maps. Measured here before
     //  shipping rather than inferred from that sighting:
     //
-    //    - camo index 40 is slot 8, and slot 8 is LIVE in all 64 camo assets
+    //    - (v2.10.15: this line said "camo index 40 is slot 8". The SLOT audit was
+    //      right and still holds - it is the INDEX that was wrong. Slot 8 is
+    //      reached by index 44, not 40. See the mapping proof at the top of this
+    //      function.) slot 8 is LIVE in all 64 camo assets
     //      mod.ff owns - zero blank, so no weapon can come out untextured
     //      (the failure mode that made index 45 wrong on Origins in v2.9.8).
     //    - slot 8 resolves to mc/mtl_weapon_camo_zmb_dlc2*, and mod.ff OWNS
@@ -1618,7 +1657,7 @@ get_pack_a_punch_weapon_options( weapon )
     else if ( level.script == "zm_transit" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_transit", 1 ) )
-            camo_index = 40;
+            camo_index = 44;
     }
     //  v2.9.16 - DIE RISE AND NUKETOWN JOIN, user request 2026-08-31 ("Enable
     //  working animated camos across ALL Zombies maps"). The evidence the
@@ -1632,17 +1671,17 @@ get_pack_a_punch_weapon_options( weapon )
     else if ( level.script == "zm_highrise" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_highrise", 1 ) )
-            camo_index = 40;
+            camo_index = 44;
     }
     else if ( level.script == "zm_nuked" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_nuked", 1 ) )
-            camo_index = 40;
+            camo_index = 44;
     }
     else if ( level.script == "zm_tomb" )
     {
         if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_origins", 1 ) )
-            camo_index = 40;
+            camo_index = 44;
         //  🛑 v2.7.2 - User, 2026-08-28: with the option OFF on Origins, the PaP
         //  camo was the green TranZit/Nuketown/Buried one, when Origins should
         //  show its own blue camo. VERIFIED against the real stock function
@@ -1655,6 +1694,8 @@ get_pack_a_punch_weapon_options( weapon )
         //  "Master OFF = camo 39 everywhere = exact stock" was itself wrong for
         //  this exact reason - fixed here, not just the behaviour.
         //
+        //  🛑 v2.10.15 - this whole note is kept for its intent but its arithmetic
+        //  was off by four; the branch now reads 48. Original text follows.
         //  v2.9.8 - 44, not stock's 45. Measured 2026-08-30: index 45 is slot 13,
         //  which is EMPTY in every Origins camo asset (only camo_stg44 even has a
         //  13th entry, and it is blank) - so "exactly stock" renders NO camo at
@@ -1670,7 +1711,7 @@ get_pack_a_punch_weapon_options( weapon )
         //  mtl_ballistic_knife (zone_assets\camo\camo_ballistic_knife_80s.json),
         //  so the knife takes 44 like every other gun.
         else
-            camo_index = 44;
+            camo_index = 48;
     }
     lens_index = randomintrange( 0, 6 );
     reticle_index = randomintrange( 0, 16 );
