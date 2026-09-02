@@ -622,7 +622,13 @@ zmqol_enable_wallbuys()
 	a_targetnames[a_targetnames.size] = "sickle_upgrade";
 	a_targetnames[a_targetnames.size] = "tazer_upgrade";
 	a_targetnames[a_targetnames.size] = "claymore_purchase";
-	a_targetnames[a_targetnames.size] = "buildable_wallbuy";
+
+	//  🛑 v2.10.10 - "buildable_wallbuy" is omitted here for exactly the
+	//  reason spelled out in loc_common::enable_wallbuys: one of Buried's chalk
+	//  spots is 8.1 units from Borough's Olympia and was being tagged as a
+	//  fourth match, which made this client draw the "?" wallbuy FX on top of
+	//  the Olympia. THE TWO LISTS MUST STAY IDENTICAL - the counts they print
+	//  have to match or the map drops the connection.
 
 	n_tagged = 0;
 

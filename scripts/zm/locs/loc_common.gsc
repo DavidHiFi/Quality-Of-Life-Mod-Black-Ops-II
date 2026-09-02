@@ -108,7 +108,25 @@ enable_wallbuys( a_origins )
 	a_targetnames[a_targetnames.size] = "sickle_upgrade";
 	a_targetnames[a_targetnames.size] = "tazer_upgrade";
 	a_targetnames[a_targetnames.size] = "claymore_purchase";
-	a_targetnames[a_targetnames.size] = "buildable_wallbuy";
+
+	//  🛑 v2.10.10 - "buildable_wallbuy" IS DELIBERATELY NOT IN THIS LIST,
+	//  even though init_spawnable_weapon_upgrade() gathers it. Those six structs
+	//  are Buried's chalk-draw spots, and the prison one sits 8.1 units from
+	//  Borough's Olympia (measured in the zm_buried mapents dump) - inside the
+	//  16-unit radius below, so it was matched as a FOURTH struct for three
+	//  requested origins. That is the "tagged 4 of 3 requested" line the
+	//  2026-09-02 Borough boot log printed on both the server and the client.
+	//
+	//  What the stray tag did: stock's own spawn list then contained it, and
+	//  clientscripts\mp\zombies\_zm_weapons.csc::wallbuy_player_connect plays
+	//  level._effect["dynamic_wallbuy_fx"] (maps/zombie/fx_zmb_wall_buy_question)
+	//  for any buildable_wallbuy in that list - the glowing "?" the user
+	//  photographed sitting on top of the Olympia chalk drawing.
+	//
+	//  Tagging one could never HELP, either: the weapon is only ever drawn by
+	//  builddynamicwallbuy(), which tests the TARGET struct's script_noteworthy
+	//  ("zclassic_processing" on all six chalk spots, verified in the dump), not
+	//  this struct's. So the tag bought a stray FX and two stray clientfields.
 
 	n_tagged = 0;
 
