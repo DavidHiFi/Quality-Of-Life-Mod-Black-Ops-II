@@ -69,7 +69,7 @@ Neither needs the mod installed:
 
 | Download | Size | What it is |
 |---|---|---|
-| [**HD Texture Pack**](https://github.com/DavidHiFi/T6-QoL/releases/latest/download/HD.Texture.Pack.zip) | 525 MB | 1,020 upscaled textures. Unzip and drop the `images` folder into `%LOCALAPPDATA%\Plutonium\storage\t6\`. |
+| [**HD Texture Pack**](https://github.com/DavidHiFi/T6-QoL/releases/latest/download/HD.Texture.Pack.zip) | 513 MB | 1,021 upscaled textures. Unzip and drop the `images` folder into `%LOCALAPPDATA%\Plutonium\storage\t6\`. |
 | [**Controller Icons**](https://github.com/DavidHiFi/T6-QoL/releases/latest/download/Controller.Icons.Pack.zip) | 184 KB | PlayStation 5, Nintendo Switch and Xbox One button prompts. Pick one of the three folders inside and copy its contents into `%LOCALAPPDATA%\Plutonium\storage\t6\images\`. |
 
 <details>
@@ -97,7 +97,7 @@ On **Linux** (Wine, Proton, Lutris, Bottles) there is no automated installer —
 > **Cloning this repo does not give you a playable mod** — `mod.iwd` is a build output and is not tracked in git. Use the release.
 
 > [!NOTE]
-> **The newest changes are still awaiting a fresh play-through:** the Paralyzer's animated camo and the wider camo coverage (XM8, M27, MSMC, EOTech sight, MG08, C96, Blundergat), the Bouncing Betty's real deploy and trigger sounds and its detonation fix, the Ray Gun hand tunable, the Ray Gun's new glow-strip texture (the mod's half of the Cold War Ray Gun skin; the rest ships in the next HD Texture Pack), and Nuketown's teleport destinations are all in the current build but have not been verified in game since landing. Anything that fails will be fixed or pulled, not left broken.
+> **The newest changes are still awaiting a fresh play-through:** the complete Wave Gun (the Zap Gun pair, its alt-fire combine and split, the pop, the camo and the Moon sounds), the Paralyzer's animated camo and the wider camo coverage (XM8, M27, MSMC, EOTech sight, MG08, C96, Blundergat), the Bouncing Betty's real deploy and trigger sounds and its detonation fix, the Ray Gun hand tunable, the Cold War Ray Gun skin and the Ray Gun Mark II rework in the HD Texture Pack, and Nuketown's teleport destinations are all in the current build but have not been verified in game since landing. Anything that fails will be fixed or pulled, not left broken.
 
 > [!NOTE]
 > **Most of this mod was written by [Claude Code](https://claude.com/claude-code)**, Anthropic's AI coding agent, directed and tested in game by me across a long run of sessions. Plenty of people want nothing to do with AI-written code, which is fair — so you should know before you download rather than after.
