@@ -33,6 +33,35 @@
 //      gun. main() now replaces is_offhand_weapon so it answers truthfully for
 //      this weapon, which is what the safety argument assumed all along.
 //
+//  🛑 v2.10.11 - v2.9.32's PREMISE WAS WRONG, AND IS REVERTED. The block below
+//  changed the def to `plantable 1` on the stated grounds that MP's
+//  bouncingbetty_mp is 1. It is NOT. Measured 2026-09-02 by dumping the real
+//  asset out of retail common_mp.ff (Unlinker --include-assets weapon) and
+//  diffing all 1,027 fields against this mod's def: the ONLY behavioural
+//  differences were `plantable` (MP 0, this mod 1) and `startAmmo` (1 vs 2,
+//  deliberate). So v2.9.32 moved the def AWAY from the one working betty in
+//  the game rather than towards it.
+//
+//  The theory it was built on is disproved by the same donor: MP's own
+//  spawnminemover() calls waittillnotmoving() on that plantable-0 grenade, and
+//  maps\mp\_utility::waittillnotmoving is byte-for-byte the same logic as
+//  zombies' waittill_not_moving ("stationary" for classname grenade). A
+//  non-plantable sticky grenade therefore DOES emit "stationary" - retail MP
+//  depends on it.
+//
+//  What the 2026-09-02 Borough log actually shows: the user gave themselves
+//  Betties (.give betty, line 4892) and planted two, and NOT ONE of the four
+//  probe lines below printed - not even "plant caught", which is the first
+//  statement after the grenade_fire filter. So the failure is upstream of
+//  every watcher: the plant is never caught at all, which is also why shooting
+//  them did nothing (the shot watcher is threaded in that same loop). One
+//  cause, both reported symptoms.
+//
+//  Fix: `plantable 0`, byte-parity with the MP donor on every behavioural
+//  field, plus a probe that names every grenade_fire the engine reports, so if
+//  it still fails the next log says whether the notify never fires or fires
+//  under another name. 🛑 Still unverified in game.
+//
 //  🛑 v2.9.32 - WHY NO BETTY EVER DETONATED BEFORE THIS VERSION: the def
 //  shipped `plantable 0` from day one, deviating from BOTH working precedents
 //  on exactly that flag (MP's bouncingbetty_mp = 1, stock claymore_zm = 1;
@@ -286,6 +315,12 @@ zmqol_betty_watch()
     for (;;)
     {
         self waittill( "grenade_fire", betty, weapname );
+
+        //  v2.10.11 probe - names EVERY offhand the engine reports here, so a
+        //  boot where no Betty is caught says whether the notify never fired
+        //  at all or fired under a name this filter rejects. Remove once a
+        //  detonation is confirmed in game.
+        println( "[zm_qol] betty probe: grenade_fire weapname=" + weapname );
 
         if ( weapname != "bouncingbetty_zm" )
             continue;
