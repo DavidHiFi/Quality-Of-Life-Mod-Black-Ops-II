@@ -75,7 +75,7 @@
 	},
 	"textures": [
 		{
-			"image": "menu_zm_highrise_zsurvival_rooftop",
+			"image": "menu_zm_highrise_zclassic_rooftop",
 			"isMatureContent": false,
 			"name": "colorMap",
 			"samplerState": {

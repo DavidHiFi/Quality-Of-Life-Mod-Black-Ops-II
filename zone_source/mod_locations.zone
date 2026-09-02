@@ -44,6 +44,15 @@ material,loadscreen_zm_prison_zclassic_prison
 // ============================================================================
 xmodel,p6_zm_buildable_bench_tarp
 xmodel,zm_collision_transit_diner_survival
+// ----------------------------------------------------------------------------
+//  v2.10.8 - BOROUGH SURVIVAL. Stock zm_buried_grief_street::main (which
+//  Borough runs) precaches and spawns these two, and the all-fastfile xmodel
+//  sweep (2026-09-02, 191 lists) finds them ONLY in so_zencounter_zm_buried.ff,
+//  which a zstandard run never loads. build_ff.bat --loads that file, so the
+//  Linker copies them from it.
+// ----------------------------------------------------------------------------
+xmodel,zm_collision_buried_street_grief
+xmodel,p6_zm_bu_buildable_bench_tarp
 
 // ============================================================================
 //  WUNDERFIZZ  -  the real Origins machine, on every map

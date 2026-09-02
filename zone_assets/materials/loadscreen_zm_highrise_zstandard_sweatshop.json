@@ -75,7 +75,7 @@
 	},
 	"textures": [
 		{
-			"image": "loadscreen_dierise_zstandard",
+			"image": "loadscreen_dierise",
 			"isMatureContent": false,
 			"name": "colorMap",
 			"samplerState": {

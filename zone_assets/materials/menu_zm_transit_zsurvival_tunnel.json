@@ -75,7 +75,7 @@
 	},
 	"textures": [
 		{
-			"image": "menu_zm_transit_zsurvival_transit",
+			"image": "menu_zm_transit_zclassic_transit",
 			"isMatureContent": false,
 			"name": "colorMap",
 			"samplerState": {
