@@ -1,0 +1,143 @@
+// ============================================================================
+//  mod_wavegun.zone  -  the BO1 Wave Gun / Zap Guns, complete   (v2.10.14)
+// ----------------------------------------------------------------------------
+//  Replaces mod_zapgun.zone (v2.9.18-v2.10.13). The user's directive of
+//  2026-09-03 delivered the missing half: Zombies Declassified BETA 1 (the
+//  PC port of the cancelled BO2 DLC5) ships Moon as a native T6 zone, and that
+//  zone carries the ENTIRE Wave Gun package in T6 form - the combined gun
+//  included. Nothing here is a lookalike any more: models, animations,
+//  effects, materials and sounds are Treyarch's own BO1 assets as converted for
+//  DLC5.
+//
+//  THE DONOR is zone_source\wavegun_donor\mod.ff - 191 assets copied out of the
+//  DLC5 zm_moon.ff with the patched OAT in H:\Claude\oat-dlc5 (the stock
+//  Linker cannot read that dev zone; recipe beside the donor). It is --load'ed
+//  LAST in build_ff.bat, so first-load-wins means it can only supply names no
+//  zombies fastfile above offers; the one shared name it carries,
+//  mc/mtl_zombie_teleporter_glow (the gun's glowing parts), therefore resolves
+//  from its existing owner. A/B the asset list if the load order ever moves.
+//
+//  WHAT IS DECLARED HERE:
+//    - the 6 xmodels (combined / front / rear x view / world) and the two gun
+//      materials; their images and the two DLC5 techsets follow as
+//      dependencies.
+//    - hud_icon_colt: BO1's OWN Zap Gun HUD icon (measured from BO1's
+//      zombie_moon.ff defs, 2026-09-03: dw/lh = hud_icon_colt, combined =
+//      hud_thundergun, which this mod already owns via ww_donor).
+//    - the 49 viewmodel xanims the six defs reference (the 50th,
+//      viewmodel_base_viewhands, is stock).
+//    - all 28 weapon/microwavegun + fx_microwavegun_* effects. FX are copied
+//      between fastfiles by the Linker - only RAW fx are impossible.
+//    - camo,camo_microwavegun: OUR raw zone_assets\camo\camo_microwavegun.json
+//      (the DLC5 zone's camo of that name is a hacked camo_sa58 with one slot),
+//      built in the shape of camo_zapgun.json with the two raygun_moon
+//      materials, so every Pack-a-Punch camo slot works like every other gun.
+//      Raw beats every --load for camo (CLAUDE.md precedence table).
+//
+//  WHAT IS DELIBERATELY NOT HERE:
+//    - weapon defs: raw runtime files in weapons\zm\ (the six DLC5 defs, trimmed
+//      under the 20,480 B loader ceiling, hideTags cleared to BO1's own empty
+//      value - DLC5's "polysurface73" is a shared-pointer artefact of its
+//      writer). Never Linker-copy a DLC5 def: 59 of its 141 weapons share one
+//      hideTags array by an absolute pointer the stock loader misresolves.
+//    - sounds: 71 rows / 48 aliases in soundbank\mod.all.aliases.additions.csv,
+//      payloads under sound\wpn\wavegun\, all dumped from the DLC5 Moon bank
+//      (hash-only alias names recovered with OAT's SND_HashName).
+//    - the zombie sizzle / zap death anims: present in the DLC5 zone but bound
+//      to Moon's aitypes; a stock aitype's compiled anim list cannot take them
+//      (ERROR_CATALOGUE §45), so the script's own fallbacks run.
+// ============================================================================
+xmodel,t5_weapn_raygun_moon_combined_vm
+xmodel,t5_weapn_raygun_moon_combined_world
+xmodel,t5_weapn_raygun_moon_front_vm
+xmodel,t5_weapn_raygun_moon_front_world
+xmodel,t5_weapn_raygun_moon_rear_vm
+xmodel,t5_weapn_raygun_moon_rear_world
+material,mc/mtl_raygun_moon_front
+material,mc/mtl_raygun_moon_rear
+material,hud_icon_colt
+camo,camo_microwavegun
+
+xanim,viewmodel_microwave_combined_t6_crawl_back
+xanim,viewmodel_microwave_combined_t6_crawl_forward
+xanim,viewmodel_microwave_combined_t6_crawl_in
+xanim,viewmodel_microwave_combined_t6_crawl_left
+xanim,viewmodel_microwave_combined_t6_crawl_out
+xanim,viewmodel_microwave_combined_t6_crawl_right
+xanim,viewmodel_microwave_dw_t6_crawl_back
+xanim,viewmodel_microwave_dw_t6_crawl_forward
+xanim,viewmodel_microwave_dw_t6_crawl_in
+xanim,viewmodel_microwave_dw_t6_crawl_left
+xanim,viewmodel_microwave_dw_t6_crawl_out
+xanim,viewmodel_microwave_dw_t6_crawl_right
+xanim,viewmodel_zom_mg_combo_2_dw
+xanim,viewmodel_zom_mg_combo_d2p_in
+xanim,viewmodel_zom_mg_combo_d2p_loop
+xanim,viewmodel_zom_mg_combo_d2p_out
+xanim,viewmodel_zom_mg_combo_pullout
+xanim,viewmodel_zom_mg_combo_pullout_quick
+xanim,viewmodel_zom_mg_combo_putaway
+xanim,viewmodel_zom_mg_combo_putaway_quick
+xanim,viewmodel_zom_mg_combo_reload_empty
+xanim,viewmodel_zom_mg_combo_sprint_in
+xanim,viewmodel_zom_mg_combo_sprint_loop
+xanim,viewmodel_zom_mg_combo_sprint_out
+xanim,viewmodel_zom_mg_dw_2_combo
+xanim,viewmodel_zom_mg_dw_d2p_in
+xanim,viewmodel_zom_mg_dw_d2p_loop
+xanim,viewmodel_zom_mg_dw_d2p_out
+xanim,viewmodel_zom_mg_dw_first_raise
+xanim,viewmodel_zom_mg_dw_lh_reload
+xanim,viewmodel_zom_mg_dw_pullout
+xanim,viewmodel_zom_mg_dw_pullout_quick
+xanim,viewmodel_zom_mg_dw_putaway
+xanim,viewmodel_zom_mg_dw_putaway_quick
+xanim,viewmodel_zom_mg_dw_rh_reload
+xanim,viewmodel_zom_mg_dw_sprint_in
+xanim,viewmodel_zom_mg_dw_sprint_loop
+xanim,viewmodel_zom_mg_dw_sprint_out
+xanim,viewmodel_zombie_microwavegun_combined_ads_down
+xanim,viewmodel_zombie_microwavegun_combined_ads_fire
+xanim,viewmodel_zombie_microwavegun_combined_ads_up
+xanim,viewmodel_zombie_microwavegun_combined_fire
+xanim,viewmodel_zombie_microwavegun_combined_idle
+xanim,viewmodel_zombie_microwavegun_dw_full_ads_down
+xanim,viewmodel_zombie_microwavegun_dw_full_ads_up
+xanim,viewmodel_zombie_microwavegun_dw_left_fire
+xanim,viewmodel_zombie_microwavegun_dw_left_idle
+xanim,viewmodel_zombie_microwavegun_dw_right_fire
+xanim,viewmodel_zombie_microwavegun_dw_right_idle
+
+fx,weapon/microwavegun/fx_microwavegun_dw_impact
+fx,weapon/microwavegun/fx_microwavegun_dw_ring_emit
+fx,weapon/microwavegun/fx_microwavegun_dw_trail
+fx,weapon/microwavegun/fx_microwavegun_impact
+fx,weapon/microwavegun/fx_microwavegun_impact_ug
+fx,weapon/microwavegun/fx_microwavegun_lh_impact
+fx,weapon/microwavegun/fx_microwavegun_lh_ring_emit
+fx,weapon/microwavegun/fx_microwavegun_lh_trail
+fx,weapon/microwavegun/fx_microwavegun_muzzle_emit
+fx,weapon/microwavegun/fx_microwavegun_muzzle_emit_ug
+fx,weapon/microwavegun/fx_microwavegun_trail
+fx,weapon/microwavegun/fx_microwavegun_trail_ug
+fx,weapon/microwavegun/fx_sizzle_blood_eyes
+fx,weapon/microwavegun/fx_sizzle_blood_eyes_os
+fx,weapon/microwavegun/fx_sizzle_mist
+fx,weapon/microwavegun/fx_sizzle_mist_low_g
+fx,weapon/microwavegun/fx_zap_shock_dw
+fx,weapon/microwavegun/fx_zap_shock_eyes_dw
+fx,weapon/microwavegun/fx_zap_shock_eyes_lh
+fx,weapon/microwavegun/fx_zap_shock_eyes_ug
+fx,weapon/microwavegun/fx_zap_shock_lh
+fx,weapon/microwavegun/fx_zap_shock_ug
+fx,weapon/muzzleflashes/fx_microwavegun_dw
+fx,weapon/muzzleflashes/fx_microwavegun_lh
+fx,weapon/muzzleflashes/fx_microwavegun_view
+fx,weapon/muzzleflashes/fx_microwavegun_view_ug
+fx,weapon/muzzleflashes/fx_microwavegun_world
+fx,weapon/muzzleflashes/fx_microwavegun_world_ug
+
+//  The client half ships as a fastfile script asset like its three siblings
+//  (teslagun.csc etc. in mod_wonderweapons.zone); the .gsc needs no line here
+//  - Plutonium runs raw scripts/zm/*.gsc straight out of mod.iwd.
+script,scripts/zm/zapgun.csc

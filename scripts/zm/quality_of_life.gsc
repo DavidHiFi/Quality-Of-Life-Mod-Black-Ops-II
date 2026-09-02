@@ -5042,6 +5042,10 @@ zmqol_console_command_names()
     a[a.size] = "tesla";        a[a.size] = "thundergun";   a[a.size] = "zeus";
     a[a.size] = "freezegun";    a[a.size] = "winters";      a[a.size] = "wintershowl";
     a[a.size] = "wunderwaffe";  a[a.size] = "dg2";
+    //  v2.10.14 - the Wave Gun (the box hands out the Zap Gun pair; the combined
+    //  gun is its alt fire), gated on zmqol_ww "5" like zapgun.gsc.
+    a[a.size] = "wavegun";      a[a.size] = "zapgun";       a[a.size] = "zapguns";
+    a[a.size] = "microwave";    a[a.size] = "mgun";
     a[a.size] = "testsound";
     //  v1.99.15 - .wwfx toggles the Who's Who downed-state overlay on demand, so
     //  it can be checked in two seconds instead of by dying for it.
@@ -5654,6 +5658,13 @@ zmqol_dev_command_listener()
         else if ( cmd == "wintershowl" || cmd == "winters" || cmd == "freezegun" )
         {
             player zmqol_give_wonder_weapon( "freezegun_zm", "4", "Winter's Howl" );
+        }
+        else if ( cmd == "wavegun" || cmd == "zapgun" || cmd == "zapguns" || cmd == "microwave" || cmd == "mgun" )
+        {
+            //  v2.10.14 - the box weapon is the dual pair; the engine brings the
+            //  left-hand half and the combined Wave Gun with it off the def's
+            //  DualWieldWeapon / altWeapon fields (zapgun.gsc banner).
+            player zmqol_give_wonder_weapon( "microwavegundw_zm", "5", "Wave Gun" );
         }
         else if ( cmd == "testsound" )
         {
@@ -7939,7 +7950,8 @@ zmqol_velocity_dvar_watch()
 //
 //      chat        .thundergun          .wunderwaffe  (.dg2, .tesla)
 //                  .wintershowl         (.winters, .freezegun)
-//      console     give_thundergun 1    give_wunderwaffe 1    give_wintershowl 1
+//                  .wavegun             (.zapgun, .zapguns, .microwave, .mgun)   v2.10.14
+//      console     give_thundergun 1    give_wunderwaffe 1    give_wintershowl 1    give_wavegun 1
 //
 //  Per the standing rule that every chat command must ALSO be a bindable console
 //  command, each has a dvar front-end polled by zmqol_ww_give_dvar_watch(). The
@@ -8702,6 +8714,9 @@ zmqol_give_names_table()
     a[a.size] = zmqol_give_name_row( "fnp45_zm",         "tac45",       "tac fnp45 fnp" );
     a[a.size] = zmqol_give_name_row( "frag_grenade_zm",  "frag",        "frags grenade grenades" );
     a[a.size] = zmqol_give_name_row( "freezegun_zm",     "wintershowl", "winters howl freezegun wintersfury" );
+    //  v2.10.14 - `.give wavegun pap` derives microwavegundw_upgraded_zm by the
+    //  usual _zm swap; the combined gun rides along as the alt fire.
+    a[a.size] = zmqol_give_name_row( "microwavegundw_zm", "wavegun",    "zapgun zapguns microwave mgun microwavegun" );
     a[a.size] = zmqol_give_name_row( "galil_zm",         "galil",       "" );
     a[a.size] = zmqol_give_name_row( "hamr_zm",          "hamr",        "" );
     a[a.size] = zmqol_give_name_row( "hk416_zm",         "m27",         "hk416" );
@@ -8984,6 +8999,12 @@ zmqol_give_named_weapon( str_arg, b_pap )
         return;
     }
 
+    if ( str_arg == "wavegun" || str_arg == "zapgun" || str_arg == "zapguns" || str_arg == "microwave" || str_arg == "mgun" )
+    {
+        self zmqol_give_wonder_weapon( "microwavegundw_zm", "5", "Wave Gun" );
+        return;
+    }
+
     //  v2.8.6 - THE DEATH MACHINE. User report 2026-08-30: ".give deathmachine
     //  didn't give me the deathmachine minigun". It never could: zmqol_give_resolve()
     //  only looks in level.zombie_weapons, and deathmachine_zm is a POWER-UP weapon -
@@ -9253,6 +9274,9 @@ zmqol_ww_give_dvar_watch()
     if ( getdvar( "give_wintershowl" ) == "" )
         setdvar( "give_wintershowl", "0" );
 
+    if ( getdvar( "give_wavegun" ) == "" )
+        setdvar( "give_wavegun", "0" );
+
     for ( ;; )
     {
         wait 0.25;
@@ -9273,6 +9297,12 @@ zmqol_ww_give_dvar_watch()
         {
             setdvar( "give_wintershowl", "0" );
             self zmqol_give_wonder_weapon( "freezegun_zm", "4", "Winter's Howl" );
+        }
+
+        if ( getdvarintdefault( "give_wavegun", 0 ) )
+        {
+            setdvar( "give_wavegun", "0" );
+            self zmqol_give_wonder_weapon( "microwavegundw_zm", "5", "Wave Gun" );
         }
     }
 }
@@ -9976,6 +10006,7 @@ zmqol_box_wonder_weapon_weights( keys )
     guns[ guns.size ] = "tesla_gun_zm";
     guns[ guns.size ] = "thundergun_zm";
     guns[ guns.size ] = "freezegun_zm";
+    guns[ guns.size ] = "microwavegundw_zm";   // v2.10.14 - the Wave Gun's box entry
 
     a_out = [];
 
@@ -15177,7 +15208,10 @@ zmqol_ww_marker_probe( str_path )
 
     if ( str_w != "thundergun_zm" && str_w != "thundergun_upgraded_zm" &&
          str_w != "tesla_gun_zm" && str_w != "tesla_gun_upgraded_zm" &&
-         str_w != "freezegun_zm" && str_w != "freezegun_upgraded_zm" )
+         str_w != "freezegun_zm" && str_w != "freezegun_upgraded_zm" &&
+         str_w != "microwavegun_zm" && str_w != "microwavegun_upgraded_zm" &&
+         str_w != "microwavegundw_zm" && str_w != "microwavegundw_upgraded_zm" &&
+         str_w != "microwavegunlh_zm" && str_w != "microwavegunlh_upgraded_zm" )
         return;
 
     if ( !isdefined( level.zmqol_ww_probe ) )

@@ -36,7 +36,7 @@ Expanded weapon pools, legacy wonder weapons, restored survival map variants, pe
 ## Expanded Arsenal & Equipment
 
 ### Ported Weapons & Wonder Weapons
-* **BO1 Wonder Weapons:** Zap Guns (Moon's dual-wield pair), Thundergun, Wunderwaffe DG-2, and Winter's Howl ported with Pack-a-Punch support and proper hit logic against Brutus on Mob of the Dead — the first hit takes his helmet, the second kills.
+* **BO1 Wonder Weapons:** the Wave Gun (Moon's Zap Gun pair, and its alt fire combines them into the Wave Gun — Treyarch's own models, animations, effects and sounds as converted for the cancelled DLC5), Thundergun, Wunderwaffe DG-2, and Winter's Howl ported with Pack-a-Punch support and proper hit logic against Brutus on Mob of the Dead — the first hit takes his helmet, the second kills. On these maps the Wave Gun pops zombies on the spot; Moon's swelling death animation needs Moon's own zombie rigs.
 * **Campaign & Multiplayer Weapons:** Includes the Campaign SPAS-12 (Packs into the *SPAZ-24* with BO1 ammo balancing), Dragunov (Packs into the *D115 Disassembler*), SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6, and Tac-45.
 * **Equipment Overhaul:** Bouncing Betties are added to the Mystery Box with corrected viewmodels and deploy animations. Both Betties and Claymores feature proximity detonation and shootable trigger logic.
 * **Jet Gun Clean-Up:** Operates strictly as a primary inventory weapon with non-overheating durability mechanics and clean HUD integration.
@@ -135,7 +135,8 @@ Commands can be executed using `.`, `!`, or `/` prefix, or bound directly to key
 |---|---|
 | **sehteria** — *T6-ZM-Expanded* | The mod this one grew out of — BO4 Max Ammo, instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers, the area notifier, the Cold War round HUD and secret song survival. |
 | **SadSlothXL** | The Death Machine power-up — the drop, the weapon swap and its sounds. |
-| **Aranella, Frozedy & Skwll** — *Ezz Primary Mod* | The converted Zap Gun models, animations, effects and sounds, and the animated Pack-a-Punch camo's textures. |
+| **Logo2K** — [Zombies Declassified](https://github.com/Logo-2K/zombies-declassified) | The native T6 Wave Gun package — Treyarch's DLC5 models, animations, effects, weapon defs, sounds and script — read out of its Moon zone. |
+| **Aranella, Frozedy & Skwll** — *Ezz Primary Mod* | The animated Pack-a-Punch camo's textures. |
 | **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | The extra Survival locations, and the Bouncing Betty's carry animations. |
 | **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The Die Rise weapon changes — the Sliquifier's pre-nerf behaviour and the Semtex wall buy. |
 | **Fraaagaaa** — [Strat Tester](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the teleport list, except Nuketown's three, which are the map's own player respawn points. |

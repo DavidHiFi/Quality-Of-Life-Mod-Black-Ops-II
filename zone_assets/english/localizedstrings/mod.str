@@ -170,21 +170,23 @@ LANG_ENGLISH        "EMP Grenade"
 
 
 // ============================================================================
-//  v2.9.18 - THE ZAP GUNS (dual-wield), queue item 35.
-//  The keys are BO1's own, read out of zombie_moon.ff's microwavegundw defs -
-//  displayName\ZOMBIE_WEAPON_MICROWAVEGUNDW(_UPGRADED) - so the defs carry
-//  Treyarch's key and only the string is supplied. The base text matches the
-//  donor def's raw text ("ZAP GUN DUAL WIELD", recased); the Pack-a-Punch name
-//  is the community-documented BO1 one - BO1's own string lives in a language
-//  fastfile this machine's copies do not carry (en_zombie_moon.ff holds only
-//  the four excavator lines - measured), so it could not be file-verified.
-// ============================================================================
+//  v2.10.14 - THE WAVE GUN, complete (was: v2.9.18 the Zap Guns alone).
+//  The keys are Treyarch's own, read out of the six microwavegun* defs
+//  (displayName\ZOMBIE_WEAPON_MICROWAVEGUN[DW][_UPGRADED]); the texts are the
+//  ones Zombies Declassified's mod_load.ff localizes them to - i.e. Treyarch's
+//  DLC5 strings, measured 2026-09-03 with Unlinker --include-assets localize.
 
 REFERENCE           ZOMBIE_WEAPON_MICROWAVEGUNDW
 LANG_ENGLISH        "Zap Gun Dual Wield"
 
 REFERENCE           ZOMBIE_WEAPON_MICROWAVEGUNDW_UPGRADED
-LANG_ENGLISH        "Porter's X2 Zap Gun"
+LANG_ENGLISH        "Porter's X2 Zap Gun Dual Wield"
+
+REFERENCE           ZOMBIE_WEAPON_MICROWAVEGUN
+LANG_ENGLISH        "Wave Gun"
+
+REFERENCE           ZOMBIE_WEAPON_MICROWAVEGUN_UPGRADED
+LANG_ENGLISH        "Max Wave Gun"
 
 
 // ============================================================================

@@ -400,11 +400,15 @@ REM  🛑 A/B the full asset list after any change here - a campaign ff is exact
 REM  the shape of thing that shadows a shared name, and zero-removed is the
 REM  property that proves it did not.
 REM
-REM  🌟 zone_source\zapgun_donor\mod.ff (v2.9.18) sits right after it, under
-REM  the same safety argument: it is a 19-asset minimal donor (4 xmodels,
-REM  4 materials and their images/techsets, rebuilt from the zm_ezz3.0
-REM  package - recipe beside it), so loaded at the tail it can only supply
-REM  names no zombies fastfile above offers. A/B the asset list if it moves.
+REM  🌟 zone_source\wavegun_donor\mod.ff (v2.10.14) sits right after it, under
+REM  the same safety argument: it is a 191-asset donor (the 6 Wave Gun xmodels,
+REM  their 2 materials + images + 2 DLC5 techsets, hud_icon_colt, 49 viewmodel
+REM  xanims, 28 fx and the fx materials) copied out of Zombies Declassified's
+REM  zm_moon.ff with the patched OAT in H:\Claude\oat-dlc5 (recipe beside it), so
+REM  loaded at the tail it can only supply names no zombies fastfile above offers.
+REM  Its one shared name, mc/mtl_zombie_teleporter_glow, resolves from the existing
+REM  owner for that reason. A/B the asset list if it moves. (Replaced the v2.9.18
+REM  zapgun_donor - the ezz package's 4 converted models - which is retired.)
 REM  🌟 zone_source\fx_donor\mod.ff is LAST, and that placement is the whole
 REM  safety argument for it. It is the fastfile of the "T5 Winter's Howl Port"
 REM  module, added so mod_freezefx.zone can reach the 19 fx MATERIALS the ported
@@ -444,7 +448,7 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\monsoon.ff" ^
   --load "%BO2_DIR%\zone\all\code_post_gfx.ff" ^
   --load "%PROJ%\zone_source\fx_donor\mod.ff" ^
-  --load "%PROJ%\zone_source\zapgun_donor\mod.ff" ^
+  --load "%PROJ%\zone_source\wavegun_donor\mod.ff" ^
   --load "%BO2_DIR%\zone\all\nicaragua.ff" ^
   --load "%BO2_DIR%\zone\all\so_cmp_afghanistan.ff" ^
   --load "%BO2_DIR%\zone\all\patch_ui_zm.ff" ^

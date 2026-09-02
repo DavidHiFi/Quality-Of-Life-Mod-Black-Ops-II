@@ -1,0 +1,20 @@
+wavegun_donor\mod.ff - HOW IT WAS BUILT (2026-09-03, v2.10.14)
+
+Source:   Zombies Declassified BETA 1 (Logo2K's PC port of the cancelled BO2 DLC5), file storage\t6\zone\zm_moon.ff.
+          It is a Treyarch-linked DEV zone (TAffu100, 405 MB decompressed, 6,105 assets) that the stock OAT cannot
+          read: it stores data-less DELAY / STREAMER_RESERVE blocks and reports 0 sizes for blocks it uses.
+Tool:     H:\Claude\oat-dlc5\Linker.exe - OpenAssetTools main@7d027e8 (v0.33) built from source with the block-type and
+          allocation patches described in H:\Claude\oat-dlc5\README.txt. Retail zones load unchanged with it.
+Command (Git Bash, from anywhere):
+          export MSYS2_ARG_CONV_EXCL='*' OAT_MIN_BLOCK_MB=384
+          /h/Claude/oat-dlc5/Linker.exe \
+            --load "H:/Claude/Copy of ZombiesDeclassified_BETA1 (1)-002/ZombiesDeclassified_BETA1/storage/t6/zone/zm_moon.ff" \
+            --base-folder "<this folder>" --add-source-search-path "<this folder>" --output-folder "<this folder>/out" mod
+          then move out\mod.ff here. mod.zone beside this file is the exact declaration list (6 xmodels, 2 gun materials,
+          hud_icon_colt, 49 viewmodel xanims, all 28 weapon/microwavegun + fx_microwavegun_* effects).
+Result:   191 assets (mod.ff.list.txt): the dependencies the Linker pulled are the two DLC5 "pimp" techsets the gun
+          materials use, the 7 gun images, mc/mtl_zombie_teleporter_glow (the glowing parts; loaded AFTER every zombies
+          fastfile in build_ff.bat so the existing owner wins), and the fx materials/images. 4 warnings: the fx reference
+          impacts/fx_flesh_hit_splat, a stock effect every zombies map carries (left as a reference).
+Why a donor and not --load of zm_moon.ff in build_ff.bat: the stock Linker cannot read the DLC5 zone, and a full load
+          of a 405 MB map zone into every mod build would shadow shared names. The donor is small and loaded LAST.

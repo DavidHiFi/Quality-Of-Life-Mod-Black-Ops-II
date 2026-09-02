@@ -67,11 +67,12 @@ try {
     # them effect_* / distortion_*, the shaders particles draw with. See
     # zone_source\mod_wonderweapons.zone.
     $folders  = @('attachmentunique','character','fx','images','maps','scripts','ui','ui_mp','weapons','xanim')
-    # 'xanim' (v2.9.18): raw xanims load from a mod's iwd the same way raw weapon
-    # defs do - proven by the zm_ezz3.0 package, whose mod2.iwd is 818 of them and
-    # nothing else (checkpoint 173). The Zap Gun's 15 view anims ship this way;
-    # OAT cannot link a T5-derived xanim into the fastfile, so the iwd is the
-    # only route, exactly as it is for .efx.
+    # 'xanim' (v2.9.18-v2.10.13): raw xanims load from a mod's iwd the same way raw
+    # weapon defs do (proven by the zm_ezz3.0 package, checkpoint 173). The Zap Gun's
+    # 15 view anims shipped this way until v2.10.14, when the Wave Gun's 49 came in
+    # as fastfile assets through zone_source\wavegun_donor (native T6 xanims from
+    # Zombies Declassified's zm_moon.ff). The folder is empty now and skipped by the
+    # Test-Path below; the entry stays so a future raw xanim needs no packer change.
     $rootPath = (Resolve-Path -LiteralPath $Root).Path
     $outPath  = Join-Path $rootPath $Out
 
