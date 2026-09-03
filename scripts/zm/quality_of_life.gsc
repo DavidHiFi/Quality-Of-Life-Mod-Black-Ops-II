@@ -1510,6 +1510,44 @@ round_think( restart )
         level round_over();
         level.zombie_vars[ "zombie_between_round_time" ] = n_zmqol_brt;
         level notify( "between_round_over" );
+
+        //  ====================================================================
+        //  v2.11.12 - ROUND DELAY OFF, half three: GIVE THE SPECIAL-ROUND
+        //  TRACKERS THEIR FRAME BACK.
+        //
+        //  🛑 THE BUG (user, 2026-09-04, Die Rise round 6): "i heard the sound
+        //  for the jumping jacks round but instead zombies spawned".
+        //
+        //  Every special round in T6 installs itself on THIS notify and nowhere
+        //  else. _zm_ai_leaper.gsc:547 (Die Rise) and _zm_ai_dogs.gsc:320 (the
+        //  hellhound maps) are the same eight lines: `level waittill(
+        //  "between_round_over" )`, then leaper_round_start() /
+        //  dog_round_start() - which is what plays the music and the callout -
+        //  and only THEN `level.round_spawn_func = ::leaper_round_spawning`.
+        //  The END of a special round restores `old_spawn_func` on the same
+        //  notify, so both edges depend on this ordering.
+        //
+        //  Stock round_think() never races that, because the only thing between
+        //  this notify and `level thread [[ level.round_spawn_func ]]()` at the
+        //  top of the loop is round_one_up()'s `wait 2.5` ( _zm.gsc:3358 ):
+        //  powerup_round_start() is a single assignment ( _zm_powerups.gsc ),
+        //  everything else up there is `level thread` / array_thread, and the
+        //  zombie_spawn_locations loop does not spin once locations exist.
+        //  Half one of ROUND DELAY OFF threads round_one_up(), which deletes
+        //  that 2.5s - so the loop reached the spawn-func read in the SAME
+        //  frame as the notify, read the ORDINARY spawner, and the tracker
+        //  installed the leaper spawner a moment too late. The round sounded
+        //  like a jumping jacks round and spawned normal zombies, exactly as
+        //  reported.
+        //
+        //  One frame is the whole fix: nothing on the tracker's path to that
+        //  assignment waits ( flag_set, level thread, level notify,
+        //  clientnotify ), so the swap is done by the time we resume. 0.05s
+        //  against stock's 2.5s - the round change stays instant.
+        //  ====================================================================
+        if ( getdvarintdefault( "round_delay_off", 0 ) )
+            wait 0.05;
+
         restart = 0;
     }
 }
