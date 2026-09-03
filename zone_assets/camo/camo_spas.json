@@ -198,11 +198,11 @@
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_ghost"
+                            "camoMaterial": "mc/mtl_weapon_camo_ghost_1"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_ghost"
+                            "camoMaterial": "mc/mtl_weapon_camo_ghost_2"
                         }
                     ],
                     "shaderConsts": [
@@ -244,14 +244,6 @@
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
                             "camoMaterial": "mc/mtl_weapon_camo_bacon"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_bacon"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_bacon"
                         }
                     ],
                     "shaderConsts": [
@@ -271,16 +263,12 @@
                 {
                     "materialOverrides": [
                         {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_bacon_alt"
-                        },
-                        {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
                             "camoMaterial": "mc/mtl_weapon_camo_bacon_alt"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_bacon_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_bacon_alt_1"
                         }
                     ],
                     "shaderConsts": [
@@ -306,14 +294,6 @@
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
                             "camoMaterial": "mc/mtl_weapon_camo_armor"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_armor"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_armor"
                         }
                     ],
                     "shaderConsts": [
@@ -333,16 +313,12 @@
                 {
                     "materialOverrides": [
                         {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_armor_alt"
-                        },
-                        {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
                             "camoMaterial": "mc/mtl_weapon_camo_armor_alt"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_armor_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_armor_alt_1"
                         }
                     ],
                     "shaderConsts": [
@@ -371,11 +347,11 @@
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_muertos"
+                            "camoMaterial": "mc/mtl_weapon_camo_muertos_1"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_muertos"
+                            "camoMaterial": "mc/mtl_weapon_camo_muertos_2"
                         }
                     ],
                     "shaderConsts": [
@@ -417,14 +393,6 @@
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
                             "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         }
                     ],
                     "shaderConsts": [
@@ -444,16 +412,12 @@
                 {
                     "materialOverrides": [
                         {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt"
-                        },
-                        {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
                             "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt_1"
                         }
                     ],
                     "shaderConsts": [
@@ -479,14 +443,6 @@
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
                             "camoMaterial": "mc/mtl_weapon_camo_cybertron"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_cybertron"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_cybertron"
                         }
                     ],
                     "shaderConsts": [
@@ -506,16 +462,12 @@
                 {
                     "materialOverrides": [
                         {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_gold_alt"
-                        },
-                        {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
                             "camoMaterial": "mc/mtl_weapon_camo_gold_alt"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_gold_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_gold_alt_1"
                         }
                     ],
                     "shaderConsts": [
@@ -544,11 +496,11 @@
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_etching"
+                            "camoMaterial": "mc/mtl_weapon_camo_etching_1"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_etching"
+                            "camoMaterial": "mc/mtl_weapon_camo_etching_2"
                         }
                     ],
                     "shaderConsts": [
@@ -590,14 +542,6 @@
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
                             "camoMaterial": "mc/mtl_weapon_camo_dragon"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_dragon"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_dragon"
                         }
                     ],
                     "shaderConsts": [
@@ -617,16 +561,12 @@
                 {
                     "materialOverrides": [
                         {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_dragon_alt"
-                        },
-                        {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
                             "camoMaterial": "mc/mtl_weapon_camo_dragon_alt"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_dragon_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_dragon_alt_1"
                         }
                     ],
                     "shaderConsts": [
@@ -652,14 +592,6 @@
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
                             "camoMaterial": "mc/mtl_weapon_camo_3layer"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_3layer"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_3layer"
                         }
                     ],
                     "shaderConsts": [
@@ -679,16 +611,12 @@
                 {
                     "materialOverrides": [
                         {
-                            "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc4_alt"
-                        },
-                        {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_camo2",
                             "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc4_alt"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_shotty_spas_detail",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc4_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc4_alt_1"
                         }
                     ],
                     "shaderConsts": [
