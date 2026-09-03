@@ -314,6 +314,89 @@ zmqol_jetgun_real_slot()
     }
 }
 
+// ============================================================================
+//  zmqol_jetgun_give_as_primary  -  THE JET GUN MUST COST A WEAPON SLOT
+//
+//  🛑 User, 2026-09-04, TranZit: "i had the jet gun, whilst having mule kick
+//  and three guns, but the jet gun wasn't actually overriding a real weapon
+//  slot, so i ended up having 4 weapons".
+//
+//  MEASURED CAUSE, and it is NOT the def. The def half has been right since
+//  v2.9.11 - the raw weapons\zm\jetgun_zm loads as inventoryType "primary",
+//  measured in the running game. What was missing is that both of this file's
+//  give paths called the bare engine builtin `giveweapon`, and NOTHING IN THE
+//  ENGINE ENFORCES THE PRIMARY LIMIT. T6 enforces it in SCRIPT, inside
+//  _zm_weapons::weapon_give: it reads getweaponslistprimaries() (:2333),
+//  compares against get_player_weapon_limit( player ) (:2341 - 2, or
+//  level.additionalprimaryweapon_limit with Mule Kick, _zm_utility.gsc:5046)
+//  and takes the HELD weapon first when the player is already at the cap
+//  (:2406-2425). A bare giveweapon skips every one of those steps, so a full
+//  loadout simply gained a fourth gun.
+//
+//  🛑 WHY NOT SIMPLY CALL weapon_give( "jetgun_zm" ) AND BE DONE. Because
+//  TranZit registers the jet gun as equipment - register_equipment_for_level(
+//  "jetgun_zm" ), zm_transit.gsc:1854 - so weapon_give's own first act,
+//  `if ( is_equipment( weapon ) ) equipment_give( weapon )` (:2343), lands in
+//  zmqol_equipment_give() below, gives the gun there, and weapon_give then sees
+//  hasweapon() and returns at :2352 having never reached the limit block. The
+//  call would look correct and change nothing. So the limit block is reproduced
+//  here, in stock's order, and BOTH give paths go through this one function.
+//
+//  📝 The equipment registration is deliberately left alone: _zm_weap_jetgun
+//  and its client twin key on the name "jetgun_zm" throughout, and stock's
+//  is_equipment() guard below is what keeps the riot shield from being taken
+//  when it is the weapon in hand.
+// ============================================================================
+zmqol_jetgun_give_as_primary()
+{
+    if ( self hasweapon( "jetgun_zm" ) )
+        return;
+
+    //  _zm_weapons.gsc:2333-2341 - read the slot state BEFORE anything is given.
+    primaryweapons = self getweaponslistprimaries();
+    current_weapon = self getcurrentweapon();
+    current_weapon = self maps\mp\zombies\_zm_weapons::switch_from_alt_weapon( current_weapon );
+    weapon_limit = maps\mp\zombies\_zm_utility::get_player_weapon_limit( self );
+
+    //  :2404-2405 - the fists are not a primary and must not hold a slot.
+    self maps\mp\zombies\_zm_weapons::take_fallback_weapon();
+
+    //  :2406-2425 - at the cap, the weapon in hand is the one that goes. The
+    //  two exclusions are stock's own: a placed mine or a piece of equipment
+    //  (the riot shield) is never what gets taken.
+    //
+    //  🛑 GATED ON THE DEF ACTUALLY BEING A PRIMARY, checked at runtime. If the
+    //  raw weapons\zm\ copy ever fails the 20,480 B loader ceiling the map's
+    //  own "item" def is back, the gun then costs no slot at all, and taking
+    //  the held weapon here would be a pure loss for the player.
+    if ( weaponinventorytype( "jetgun_zm" ) == "primary" && primaryweapons.size >= weapon_limit )
+    {
+        if ( maps\mp\zombies\_zm_utility::is_placeable_mine( current_weapon ) || maps\mp\zombies\_zm_utility::is_equipment( current_weapon ) )
+            current_weapon = undefined;
+
+        if ( isdefined( current_weapon ) )
+        {
+            self takeweapon( current_weapon );
+            maps\mp\zombies\_zm_weapons::unacquire_weapon_toggle( current_weapon );
+        }
+    }
+
+    //  :2463-2467 - give, register it with the weapon-toggle bookkeeping, then
+    //  fill the clip. weaponclipsize() rather than stock equipment's forced 1.
+    self giveweapon( "jetgun_zm" );
+    maps\mp\zombies\_zm_weapons::acquire_weapon_toggle( "jetgun_zm", self );
+    self setweaponammoclip( "jetgun_zm", weaponclipsize( "jetgun_zm" ) );
+
+    //  🛑 v2.9.16, user request: no action-slot bind, because that is what drew
+    //  the equipment HUD widget and its key prompt. It survives only as the
+    //  fallback for the one state where it is load-bearing - if the raw def
+    //  ever fails to load (the 20,480 B ceiling, ERROR_CATALOGUE 36) the map's
+    //  own "item" def is back and slot 1 is the only way to select the gun.
+    //  Checked at runtime, not assumed.
+    if ( weaponinventorytype( "jetgun_zm" ) != "primary" )
+        self setactionslot( 1, "weapon", "jetgun_zm" );
+}
+
 //  The crafting-table claim. self = the buildable's unitrigger (stock calls
 //  `self [[ onbought ]]( player )`), so self.stub.* is available exactly as it
 //  is in stock's own else-branch, and the hint/cursor cleanup below mirrors
@@ -324,8 +407,10 @@ zmqol_jetgun_claimed( player )
     if ( !isdefined( player ) || player hasweapon( "jetgun_zm" ) )
         return;
 
-    player giveweapon( "jetgun_zm" );
-    player setweaponammoclip( "jetgun_zm", weaponclipsize( "jetgun_zm" ) );
+    //  v2.11.14 - the slot accounting lives in one place now; see the banner
+    //  above zmqol_jetgun_give_as_primary(). This used to be a bare giveweapon,
+    //  which is why a player at the Mule Kick cap ended up carrying four guns.
+    player zmqol_jetgun_give_as_primary();
     //  🛑 v2.9.16 - NO ACTION-SLOT BIND ANY MORE, user request 2026-08-31:
     //  "remove the Jet Gun equipment HUD element/icon on the right side of the
     //  screen [and] the dedicated equipment hotkey prompt (e.g. key 8)". The
@@ -368,16 +453,12 @@ zmqol_equipment_give( equipment )
     //  --- the jet gun is a weapon now, not equipment ---
     if ( equipment == "jetgun_zm" )
     {
-        if ( self hasweapon( "jetgun_zm" ) )
-            return;
-
-        self giveweapon( "jetgun_zm" );
-        self setweaponammoclip( "jetgun_zm", weaponclipsize( "jetgun_zm" ) );
-
-        //  v2.9.16 - same rule as zmqol_jetgun_claimed(): no slot-1 bind (and
-        //  no equipment HUD widget) unless the raw primary def failed to load.
-        if ( weaponinventorytype( "jetgun_zm" ) != "primary" )
-            self setactionslot( 1, "weapon", "jetgun_zm" );
+        //  v2.11.14 - through the shared slot-aware give, so every route that
+        //  is NOT the crafting table obeys the primary limit as well: .give,
+        //  any script hand-over, and weapon_give()'s own is_equipment() detour
+        //  at _zm_weapons.gsc:2343. This was a bare giveweapon, which is half
+        //  of why a full loadout ended up with four guns.
+        self zmqol_jetgun_give_as_primary();
         return;
     }
 
