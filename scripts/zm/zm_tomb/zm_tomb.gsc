@@ -15,6 +15,52 @@ main()
     replaceFunc( maps\mp\zm_tomb_utility::check_solo_status, ::qol_check_solo_status ); // 1 player = solo rules
 
     // ========================================================================
+    //  v2.11.11 - THE PANZER DEATH CRASH.
+    //
+    //  Reproduced twice on 2026-09-04 (03:51:55 and 05:27:33) with byte-identical
+    //  dumps: exception 0xC0000005 at 0x005906C0, GSC position inside
+    //  _zm_ai_mechz::mechz_explode. Once from a natural round spawn, once from
+    //  .panzer, so the spawn route is not the trigger - the death is.
+    //
+    //  Read out of the crash dump, not inferred. The faulting instruction is a
+    //  one-line accessor called on a null pointer:
+    //
+    //      005906B9  mov  ecx, [eax*4 + 0x321CBF8]   ; weaponTable[eax] -> NULL
+    //      005906C0  mov  eax, [ecx+8]               ; read of 0x00000008 <- FAULT
+    //
+    //  with EAX = 0xFF. 255 comes from the engine's own radiusdamage builtin,
+    //  which defaults the SEVENTH argument - the weapon - to 255 whenever fewer
+    //  than seven are passed:
+    //
+    //      0084F182  mov  esi, 0xFF          ; weapon index = 255
+    //      0084F187  call Scr_GetNumParam
+    //      0084F18F  cmp  eax, 6
+    //      0084F192  jbe  <skip>             ; <= 6 args -> esi stays 255
+    //                ... Scr_GetString(6) -> weapon lookup -> esi
+    //      0084F1C6  push esi                ; handed to RadiusDamage
+    //
+    //  RadiusDamage guards that index against 0 but NOT against the 255
+    //  sentinel; its only other check is against (registered weapon count + 1),
+    //  so once enough weapons are loaded the sentinel sails through and
+    //  weaponTable[255] is dereferenced. Origins loads 130 weapons stock and
+    //  182 with this mod (measured with Unlinker over every fastfile the crash
+    //  log shows being loaded).
+    //
+    //  Stock mechz_explode passes six arguments. This replacement is stock
+    //  call-for-call with a real weapon name added, which keeps the sentinel out
+    //  of the table lookup. frag_grenade_zm is resident on Origins (confirmed in
+    //  zm_tomb.ff's weapon list) and matches the MOD_GRENADE_SPLASH already
+    //  being passed.
+    //
+    //  🛑 NOT the whole problem: 44 stock call sites across the game use the
+    //  fewer-than-seven form, ten of them reachable on the maps this mod
+    //  supports (PhD Flopper's dive-to-nuke, the trap kills, TranZit's lava,
+    //  zm_tomb.gsc:1923). This fixes the one that was measurably crashing.
+    //  Full write-up: ERROR_CATALOGUE.md.
+    // ========================================================================
+    replaceFunc( maps\mp\zombies\_zm_ai_mechz::mechz_explode, ::zmqol_mechz_explode );
+
+    // ========================================================================
     //  v1.58.0 - STRIP ORIGINS' NATIVE WUNDERFIZZ. The mod's own machines take
     //  their place, so every map has the same machine. User, 2026-08-07:
     //  "get rid of the actual pre-existing wunderfizz machines from origins,
@@ -1536,4 +1582,19 @@ qol_check_solo_status()
         level.is_forever_solo_game = 0;
 
     println( "[zm_qol] solo status: expected=" + n_expected + " connected=" + getnumconnectedplayers() + " is_forever_solo_game=" + level.is_forever_solo_game );
+}
+
+//  Stock maps\mp\zombies\_zm_ai_mechz::mechz_explode, unchanged except for the
+//  seventh radiusdamage argument. See the note in main() for why it is there.
+zmqol_mechz_explode( str_tag, death_origin )
+{
+    wait 2.0;
+    v_origin = self gettagorigin( str_tag );
+    level notify( "mechz_exploded", v_origin );
+    playsoundatposition( "zmb_ai_mechz_death_explode", v_origin );
+    playfx( level._effect["mechz_death"], v_origin );
+    radiusdamage( v_origin, 128, 100, 25, undefined, "MOD_GRENADE_SPLASH", "frag_grenade_zm" );
+    earthquake( 0.5, 1.0, v_origin, 256 );
+    playrumbleonposition( "grenade_rumble", v_origin );
+    level notify( "mechz_killed", death_origin );
 }

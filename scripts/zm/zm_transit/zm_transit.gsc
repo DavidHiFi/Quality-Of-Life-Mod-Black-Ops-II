@@ -556,7 +556,11 @@ zombie_exploding_death( zombie_dmg, trap )
         playfx( level._effect["spawn_cloud"], self gettagorigin( tag ) );
     }
 
-    self radiusdamage( self.origin, 128, 30, 15, undefined, "MOD_GRENADE_SPLASH" );
+    //  The seventh argument is load-bearing: with six or fewer the engine
+    //  substitutes weapon index 255 and RadiusDamage dereferences a null
+    //  weaponTable[255]. That is the Origins Panzer crash (v2.11.11); this
+    //  call had the same shape. frag_grenade_zm is resident on TranZit.
+    self radiusdamage( self.origin, 128, 30, 15, undefined, "MOD_GRENADE_SPLASH", "frag_grenade_zm" );
     self ghost();
 
     if ( isdefined( self.isdog ) && self.isdog )
