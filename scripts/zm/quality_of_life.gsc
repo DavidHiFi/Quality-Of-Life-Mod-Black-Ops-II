@@ -1602,151 +1602,102 @@ get_pack_a_punch_weapon_options( weapon )
     //  into the weapon the player is carrying and only a re-give would change
     //  them. Flipping this row therefore changes every gun PaP'd from then on.
     anim_camo_master = getdvarintdefault( "anim_pap_camo", 1 );
-    //  🛑 v2.10.11 - THE SLOWGUN / RNMA EXCEPTION IS GONE. User, 2026-09-02:
-    //  "paralyzer is missing animated pap camo, make sure every gun in the game
-    //  has animated pap camos if the option is set to enabled."
+    anim_camo_on   = 0;
+
+    //  📝 v2.10.11's SLOWGUN / RNMA EXCEPTION IS STILL GONE, and v2.11.0 finally
+    //  makes that true rather than merely intended. User, 2026-09-02: "paralyzer
+    //  is missing animated pap camo, make sure every gun in the game has animated
+    //  pap camos if the option is set to enabled." v2.10.11 dropped the exception
+    //  and shipped a fixed camo_slowgun in mod.ff - but §50 then measured that
+    //  Buried's OWN camo_slowgun (12 slots, slot 8 empty) is the copy that draws,
+    //  so mod.ff's fix never reached the renderer. Both guns are in the retarget
+    //  list below, which is what actually fixes them: they now read
+    //  camo_qol_slowgun / camo_qol_rnma, names Buried does not define.
+    //  🌟🌟 v2.11.0 - THE ANIMATED CAMO NOW REACHES EVERY GUN ON EVERY MAP, and
+    //  the three-map ceiling §50 measured is GONE. User, 2026-09-03: "make sure
+    //  the animated pap camo you grabbed from the ezz mod is applied to every
+    //  weapon once they're papped so long as the animated camo patch option is
+    //  enabled."
     //
-    //  The exception pinned the Paralyzer and the Ray Gun Mark II to camo 39 on
-    //  Buried, inherited from buried_animated_camo.gsc with no reason recorded.
-    //  Measured 2026-09-02, both halves:
-    //    - camo_rnma is one of the 74 camo assets mod.ff owns, and ALL 74 carry
-    //      mc/mtl_weapon_camo_zmb_dlc2 at index 40. The Mark II never needed the
-    //      exception at all.
-    //    - camo_slowgun was the one asset in the whole game whose index-40 slot
-    //      had no camo material (dumped from every zombies fastfile and read
-    //      slot by slot), which is a real reason to have pinned it - and is now
-    //      fixed at the source: mod.ff owns camo_slowgun as of this version and
-    //      its index-40 slot overrides the Paralyzer's body material with the
-    //      animated one. See zone_source\mod_base.zone for the measurement.
+    //  §50's ceiling was real and its measurement still stands - a MAP's copy of
+    //  a camo asset beats mod.ff's, so on Green Run, Die Rise and Nuketown index
+    //  44 landed on slot 8 of a FOUR-slot table and drew nothing. What §50 got
+    //  right in its closing line is the way out: "give a weapon a camo table no
+    //  map defines." A weapon def names its camo asset in a plain `camo\<name>`
+    //  field, so 48 guns now name camo_qol_<x> - a name that exists in NO retail
+    //  fastfile, which makes mod.ff the only owner and its 13-slot table the one
+    //  that draws, on every map, every time. See zone_source\mod_locations.zone
+    //  for the two delivery routes and why each gun is on the one it is on.
     //
-    //  With that asset fixed there is no gun left in the game that index 40
-    //  cannot render, so Buried is now the same flat branch as every other map.
+    //  So the per-map index split is gone: 44 everywhere the option is on.
+    //  Measured before shipping - all 38 camo_qol tables carry slot 3 (index 39,
+    //  the OFF path) and slot 8 (index 44, animated) live, and each slot 8 is a
+    //  SUPERSET of that table's slot 3, so no gun can come out with LESS camo
+    //  than it has today.
     if ( level.script == "zm_buried" )
-    {
-        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_buried", 1 ) )
-            camo_index = 44;
-    }
+        anim_camo_on = anim_camo_master && getdvarintdefault( "anim_pap_camo_buried", 1 );
     else if ( level.script == "zm_prison" )
-    {
-        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_mob", 1 ) )
-            camo_index = 44;
-    }
-    //  🛑🛑 v2.10.18 - GREEN RUN, DIE RISE AND NUKETOWN CANNOT RENDER THE ANIMATED
-    //  CAMO AT ALL, and sending 44 there rendered NOTHING - worse than stock,
-    //  which is what the user was seeing ("m1911 is missing its pap camo").
-    //
-    //  🌟 THE ASSET THAT DRAWS IS THE MAP'S, NOT mod.ff's. Measured 2026-09-03
-    //  from a natural experiment on Green Run, and it overturns what §42 assumed:
-    //    - camo_xpr50 exists ONLY in mod.ff (absent from zm_transit.ff AND
-    //      zm_transit_patch.ff) -> mod.ff's 15-slot copy draws -> index 44 lands
-    //      on slot 8 and the animated camo APPEARS on the XPR-50.
-    //    - camo_m1911 exists in BOTH. mod.ff's slot 8 maps
-    //      mtl_t6_wpn_pistol_m1911 and _camo1, which are EXACTLY the two
-    //      materials t6_wpn_pistol_m1911_view uses - so if mod.ff's copy were
-    //      drawing it could not fail. It shows no camo. The map's 4-slot copy
-    //      wins, and slot 8 does not exist in it.
-    //  Load order from the live log agrees on the direction: mod (718) ->
-    //  zm_transit_patch (943) -> zm_transit (944); the last one loaded wins.
-    //
-    //  So the ceiling is whatever each MAP's own tables carry (measured across
-    //  every camo asset in each base fastfile):
-    //      Green Run  37 assets, 4 slots  -> max index 39 (slot 3, zombies)
-    //      Nuketown   39 assets, 4 slots  -> max index 39
-    //      Die Rise   40 assets, 7 slots  -> max index 42 (slot 4 glow 31/40)
-    //      Buried     39 assets, 12 slots -> slot 8 live 37/39  ✅ 44 works
-    //      Mob        28 assets, 12 slots -> slot 8 live 28/28  ✅ 44 works
-    //      Origins    34 assets, 14 slots -> slot 8 live 32/34  ✅ 44 works
-    //
-    //  These three therefore fall back to 39 - slot 3, the stock zombies camo,
-    //  the best their own tables can render (35/37, 32/39, 33/40 populated).
-    //  Die Rise could take 40 (glow) but its slot 4 is live in only 31 of 40,
-    //  so nine guns would come out bare; coverage wins over novelty.
-    //  🛑 Staging 13-slot copies in mod.ff CANNOT fix this - the map overrides
-    //  them. The only guns that get the animated camo on these three maps are
-    //  the ones whose camo table the map does not ship at all (the XPR-50 and
-    //  the other mod-added guns), and those keep working because mod.ff's copy
-    //  is then the only one.
-    //  v2.9.12, queue item 9 - GREEN RUN. User, 2026-08-31: they spectated a
-    //  player on the "ezz" server running animated camos on Town survival, so
-    //  it is demonstrably possible off the DLC maps. Measured here before
-    //  shipping rather than inferred from that sighting:
-    //
-    //    - (v2.10.15: this line said "camo index 40 is slot 8". The SLOT audit was
-    //      right and still holds - it is the INDEX that was wrong. Slot 8 is
-    //      reached by index 44, not 40. See the mapping proof at the top of this
-    //      function.) slot 8 is LIVE in all 64 camo assets
-    //      mod.ff owns - zero blank, so no weapon can come out untextured
-    //      (the failure mode that made index 45 wrong on Origins in v2.9.8).
-    //    - slot 8 resolves to mc/mtl_weapon_camo_zmb_dlc2*, and mod.ff OWNS
-    //      all 7 of those materials, the animated shader they need
-    //      (techniqueset mc_sw4_3d_weapon_camo_anim_glow_930950j2 - the ember
-    //      /flicker one, not a static lookalike) and all 9 of its images.
-    //    - mod.ff loads ahead of every map, so that whole chain is already in
-    //      memory on Green Run today. Nothing new is linked for this; the only
-    //      thing that was stopping it is this function picking 39.
-    //
-    //  One branch covers Green Run entirely - TranZit, Bus Depot, Farm, Town
-    //  and Diner, classic/survival/grief - because all of them run with
-    //  level.script == "zm_transit".
-    //
+        anim_camo_on = anim_camo_master && getdvarintdefault( "anim_pap_camo_mob", 1 );
     else if ( level.script == "zm_transit" )
-    {
-        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_transit", 1 ) )
-            camo_index = 39;
-    }
-    //  v2.9.16 - DIE RISE AND NUKETOWN JOIN, user request 2026-08-31 ("Enable
-    //  working animated camos across ALL Zombies maps"). The evidence the
-    //  v2.9.12 note above said was missing has now been gathered the same way
-    //  it was for Green Run: `Unlinker --list` of zm_highrise.ff (40 camo
-    //  assets) and zm_nuked.ff (39) against mod.ff's 72 - EVERY camo name both
-    //  maps carry is owned by mod.ff, whose copies are 12-15 slot with slot 8
-    //  live, and mod.ff loads ahead of the map. So index 40 (slot 8, the
-    //  animated galaxy camo) can not land on a 4-slot asset anywhere on either
-    //  map - the Green Run failure mode does not exist here at all.
+        anim_camo_on = anim_camo_master && getdvarintdefault( "anim_pap_camo_transit", 1 );
     else if ( level.script == "zm_highrise" )
-    {
-        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_highrise", 1 ) )
-            camo_index = 39;
-    }
+        anim_camo_on = anim_camo_master && getdvarintdefault( "anim_pap_camo_highrise", 1 );
     else if ( level.script == "zm_nuked" )
-    {
-        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_nuked", 1 ) )
-            camo_index = 39;
-    }
+        anim_camo_on = anim_camo_master && getdvarintdefault( "anim_pap_camo_nuked", 1 );
     else if ( level.script == "zm_tomb" )
     {
-        if ( anim_camo_master && getdvarintdefault( "anim_pap_camo_origins", 1 ) )
-            camo_index = 44;
+        anim_camo_on = anim_camo_master && getdvarintdefault( "anim_pap_camo_origins", 1 );
+
         //  🛑 v2.7.2 - User, 2026-08-28: with the option OFF on Origins, the PaP
         //  camo was the green TranZit/Nuketown/Buried one, when Origins should
         //  show its own blue camo. VERIFIED against the real stock function
         //  (t6 modding starter kit\reference\gsc-dump\ZM\Core\maps\mp\zombies\
         //  _zm_weapons.gsc:2286-2291): stock is camo 39 by default, 40 on
         //  zm_prison (Mob), and 45 on zm_tomb (Origins) - never 39 on Origins.
-        //  This function's initial `camo_index = 39` (line ~1318) is the generic
-        //  fallback and was never being overridden for Origins' OFF path, so it
-        //  silently kept the wrong stock default. The comment below claiming
-        //  "Master OFF = camo 39 everywhere = exact stock" was itself wrong for
-        //  this exact reason - fixed here, not just the behaviour.
-        //
-        //  🛑 v2.10.15 - this whole note is kept for its intent but its arithmetic
-        //  was off by four; the branch now reads 48. Original text follows.
-        //  v2.9.8 - 44, not stock's 45. Measured 2026-08-30: index 45 is slot 13,
-        //  which is EMPTY in every Origins camo asset (only camo_stg44 even has a
-        //  13th entry, and it is blank) - so "exactly stock" renders NO camo at
-        //  all with the option off. Index 44 is slot 12 = mtl_weapon_camo_3layer,
-        //  Origins' own blue etched camo, which is what the user actually asked
-        //  for on 2026-08-28 ("origins should show its own blue camo"). Every
-        //  camo asset mod.ff owns was audited 2026-08-30: slot 12 is live on all
-        //  63, so no gun can come out blank.
-        //  v2.10.12 - the v2.9.13 ballistic-knife exception (pinned to 40 because
-        //  the 12-slot camo_ballistic_knife_80s copy mod.ff took from zm_buried
-        //  had no slot 12) is gone: mod.ff now ships zm_transit_patch's 13-slot
-        //  copy of that asset, whose slot 12 is mtl_weapon_camo_3layer on
-        //  mtl_ballistic_knife (zone_assets\camo\camo_ballistic_knife_80s.json),
-        //  so the knife takes 44 like every other gun.
-        else
+        //  🛑 v2.10.15 - the intent is kept but its arithmetic was off by four;
+        //  index 45 is slot 13, EMPTY in every Origins camo asset. 48 is slot 12
+        //  = mtl_weapon_camo_3layer, Origins' own blue etched camo, which is what
+        //  the user actually asked for. Live in 37 of the 38 camo_qol tables too
+        //  - the gap is camo_qol_slowgun and the Paralyzer is Buried-only, so
+        //  index 48 never reaches it.
+        if ( !anim_camo_on )
             camo_index = 48;
+    }
+    else
+        anim_camo_on = anim_camo_master;
+
+    if ( anim_camo_on )
+    {
+        camo_index = 44;
+
+        //  🛑 THE ONE THING THAT COULD NOT BE SETTLED OFFLINE, AND ITS FAIL-SAFE.
+        //  35 of the 48 retargeted guns are weapons mod.ff ALREADY owns, and
+        //  their new camo field only reaches the renderer if mod.ff's copy of the
+        //  def is the live one rather than the map's. Every piece of evidence
+        //  says it is - the M1911 was SILENT for weeks because mod.ff's donor def
+        //  asked for wpn_m1911_* aliases no bank declares (CLAUDE.md, the sound
+        //  section), which only happens if that def is the one the engine reads;
+        //  and Plutonium refuses a raw weapons\zm\ file for any name mod.ff owns
+        //  (checkpoint 149), which is the same authority from the other side.
+        //  But "every piece of evidence says so" is not "measured", so this
+        //  CHECKS rather than assumes, and falls back to exactly today's index if
+        //  the check says otherwise. Nothing can come out worse than v2.10.18.
+        //
+        //  The discriminator is free - it already exists in the shipped files:
+        //  mod.ff's m1911_upgraded_zm carries startAmmo 56 (it is zm_nuked's copy,
+        //  put there by build_wpnfix.bat), every map's own copy carries 50.
+        if ( !isdefined( level.zmqol_modff_weapon_defs ) )
+        {
+            n_probe = weaponstartammo( "m1911_upgraded_zm" );
+            level.zmqol_modff_weapon_defs = ( n_probe == 56 );
+            println( "[zm_qol] camo: m1911_upgraded_zm startAmmo=" + n_probe + " (56=mod.ff def is live, 50=the map's is) -> mod.ff weapon defs live = " + level.zmqol_modff_weapon_defs );
+        }
+
+        //  Only the three 4-slot maps can be hurt by getting this wrong; Buried,
+        //  Mob and Origins render index 44 out of their OWN tables anyway.
+        if ( !level.zmqol_modff_weapon_defs && zmqol_camo_rides_on_modff( base )
+             && ( level.script == "zm_transit" || level.script == "zm_highrise" || level.script == "zm_nuked" ) )
+            camo_index = 39;
     }
     lens_index = randomintrange( 0, 6 );
     reticle_index = randomintrange( 0, 16 );
@@ -1772,6 +1723,42 @@ get_pack_a_punch_weapon_options( weapon )
         reticle_color_index = green_reticle_color_index;
     self.pack_a_punch_weapon_options[weapon] = self calcweaponoptions( camo_index, lens_index, reticle_index, reticle_color_index );
     return self.pack_a_punch_weapon_options[weapon];
+}
+
+//  v2.11.0 - the 35 guns whose retargeted camo field rides in mod.ff rather than
+//  in a raw weapons\zm\ file, and therefore depends on mod.ff's copy of the def
+//  being the live one. Exactly the weapons `Unlinker --list mod.ff` reports that
+//  a map also ships; the other 13 go out as raw defs in mod.iwd, which is proven
+//  to beat the map's copy, so they are deliberately NOT in this list.
+//
+//  🛑 KEEP THIS IN STEP WITH zone_assets\weapons\. One entry per file there.
+zmqol_camo_rides_on_modff( str_base )
+{
+    if ( !isdefined( level.zmqol_modff_camo_guns ) )
+    {
+        a = [];
+        a["ak74u_upgraded_zm"]              = 1;  a["ak74u_extclip_upgraded_zm"]   = 1;
+        a["an94_upgraded_zm"]               = 1;  a["barretm82_upgraded_zm"]       = 1;
+        a["beretta93r_extclip_upgraded_zm"] = 1;  a["c96_upgraded_zm"]             = 1;
+        a["dualoptic_saritch_upgraded_zm"]  = 1;  a["gl_m16_upgraded_zm"]          = 1;
+        a["hamr_upgraded_zm"]               = 1;  a["hk416_upgraded_zm"]           = 1;
+        a["judge_upgraded_zm"]              = 1;  a["kard_upgraded_zm"]            = 1;
+        a["knife_ballistic_upgraded_zm"]    = 1;  a["lsat_upgraded_zm"]            = 1;
+        a["m16_gl_upgraded_zm"]             = 1;  a["m1911_upgraded_zm"]           = 1;
+        a["m1911lh_upgraded_zm"]            = 1;  a["m32_upgraded_zm"]             = 1;
+        a["mg08_upgraded_zm"]               = 1;  a["mp5k_upgraded_zm"]            = 1;
+        a["pdw57_upgraded_zm"]              = 1;  a["python_upgraded_zm"]          = 1;
+        a["qcw05_upgraded_zm"]              = 1;  a["rnma_upgraded_zm"]            = 1;
+        a["rottweil72_upgraded_zm"]         = 1;  a["rpd_upgraded_zm"]             = 1;
+        a["saiga12_upgraded_zm"]            = 1;  a["saritch_upgraded_zm"]         = 1;
+        a["sf_qcw05_upgraded_zm"]           = 1;  a["srm1216_upgraded_zm"]         = 1;
+        a["svu_upgraded_zm"]                = 1;  a["tar21_upgraded_zm"]           = 1;
+        a["type95_upgraded_zm"]             = 1;  a["usrpg_upgraded_zm"]           = 1;
+        a["xm8_upgraded_zm"]                = 1;
+        level.zmqol_modff_camo_guns = a;
+    }
+
+    return isdefined( level.zmqol_modff_camo_guns[str_base] );
 }
 
 // ============================================================================
@@ -5873,19 +5860,45 @@ zmqol_dev_command_listener()
         }
         else if ( cmd == "nozmspawns" )
         {
-            // "spawn_zombies" is the stock flag round_spawning waits on - see
-            // _hostmigration.gsc, which clears and re-sets it around a migration.
-            if ( isdefined( level.zmqol_nospawns ) && level.zmqol_nospawns )
+            //  "spawn_zombies" is the stock flag round_spawning() waits on, once
+            //  per spawn, at _zm.gsc:2973 - clearing it parks that loop before it
+            //  picks a spawn point. flag_init( "spawn_zombies", 1 ) is at :1135.
+            //
+            //  🛑 v2.11.0 - IT NOW TAKES AN EXPLICIT on/off, and that is the whole
+            //  of the 2026-09-03 "it didn't work" report. The log shows the
+            //  command was typed twice in a row - OFF, then straight back ON - so
+            //  the state the user was left in was ON, which is exactly what the
+            //  screenshot's red "zombie spawning ON" says. A bare toggle cannot
+            //  survive a double tap or a repeated bind, so both spellings exist:
+            //      .nozmspawns off / on     explicit, idempotent, always correct
+            //      .nozmspawns              flips, as before
+            //
+            //  And OFF now STAYS off: _hostmigration.gsc sets this flag again on
+            //  every migration, so a keeper thread re-clears it until the user
+            //  turns spawning back on.
+            b_want = !( isdefined( level.zmqol_nospawns ) && level.zmqol_nospawns );
+
+            if ( tokens.size > 1 )
             {
-                level.zmqol_nospawns = 0;
-                flag_set( "spawn_zombies" );
-                player iprintln( "^1[zm_qol] zombie spawning ON" );
+                if ( tokens[1] == "off" || tokens[1] == "0" || tokens[1] == "stop" )
+                    b_want = 1;
+                else if ( tokens[1] == "on" || tokens[1] == "1" || tokens[1] == "go" )
+                    b_want = 0;
             }
-            else
+
+            if ( b_want )
             {
                 level.zmqol_nospawns = 1;
                 flag_clear( "spawn_zombies" );
-                player iprintln( "^2[zm_qol] zombie spawning OFF ^7- existing zombies remain" );
+                level thread zmqol_nospawns_keeper();
+                player iprintln( "^2[zm_qol] zombie spawning OFF ^7- existing zombies remain (^3.nozmspawns on^7)" );
+            }
+            else
+            {
+                level.zmqol_nospawns = 0;
+                level notify( "zmqol_nospawns_off" );
+                flag_set( "spawn_zombies" );
+                player iprintln( "^1[zm_qol] zombie spawning ON" );
             }
         }
         else if ( cmd == "where" )
@@ -6013,13 +6026,62 @@ zmqol_dev_command_listener()
         {
             // Fall-through: short forms (".nuke", ".maxammo", ".dm") resolve
             // through the same lookup, so there is exactly one spawn path.
-            // Returns undefined for anything that is not a powerup, which is
-            // how an unrecognised command still does nothing.
             str_powerup = zmqol_powerup_alias( cmd );
 
             if ( isdefined( str_powerup ) )
                 player zmqol_spawn_powerup( str_powerup );
+            else
+            {
+                //  🛑 v2.11.0 - AN UNKNOWN COMMAND USED TO DO NOTHING AT ALL, AND
+                //  IT COST A BUG REPORT. The 2026-09-03 log has, in order:
+                //      DavidHiFi: .nozmpsawns      <- transposed, silently ignored
+                //      DavidHiFi: .killall
+                //      DavidHiFi: .nozmspawns      <- OFF
+                //      DavidHiFi: .nozmspawns      <- straight back ON
+                //  and the report that followed was ".nozmspawns didn't work,
+                //  zombies kept spawning in". A typo that prints nothing is
+                //  indistinguishable from a command that ran and failed, so every
+                //  unrecognised word now says so. Chat that merely starts with a
+                //  prefix character is not a command, so this only fires on a
+                //  single token of plausible command shape - no reply to "..." or
+                //  to a sentence.
+                if ( tokens.size == 1 && cmd.size >= 2 && cmd.size <= 20 )
+                    player iprintln( "^1[zm_qol] unknown command ^7." + cmd + "  ^7- type ^3.help" );
+            }
         }
+    }
+}
+
+
+// ============================================================================
+//  v2.11.0 - keeps ".nozmspawns off" off.
+//
+//  🛑 THE FLAG IS NOT OURS ALONE. maps\mp\gametypes_zm\_hostmigration.gsc clears
+//  "spawn_zombies" for the duration of a host migration and SETS it again when
+//  the migration finishes - it does not remember that something else had it
+//  cleared. Without this thread a migration silently turns spawning back on and
+//  the player sees zombies appear with no command typed, which is the shape of
+//  the bug that was reported. Half a second is plenty: round_spawning() waits on
+//  the flag once per zombie, so the worst case is a single extra spawn.
+//
+//  Costs nothing when unused - the thread only exists between an OFF and the
+//  next ON, and ends on the notify rather than polling forever.
+// ============================================================================
+zmqol_nospawns_keeper()
+{
+    level endon( "zmqol_nospawns_off" );
+    level endon( "end_game" );
+
+    //  One keeper at a time, however many times the command is typed.
+    level notify( "zmqol_nospawns_keeper" );
+    level endon( "zmqol_nospawns_keeper" );
+
+    while ( isdefined( level.zmqol_nospawns ) && level.zmqol_nospawns )
+    {
+        if ( flag( "spawn_zombies" ) )
+            flag_clear( "spawn_zombies" );
+
+        wait 0.5;
     }
 }
 

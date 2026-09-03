@@ -1065,8 +1065,20 @@ material,,mc/mtl_t6_wpn_sniper_dsr50_scope
 material,,mc/mtl_t6_wpn_sniper_dsr50_scope_camo2
 material,,mc/mtl_t6_wpn_sniper_dsr50_scope_thermal
 material,,mc/mtl_t6_wpn_sniper_dsr50_thermal
-material,,mc/mtl_t6_wpn_zmb_raygun
-material,,mc/mtl_t6_wpn_zmb_raygun_camo
+//  🛑 v2.11.0 - THESE TWO ARE NOW OWNED, NOT REFERENCED, and the note above that
+//  says owning them is dangerous was written under a belief §50 later measured to
+//  be BACKWARDS. It said mod.ff's copy would replace Origins' Ray Gun textures
+//  with Mob's; §50 proved the MAP's copy wins, so on Origins, Mob and Buried
+//  mod.ff's copies are inert and each map keeps its own art exactly as before.
+//  They have to be owned because ray_gun_upgraded_zm now ships Buried's def on
+//  every map, and t6_wpn_zmb_raygun_view_upg / _world_upg use these two of their
+//  five materials - and NEITHER exists in zm_transit.ff, zm_highrise.ff or
+//  zm_nuked.ff. Left as references the upgraded Ray Gun would have drawn with
+//  two missing materials on exactly the three maps this whole change is for.
+//  Their three images (ray_gun_n, ~-gray_gun, ~~-gray_gun_s-rgb...) were checked
+//  and DO exist on all three, so the map still supplies the pixels.
+material,mc/mtl_t6_wpn_zmb_raygun
+material,mc/mtl_t6_wpn_zmb_raygun_camo
 techniqueset,,mc_lit_sm_r0c0n0s0_7426e277
 fx,weapon/crossbow/fx_trail_crossbow
 fx,weapon/muzzleflashes/fx_crossbow_base
@@ -2344,3 +2356,114 @@ xanim,o_zombie_sloth_idle_jail_2_cower_door
 xanim,o_zombie_sloth_idle_jail_2_cower_jumpback_door
 xanim,o_zombie_sloth_run_into_jail_2_cower_door
 xanim,o_zombie_sloth_run_into_jail_2_idle_jail
+
+// ============================================================================
+//  v2.11.0 - MOD-PRIVATE PACK-A-PUNCH CAMO TABLES (camo_qol_*)
+//
+//  User, 2026-09-03: "make sure the animated pap camo ... is applied to every
+//  weapon once they're papped so long as the animated camo patch option is
+//  enabled."
+//
+//  🌟 THE ONLY LEVER §50 LEFT OPEN, AND THIS IS IT. §50 measured that a map's
+//  own copy of a camo asset BEATS mod.ff's, which is why index 44 (slot 8, the
+//  animated camo) rendered NOTHING on Green Run, Die Rise and Nuketown: those
+//  maps ship FOUR-slot tables and the last zone loaded wins. Its closing line
+//  was "give a weapon a camo table no map defines" - and a weapon def names its
+//  camo asset in a plain `camo\<name>` field, so that is now done by NAME:
+//  every affected gun points at camo_qol_<x>, a name no retail fastfile
+//  contains, so mod.ff is the ONLY owner and its 13-slot table always draws.
+//
+//  🌟 AND THE LINKER *DOES* READ A RAW WEAPON FILE - measured 2026-09-03 and it
+//  overturns the standing "weapon: the Linker NEVER reads a raw file" note.
+//  A probe zone declaring weapon,ak74u_upgraded_zm with zm_transit.ff --load'ed
+//  and a hand-edited def in <asset-search-path>/weapons/ linked the camo the RAW
+//  file named, not the fastfile's (OAT's ObjLoading carries WeaponRawLoaderT6,
+//  path "weapons/<assetName>"). That is what lets the 35 guns mod.ff already
+//  owns be retargeted at all - Plutonium's runtime raw loader refuses a name
+//  mod.ff owns (checkpoint 149), so weapons\zm\ was never an option for them.
+//
+//  The two routes, and why each gun is on the one it is on:
+//    35 guns mod.ff already owns -> zone_assets\weapons\<name>, linked in here.
+//    13 guns only the maps own   -> weapons\zm\<name> raw in mod.iwd, which is
+//                                   PROVEN to beat the map's copy (the Jet Gun,
+//                                   v2.9.11) and is refused only for mod.ff's.
+//
+//  🛑 EVERY TABLE WAS MEASURED BEFORE SHIPPING, not assumed: all 38 carry slot 3
+//  (index 39, the static zombies camo - the OFF path) and slot 8 (index 44, the
+//  animated one) live, and slot 8's baseMaterial set is a SUPERSET of slot 3's
+//  in all 38, so no gun can come out with less camo than it has today. Slot 12
+//  (index 48, the Origins OFF path) is live in 37 of 38; the gap is
+//  camo_qol_slowgun and the Paralyzer is Buried-only, so index 48 never reaches
+//  it. The content is a byte copy of mod.ff's own existing camo_<x>, so nothing
+//  new is linked - the base materials and images these name are already owned or
+//  referenced by the lines above.
+// ============================================================================
+camo,camo_qol_870mcs
+camo,camo_qol_ak74u
+camo,camo_qol_an94
+camo,camo_qol_b23r
+camo,camo_qol_ballistic_knife_80s
+camo,camo_qol_chicom
+camo,camo_qol_dsr50
+camo,camo_qol_fal
+camo,camo_qol_fiveseven
+camo,camo_qol_galil
+camo,camo_qol_hamr
+camo,camo_qol_hk416
+camo,camo_qol_judge
+camo,camo_qol_kard
+camo,camo_qol_lsat
+camo,camo_qol_m14
+camo,camo_qol_m16
+camo,camo_qol_m1911
+camo,camo_qol_m32
+camo,camo_qol_m82
+camo,camo_qol_mc96
+camo,camo_qol_mg08
+camo,camo_qol_mp5
+camo,camo_qol_olympia
+camo,camo_qol_pdw57
+camo,camo_qol_python
+camo,camo_qol_raygun
+camo,camo_qol_rnma
+camo,camo_qol_rpd
+camo,camo_qol_saiga
+camo,camo_qol_saritch
+camo,camo_qol_slowgun
+camo,camo_qol_srm1216
+camo,camo_qol_svu
+camo,camo_qol_type95
+camo,camo_qol_usrpg
+camo,camo_qol_x95l
+camo,camo_qol_xm8
+
+// ============================================================================
+//  v2.11.0 - THE THREE ASSETS THE RETARGETED RAW DEFS NEED ON MAPS THAT LACK
+//  THEM. A raw weapons\zm\ def is ONE file for all six maps, so where retail
+//  ships two different copies of a gun the single file has to name assets that
+//  resolve everywhere. Measured per map with Unlinker --list; only two guns of
+//  the thirteen diverge at all once the *_patch zone is layered in front (the
+//  patch loads first, at 943 vs the base's 944, so its copy is the live one):
+//
+//    ray_gun_upgraded_zm - transit/highrise/nuked use t6_wpn_zmb_raygun_view
+//      and weapon_usa_ray_gun; buried/prison/tomb use the dedicated UPGRADED
+//      models. The def shipped is Buried's verbatim, so those three maps are
+//      byte-identical to stock, and the two xmodels are declared here so Green
+//      Run, Die Rise and Nuketown can draw them too - their PaP'd Ray Gun now
+//      uses Treyarch's own Porter's X2 model instead of the base one with a
+//      camo. The pixels need no .iwi here: dlczm1-4.ipak are added at startup
+//      on EVERY map (console_zm.log, "Added ipak file: dlczm2" on TranZit).
+//
+//    m14_upgraded_zm - buried/tomb name menu_mp_weapons_m14 for all three icon
+//      fields, the other four name hud_icon_m14. The def shipped is TranZit's
+//      (hud_icon_m14, four maps of six), so the material is declared here for
+//      the two that lack it. Without this line the M14's HUD icon would draw
+//      "Could not load material" on Buried and Origins.
+//
+//  📝 fivesevendw_upgraded_zm's maxAmmo is the only other divergence (14 on
+//  TranZit, 13 everywhere else); the def shipped is the 13 that five of the six
+//  maps use. One reserve round on a dual-wield pistol, and it needs no asset.
+// ============================================================================
+xmodel,t6_wpn_zmb_raygun_view_upg
+xmodel,t6_wpn_zmb_raygun_world_upg
+material,hud_icon_m14
