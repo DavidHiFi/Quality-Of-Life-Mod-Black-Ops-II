@@ -2504,3 +2504,44 @@ material,hud_icon_m14
 rawfile,rumble/quadrotor_fly
 rawfile,rumble/quadrotor_fly_h.rmb
 rawfile,rumble/quadrotor_fly_l.rmb
+
+// ============================================================================
+//  v2.11.4 - THE ELEVEN GUNS THE v2.11.0 RETARGET MISSED, found by auditing all
+//  588 (map x upgraded weapon) pairs against per-zone Unlinker inventories.
+//
+//  SEVEN carry the mod's own "qol" variants and still named the STOCK camo asset
+//  (camo_judge, camo_m16, camo_mp5, camo_olympia, camo_saiga, camo_saritch,
+//  camo_x95l). Those names ARE defined by Green Run / Nuketown / Die Rise, whose
+//  tables are 4 and 7 slots, so slot 8 - the animated camo, index 44 - does not
+//  exist and the toggle drew nothing for them on those maps. The camo_qol_*
+//  copies were already built and shipped in v2.11.0; only the defs were missed.
+//  They are raw weapons\zm\ files, so no declaration is needed here.
+//
+//  FOUR more are the reverse case, and they are the ones declared below. On MOB
+//  OF THE DEAD alone, ak47 / minigun_alcatraz / thompson / uzi resolve their
+//  camo out of zm_prison.ff, whose copies have NO slot 3 (index 39, the camo
+//  this mod uses when the animated toggle is OFF) - so those four packed to no
+//  camo at all on Mob, while looking correct on all five other maps. Measured,
+//  not inferred: zm_prison's camo_ak47 and camo_uzi are live at 36/37/40/44 and
+//  camo_thompson / camo_minigun at 40/44 only.
+//
+//  🌟 NOTHING IS INVENTED HERE. mod.ff's OWN copies of all four are complete -
+//  slots 3, 4, 8 and 12 all live - so camo_qol_<x> is a byte copy of mod.ff's
+//  camo_<x>, and the four upgraded defs (zone_assets\weapons\) now name it. The
+//  name exists in no retail fastfile, so mod.ff's copy is the only copy and the
+//  §50 "the map's copy wins" ceiling cannot reach it. Off Mob this changes
+//  nothing at all - those maps were already reading mod.ff's table.
+//
+//  The defs were diffed field by field: `camo` is the ONLY field that changed in
+//  any of the eleven, and all seven raw files stay under the 20,480 B loader
+//  ceiling (largest 20,384).
+//
+//  Only the four camo assets are declared below: the four weapon names are
+//  already owned by mod.ff via mod_base.zone, and the Linker picks their edited
+//  defs up from zone_assets\weapons\ on its own (ERROR_CATALOGUE 51) - declaring
+//  them a second time here is a duplicate-asset error.
+// ============================================================================
+camo,camo_qol_ak47
+camo,camo_qol_minigun
+camo,camo_qol_thompson
+camo,camo_qol_uzi

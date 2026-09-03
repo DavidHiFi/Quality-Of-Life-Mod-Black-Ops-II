@@ -1835,6 +1835,11 @@ zmqol_camo_rides_on_modff( str_base )
         a["svu_upgraded_zm"]                = 1;  a["tar21_upgraded_zm"]           = 1;
         a["type95_upgraded_zm"]             = 1;  a["usrpg_upgraded_zm"]           = 1;
         a["xm8_upgraded_zm"]                = 1;
+        //  v2.11.4 - the four added by the Mob-of-the-Dead camo fix. Their defs are
+        //  mod.ff's and now name camo_qol_<x>, so they ride on mod.ff exactly like
+        //  the 35 above and need the same fail-safe.
+        a["ak47_upgraded_zm"]               = 1;  a["uzi_upgraded_zm"]             = 1;
+        a["thompson_upgraded_zm"]           = 1;  a["minigun_alcatraz_upgraded_zm"] = 1;
         level.zmqol_modff_camo_guns = a;
     }
 
