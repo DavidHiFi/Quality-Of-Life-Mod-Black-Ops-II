@@ -284,36 +284,19 @@
                         {
                             "baseMaterial": "mc/mtl_t5_wpn_zmb_freezegun_camo",
                             "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
+                        },
+                        {
+                            "baseMaterial": "mc/mtl_t5_wpn_zmb_freezegun_camo1",
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_1"
+                        },
+                        {
+                            "baseMaterial": "mc/mtl_t5_wpn_zmb_freezegun_ammo",
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_2"
                         }
                     ],
                     "shaderConsts": [
                         2.299999952316284,
                         2.0,
-                        0.0,
-                        1.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0
-                    ],
-                    "useColorMap": false,
-                    "useNormalMap": false,
-                    "useSpecularMap": false
-                },
-                {
-                    "materialOverrides": [
-                        {
-                            "baseMaterial": "mc/mtl_t5_wpn_zmb_freezegun_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_gold"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t5_wpn_zmb_freezegun_ammo",
-                            "camoMaterial": "mc/mtl_weapon_camo_gold"
-                        }
-                    ],
-                    "shaderConsts": [
-                        16.0,
-                        16.0,
                         0.0,
                         1.0,
                         0.0,

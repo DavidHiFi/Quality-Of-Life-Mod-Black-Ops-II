@@ -300,6 +300,14 @@
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_zmb_tesla_camo1",
                             "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
+                        },
+                        {
+                            "baseMaterial": "mc/mtl_t6_wpn_zmb_tesla_vacuum_camo",
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_2"
+                        },
+                        {
+                            "baseMaterial": "mc/mtl_t6_wpn_zmb_tesla_vacuum_camo1",
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_1"
                         }
                     ],
                     "shaderConsts": [
@@ -315,31 +323,6 @@
                     "useColorMap": false,
                     "useNormalMap": true,
                     "useSpecularMap": true
-                },
-                {
-                    "materialOverrides": [
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_zmb_tesla_vacuum_camo",
-                            "camoMaterial": "mc/mtl_weapon_camo_gold"
-                        },
-                        {
-                            "baseMaterial": "mc/mtl_t6_wpn_zmb_tesla_vacuum_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_gold"
-                        }
-                    ],
-                    "shaderConsts": [
-                        8.0,
-                        8.0,
-                        0.7599999904632568,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0
-                    ],
-                    "useColorMap": false,
-                    "useNormalMap": false,
-                    "useSpecularMap": false
                 }
             ]
         },
