@@ -20,6 +20,11 @@ main()
     replaceFunc( maps\mp\zm_highrise_gamemodes::init, scripts\zm\replaced\zm_highrise_gamemodes::init );
 
     zmqol_register_survival_clientfields();
+
+    //  v2.11.15 - the weapon locker's two sounds. The banner on
+    //  zmqol_locker_watch() at the bottom of this file says why the hook is on
+    //  watch() and not on think().
+    replaceFunc( maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerwatch, ::zmqol_locker_watch );
 }
 
 // ============================================================================
@@ -1055,5 +1060,182 @@ zmqol_play_chalk_fx( effect, origin, angles )
         level waittill( "connected", player );
 
         fx delete();
+    }
+}
+
+// ============================================================================
+//  zmqol_locker_watch / zmqol_locker_think  -  THE DIE RISE WEAPON LOCKER IS
+//  SILENT FOR THE SAME REASON THE BANK WAS
+//
+//  User, 2026-09-04: "just fix the locker as well".
+//
+//  _zm_weapon_locker.gsc plays evt_fridge_locker_close when you stash a gun
+//  ( :177 ) and evt_fridge_locker_open when you take it back ( :242 ). Both
+//  aliases exist ONLY in zm_transit's table - they are the TranZit fridge's -
+//  so on Die Rise both calls name nothing and are silent with no error. The
+//  payloads live in zmb_common.all, which every map loads, but a payload with
+//  no alias pointing at it can never be played. Same shape as the bank
+//  ( zmqol_bank_sounds_init above ); both are written up in STOCK_REFERENCE.md.
+//
+//  🛑 WHY THIS ONE NEEDS A COPY AND THE BANK DID NOT. The bank has Treyarch's
+//  own level.custom_bank_*_vo pointers to hang audio off. The locker has no
+//  hook at all: the two calls sit inside triggerweaponslockerthink()'s branches,
+//  and both branches can also exit WITHOUT playing anything ( an invalid weapon,
+//  a full loadout, the two DENY paths ), so a watcher on the trigger would have
+//  to re-derive stock's decisions and would drift the moment one changed.
+//
+//  So this is stock's own two functions, copied VERBATIM out of the dump and
+//  transformed mechanically rather than retyped: same-file calls qualified to
+//  maps\mp\zombies\_zm_weapon_locker, and the only edits are the two
+//  added playsoundtoplayer lines. The stock lines stay exactly where they were.
+//
+//  ⭐ THE REPLACEMENT IS ON watch(), NOT think(), AND THAT IS DELIBERATE.
+//  zm_highrise.gsc:111 calls triggerweaponslockerwatch() by its qualified name,
+//  so replaceFunc certainly intercepts it. think() is never called by name - it
+//  is handed to register_static_unitrigger() as a ::pointer ( :90 ), and whether
+//  a replaceFunc detour is seen through a stored pointer is not something this
+//  project has ever measured. Replacing watch() sidesteps the question: our
+//  copy registers our think() directly.
+// ============================================================================
+
+zmqol_locker_watch()
+{
+    unitrigger_stub = spawnstruct();
+    unitrigger_stub.origin = self.origin;
+
+    if ( isdefined( self.script_angles ) )
+        unitrigger_stub.angles = self.script_angles;
+    else
+        unitrigger_stub.angles = self.angles;
+
+    unitrigger_stub.script_angles = unitrigger_stub.angles;
+
+    if ( isdefined( self.script_length ) )
+        unitrigger_stub.script_length = self.script_length;
+    else
+        unitrigger_stub.script_length = 16;
+
+    if ( isdefined( self.script_width ) )
+        unitrigger_stub.script_width = self.script_width;
+    else
+        unitrigger_stub.script_width = 32;
+
+    if ( isdefined( self.script_height ) )
+        unitrigger_stub.script_height = self.script_height;
+    else
+        unitrigger_stub.script_height = 64;
+
+    unitrigger_stub.origin = unitrigger_stub.origin - anglestoright( unitrigger_stub.angles ) * ( unitrigger_stub.script_length / 2 );
+    unitrigger_stub.targetname = "weapon_locker";
+    unitrigger_stub.cursor_hint = "HINT_NOICON";
+    unitrigger_stub.script_unitrigger_type = "unitrigger_box_use";
+    unitrigger_stub.clientfieldname = "weapon_locker";
+    maps\mp\zombies\_zm_unitrigger::unitrigger_force_per_player_triggers( unitrigger_stub, 1 );
+    unitrigger_stub.prompt_and_visibility_func = maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerthinkupdateprompt;
+    maps\mp\zombies\_zm_unitrigger::register_static_unitrigger( unitrigger_stub, ::zmqol_locker_think );
+}
+
+zmqol_locker_think()
+{
+    self.parent_player thread maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerweaponchangethink( self );
+
+    while ( true )
+    {
+        self waittill( "trigger", player );
+        retrievingweapon = player maps\mp\zombies\_zm_weapon_locker::wl_has_stored_weapondata();
+
+        if ( !retrievingweapon )
+        {
+            curweapon = player getcurrentweapon();
+            curweapon = player maps\mp\zombies\_zm_weapons::switch_from_alt_weapon( curweapon );
+
+            if ( !maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerisvalidweapon( curweapon ) )
+                continue;
+
+            weapondata = player maps\mp\zombies\_zm_weapons::get_player_weapondata( player );
+            player maps\mp\zombies\_zm_weapon_locker::wl_set_stored_weapondata( weapondata );
+            assert( curweapon == weapondata["name"], "weapon data does not match" );
+            player takeweapon( curweapon );
+            primaries = player getweaponslistprimaries();
+
+            if ( isdefined( primaries[0] ) )
+                player switchtoweapon( primaries[0] );
+            else
+                player maps\mp\zombies\_zm_weapons::give_fallback_weapon();
+
+            self maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+            player playsoundtoplayer( "evt_fridge_locker_close", player );
+            //  v2.11.15 - the mod-private twin. Stock's line above names an
+            //  alias Die Rise does not have; this one is in mod.all.
+            player playsoundtoplayer( "zmqol_locker_close", player );
+            player thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "general", "weapon_storage" );
+        }
+        else
+        {
+            curweapon = player getcurrentweapon();
+            primaries = player getweaponslistprimaries();
+            weapondata = player maps\mp\zombies\_zm_weapon_locker::wl_get_stored_weapondata();
+
+            if ( isdefined( level.remap_weapon_locker_weapons ) )
+                weapondata = maps\mp\zombies\_zm_weapon_locker::remap_weapon( weapondata, level.remap_weapon_locker_weapons );
+
+            weapontogive = weapondata["name"];
+
+            if ( !maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerisvalidweapon( weapontogive ) )
+            {
+                player playlocalsound( level.zmb_laugh_alias );
+                player maps\mp\zombies\_zm_weapon_locker::wl_clear_stored_weapondata();
+                self maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+                continue;
+            }
+
+            curweap_base = maps\mp\zombies\_zm_weapons::get_base_weapon_name( curweapon, 1 );
+            weap_base = maps\mp\zombies\_zm_weapons::get_base_weapon_name( weapontogive, 1 );
+
+            if ( player has_weapon_or_upgrade( weap_base ) && weap_base != curweap_base )
+            {
+                self sethintstring( &"ZOMBIE_WEAPON_LOCKER_DENY" );
+                wait 3;
+                self maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+                continue;
+            }
+
+            maxweapons = get_player_weapon_limit( player );
+
+            if ( isdefined( primaries ) && primaries.size >= maxweapons || weapontogive == curweapon )
+            {
+                curweapon = player maps\mp\zombies\_zm_weapons::switch_from_alt_weapon( curweapon );
+
+                if ( !maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerisvalidweapon( curweapon ) )
+                {
+                    self sethintstring( &"ZOMBIE_WEAPON_LOCKER_DENY" );
+                    wait 3;
+                    self maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+                    continue;
+                }
+
+                curweapondata = player maps\mp\zombies\_zm_weapons::get_player_weapondata( player );
+                player takeweapon( curweapondata["name"] );
+                player maps\mp\zombies\_zm_weapons::weapondata_give( weapondata );
+                player maps\mp\zombies\_zm_weapon_locker::wl_clear_stored_weapondata();
+                player maps\mp\zombies\_zm_weapon_locker::wl_set_stored_weapondata( curweapondata );
+                player switchtoweapon( weapondata["name"] );
+                self maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+            }
+            else
+            {
+                player thread maps\mp\zombies\_zm_audio::create_and_play_dialog( "general", "wall_withdrawl" );
+                player maps\mp\zombies\_zm_weapon_locker::wl_clear_stored_weapondata();
+                player maps\mp\zombies\_zm_weapons::weapondata_give( weapondata );
+                player switchtoweapon( weapondata["name"] );
+                self maps\mp\zombies\_zm_weapon_locker::triggerweaponslockerisvalidweaponpromptupdate( player, player getcurrentweapon() );
+            }
+
+            level notify( "weapon_locker_grab" );
+            player playsoundtoplayer( "evt_fridge_locker_open", player );
+            player playsoundtoplayer( "zmqol_locker_open", player );
+        }
+
+        wait 0.5;
     }
 }
