@@ -430,11 +430,11 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_sniper_svu",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_sniper_svu_scope_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_1"
                         }
                     ],
                     "shaderConsts": [
@@ -455,15 +455,15 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_sniper_svu_camo3",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_sniper_svu_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt_1"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_sniper_svu_scope",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt_2"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt_2"
                         }
                     ],
                     "shaderConsts": [

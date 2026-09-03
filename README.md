@@ -26,7 +26,7 @@ Expanded weapon pools, legacy wonder weapons, restored survival map variants, pe
 
 * **Expanded Mystery Box Arsenal:** Campaign and Multiplayer weapons added directly to the box, complete with working Pack-a-Punch functionality, camos, audio, and proper stats.
 * **Classic BO1 Wonder Weapons:** Ported Wonder Weapons integrated across supported maps with balanced ammo pools, authentic visual/audio effects, and boss zombie hit logic.
-* **Animated Pack-a-Punch Camo:** Applies the Ezz galaxy animated camo to every Pack-a-Punched gun on **every map** — Green Run, Nuketown, Die Rise, Mob of the Dead, Buried and Origins alike. Switch it off and each map shows its own stock Pack-a-Punch camo. Green Run, Die Rise and Nuketown used to be impossible here, because a map's own camo tables override the mod's and those three ship tables with no animated entry; 59 weapons now point at camo tables no retail map defines, so the mod's copy is the only one and always draws. Audited weapon by weapon across all six maps: **566 of 566** Pack-a-Punchable guns get the animated camo with the option on, and 562 of 566 get their map's stock camo with it off — the four exceptions are Origins' elemental staffs, which have no Pack-a-Punch camo in the stock game either.
+* **Animated Pack-a-Punch Camo:** Applies the *ZM Dark Matter* animated camo to every Pack-a-Punched gun on **every map** — Green Run, Nuketown, Die Rise, Mob of the Dead, Buried and Origins alike. Switch it off and each map shows its own stock Pack-a-Punch camo. Green Run, Die Rise and Nuketown used to be impossible here, because a map's own camo tables override the mod's and those three ship tables with no animated entry; 59 weapons now point at camo tables no retail map defines, so the mod's copy is the only one and always draws. Audited weapon by weapon across all six maps: **566 of 566** Pack-a-Punchable guns get the animated camo with the option on, and 562 of 566 get their map's stock camo with it off — the four exceptions are Origins' elemental staffs, which have no Pack-a-Punch camo in the stock game either. **The animated camo's textures ship inside the HD Texture Pack** (nine files that replace the game's own DLC2 camo textures, which stream from the game's archives on every map) — install the pack for the option to have any effect; without it the option shows the stock DLC2 camo.
 * **Restored Survival Maps:** Playable standalone Survival map variants for Die Rise, Mob of the Dead (Cell Block), Buried (Borough), and TranZit (Diner, Power Station, Tunnel).
 * **Perk & Utility Adjustments:** No perk limit by default (or set one, 1–12, from the console with `perk_limit`), Der Wunderfizz on every map, Bouncing Betties alongside the Claymores, and instant Pack-a-Punch that can be switched back to the stock machine.
 * **In-Game Mod Menu & Customisable HUD:** Toggle mechanics, gameplay rules, hitmarkers, timers, and visual options live in-game without console commands.
@@ -69,7 +69,7 @@ Neither needs the mod installed:
 
 | Download | Size | What it is |
 |---|---|---|
-| [**HD Texture Pack**](https://github.com/DavidHiFi/T6-QoL/releases/latest/download/HD.Texture.Pack.zip) | 509 MB | 1,021 upscaled textures. Unzip and drop the `images` folder into `%LOCALAPPDATA%\Plutonium\storage\t6\`. |
+| [**HD Texture Pack**](https://github.com/DavidHiFi/T6-QoL/releases/latest/download/HD.Texture.Pack.zip) | 525 MB | 1,030 textures — 1,021 upscales plus the nine Dark Matter animated Pack-a-Punch camo textures. Unzip and drop the `images` folder into `%LOCALAPPDATA%\Plutonium\storage\t6\`. |
 | [**Controller Icons**](https://github.com/DavidHiFi/T6-QoL/releases/latest/download/Controller.Icons.Pack.zip) | 184 KB | PlayStation 5, Nintendo Switch and Xbox One button prompts. Pick one of the three folders inside and copy its contents into `%LOCALAPPDATA%\Plutonium\storage\t6\images\`. |
 
 <details>
@@ -136,7 +136,7 @@ Commands can be executed using `.`, `!`, or `/` prefix, or bound directly to key
 | **sehteria** — *T6-ZM-Expanded* | The mod this one grew out of — BO4 Max Ammo, instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers, the area notifier, the Cold War round HUD and secret song survival. |
 | **SadSlothXL** | The Death Machine power-up — the drop, the weapon swap and its sounds. |
 | **Logo2K** — [Zombies Declassified](https://github.com/Logo-2K/zombies-declassified) | The native T6 Wave Gun package — Treyarch's DLC5 models, animations, effects, weapon defs, sounds and script — read out of its Moon zone. |
-| **Aranella, Frozedy & Skwll** — *Ezz Primary Mod* | The animated Pack-a-Punch camo's textures. |
+| *ZM Dark Matter* (Plutonium forums) | The animated Pack-a-Punch camo's textures. |
 | **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | The extra Survival locations, and the Bouncing Betty's carry animations. |
 | **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The Die Rise weapon changes — the Sliquifier's pre-nerf behaviour and the Semtex wall buy. |
 | **Fraaagaaa** — [Strat Tester](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the teleport list, except Nuketown's three, which are the map's own player respawn points. |

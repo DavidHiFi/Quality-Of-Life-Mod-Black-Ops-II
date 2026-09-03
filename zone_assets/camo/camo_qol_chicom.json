@@ -388,11 +388,11 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_smg_chicom_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_smg_chicom_camo4",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_1"
                         }
                     ],
                     "shaderConsts": [
@@ -413,11 +413,11 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_smg_chicom_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_smg_chicom_camo3",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt_1"
                         }
                     ],
                     "shaderConsts": [

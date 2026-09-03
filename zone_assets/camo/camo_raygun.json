@@ -295,11 +295,11 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_zmb_raygun_camo",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         },
                         {
                             "baseMaterial": "mc/mtl_ray_gun",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         }
                     ],
                     "shaderConsts": [
@@ -320,7 +320,7 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_zmb_raygun",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt"
                         }
                     ],
                     "shaderConsts": [

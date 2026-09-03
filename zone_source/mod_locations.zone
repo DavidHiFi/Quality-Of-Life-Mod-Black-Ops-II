@@ -1551,8 +1551,6 @@ attachmentunique,au_peacekeeper_reflex
 //  .iwi in zone_assets\images\ (EZZ's own files, verbatim bytes) and
 //  build.bat's step [1/6] copies the pixels into images\ for mod.iwd.
 // ============================================================================
-image,camo_stellar_ember
-image,camo_goldgrid_nml
 
 // ============================================================================
 //  RESTORED SURVIVAL LOCATIONS (2026-09-02, user request)
@@ -2581,14 +2579,6 @@ camo,camo_qol_uzi
 //  they now name a camo_qol_<x> copy instead (six mod.ff defs plus the raw
 //  barretm82qol). Only `camo` changed in any of the seven.
 // ============================================================================
-material,mc/mtl_weapon_camo_qolanim
-material,mc/mtl_weapon_camo_qolanim_1
-material,mc/mtl_weapon_camo_qolanim_2
-material,mc/mtl_weapon_camo_qolanim_3
-material,mc/mtl_weapon_camo_qolanim_alt
-material,mc/mtl_weapon_camo_qolanim_alt_1
-material,mc/mtl_weapon_camo_qolanim_alt_2
-material,mc/mtl_weapon_camo_qolanim_alt_3
 //  Kept OWNED although nothing references it any more: the slot-8 rewrite above
 //  took its last reference away and the Linker then dropped it, which is a -1 in
 //  the asset delta and exactly the un-owning class of ERROR_CATALOGUE 35. Pinned
@@ -2600,3 +2590,43 @@ camo,camo_qol_mp40
 camo,camo_qol_scarh
 camo,camo_qol_scorpionevo
 camo,camo_qol_stg44
+
+// ============================================================================
+//  v2.11.6 - THE ANIMATED CAMO IS NOW THE DARK MATTER TEXTURE PACK, AND THE MOD
+//  NO LONGER STAMPS ANYTHING ONTO A STOCK MATERIAL NAME.
+//
+//  What the user's boots proved, in order:
+//    - v2.11.3's probe: the SCRIPT half was always right (index 44 applied, table
+//      live, mod.ff defs live).
+//    - v2.11.4 on Mob: the map's own mtl_weapon_camo_zmb_dlc2 drew Treyarch's DLC2
+//      camo - the mod's EZZ-stamped copy was shadowed (ERROR_CATALOGUE 55).
+//    - v2.11.5 on Mob: the un-shadowable copy (mtl_weapon_camo_qolanim) loaded
+//      with no error and drew NOTHING. Its textures, camo_stellar_ember and
+//      camo_goldgrid_nml, are 1440x1440 and 792x792 - not powers of two, unlike
+//      every Treyarch camo texture (256/512) and the pack below (4096). That is
+//      the one measurable difference between a material that draws and one that
+//      does not, and it is why the EZZ camo was never seen anywhere.
+//
+//  So the whole material-stamping route (v2.9.26 EZZ, v2.11.5 qolanim) is gone:
+//    - the 7 stamped mtl_weapon_camo_zmb_dlc2* materials are back to Treyarch's
+//      exact contents (copied out of zm_prison.ff, textures and constants);
+//      _alt_3 exists in no retail zone and stays as the donor shipped it.
+//    - all 123 camo tables point slot 8 at those stock names again.
+//    - the 8 qolanim materials and the 2 EZZ images are removed (nothing
+//      references them any more - grep-verified before the relink).
+//
+//  THE ANIMATED LOOK IS NOW PURE PIXELS, the way every Plutonium texture pack
+//  works. The 9 camo_zmb_dlc2* images stream from dlczm2/3/4.ipak on EVERY map,
+//  indexed by R_HashString(name) - so a replacement must be `<decimal hash>.iwi`
+//  in storage	6\images (MOD_CATALOGUE 11a; a by-name loose file is never read
+//  for an ipak-backed image). Both copies of the material - the map's on Mob /
+//  Buried / Origins and mod.ff's elsewhere - name the same 9 images, so ONE set
+//  of 9 hash-named files reaches all six maps and the shadowing stops mattering.
+//  The hash function is OpenAssetStudio's T6 R_HashString (djb2, xor, |0x20),
+//  verified 32,212 / 32,212 against image_names.csv before use.
+//
+//  The same 9 files also sit by name in zone_assets\images (mod.ff's own headers,
+//  4096x4096) and images\ (mod.iwd), so the mod's asset record matches the pack
+//  on the three maps where mod.ff's image asset is the live one. Every file is
+//  under the 16,777,280 B loose-image cap (ERROR_CATALOGUE, the HD pack case).
+// ============================================================================

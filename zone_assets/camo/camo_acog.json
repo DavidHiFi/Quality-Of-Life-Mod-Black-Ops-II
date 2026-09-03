@@ -348,11 +348,11 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_attach_optic_acog_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_attach_optic_acog_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_1"
                         }
                     ],
                     "shaderConsts": [
@@ -373,7 +373,7 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_attach_optic_acog",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt"
                         }
                     ],
                     "shaderConsts": [

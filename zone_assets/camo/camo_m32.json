@@ -291,7 +291,7 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_launch_m32",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         }
                     ],
                     "shaderConsts": [

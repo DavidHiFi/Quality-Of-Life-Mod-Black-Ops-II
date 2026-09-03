@@ -435,15 +435,15 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_smg_peacekeeper",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_smg_peacekeeper_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_1"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_attach_bullet",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_2"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_2"
                         }
                     ],
                     "shaderConsts": [
@@ -464,15 +464,15 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_smg_peacekeeper_camo3",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_smg_peacekeeper_camo4",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt_1"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_attach_tritium_blu_glo",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt_2"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt_2"
                         }
                     ],
                     "shaderConsts": [

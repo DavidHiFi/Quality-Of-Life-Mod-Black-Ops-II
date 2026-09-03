@@ -7,102 +7,21 @@
     "constants": [
         {
             "literal": [
-                17.5,
-                0.0,
-                0.0,
-                1.0
-            ],
-            "name": "Heat_Intensity"
-        },
-        {
-            "literal": [
-                17.5,
-                0.0,
-                0.0,
-                1.0
-            ],
-            "name": "Ember_Intensity"
-        },
-        {
-            "literal": [
-                1.600000023841858,
-                0.0,
-                0.0,
-                1.0
-            ],
-            "name": "Flicker_Min"
-        },
-        {
-            "literal": [
-                1.600000023841858,
-                0.0,
-                0.0,
-                1.0
-            ],
-            "name": "Flicker_Max"
-        },
-        {
-            "literal": [
                 1.0,
                 0.0,
                 0.0,
                 1.0
-            ],
-            "name": "Ember_Scale"
-        },
-        {
-            "literal": [
-                0.0,
-                0.0,
-                0.0,
-                0.0
             ],
             "name": "ReflectionAmount"
         },
         {
             "literal": [
-                0.057999998331069946,
-                0.057999998331069946,
-                0.0,
-                1.0
-            ],
-            "name": "Heat_Direction"
-        },
-        {
-            "literal": [
-                0.5,
-                0.0,
-                0.0,
-                1.0
-            ],
-            "name": "Seed_Value"
-        },
-        {
-            "literal": [
-                0.0,
-                0.0,
-                0.0,
-                0.0
-            ],
-            "name": "SpecularAmount"
-        },
-        {
-            "literal": [
-                0.057999998331069946,
-                0.057999998331069946,
-                0.0,
-                1.0
-            ],
-            "name": "Ember_Direction"
-        },
-        {
-            "literal": [
                 1.0,
                 0.0,
                 0.0,
                 1.0
             ],
-            "name": "Heat_Scale"
+            "name": "SpecularAmount"
         }
     ],
     "contents": 1,
@@ -241,27 +160,14 @@
     "stateFlags": 121,
     "surfaceFlags": 13631488,
     "surfaceTypeBits": 4096,
-    "techniqueSet": "mc_sw4_3d_weapon_camo_anim_glow_930950j2",
+    "techniqueSet": "mc_sw4_3d_weapon_camo_7q56e02q",
     "textureAtlas": {
         "columns": 1,
         "rows": 1
     },
     "textures": [
         {
-            "image": "camo_stellar_ember",
-            "isMatureContent": false,
-            "name": "Ember",
-            "samplerState": {
-                "clampU": false,
-                "clampV": false,
-                "clampW": false,
-                "filter": "aniso4x",
-                "mipMap": "linear"
-            },
-            "semantic": "colorMap"
-        },
-        {
-            "image": "camo_goldgrid_nml",
+            "image": "camo_zmb_dlc2_alt_nml",
             "isMatureContent": false,
             "name": "Camo_Detail_Map",
             "samplerState": {
@@ -287,19 +193,6 @@
             "semantic": "color2Map"
         },
         {
-            "image": "camo_goldgrid_nml",
-            "isMatureContent": false,
-            "name": "RevealMap",
-            "samplerState": {
-                "clampU": false,
-                "clampV": false,
-                "clampW": false,
-                "filter": "aniso4x",
-                "mipMap": "linear"
-            },
-            "semantic": "colorMap"
-        },
-        {
             "image": "camo_code_nml",
             "isMatureContent": false,
             "name": "Weapon_Normal_Map",
@@ -313,7 +206,7 @@
             "semantic": "color1Map"
         },
         {
-            "image": "camo_goldgrid_nml",
+            "image": "~~-gcamo_zmb_dlc2_alt_spc-rgb~805ae131",
             "isMatureContent": false,
             "name": "SpecularAndGloss",
             "samplerState": {
@@ -326,22 +219,9 @@
             "semantic": "colorMap"
         },
         {
-            "image": "camo_goldgrid_nml",
+            "image": "~-gcamo_zmb_dlc2_alt_col",
             "isMatureContent": false,
             "name": "colorMap",
-            "samplerState": {
-                "clampU": false,
-                "clampV": false,
-                "clampW": false,
-                "filter": "aniso4x",
-                "mipMap": "linear"
-            },
-            "semantic": "colorMap"
-        },
-        {
-            "image": "camo_stellar_ember",
-            "isMatureContent": false,
-            "name": "Heat_Map",
             "samplerState": {
                 "clampU": false,
                 "clampV": false,

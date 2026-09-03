@@ -255,15 +255,15 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_sniper_dragunov_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_attach_dragunov_scope",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_1"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_sniper_dragunov_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_1"
                         }
                     ],
                     "shaderConsts": [

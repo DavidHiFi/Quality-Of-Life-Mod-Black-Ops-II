@@ -296,7 +296,7 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_attach_optic_80s_vzoom",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         }
                     ],
                     "shaderConsts": [

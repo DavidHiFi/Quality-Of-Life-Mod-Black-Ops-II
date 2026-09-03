@@ -283,7 +283,7 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t5_wpn_zmb_freezegun_camo",
-                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
+                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
                         }
                     ],
                     "shaderConsts": [
