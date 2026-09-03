@@ -2617,11 +2617,14 @@ camo,camo_qol_stg44
 //
 //  THE ANIMATED LOOK IS NOW PURE PIXELS, the way every Plutonium texture pack
 //  works. The 9 camo_zmb_dlc2* images stream from dlczm2/3/4.ipak on EVERY map,
-//  indexed by R_HashString(name) - so a replacement must be `<decimal hash>.iwi`
-//  in storage	6\images (MOD_CATALOGUE 11a; a by-name loose file is never read
-//  for an ipak-backed image). Both copies of the material - the map's on Mob /
+//  indexed by R_HashString(name). 🛑 CORRECTED after the 11:58 boot: in
+//  storage	6\images a loose file is read BY NAME, ipak-backed or not - the
+//  user's own HD pack there is 980 by-name files, 329 of them DLC-ipak-only
+//  (Origins' c_zom_mech_body1_n among them). The hash-name rule is mod.iwd's
+//  (MOD_CATALOGUE 11a), and v2.11.6's first cut wrongly shipped the nine
+//  hash-named; they are now by name. Both copies of the material - the map's on Mob /
 //  Buried / Origins and mod.ff's elsewhere - name the same 9 images, so ONE set
-//  of 9 hash-named files reaches all six maps and the shadowing stops mattering.
+//  of 9 by-name files reaches all six maps and the shadowing stops mattering.
 //  The hash function is OpenAssetStudio's T6 R_HashString (djb2, xor, |0x20),
 //  verified 32,212 / 32,212 against image_names.csv before use.
 //
