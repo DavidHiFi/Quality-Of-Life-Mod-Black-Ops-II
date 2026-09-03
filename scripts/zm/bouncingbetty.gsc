@@ -33,6 +33,26 @@
 //      gun. main() now replaces is_offhand_weapon so it answers truthfully for
 //      this weapon, which is what the safety argument assumed all along.
 //
+//  🌟 v2.11.10 - THE BETTY DETONATES. The cause was in this file's own control
+//  flow, and the two blocks below are now HISTORY, not current diagnosis.
+//
+//  The 2026-09-04 Origins log settles what every earlier version guessed at.
+//  Both planted betties printed the complete chain - plant caught, settled,
+//  proximity trigger up, tripped - so the plant, the settle, the arm and the
+//  zombie trip have ALL been working. Only the detonation was missing, and it
+//  was killed by `self endon( "death" )` in the calling thread the moment
+//  zmqol_betty_pop() deleted the betty mid-sequence. Full derivation, with the
+//  two stock proofs that deleting an entity fires "death", sits above
+//  zmqol_betty_pop(). The fix is MP's own ordering: the jump and the explosion
+//  now run threaded on the minemover, an entity nothing deletes.
+//
+//  🛑 SO THE v2.10.11 BLOCK BELOW IS SUPERSEDED. Its reading of the 2026-09-02
+//  Borough log - "the plant is never caught at all" - was true of THAT log, but
+//  the conclusion drawn from it (that the failure was upstream of every
+//  watcher) did not survive the next boot: with the probes in, every watcher
+//  fires. `plantable 0` is retained on its own merits - it is byte-parity with
+//  the MP donor, which is independently correct - not because it fixed this.
+//
 //  🛑 v2.10.11 - v2.9.32's PREMISE WAS WRONG, AND IS REVERTED. The block below
 //  changed the def to `plantable 1` on the stated grounds that MP's
 //  bouncingbetty_mp is 1. It is NOT. Measured 2026-09-02 by dumping the real
@@ -95,12 +115,13 @@
 //  (its FileSource is raw\sound\wpn\grenade\explosion\explode\explode_00) and
 //  it resolves on all 7 zombies bank sets. The deploy foley and the spring
 //  "chunk" (betty_deploy / betty_trigger) live only inside mpl_common.all.sabl
-//  and OpenAssetTools cannot unpack those two payloads ("Could not find data",
-//  measured 2026-08-30), so fly_betty_plant_plr / fly_betty_jump are played
-//  here but are silent until someone extracts the two payloads with the
-//  GUI-only Sound Studio - at which point two CSV rows make them audible with
-//  no code change. A silent plant is also exactly what stock's own zombies
-//  claymore has (fly_claymore_plant_plr is a stock dangler, checkpoint 159 §6).
+//  🛑 SUPERSEDED 2026-09-02 - both payloads WERE extracted (reference\sound-tools//  extract_payload.py, hash of FileSource) into sound\mpletty\ and declared as
+//  zmqol_betty_plant_plr / _npc / _jump. Re-verified 2026-09-04 against Origins'
+//  runtime alias list: wpn_grenade_explode is resident (the explosion), and the
+//  three zmqol_betty_* rows ship in mod.all with real MP payloads behind them
+//  (betty_deploy for the plant, betty_trigger for the spring). Nothing in this
+//  feature is silent any more - so if a betty pops without sound, that is a
+//  fault to chase, not the documented state.
 // ============================================================================
 #include common_scripts\utility;
 #include maps\mp\_utility;
@@ -233,9 +254,11 @@ zmqol_claymore_damage_think( player )
     if ( !isdefined( self ) )
         return;
 
-    //  v2.9.32 - health first, per stock satchel_damage; see the betty watch.
-    self.health = 100000;
+    //  v2.11.10 - stock satchel_damage's real order and its third field; see
+    //  the correction in zmqol_betty_watch().
     self setcandamage( 1 );
+    self.health = 100000;
+    self.maxhealth = self.health;
     self waittill( "damage", n_amount, e_attacker );
 
     if ( !isdefined( self ) )
@@ -344,12 +367,20 @@ zmqol_betty_watch()
         //  nearby explosions." MP's own mines do exactly this (setcandamage +
         //  a damage watcher); radiusdamage from any other blast also lands on
         //  a damageable ent, so one mine going off sets off its neighbours.
-        //  v2.9.32 - health first, stock's own satchel_damage order
-        //  (_zm_weap_claymore.gsc:379-381): a damageable ent with default
-        //  health can be KILLED by the shot instead of receiving "damage",
-        //  and endon("death") then eats the watcher with no detonation.
-        betty.health = 100000;
+        //  🛑 v2.11.10 CORRECTION - the old comment here claimed "health first,
+        //  stock's own satchel_damage order". Re-read this session, stock
+        //  _zm_weap_claymore.gsc:379-381 is the OTHER order, and sets a third
+        //  field this never did:
+        //      self setcandamage( 1 );
+        //      self.health = 100000;
+        //      self.maxhealth = self.health;
+        //  The REASON was right and still stands - a damageable ent left on
+        //  default health is KILLED by the shot instead of receiving "damage",
+        //  and endon("death") then eats the watcher with no detonation - but the
+        //  order and the missing maxhealth were not stock. Matched exactly now.
         betty setcandamage( 1 );
+        betty.health = 100000;
+        betty.maxhealth = betty.health;
         betty thread zmqol_betty_shot_watch();
 
         //  v2.9.32 probe: user planted two betties (v2.9.31 boot) and neither
@@ -440,28 +471,88 @@ zmqol_betty_proximity()
     if ( !isdefined( self ) )
         return;
 
-    self zmqol_betty_pop( damagearea );
+    self zmqol_betty_pop();
 }
 
-//  v2.9.16 - the jump-and-explode, split out of zmqol_betty_proximity() so the
-//  shot-detonation watcher below can fire the same sequence. Body unchanged.
-zmqol_betty_pop( damagearea )
+//  🛑 v2.11.10 - WHY NO BETTY EVER EXPLODED, AND THE FIX. MEASURED, NOT GUESSED.
+//
+//  The v2.10.11 probes did their job. The 2026-09-04 Origins log prints the
+//  whole chain for both planted betties -
+//      betty: plant caught (grenade_fire), waiting to settle
+//      betty: settled, proximity trigger up at (825.724, 2359.54, -124.645)
+//      betty: tripped, jumping
+//  - so the plant, the settle, the arm and the zombie trip ALL work. The only
+//  thing that never happened was the detonation, and the cause is this
+//  function's own control flow, not the trigger, the radius or the def.
+//
+//  In T6, deleting an entity FIRES ITS "death" NOTIFY. Two independent stock
+//  proofs, both read this session:
+//    - _zm_weap_claymore::delete_claymores_on_death is `self waittill( "death" )`
+//      and stock relies on it firing when the claymore is removed;
+//    - zm_highrise_sq_slb::snipe_balls_watch_ball does `self delete(); wait 0.5;`
+//      and KEEPS RUNNING - and it is guarded by `self endon( "delete" )`, a name
+//      nothing ever fires. Treyarch picked a notify that cannot fire precisely
+//      so the thread survives deleting its own self. A thread on a deleted
+//      entity is therefore fine; a thread that registered endon("death") is NOT.
+//
+//  Both callers of this function - zmqol_betty_proximity() and
+//  zmqol_betty_shot_watch() - open with `self endon( "death" )`, and this was a
+//  plain call, not a thread, so it ran INSIDE them. The `self delete()` below
+//  fired "death" on the betty and killed the whole call stack mid-detonation.
+//  Everything past it - the jump wait, the explosion sound, hide(), the
+//  explosion fx, radiusdamage and the entire zombie-damage loop - never ran.
+//  What the player sees: the green light goes out, and nothing else happens.
+//  Exactly the report.
+//
+//  MP never had this bug because it does not run the sequence on the betty.
+//  maps\mp\_bouncingbetty::bouncingbettydetonate is, verbatim:
+//      self.minemover setmodel( self.model );
+//      self.minemover thread bouncingbettyjumpandexplode();   <- own thread,
+//      self delete();                                            own entity
+//  The jump and the explosion run on the MINEMOVER, which nothing deletes, so
+//  the betty's death cannot reach them. That ordering is copied exactly below:
+//  everything after the spawn moves into zmqol_betty_jump_and_explode(), which
+//  is THREADED ON THE MINEMOVER before the betty is deleted.
+//
+//  This is also why shooting a betty did nothing even once the plant was being
+//  caught: zmqol_betty_shot_watch() called straight into the same dead end.
+//  One cause, both reported symptoms - again.
+zmqol_betty_pop()
 {
-    //  --- MP's spawnminemover + bouncingbettyjumpandexplode, killcam dropped ---
+    //  --- MP's spawnminemover, killcam plumbing dropped (no killcam in zm) ---
     owner = self.owner;
     org = self.origin;
     angles = self.angles;
     minemover = spawn( "script_model", org );
     minemover.angles = angles;
     minemover setmodel( "t6_wpn_bouncing_betty_world" );
+    minemover.owner = owner;
 
-    if ( isdefined( damagearea ) )
-        damagearea delete();
+    //  The proximity trigger goes now so it cannot re-fire during the 0.65s
+    //  jump. zmqol_betty_cleanup_on_death() is still the backstop if the shot
+    //  watcher gets here before proximity ever built one.
+    if ( isdefined( self.zmqol_damagearea ) )
+        self.zmqol_damagearea delete();
 
     if ( isdefined( owner ) && isdefined( owner.zmqol_betties ) )
         arrayremovevalue( owner.zmqol_betties, self );
 
+    //  🛑 ORDER IS LOAD-BEARING - MP's, for MP's reason. Start the sequence on
+    //  the minemover FIRST; only then delete the betty. Reversing these two
+    //  lines is the v2.9.16-v2.11.9 bug.
+    minemover thread zmqol_betty_jump_and_explode();
+
     self delete();
+}
+
+//  MP's bouncingbettyjumpandexplode + mineexplode, run on the minemover exactly
+//  as MP runs them. `self` here is the minemover, never the betty, so nothing in
+//  this function can be cut short by the betty's death.
+zmqol_betty_jump_and_explode()
+{
+    owner = self.owner;
+    org = self.origin;
+    minemover = self;
 
     explodepos = org + ( 0, 0, level.zmqol_betty_jump_height );
     minemover moveto( explodepos, level.zmqol_betty_jump_time, level.zmqol_betty_jump_time, 0 );
@@ -479,6 +570,11 @@ zmqol_betty_pop( damagearea )
 
     if ( !isdefined( minemover ) )
         return;
+
+    //  v2.11.10 probe - the chain already prints plant/settle/trip; this is the
+    //  one stage that never ran. If the next Origins log shows this line, the
+    //  detonation completed. Remove it and the three above once confirmed.
+    println( "[zm_qol] betty: EXPLODED at " + minemover.origin );
 
     minemover hide();
     playfx( level._effect["betty_explosion"], minemover.origin );
@@ -541,7 +637,7 @@ zmqol_betty_shot_watch()
         return;
 
     println( "[zm_qol] betty: damage-detonated (" + n_amount + ")" );
-    self zmqol_betty_pop( self.zmqol_damagearea );
+    self zmqol_betty_pop();
 }
 
 //  delete_claymores_on_death(), name-swapped: the trigger dies with the mine
