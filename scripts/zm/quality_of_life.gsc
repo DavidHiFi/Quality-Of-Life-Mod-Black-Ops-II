@@ -1535,7 +1535,11 @@ get_pack_a_punch_weapon_options( weapon )
     if ( !isdefined( self.pack_a_punch_weapon_options ) )
         self.pack_a_punch_weapon_options = [];
     if ( !is_weapon_upgraded( weapon ) )
+    {
+        //  v2.11.3 probe - this is the silent "no camo at all" path (see below).
+        zmqol_papcamo_probe( weapon, 0, 0, 0 );
         return self calcweaponoptions( 0, 0, 0, 0 );
+    }
     if ( isdefined( self.pack_a_punch_weapon_options[weapon] ) )
         return self.pack_a_punch_weapon_options[weapon];
     smiley_face_reticle_index = 1;
@@ -1722,7 +1726,83 @@ get_pack_a_punch_weapon_options( weapon )
     if ( reticle_index == letter_e_reticle_index )
         reticle_color_index = green_reticle_color_index;
     self.pack_a_punch_weapon_options[weapon] = self calcweaponoptions( camo_index, lens_index, reticle_index, reticle_color_index );
+    zmqol_papcamo_probe( weapon, 1, camo_index, self.pack_a_punch_weapon_options[weapon] );
     return self.pack_a_punch_weapon_options[weapon];
+}
+
+// ============================================================================
+//  zmqol_papcamo_probe  -  v2.11.3. ONE LINE PER WEAPON, THEN QUIET.
+// ----------------------------------------------------------------------------
+//  User, 2026-09-03, with a screenshot of the Pack-a-Punched Zap Guns: both
+//  halves are drawing their STOCK BO1 base textures and no Pack-a-Punch camo.
+//  That much is measured, not guessed - the two colour maps were pulled out of
+//  mod.iwd and converted (~-gt5_weapon_zom_moon_raygun_front_clr is the blue
+//  half with the atom decal, _rear_c is the red half with the "07"), and they
+//  are pixel-for-pixel what the screenshot shows.
+//
+//  THE ENTIRE ASSET CHAIN WAS THEN VERIFIED AND IS INNOCENT. Every link was
+//  dumped out of the SHIPPED mod.ff and checked by hand, so none of it is the
+//  suspect any more:
+//    - t5_weapn_raygun_moon_front_vm / _rear_vm really do use materials
+//      mc/mtl_raygun_moon_front and mc/mtl_raygun_moon_rear (XMODEL_EXPORT
+//      dump: MATERIAL 0 of each). They are also the ONLY two materials in the
+//      whole of mod.ff built on a _dlc5 techset, so nothing else can be meant.
+//    - camo_microwavegun carries 13 camoMaterials and slots 3 / 8 / 12 (camo
+//      index 39 / 44 / 48) are all live and each maps BOTH gun materials.
+//    - the three camo materials those slots name - mtl_weapon_camo_zombies,
+//      mtl_weapon_camo_zmb_dlc2, mtl_weapon_camo_3layer - are all in mod.ff, so
+//      they resolve on Nuketown, which owns only the first of the three.
+//    - camo_microwavegun exists in NO retail fastfile, so the "map's copy wins"
+//      ceiling of ERROR_CATALOGUE 50 cannot apply to it.
+//  So on Nuketown a camo index of EITHER 44 or 39 had a live slot to land on
+//  and a material to swap to, and nothing was drawn. The break is not in the
+//  assets, which is why this ships a probe instead of an asset change.
+//
+//  WHAT THE PROBE SEPARATES, in one line at the moment the options are built:
+//    upgraded=0            is_weapon_upgraded() said no, so the camo index is
+//                          FORCED to 0 and no camo was ever possible. That is a
+//                          real and now-fixed defect for two of the three
+//                          upgraded Wave Gun forms (zapgun.gsc, v2.11.3) - but
+//                          the form the user was holding, microwavegundw_-
+//                          upgraded_zm, IS registered and should print
+//                          upgraded=1, so it does NOT explain the screenshot.
+//    upgraded=1, index=44  the script did everything right and the engine did
+//    (or 39), options!=0   not draw it, so the fault is below GSC: either
+//                          Plutonium raw weapons\zm\ loader does not resolve a
+//                          def camo field, or a dual-wield / alt form does not
+//                          inherit its parent weapon options.
+//
+//  THE ONE-BOOT EXPERIMENT THAT DECIDES IT: in a single game, .pack an ORDINARY
+//  box gun (an AK-74u, say - mod.ff owns its def) and then .pack the Zap Guns,
+//  and compare. If the ordinary gun shows the camo and the Zap Guns do not,
+//  while BOTH print upgraded=1 with the same camo index, then the difference is
+//  the raw-def route itself - which would also mean the 13 guns v2.11.0 moved
+//  onto weapons\zm\ lost their camo, and that is the next thing to fix. If
+//  neither shows it, the camo option itself is off, or index 44 is not landing
+//  where ERROR_CATALOGUE 50 concluded.
+//
+//  Capped at 24 lines a session and one per weapon name, so packing through a
+//  whole game cannot flood the log. Delete this function and its two call sites
+//  once the question is answered.
+// ============================================================================
+zmqol_papcamo_probe( weapon, b_upgraded, n_index, n_options )
+{
+    if ( !isdefined( level.zmqol_papcamo_probe ) )
+    {
+        level.zmqol_papcamo_probe = [];
+        level.zmqol_papcamo_probe_count = 0;
+    }
+
+    if ( level.zmqol_papcamo_probe_count >= 24 )
+        return;
+
+    if ( isdefined( level.zmqol_papcamo_probe[ weapon ] ) )
+        return;
+
+    level.zmqol_papcamo_probe[ weapon ] = 1;
+    level.zmqol_papcamo_probe_count++;
+
+    println( "[zm_qol] papcamo: " + weapon + "  upgraded=" + b_upgraded + "  camo_index=" + n_index + "  options=" + n_options + "  map=" + level.script );
 }
 
 //  v2.11.0 - the 35 guns whose retargeted camo field rides in mod.ff rather than

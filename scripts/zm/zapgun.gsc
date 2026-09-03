@@ -94,6 +94,41 @@ init()
     add_limited_weapon( "microwavegundw_zm", 1 );   // lifted by NO BOX LIMITS like its siblings
     add_zombie_weapon( "microwavegundw_zm", "microwavegundw_upgraded_zm", &"ZOMBIE_WEAPON_MICROWAVEGUNDW", 10, "", "", undefined );
 
+    //  🛑 v2.11.3 - THE TWO UPGRADED FORMS T6 NEVER HEARD ABOUT.
+    //  Moon's registration above is BO1's, and it is right for BO1: only the
+    //  dual pair is a box weapon, the combined gun comes off altWeapon and the
+    //  left half off DualWieldWeapon, so neither is add_zombie_weapon()'d.
+    //  T6 then inherits a gap BO1 never had, because T6 decides a Pack-a-Punch
+    //  camo in _zm_weapons::get_pack_a_punch_weapon_options(), whose FIRST line
+    //  is
+    //          if ( !is_weapon_upgraded( weapon ) )
+    //              return self calcweaponoptions( 0, 0, 0, 0 );
+    //  and is_weapon_upgraded() (:1820) reads exactly one table -
+    //  level.zombie_weapons_upgraded - which only add_zombie_weapon() (:546)
+    //  ever writes. So microwavegun_upgraded_zm (the combined Wave Gun) and
+    //  microwavegunlh_upgraded_zm (the left Zap Gun) report NOT upgraded and are
+    //  handed camo index 0 - no camo at all, guaranteed, whatever the animated
+    //  camo option says. Every other weapon this mod adds registers its own
+    //  _upgraded_zm name; these two were the only ones that did not (swept
+    //  2026-09-03 over every add_zombie_weapon call in the mod).
+    //
+    //  Writing the table directly rather than calling add_zombie_weapon() is
+    //  deliberate: add_zombie_weapon() also builds a level.zombie_weapons struct
+    //  and a "weapon_<name>" classname, which would offer these two as box/wall
+    //  weapons in their own right - exactly what Moon's comment above says must
+    //  not happen. The upgrade map is the only part T6's camo path reads.
+    //
+    //  Nothing else iterates this table; its four stock readers are
+    //  is_weapon_upgraded (:1828), get_base_weapon_name (:1752-1753) and the two
+    //  name lookups at :1933 and :1953, all of which want exactly this answer -
+    //  these weapons ARE upgraded. It also makes .unpack work on them.
+    if ( isdefined( level.zombie_weapons_upgraded ) )
+    {
+        level.zombie_weapons_upgraded[ "microwavegun_upgraded_zm" ]   = "microwavegun_zm";
+        level.zombie_weapons_upgraded[ "microwavegunlh_upgraded_zm" ] = "microwavegunlh_zm";
+        println( "[zm_qol] zapgun: registered microwavegun_upgraded_zm + microwavegunlh_upgraded_zm as upgraded (PaP camo path)" );
+    }
+
     precachemodel( getweaponmodel( "microwavegunlh_zm" ) );
     precachemodel( getweaponmodel( "microwavegunlh_upgraded_zm" ) );
 
