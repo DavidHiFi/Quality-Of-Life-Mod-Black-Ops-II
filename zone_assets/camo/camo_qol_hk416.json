@@ -409,27 +409,27 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_ar_hk416",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
+                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_ar_hk416_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_1"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_ar_hk416_camo3",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_2"
+                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_2"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_ar_hk416_camo4",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt_1"
+                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt_1"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_ar_hk416_grip",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt_2"
+                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt_2"
                         },
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_ar_hk416_grip_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_3"
+                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_3"
                         }
                     ],
                     "shaderConsts": [
@@ -450,7 +450,7 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_ar_hk416_camo2",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt"
                         }
                     ],
                     "shaderConsts": [

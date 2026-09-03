@@ -291,7 +291,7 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_ballistic_knife",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
+                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
                         }
                     ],
                     "shaderConsts": [

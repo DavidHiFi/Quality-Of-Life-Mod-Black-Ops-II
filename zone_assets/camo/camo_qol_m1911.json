@@ -286,7 +286,7 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_pistol_m1911_camo1",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2"
+                            "camoMaterial": "mc/mtl_weapon_camo_qolanim"
                         }
                     ],
                     "shaderConsts": [
@@ -307,7 +307,7 @@
                     "materialOverrides": [
                         {
                             "baseMaterial": "mc/mtl_t6_wpn_pistol_m1911",
-                            "camoMaterial": "mc/mtl_weapon_camo_zmb_dlc2_alt"
+                            "camoMaterial": "mc/mtl_weapon_camo_qolanim_alt"
                         }
                     ],
                     "shaderConsts": [

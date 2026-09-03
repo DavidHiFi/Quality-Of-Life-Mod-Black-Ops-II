@@ -2545,3 +2545,58 @@ camo,camo_qol_ak47
 camo,camo_qol_minigun
 camo,camo_qol_thompson
 camo,camo_qol_uzi
+
+// ============================================================================
+//  v2.11.5 - 🛑 THE REAL REASON THE ANIMATED CAMO WAS MISSING ON MOB, BURIED
+//  AND ORIGINS: §50's ceiling applies to the MATERIAL as well as the camo asset.
+//
+//  MEASURED, from the user's own boot (console_zm.log 10:40, Mob of the Dead).
+//  The probe added in v2.11.3 proved the script half was already perfect:
+//      [zm_qol] camo: m1911_upgraded_zm startAmmo=56 -> mod.ff weapon defs live = 1
+//      [zm_qol] papcamo: ak74u_extclip_upgraded_zm+reflex upgraded=1 camo_index=44 ...
+//  Index 44 WAS applied, the camo table WAS mod.ff's, and its slot 8 WAS live -
+//  and the gun still came out in a green-grey camo. Because slot 8 names the
+//  MATERIAL mc/mtl_weapon_camo_zmb_dlc2, and `Unlinker --list` finds that name
+//  owned by zm_prison, zm_buried and zm_tomb (plus _1/_2/_3/_alt, and
+//  zm_transit_patch owns _3). On those maps the MAP's copy wins, exactly as it
+//  does for a camo asset - so the gun drew TREYARCH's DLC2 camo, not EZZ's.
+//
+//  Proof the two differ, dumped side by side from the shipped mod.ff and from
+//  zm_prison.ff - same techniqueset, different textures:
+//      mod.ff    Ember -> camo_stellar_ember   colorMap -> camo_goldgrid_nml
+//      zm_prison Ember -> camo_zmb_dlc2_ember  colorMap -> ~-gcamo_zmb_dlc2_col
+//  camo_stellar_ember decoded to PNG is the pink/purple nebula with stars. The
+//  "broken green/white texture" the user reported is not broken at all - it is
+//  Treyarch's own DLC2 camo, drawn because ours was shadowed.
+//
+//  🌟 THE FIX IS v2.11.0's OWN LESSON, ONE LEVEL FURTHER DOWN: give the thing a
+//  name no retail map defines. mc/mtl_weapon_camo_qolanim* is a byte copy of the
+//  EZZ-stamped dlc2 family under a name that exists in NO fastfile but this one,
+//  and every camo table mod.ff owns now points its slot 8 at it. The original
+//  mtl_weapon_camo_zmb_dlc2* assets stay OWNED and untouched - un-owning a name
+//  something still references is the ERROR_CATALOGUE 35 crash class.
+//
+//  Seven more guns read a camo table the MAP owns on Mob / Buried / Origins, so
+//  the table retarget could not reach them; their defs are mod-controlled, so
+//  they now name a camo_qol_<x> copy instead (six mod.ff defs plus the raw
+//  barretm82qol). Only `camo` changed in any of the seven.
+// ============================================================================
+material,mc/mtl_weapon_camo_qolanim
+material,mc/mtl_weapon_camo_qolanim_1
+material,mc/mtl_weapon_camo_qolanim_2
+material,mc/mtl_weapon_camo_qolanim_3
+material,mc/mtl_weapon_camo_qolanim_alt
+material,mc/mtl_weapon_camo_qolanim_alt_1
+material,mc/mtl_weapon_camo_qolanim_alt_2
+material,mc/mtl_weapon_camo_qolanim_alt_3
+//  Kept OWNED although nothing references it any more: the slot-8 rewrite above
+//  took its last reference away and the Linker then dropped it, which is a -1 in
+//  the asset delta and exactly the un-owning class of ERROR_CATALOGUE 35. Pinned
+//  here so the delta stays +14 / -0.
+material,mc/mtl_weapon_camo_zmb_dlc2_alt_3
+camo,camo_qol_ballista
+camo,camo_qol_ksg
+camo,camo_qol_mp40
+camo,camo_qol_scarh
+camo,camo_qol_scorpionevo
+camo,camo_qol_stg44
