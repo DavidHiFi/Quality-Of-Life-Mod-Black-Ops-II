@@ -98,6 +98,71 @@ init()
 
     level thread zmqol_slipgun_prenerf_watch();
     level thread zmqol_semtex_wallbuy();
+    zmqol_bank_sounds_init();
+}
+
+// ============================================================================
+//  zmqol_bank_sounds_init  -  DIE RISE'S BANK HAS NEVER MADE A SOUND
+//
+//  User, 2026-09-04: "the sound effect from grabbing money from the bank in die
+//  rise was missing as well".
+//
+//  🌟 MEASURED, AND IT IS A STOCK GAP, NOT SOMETHING THIS MOD BROKE. Die Rise
+//  runs the same _zm_banking.gsc as TranZit and Buried - byte-identical in the
+//  dump - so its withdraw path calls
+//      player playsoundtoplayer( "zmb_vault_bank_withdraw", player )
+//  ( _zm_banking.gsc:267, deposit at :223 ). But that alias is NOT in Die Rise's
+//  sound table. Plutonium's own per-map alias dump ( storage/t6/plutonium/
+//  soundaliaslists ) lists zmb_vault_bank_deposit / _withdraw for zm_transit and
+//  zm_buried ONLY; zm_highrise has neither, while it does carry every common
+//  alias ( zmb_cha_ching, evt_perk_bottle_open, uin_alert_lockon ), so the list
+//  is the complete runtime set and the two names are genuinely absent. An alias
+//  that does not exist is SILENT AND LOGS NOTHING. Treyarch turned banking on
+//  for Die Rise ( zm_highrise.gsc:183, level.banking_update_enabled ) and never
+//  shipped the audio into its banks.
+//
+//  🛑 WHY NOT JUST DECLARE zmb_vault_bank_withdraw IN mod.all. Because mod.all
+//  loads after the stock banks, so the mod's row would win on TranZit and Buried
+//  too, where the sound already works - and this project cannot read Treyarch's
+//  own alias parameters ( no soundbank asset in zm_transit.ff to dump ), so the
+//  shadowing copy would be a guess at volume/bus/pan on two maps that are
+//  currently correct. The mod-private name cannot shadow anything.
+//
+//  THE HOOK IS TREYARCH'S OWN. _zm_banking.gsc calls level.custom_bank_deposit_vo
+//  / level.custom_bank_withdrawl_vo on the player at exactly the right moment
+//  ( :228 and :273 ) - Buried uses the same two pointers for its crew's bank
+//  lines ( zm_buried.gsc:1473 ). Nothing stock is replaced.
+//
+//  📝 The withdraw pointer REPLACES stock's else-branch, so the laugh it would
+//  have played is re-issued below, verbatim, to keep parity. The deposit branch
+//  has no else, so that one only adds the sound.
+//
+//  The payload is Treyarch's own bank_withdraw / bank_deposit FLAC out of
+//  zmb_classic_transit.all ( md5-identical to zmb_buried.all's copy ), shipped
+//  under zmqol_bank_withdraw / zmqol_bank_deposit in mod.all.
+// ============================================================================
+zmqol_bank_sounds_init()
+{
+    //  Never fight a map that already drives these pointers - Die Rise sets
+    //  neither ( verified in the stock dump: only zm_buried.gsc does ).
+    if ( isdefined( level.custom_bank_deposit_vo ) || isdefined( level.custom_bank_withdrawl_vo ) )
+        return;
+
+    level.custom_bank_deposit_vo = ::zmqol_bank_deposit_vo;
+    level.custom_bank_withdrawl_vo = ::zmqol_bank_withdrawl_vo;
+}
+
+zmqol_bank_deposit_vo()
+{
+    self playsoundtoplayer( "zmqol_bank_deposit", self );
+}
+
+zmqol_bank_withdrawl_vo()
+{
+    self playsoundtoplayer( "zmqol_bank_withdraw", self );
+
+    //  _zm_banking.gsc:276 - what stock plays when this pointer is undefined.
+    self thread maps\mp\zombies\_zm_utility::do_player_general_vox( "general", "exert_laugh", 10, 50 );
 }
 
 // ============================================================================

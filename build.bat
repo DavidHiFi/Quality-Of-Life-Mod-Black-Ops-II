@@ -248,8 +248,14 @@ REM ---- copy all 6 files to %1, confirm each landed, stamp build time ----
 set "DEST=%~1"
 if not exist "%DEST%" mkdir "%DEST%" 2>nul
 if not exist "%DEST%" ( echo    [FAILED] could not create the folder & exit /b 1 )
+REM  v2.11.13 - CHECK THE COPY, NOT JUST THAT SOMETHING IS THERE.
+REM  `if exist` passes on the STALE file the copy failed to overwrite, so a
+REM  deploy over a running game printed [ok] for a file it never wrote:
+REM  Plutonium holds mod.all.sabs open while it plays, and only that one
+REM  silently kept the previous build. Measured 2026-09-04. copy sets
+REM  errorlevel 1 when the target is locked, so test that first.
 for %%F in (%FILES%) do (
-    copy /Y "%~dp0%%F" "%DEST%\%%F" >nul 2>nul
+    copy /Y "%~dp0%%F" "%DEST%\%%F" >nul 2>nul || ( echo    [FAILED] %%F - in use by another process, close the game and build again & exit /b 1 )
     if exist "%DEST%\%%F" ( echo    [ok] %%F ) else ( echo    [FAILED] %%F & exit /b 1 )
 )
 REM optional banks: copy when present, stay silent when not
