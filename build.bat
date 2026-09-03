@@ -94,6 +94,13 @@ echo [0/6] Pre-flight: raw weapon file size ceiling (20480 bytes)...
 "%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$d=Join-Path $env:PROJ_DIR0 'weapons\zm'; if(-not (Test-Path -LiteralPath $d)){ Write-Host '    [skip] no weapons\zm folder'; exit 0 }; $ok=$env:WPN_OK -split ' '; $bad=@(); Get-ChildItem -LiteralPath $d -File | ForEach-Object { if($_.Length -ge 20480){ if($ok -contains $_.Name){ Write-Host ('    [known] ' + $_.Name + ' ' + $_.Length + ' B - over the limit on purpose, the map supplies its own') } else { $bad += ($_.Name + ' ' + $_.Length + ' B'); Write-Host ('    [OVER]  ' + $_.Name + ' ' + $_.Length + ' B') } } }; if($bad.Count -gt 0){ Write-Host ''; Write-Host '    This weapon will NOT load and will crash the game if a .csc include_weapon()s'; Write-Host '    it for the box. Trim it below 20480 before building.'; exit 1 }; Write-Host '    [ok] every raw weapon file is under the ceiling'"
 if errorlevel 1 goto wpnfail
 
+REM  v2.11.8 (user, 2026-09-04): the nine camo_zmb_dlc2* textures are NEVER copied into
+REM  images\ (= mod.iwd). They are the ZM Dark Matter animated Pack-a-Punch camo, and
+REM  they are delivered ONLY as loose by-name files in %LOCALAPPDATA%\Plutonium\storage\r
+REM  t6\images (the HD Texture Pack / Optionals\images). zone_assets\images keeps
+REM  Treyarch's own 512x512 copies purely so the Linker can build mod.ff's image
+REM  headers; a fastfile carries no pixels, so nothing in the mod's five files can
+REM  override the pack, and nothing in mod.iwd can shadow it either.
 echo [1/6] Syncing zone_assets\images -^> images (runtime pixel data)...
 REM  T6 keeps image PIXEL DATA in a loose .iwi, not in the fastfile. mod.ff only
 REM  carries the material and an image header. An image that is linked but whose
@@ -104,7 +111,7 @@ set "PROJ_DIR=%~dp0"
 REM  Keep to PowerShell 2.0-era cmdlets here - build.bat falls back to the system
 REM  WindowsPowerShell, which on this machine has no Get-FileHash (that is 4.0+).
 REM  These are a handful of small files, so copy unconditionally rather than diff.
-"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$proj=$env:PROJ_DIR; $src=Join-Path $proj 'zone_assets\images'; $dst=Join-Path $proj 'images'; if(-not (Test-Path -LiteralPath $src)){ Write-Host '    [skip] no zone_assets\images folder'; exit 0 }; if(-not (Test-Path -LiteralPath $dst)){ New-Item -ItemType Directory -Path $dst | Out-Null }; $n=0; Get-ChildItem -LiteralPath $src -Filter *.iwi | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $dst $_.Name) -Force; $n++ }; Write-Host ('    [ok] ' + $n + ' .iwi copied to images\')"
+"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$proj=$env:PROJ_DIR; $src=Join-Path $proj 'zone_assets\images'; $dst=Join-Path $proj 'images'; if(-not (Test-Path -LiteralPath $src)){ Write-Host '    [skip] no zone_assets\images folder'; exit 0 }; if(-not (Test-Path -LiteralPath $dst)){ New-Item -ItemType Directory -Path $dst | Out-Null }; $n=0; Get-ChildItem -LiteralPath $src -Filter *.iwi | Where-Object { $_.Name -notmatch 'camo_zmb_dlc2' } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $dst $_.Name) -Force; $n++ }; Write-Host ('    [ok] ' + $n + ' .iwi copied to images\')"
 if errorlevel 1 goto packfail
 
 echo.
