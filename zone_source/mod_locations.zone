@@ -2467,3 +2467,40 @@ camo,camo_qol_xm8
 xmodel,t6_wpn_zmb_raygun_view_upg
 xmodel,t6_wpn_zmb_raygun_world_upg
 material,hud_icon_m14
+
+// ============================================================================
+//  v2.11.1 - THE ONE ASSET CLASS THE v2.11.0 DIVERGENCE AUDIT ABOVE MISSED:
+//  THE RUMBLE. A weapon def's fireRumble names a `rumble/<name>` RAWFILE, and a
+//  missing rumble is NOT a soft "Could not load" like a model, a material or an
+//  fx - it is a COM_ERROR that drops the whole map back to the menu:
+//
+//      Could not load rawfile "rumble/quadrotor_fly".
+//      ====================== COM_ERROR (1) ===============
+//      Could not load rumble info file file [rumble/quadrotor_fly]
+//
+//  That is the Origins boot of 2026-09-03 (console_zm.log 08:30, line 4831),
+//  and it is v2.11.0's own doing: slowgun_upgraded_zm became a raw weapons\zm\
+//  def in that build, so it now loads - and precaches - on all six maps, and
+//  its fireRumble is `quadrotor_fly`, which Unlinker --list finds in exactly
+//  ONE fastfile of the twenty-seven any map loads: zm_buried.ff.
+//
+//  🌟 The precedent was already in this tree and was simply not applied to the
+//  new gun: mod.ff has shipped `heavygun_fire` for the Jet Gun (global since
+//  v2.9.11) and `subwoofer_heavy` for the Thundergun for exactly this reason -
+//  see mod_base.zone and mod_wonderweapons.zone. Three rawfiles, ~300 bytes.
+//  Byte copies of zm_buried.ff's own, so the Paralyzer keeps Treyarch's exact
+//  rumble on Buried and nothing changes anywhere else.
+//
+//  🛑 PRE-FLIGHT FOR ANY FUTURE RAW DEF (ERROR_CATALOGUE §53): before shipping
+//  a weapons\zm\ def globally, read its fireRumble / meleeImpactRumble /
+//  reloadRumble / explosionRumble and confirm each name is in a zone EVERY map
+//  loads. All 87 raw defs were re-audited this way on 2026-09-03; quadrotor_fly
+//  was the only miss, and the other three rumble fields are empty in all 87.
+//
+//  📝 The two `.rmb` payloads are named by the rumble file's own highRumbleFile
+//  / lowRumbleFile fields, not by convention - subwoofer_heavy points at
+//  tank_damage_heavy_{h,l}.rmb. quadrotor_fly points at its own name.
+// ============================================================================
+rawfile,rumble/quadrotor_fly
+rawfile,rumble/quadrotor_fly_h.rmb
+rawfile,rumble/quadrotor_fly_l.rmb
