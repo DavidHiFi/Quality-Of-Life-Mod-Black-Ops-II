@@ -64,7 +64,24 @@ init()
     // Whichever init ran last decided the rate for BOTH, so the Wunderwaffe's 75 was
     // silently re-tuning a stock perk. The gun keeps its own rate, privately.
     level.zmqol_tesla_head_gib_chance = 75;
-    set_zombie_var( "tesla_arc_travel_time",    0.11, true );
+    //  🌟 v2.11.30 - 0.11 -> 0.5, MATCHING THE DLC5 PORT (and BO1, they agree).
+    //
+    //  Read out of Zombies Declassified's own zm_factory copy of this script -
+    //  compiled Plutonium bytecode, decompiled with
+    //      gsc-tool -m decomp -g t6 -s pc --t6fixup
+    //  - whose init sets exactly 0.5, the same as BO1's
+    //  <BO1>\raw\maps\_zombiemode_weap_tesla.gsc:37.
+    //
+    //  This is COSMETIC ONLY and does not slow the chain down. It is the MoveTo
+    //  duration of the fxOrg carrying level._effect["tesla_bolt"] between two
+    //  targets (tesla_play_arc_fx below), and the damage is threaded separately
+    //  in tesla_arc_damage - `self thread tesla_do_damage(...)` - so selection
+    //  and kills are unaffected. At 0.11 the bolt was a flicker; 0.5 is the
+    //  visible arc jump the DLC5 port draws.
+    //
+    //  📝 The 0.11 arrived with the SRS import (f4c22d8) and was never chosen
+    //  here. One line to put back if the trailing bolts read badly at 10 arcs.
+    set_zombie_var( "tesla_arc_travel_time",    0.5, true );
     set_zombie_var( "tesla_kills_for_powerup",  15 );
     set_zombie_var( "tesla_min_fx_distance",    128 );
     set_zombie_var( "tesla_network_death_choke",4 );
@@ -389,10 +406,29 @@ tesla_do_damage( source_enemy, arc_num, player )
     // made on the user's explicit and repeated instruction that BO1/WaW parity is
     // the target: "Make it on par with the real wunderwaffe... from bo1."
     //
-    // Kept as a dvar so it is one console command to put back:
-    //   scr_tesla_arc_delay 0     instantaneous (default, BO1/WaW feel)
-    //   scr_tesla_arc_delay 1     restores the ported T5 stagger exactly
-    if ( arc_num > 1 && getdvarintdefault( "scr_tesla_arc_delay", 0 ) )
+    // 🌟 v2.11.30 - THE STAGGER IS BACK ON BY DEFAULT, BY DECISION.
+    //
+    // Everything above is the history of why it was turned OFF in the first
+    // place, and it is kept because it is still the reason the dvar exists.
+    // What changed is the target: the user asked for this gun to match the DLC5
+    // port's logic, and DLC5 carries this exact wait. Read out of Zombies
+    // Declassified's own zm_factory copy (compiled bytecode, decompiled with
+    // gsc-tool -m decomp -g t6 -s pc --t6fixup), tesla_do_damage opens with:
+    //       if ( arc_num > 1 )
+    //           wait( randomfloatrange( 0.2, 0.6 ) * arc_num );
+    // - identical to BO1's <BO1>\raw\maps\_zombiemode_weap_tesla.gsc.
+    //
+    // 🛑 ASKED AND ANSWERED, 2026-09-04: restoring this alone would have meant
+    // dropping the chain from 10 back to DLC5's 5 as well. The user chose
+    // "DLC5 timing, keep 10 chain" - so tesla_max_arcs STAYS at 10 (see init)
+    // and only the timing moves. They were told the consequence up front: the
+    // stagger scales with arc_num, so on a full 10-deep chain the last kill can
+    // land ~6s after the shot.
+    //
+    // Still one console command either way:
+    //   scr_tesla_arc_delay 1     DLC5 / BO1 stagger (default as of v2.11.30)
+    //   scr_tesla_arc_delay 0     instantaneous, the v2.9.x behaviour
+    if ( arc_num > 1 && getdvarintdefault( "scr_tesla_arc_delay", 1 ) )
     {
         wait( randomfloatrange( 0.2, 0.6 ) * arc_num );
     }
