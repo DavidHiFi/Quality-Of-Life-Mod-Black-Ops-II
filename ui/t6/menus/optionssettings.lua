@@ -1201,7 +1201,8 @@ CoD.OptionsSettings.CreateSoundTab = function (SoundTab, LocalClientIndex)
 	local MasterVolumeSlider = SoundTabButtonList:addProfileLeftRightSlider(LocalClientIndex, Engine.Localize("MENU_MASTER_VOLUME_CAPS"), "snd_menu_master", 0, 1, Engine.Localize("MENU_MASTER_VOLUME_DESC"), nil, nil, CoD.Options.AdjustSFX)
 	local CodCasterVolumeSlider = SoundTabButtonList:addProfileLeftRightSlider(LocalClientIndex, Engine.Localize("MENU_SHOUTCAST_GAME_VOLUME_CAPS"), "snd_shoutcast_game", 0, 2, Engine.Localize("MENU_SHOUTCAST_GAME_VOLUME_DESC"), nil, nil, CoD.Options.AdjustSFX)
 	local CodCasterVOIPVolumeSlider = SoundTabButtonList:addProfileLeftRightSlider(LocalClientIndex, Engine.Localize("MENU_SHOUTCAST_VOIP_VOLUME_CAPS"), "snd_shoutcast_voip", 0, 2, Engine.Localize("MENU_SHOUTCAST_VOIP_VOLUME_DESC"), nil, nil, CoD.Options.AdjustSFX)
-	SoundTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
+	--  v2.11.26 - the two half spacers this tab used to carry are GONE, and
+	--  that is what pays for the VOICE LINES row below. See the note there.
 	CoD.Options.Button_AddChoices_OnOrOff(SoundTabButtonList:addProfileLeftRightSelector(LocalClientIndex, Engine.Localize("MENU_HEARING_IMPAIRED_CAPS"), "snd_menu_hearing_impaired", Engine.Localize("MENU_HEARING_IMPAIRED_DESC")))
 	if UIExpression.DvarBool(nil, "sd_can_switch_device") == 0 then
 	else
@@ -1211,7 +1212,6 @@ CoD.OptionsSettings.CreateSoundTab = function (SoundTab, LocalClientIndex)
 			SoundDeviceChoices:disableSelector()
 		end
 	end
-	SoundTabButtonList:addSpacer(CoD.CoD9Button.Height / 2)
 	CoD.AudioSettings.Button_AudioPresets_AddChoices(SoundTabButtonList:addProfileLeftRightSelector(LocalClientIndex, Engine.Localize("MENU_AUDIO_PRESETS_CAPS"), "snd_menu_presets", "", nil, nil, CoD.AudioSettings.CycleSFX))
 	if UIExpression.IsInGame() == 0 and not (UIExpression.IsDemoPlaying(LocalClientIndex) ~= 0) then
 		local SoundSystemTest = SoundTabButtonList:addButton(Engine.Localize("MENU_SYSTEM_TEST_CAPS"), Engine.Localize("MENU_SYSTEM_TEST_DESC"))
@@ -1280,6 +1280,28 @@ CoD.OptionsSettings.CreateSoundTab = function (SoundTab, LocalClientIndex)
 	--  the ESC prompt is a reported fault; tighter grouping is not.
 	-- ========================================================================
 	local C = CoD.OptionsSettings.QolChoice
+	local T = CoD.OptionsSettings.QolToggle
+
+	-- ========================================================================
+	--  VOICE LINES  -  v2.11.26, user request 2026-09-04, placed exactly where
+	--  they asked: between PRESETS and the first hitmarker row.
+	--
+	--  The row drives voice_lines (1 = on, the new default). Its GSC half is
+	--  qol_options.gsc::qol_opt_voice_lines - which until this version was
+	--  disable_player_quotes, defaulted to 1, had no row anywhere, and silenced
+	--  every character on every map.
+	--
+	--  🛑 IT COSTS THE TAB NOTHING, AND THAT IS DELIBERATE. The measured
+	--  ceiling is 15.0 row-pitches (see the note above QolToggle: 15.5 touches
+	--  the ESC prompt, 16.0 overlaps it - both reported by the user). SOUND was
+	--  already AT 15.0 out of game (14 rows + 2 half spacers), so a plain
+	--  addition would have hit 16.0 and reproduced the v2.0.8 fault. The two
+	--  half spacers above were removed to pay for it: out of game 15 rows + 0
+	--  spacers = 15.0, in game 14.0 - the exact totals that ship today, so the
+	--  layout cannot regress. The cost is stock's visual grouping, which is the
+	--  same trade v1.99.33 already made on this tab.
+	-- ========================================================================
+	T(SoundTabButtonList, LocalClientIndex, "VOICE LINES", "voice_lines", "Your character's spoken lines.")
 
 	--  1..8 keep the donor mod's own pack numbering so the two cannot drift.
 	--  0 = DEFAULT plays pack 1 (v2.3.4) - the old stock spl_hit_alert it tried

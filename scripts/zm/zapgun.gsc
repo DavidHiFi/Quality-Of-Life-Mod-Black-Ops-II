@@ -233,6 +233,63 @@ microwavegun_fired( upgraded )
     level.microwavegun_sizzle_vecs = [];
 }
 
+// ============================================================================
+//  zmqol_ww_sizzle_target_list  -  THE WAVE GUN NOW HITS DENIZENS   (v2.11.26)
+// ============================================================================
+//  User, 2026-09-04, TranZit: *"the wave gun for some reason doesn't deal any
+//  damage to the denizens whilst i was testing in tranzit"*.
+//
+//  🌟 MEASURED CAUSE, one flag. The sizzle cone built its candidate list from
+//  get_round_enemy_array() (_zm_utility.gsc), and that function's whole body is
+//
+//      enemies = getaispeciesarray( level.zombie_team, "all" );
+//      ... if ( isdefined( enemies[i].ignore_enemy_count ) && enemies[i].ignore_enemy_count )
+//              continue;
+//
+//  and the denizen sets exactly that flag on itself at spawn -
+//  _zm_ai_screecher.gsc:376, `self.ignore_enemy_count = 1`, four lines after
+//  `self.isscreecher = 1`. So a denizen was never a candidate and the beam
+//  passed straight through it. Nothing was wrong with the damage; the target
+//  was never in the list.
+//
+//  🛑 THE FIX ADDS DENIZENS AND NOTHING ELSE. Every special AI in the game
+//  carries that same flag - Brutus, the Ghost, the Sloth, Mechz, the Avogadro -
+//  and sweeping them all in would quietly turn the Wave Gun into a boss-killer
+//  nobody asked for. The list is widened by the denizen's OWN marker,
+//  self.isscreecher, so only denizens come back. Everything they then go
+//  through is the path a normal zombie already takes.
+//
+//  📝 Nothing leaks. screecher_cleanup() (_zm_ai_screecher.gsc:924) is threaded
+//  at spawn and parks on `self waittill( "death" )`, so the dodamage kill runs
+//  it and level.zombie_screecher_count is decremented exactly as it is for any
+//  other denizen death. The pop fx already falls back from J_SpineLower to
+//  J_Spine1 to getcentroid(), so a rig without those tags costs the garnish and
+//  never the kill.
+//
+//  📝 Built by hand rather than with arraycombine(): that name is nowhere in
+//  the stock dump's own utility files, so its signature would have been a
+//  guess. get_round_enemy_array() reads the same getaispeciesarray() this does
+//  and drops every denizen, so the two halves cannot overlap.
+// ============================================================================
+zmqol_ww_sizzle_target_list()
+{
+    a_out = get_round_enemy_array();
+    a_ai = getaispeciesarray( level.zombie_team, "all" );
+
+    for ( i = 0; i < a_ai.size; i++ )
+    {
+        if ( !isdefined( a_ai[i] ) || !isalive( a_ai[i] ) )
+            continue;
+
+        if ( !( isdefined( a_ai[i].isscreecher ) && a_ai[i].isscreecher ) )
+            continue;
+
+        a_out[ a_out.size ] = a_ai[i];
+    }
+
+    return a_out;
+}
+
 microwavegun_get_enemies_in_range( upgraded, microwaveable_objects )
 {
     view_pos = self getweaponmuzzlepoint();
@@ -247,7 +304,7 @@ microwavegun_get_enemies_in_range( upgraded, microwaveable_objects )
         cylinder_radius = cylinder_radius * 10;
     }
     else
-        test_list = get_round_enemy_array();
+        test_list = zmqol_ww_sizzle_target_list();
 
     zombies = get_array_of_closest( view_pos, test_list, undefined, undefined, range );
 

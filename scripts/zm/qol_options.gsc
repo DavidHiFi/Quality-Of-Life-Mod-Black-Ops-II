@@ -69,7 +69,11 @@ init()
     //  eye-effect option whose dvar and whose zmqol_vulture_brighter_eyes()
     //  had both already been deleted. Vulture Aid no longer touches zombie eye
     //  colour at all; see zm_expanded.csc::zmqol_init_vulture_trimmed().
-    qol_opt_dvar( "disable_player_quotes", "1" );
+    //  v2.11.26 - WAS disable_player_quotes, DEFAULT 1, AND THAT IS WHY NO
+    //  CHARACTER HAS EVER SPOKEN. See qol_opt_voice_lines() for the full
+    //  story. Renamed to a positive name with the sane default so the row
+    //  in the SOUND tab reads the way a player expects.
+    qol_opt_dvar( "voice_lines",           "1" );
     qol_opt_dvar( "coop_pause",            "0" );
     //  v1.99.91 - the ADVANCED tab's FOG row and the .fog command both write
     //  this; quality_of_life::zmqol_fog_dvar_watch() carries it to r_fog. It
@@ -770,7 +774,7 @@ qol_opt_player_init()
 
         self thread qol_opt_cherry_sound();
         self thread qol_opt_rapid_fire();
-        self thread qol_opt_player_quotes();
+        self thread qol_opt_voice_lines();
         self thread qol_opt_night_mode();
         self thread qol_opt_character();
         self thread qol_opt_hud_watcher();
@@ -880,18 +884,52 @@ qol_opt_cherry_sound()
 }
 
 // ----------------------------------------------------------------------------
-//  disable_player_quotes  -  hold the "already speaking" flag so VO is skipped.
+//  voice_lines  -  the character's spoken lines, ON by default   (v2.11.26)
 // ----------------------------------------------------------------------------
-qol_opt_player_quotes()
+//  User, 2026-09-04, in a TranZit game: *"my characters on all classic maps seem
+//  to be never speaking with their voicelines … im playing as stuhlinger right now
+//  in tranzit and i haven't heard even one of his voice lines throughout the
+//  game … fix the characters' voice lines so they're back to normal"*.
+//
+//  🛑 THIS FILE WAS THE CAUSE, AND IT SHIPPED THAT WAY FROM THE START. The option
+//  came over from BO2-Remix as `disable_player_quotes` with a DEFAULT OF 1 -
+//  against this file's own stated policy that every gameplay option is OFF by
+//  default - and it was never given a menu row, so there was no way to turn it
+//  off. Measured, not inferred: the user's own console_zm.log dvar dump reads
+//  `disable_player_quotes "1"`.
+//
+//  🌟 HOW ONE LINE SILENCED EVERY MAP. The loop pinned self.isspeaking = 1
+//  twice a second. _zm_audio::do_player_or_npc_playvox() opens with
+//      if ( isdefined( self.isspeaking ) && self.isspeaking )  return;
+//  ("Can't play because we are speaking already"), so EVERY line the game asked
+//  for was dropped before it reached playsoundontag. Nothing logs, because a
+//  dropped line is not an error - which is why it survived this long. The
+//  alias tables were never the problem: Plutonium's own dumped alias list for
+//  zm_transit carries 2,277 vox_plr_* rows, 568 of them Stuhlinger's.
+//
+//  🛑 THE RELEASE HAS TO BE A ONE-SHOT, NOT A SECOND PIN. Holding
+//  isspeaking = 0 every half second would clobber stock's own book-keeping
+//  mid-line and let two lines play over each other - the flag is exactly how
+//  stock stops that. So the clear fires only on the transition into "on", and
+//  after that this thread never touches the flag again.
+// ----------------------------------------------------------------------------
+qol_opt_voice_lines()
 {
     self endon( "disconnect" );
     level endon( "end_game" );
 
+    b_last = -1;
+
     for ( ;; )
     {
-        if ( getdvarintdefault( "disable_player_quotes", 1 ) )
-            self.isspeaking = 1;
+        b_on = getdvarintdefault( "voice_lines", 1 );
 
+        if ( !b_on )
+            self.isspeaking = 1;
+        else if ( b_last != 1 )
+            self.isspeaking = 0;
+
+        b_last = b_on;
         wait 0.5;
     }
 }

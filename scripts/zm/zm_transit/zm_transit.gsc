@@ -39,6 +39,11 @@ main()
     //  buildable's own .onbought hook instead, one level higher.
     replaceFunc( maps\mp\zombies\_zm_equipment::equipment_give, ::zmqol_equipment_give );
 
+    //  v2.11.26 - part 3 of the jet gun slot work, and the half that was still
+    //  missing: what happens when a player HOLDING the jet gun is handed some
+    //  OTHER weapon. See the banner above zmqol_weapon_give().
+    replaceFunc( maps\mp\zombies\_zm_weapons::weapon_give, ::zmqol_weapon_give );
+
     // --- custom survival start locations: adds Diner, Power Station, Tunnel ---
     // Map-specific, so it lives here and not in quality_of_life.gsc (AI_CONTEXT rule 2).
     replaceFunc( maps\mp\zm_transit_gamemodes::init, scripts\zm\replaced\zm_transit_gamemodes::init );
@@ -352,6 +357,221 @@ zmqol_jetgun_real_slot()
 //  is_equipment() guard below is what keeps the riot shield from being taken
 //  when it is the weapon in hand.
 // ============================================================================
+// ============================================================================
+//  zmqol_weapon_give  -  THE JET GUN CAN BE SWAPPED OUT LIKE ANY GUN (v2.11.26)
+// ============================================================================
+//  User, 2026-09-04, TranZit: *"i managed to end up with 4 guns again … i had it
+//  in my hands, already had 3 weapons with mule kick, then with chat commands
+//  gave myself a new weapon and it didn't overwrite the jet gun's weapon slot
+//  and instead added it to a 4th one … no more having 4 weapons due to the jet
+//  gun not properly working as a weapon slot."*
+//
+//  🛑 v2.11.14 FIXED THE OTHER DIRECTION ONLY. Giving the JET GUN at the cap
+//  takes a real weapon (zmqol_jetgun_give_as_primary, confirmed in game). This
+//  is the reverse: giving ANY OTHER weapon while the jet gun is the weapon in
+//  hand. Stock's own limit block, _zm_weapons.gsc:2407-2426, reads
+//
+//      if ( primaryweapons.size >= weapon_limit )
+//      {
+//          if ( is_placeable_mine( current_weapon ) || is_equipment( current_weapon ) )
+//              current_weapon = undefined;      <-- nothing is taken
+//
+//  and TranZit registers the jet gun as equipment - register_equipment_for_level(
+//  "jetgun_zm" ), zm_transit.gsc:1854 - so the gun in your hands was exempt from
+//  being taken and the new one simply became a fourth. The exclusion is there to
+//  stop a RIOT SHIELD or a placed mine being taken; the jet gun is a genuine
+//  primary here (raw weapons\zm\ def, inventoryType "primary", measured in the
+//  running game) and does hold a slot, so it must not be exempt.
+//
+//  🛑 WHY THE WHOLE FUNCTION IS COPIED RATHER THAN A UTILITY HOOKED. The obvious
+//  smaller fix is to replace _zm_utility::is_equipment so it answers "no" for the
+//  jet gun. Every one of its nine stock callers was read, and three of them
+//  change behaviour that nobody asked for: can_track_ammo (_zm.gsc:631),
+//  has_weapon_or_upgrade (_zm_weapons.gsc:1896), and - the one that settles it -
+//  zombie_death_points (_zm_spawner.gsc:1651), which withholds points for an
+//  EQUIPMENT kill. Flipping that would silently make the jet gun a points weapon.
+//  So the change is made in the one place it belongs instead.
+//
+//  🌟 THE BLAST RADIUS IS AS SMALL AS IT CAN BE MADE:
+//    - the replaceFunc is in this MAP'S main(), so no other map runs a line of it;
+//    - the body is _zm_weapons::weapon_give copied from the stock dump with every
+//      call QUALIFIED (so a replaced utility - is_offhand_weapon, replaced by
+//      bouncingbetty.gsc - still reaches the mod's version, exactly as stock did);
+//    - exactly ONE condition differs from stock, and it is gated on the weapon
+//      name AND on the def actually being a primary at runtime, so every other
+//      weapon in the game takes byte-identical decisions.
+//
+//  📝 If the raw def ever fails the 20,480 B loader ceiling (ERROR_CATALOGUE
+//  36) the map's own "item" def is back, the jet gun costs no slot, and
+//  zmqol_jetgun_holds_a_slot() answers 0 - stock's exclusion applies again and
+//  the player does not lose a gun for nothing. Checked at runtime, not assumed.
+// ============================================================================
+//  📝 Stock’s one dev-only line, assert( self player_can_use_content(
+//  weapon ) ), is deliberately not copied: assert is a no-op in a retail build
+//  and keeping it would add a live call for nothing. Every other statement is
+//  present, in stock’s order.
+zmqol_jetgun_holds_a_slot( str_weapon )
+{
+    if ( !isdefined( str_weapon ) || str_weapon != "jetgun_zm" )
+        return 0;
+
+    return weaponinventorytype( "jetgun_zm" ) == "primary";
+}
+
+zmqol_weapon_give( weapon, is_upgrade, magic_box, nosound )
+{
+    primaryweapons = self getweaponslistprimaries();
+    current_weapon = self getcurrentweapon();
+    current_weapon = self maps\mp\zombies\_zm_weapons::switch_from_alt_weapon( current_weapon );
+
+    if ( !isdefined( is_upgrade ) )
+        is_upgrade = 0;
+
+    weapon_limit = self maps\mp\zombies\_zm_utility::get_player_weapon_limit( self );
+
+    if ( maps\mp\zombies\_zm_utility::is_equipment( weapon ) )
+        self maps\mp\zombies\_zm_equipment::equipment_give( weapon );
+
+    if ( weapon == "riotshield_zm" )
+    {
+        if ( isdefined( self.player_shield_reset_health ) )
+            self [[ self.player_shield_reset_health ]]();
+    }
+
+    if ( self hasweapon( weapon ) )
+    {
+        if ( issubstr( weapon, "knife_ballistic_" ) )
+            self notify( "zmb_lost_knife" );
+
+        self givestartammo( weapon );
+
+        if ( !maps\mp\zombies\_zm_utility::is_offhand_weapon( weapon ) )
+            self switchtoweapon( weapon );
+
+        return;
+    }
+
+    if ( maps\mp\zombies\_zm_utility::is_melee_weapon( weapon ) )
+        current_weapon = self maps\mp\zombies\_zm_melee_weapon::change_melee_weapon( weapon, current_weapon );
+    else if ( maps\mp\zombies\_zm_utility::is_lethal_grenade( weapon ) )
+    {
+        old_lethal = self maps\mp\zombies\_zm_utility::get_player_lethal_grenade();
+
+        if ( isdefined( old_lethal ) && old_lethal != "" )
+        {
+            self takeweapon( old_lethal );
+            maps\mp\zombies\_zm_weapons::unacquire_weapon_toggle( old_lethal );
+        }
+
+        self maps\mp\zombies\_zm_utility::set_player_lethal_grenade( weapon );
+    }
+    else if ( maps\mp\zombies\_zm_utility::is_tactical_grenade( weapon ) )
+    {
+        old_tactical = self maps\mp\zombies\_zm_utility::get_player_tactical_grenade();
+
+        if ( isdefined( old_tactical ) && old_tactical != "" )
+        {
+            self takeweapon( old_tactical );
+            maps\mp\zombies\_zm_weapons::unacquire_weapon_toggle( old_tactical );
+        }
+
+        self maps\mp\zombies\_zm_utility::set_player_tactical_grenade( weapon );
+    }
+    else if ( maps\mp\zombies\_zm_utility::is_placeable_mine( weapon ) )
+    {
+        old_mine = self maps\mp\zombies\_zm_utility::get_player_placeable_mine();
+
+        if ( isdefined( old_mine ) )
+        {
+            self takeweapon( old_mine );
+            maps\mp\zombies\_zm_weapons::unacquire_weapon_toggle( old_mine );
+        }
+
+        self maps\mp\zombies\_zm_utility::set_player_placeable_mine( weapon );
+    }
+
+    if ( !maps\mp\zombies\_zm_utility::is_offhand_weapon( weapon ) )
+        self maps\mp\zombies\_zm_weapons::take_fallback_weapon();
+
+    if ( primaryweapons.size >= weapon_limit )
+    {
+        //  🛑 THE ONE LINE THAT DIFFERS FROM STOCK. Stock reads
+        //      if ( is_placeable_mine( current_weapon ) || is_equipment( current_weapon ) )
+        //  The added clause lets a jet gun that is genuinely holding a primary
+        //  slot be taken like any other gun. Nothing else in this function is
+        //  changed, and no other weapon can reach the new clause.
+        if ( maps\mp\zombies\_zm_utility::is_placeable_mine( current_weapon ) || ( maps\mp\zombies\_zm_utility::is_equipment( current_weapon ) && !zmqol_jetgun_holds_a_slot( current_weapon ) ) )
+            current_weapon = undefined;
+
+        if ( isdefined( current_weapon ) )
+        {
+            if ( !maps\mp\zombies\_zm_utility::is_offhand_weapon( weapon ) )
+            {
+                if ( current_weapon == "tesla_gun_zm" )
+                    level.player_drops_tesla_gun = 1;
+
+                if ( issubstr( current_weapon, "knife_ballistic_" ) )
+                    self notify( "zmb_lost_knife" );
+
+                self takeweapon( current_weapon );
+                maps\mp\zombies\_zm_weapons::unacquire_weapon_toggle( current_weapon );
+            }
+        }
+    }
+
+    if ( isdefined( level.zombiemode_offhand_weapon_give_override ) )
+    {
+        if ( self [[ level.zombiemode_offhand_weapon_give_override ]]( weapon ) )
+            return;
+    }
+
+    if ( weapon == "cymbal_monkey_zm" )
+    {
+        self maps\mp\zombies\_zm_weap_cymbal_monkey::player_give_cymbal_monkey();
+        self maps\mp\zombies\_zm_weapons::play_weapon_vo( weapon, magic_box );
+        return;
+    }
+    else if ( issubstr( weapon, "knife_ballistic_" ) )
+        weapon = self maps\mp\zombies\_zm_melee_weapon::give_ballistic_knife( weapon, issubstr( weapon, "upgraded" ) );
+    else if ( weapon == "claymore_zm" )
+    {
+        self thread maps\mp\zombies\_zm_weap_claymore::claymore_setup();
+        self maps\mp\zombies\_zm_weapons::play_weapon_vo( weapon, magic_box );
+        return;
+    }
+
+    if ( isdefined( level.zombie_weapons_callbacks ) && isdefined( level.zombie_weapons_callbacks[weapon] ) )
+    {
+        self thread [[ level.zombie_weapons_callbacks[weapon] ]]();
+        self maps\mp\zombies\_zm_weapons::play_weapon_vo( weapon, magic_box );
+        return;
+    }
+
+    if ( !( isdefined( nosound ) && nosound ) )
+        self maps\mp\zombies\_zm_utility::play_sound_on_ent( "purchase" );
+
+    if ( weapon == "ray_gun_zm" )
+        playsoundatposition( "mus_raygun_stinger", ( 0, 0, 0 ) );
+
+    if ( !maps\mp\zombies\_zm_weapons::is_weapon_upgraded( weapon ) )
+        self giveweapon( weapon );
+    else
+        self giveweapon( weapon, 0, self maps\mp\zombies\_zm_weapons::get_pack_a_punch_weapon_options( weapon ) );
+
+    maps\mp\zombies\_zm_weapons::acquire_weapon_toggle( weapon, self );
+    self givestartammo( weapon );
+
+    if ( !maps\mp\zombies\_zm_utility::is_offhand_weapon( weapon ) )
+    {
+        if ( !maps\mp\zombies\_zm_utility::is_melee_weapon( weapon ) )
+            self switchtoweapon( weapon );
+        else
+            self switchtoweapon( current_weapon );
+    }
+
+    self maps\mp\zombies\_zm_weapons::play_weapon_vo( weapon, magic_box );
+}
+
 zmqol_jetgun_give_as_primary()
 {
     if ( self hasweapon( "jetgun_zm" ) )
