@@ -1765,10 +1765,17 @@ qol_no_power_revert()
         level.local_doors_stay_open = 0;
         level.power_local_doors_globally = 0;
 
+        //  v2.11.25 - THE OFF SWITCH IS NOT AN EMP. The swap has to happen
+        //  BEFORE the flag moves, because flag_clear wakes watch_global_power()
+        //  and the un-powering sweep starts on that same notify.
+        n_shielded = zmqol_no_power_shield_perks();
+
         flag_clear( "power_on" );
         level setclientfield( "zombie_power_on", 0 );
 
-        println( "[zm_qol] no_power: row switched OFF on " + level.script + " - power_on cleared, client synced, perks and Pack-a-Punch unpowered. Doors the row opened stay open (see the banner)." );
+        level thread zmqol_no_power_unshield_perks();
+
+        println( "[zm_qol] no_power: row switched OFF on " + level.script + " - power_on cleared, client synced, machines dark. " + n_shielded + " perk machine(s) shielded: no drink and no Mule Kick gun is taken. Doors the row opened stay open (see the banner)." );
     }
     else
     {
@@ -1782,6 +1789,139 @@ qol_no_power_revert()
     level.zmqol_no_power_applied = 0;
     level.zmqol_no_power_turned_it_on = 0;
     level notify( "zmqol_no_power_reverted" );
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_no_power_shield_perks  -  the OFF switch is not an EMP      (v2.11.25)
+// ----------------------------------------------------------------------------
+//  User, 2026-09-04, correcting the v2.11.24 hand-off: "thats how the emp
+//  grenade/turbine functions. if NO POWER NEEDED is set to disabled, then that'd
+//  be stock behaviour and you'd need to turn power on normally on whichever
+//  classic mode map the player is playing on. This option being there is only to
+//  save time so i dont have to go to the power." The row is a SHORTCUT. Turning
+//  it off puts the MAP back to unpowered - it must not take the drinks out of
+//  the player's hands.
+//
+//  🛑 WHERE THE PERK LOSS ACTUALLY CAME FROM - READ, NOT ASSUMED.
+//  set_global_power( 0 ) (_zm_power.gsc:365) walks every registered item and
+//  calls its power_off_func. For a perk machine that is perk_power_off (:614),
+//  whose LAST line is _zm_perks::perk_pause(). perk_pause (:2633) unsetperks the
+//  drink on EVERY player and, for specialty_additionalprimaryweapon, calls
+//  _zm::take_additionalprimaryweapon(). perk_unpause hands the perk back on
+//  re-power but NOT the third gun. The user was right about the feel: the EMP
+//  grenade reaches that same perk_pause through perk_pause_all_perks( :2705 ).
+//
+//  THE OTHER OFF-FUNCS WERE READ TOO, AND TAKE NOTHING FROM A PLAYER, so this
+//  one call is the entire problem: pap_power_off (:663) notifies and restarts
+//  the upgrade think; door_power_off (:485) flips a flag and notifies. Origins
+//  never had the bug at all - its generator loss goes through
+//  disable_perk_machines_in_zone() (zm_tomb_capture_zones.gsc:428), which only
+//  locks the trigger and re-hints it.
+//
+//  So: swap ONLY the perk machines' power_off_func for a copy of stock's minus
+//  that final perk_pause. The machine still dies, still re-arms its "Power Must
+//  Be Activated First" think, still fires <perk>_off. The pointers go straight
+//  back afterwards (zmqol_no_power_unshield_perks) so a LATER, legitimate power
+//  cut - TranZit's own reactor switch, an EMP grenade - pauses perks exactly
+//  like stock. Returns how many machines were shielded, for the log line.
+// ----------------------------------------------------------------------------
+zmqol_no_power_shield_perks()
+{
+    if ( !isdefined( level.powered_items ) )
+        return 0;
+
+    n = 0;
+
+    for ( i = 0; i < level.powered_items.size; i++ )
+    {
+        powered = level.powered_items[i];
+
+        if ( !isdefined( powered.target ) || !isdefined( powered.target.targetname ) )
+            continue;
+
+        //  Stock's OWN discriminator for "this is a perk machine", copied from
+        //  standard_powered_items() (_zm_power.gsc:54-66): the vending triggers
+        //  are getentarray( "zombie_vending", "targetname" ), minus the one
+        //  whose script_noteworthy is Pack-a-Punch.
+        if ( powered.target.targetname != "zombie_vending" )
+            continue;
+
+        if ( isdefined( powered.target.script_noteworthy ) && powered.target.script_noteworthy == "specialty_weapupgrade" )
+            continue;
+
+        if ( isdefined( powered.zmqol_saved_power_off_func ) )
+            continue;
+
+        powered.zmqol_saved_power_off_func = powered.power_off_func;
+        powered.power_off_func = ::zmqol_perk_power_off_keep_drinks;
+        n++;
+    }
+
+    return n;
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_no_power_unshield_perks  -  put stock's pointers back      (v2.11.25)
+//
+//  Bounded by the sweep's own pacing rather than a guess: set_global_power()
+//  spends one wait_network_frame per registered item (:365-379), so waiting a
+//  tenth of a second per item on top of a two second floor cannot restore a
+//  pointer before the sweep has reached it. Threaded so the option watcher's
+//  poll loop is not held up for those seconds.
+// ----------------------------------------------------------------------------
+zmqol_no_power_unshield_perks()
+{
+    level endon( "end_game" );
+
+    if ( !isdefined( level.powered_items ) )
+        return;
+
+    wait 2 + ( level.powered_items.size * 0.1 );
+
+    n = 0;
+
+    for ( i = 0; i < level.powered_items.size; i++ )
+    {
+        powered = level.powered_items[i];
+
+        if ( isdefined( powered.zmqol_saved_power_off_func ) )
+        {
+            powered.power_off_func = powered.zmqol_saved_power_off_func;
+            powered.zmqol_saved_power_off_func = undefined;
+            n++;
+        }
+    }
+
+    println( "[zm_qol] no_power: " + n + " perk machine power_off hook(s) restored - the next power cut pauses perks like stock" );
+}
+
+// ----------------------------------------------------------------------------
+//  zmqol_perk_power_off_keep_drinks                                 (v2.11.25)
+//
+//  _zm_power::perk_power_off (:614) copied line for line with exactly ONE line
+//  removed - the perk_pause. Nothing is added and nothing is reordered, so the
+//  machine goes dark the way it always has.
+// ----------------------------------------------------------------------------
+zmqol_perk_power_off_keep_drinks( origin, radius )
+{
+    notify_name = self.target maps\mp\zombies\_zm_perks::getvendingmachinenotify();
+
+    if ( isdefined( notify_name ) && notify_name == "revive" )
+    {
+        if ( level flag_exists( "solo_game" ) && flag( "solo_game" ) )
+            return;
+    }
+
+    self.target notify( "death" );
+    self.target thread maps\mp\zombies\_zm_perks::vending_trigger_think();
+
+    if ( isdefined( self.target.perk_hum ) )
+        self.target.perk_hum delete();
+
+    //  stock's perk_pause( self.target.script_noteworthy ) belongs HERE and is
+    //  deliberately absent - that single call is the whole reason this function
+    //  exists. See the banner above zmqol_no_power_shield_perks.
+    level notify( notify_name + "_off" );
 }
 
 // ----------------------------------------------------------------------------
