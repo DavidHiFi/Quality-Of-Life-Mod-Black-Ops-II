@@ -42,7 +42,7 @@ More guns in the box, the BO1 wonder weapons, the cut Survival maps, and a setti
 
 **Der Wunderfizz everywhere.** The random perk machine is available on every map, not just Origins.
 
-**No perk limit.** Off by default, or set a cap of 1–12 from the pre-game lobby.
+**No perk limit.** Carry as many as you like by default, or set a cap of 1–12 from the pre-game lobby.
 
 **Instant Pack-a-Punch.** No upgrade wait. Switch it back to the stock machine if you prefer.
 
