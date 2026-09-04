@@ -39,7 +39,7 @@ Expanded weapon pools, legacy wonder weapons, restored survival map variants, pe
 * **BO1 Wonder Weapons:** the Wave Gun (Moon's Zap Gun pair, and its alt fire combines them into the Wave Gun — Treyarch's own models, animations, effects and sounds as converted for the cancelled DLC5), Thundergun, Wunderwaffe DG-2, and Winter's Howl ported with Pack-a-Punch support and proper hit logic against Brutus on Mob of the Dead — the first hit takes his helmet, the second kills. On these maps the Wave Gun pops zombies on the spot; Moon's swelling death animation needs Moon's own zombie rigs.
 * **Campaign & Multiplayer Weapons:** Includes the Campaign SPAS-12 (Packs into the *SPAZ-24* with BO1 ammo balancing), Dragunov (Packs into the *D115 Disassembler*), SWAT-556, FAL OSW, Mk 48, QBB LSW, MP7, Vector K10, MSMC, Peacekeeper, Crossbow, XPR-50, Titus-6, and Tac-45.
 * **Equipment Overhaul:** Bouncing Betties are added to the Mystery Box with corrected viewmodels and deploy animations. Both Betties and Claymores feature proximity detonation and shootable trigger logic.
-* **Jet Gun Clean-Up:** Carried as a normal primary weapon that cycles with your guns instead of sitting in an equipment slot, so there is no equipment icon or hotkey prompt for it. It still overheats, but it never breaks.
+* **Jet Gun Clean-Up:** Carried as a normal primary weapon that cycles with your guns instead of sitting in an equipment slot, so there is no equipment icon or hotkey prompt for it. It costs a real weapon slot like any other gun — build it with a full loadout and it takes the weapon in your hands, respecting Mule Kick. It still overheats, but it never breaks.
 
 ---
 

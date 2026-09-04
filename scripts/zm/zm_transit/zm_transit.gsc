@@ -317,6 +317,10 @@ zmqol_jetgun_real_slot()
 // ============================================================================
 //  zmqol_jetgun_give_as_primary  -  THE JET GUN MUST COST A WEAPON SLOT
 //
+//  ✅ VERIFIED IN GAME 2026-09-04 (v2.11.14, TranZit) - user: "the jetgun works
+//  as intended, now replaces an actual weapon slot". The raw-def half stays as
+//  measured; this function is what makes the slot cost real.
+//
 //  🛑 User, 2026-09-04, TranZit: "i had the jet gun, whilst having mule kick
 //  and three guns, but the jet gun wasn't actually overriding a real weapon
 //  slot, so i ended up having 4 weapons".
