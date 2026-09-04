@@ -1655,6 +1655,49 @@ qol_opt_coop_pause()
 //  gate NOTHING else on it - Mob's only other references are voice lines. The
 //  row is correctly a no-op on those two, and the log says so.
 // ============================================================================
+//  ============================================================================
+//  🌟 v2.11.24 - THE ROW IS A TOGGLE NOW. TURNING IT OFF TAKES THE POWER BACK.
+//
+//  User, 2026-09-04, asked for exactly this after finding the Wunderfizz still
+//  purchasable with the row switched off: the row had latched on b_applied and
+//  never looked at the dvar again, so power granted was power kept.
+//
+//  🌟 THE WHOLE POWER-OFF IS ONE STOCK LINE: flag_clear( "power_on" ).
+//  _zm_power.gsc:43 watch_global_power() is a two-way loop -
+//      flag_wait( "power_on" );      set_global_power( 1 );
+//      flag_waitopen( "power_on" );  set_global_power( 0 );
+//  - and set_global_power( 0 ) walks every registered powered item calling its
+//  power_off_func: perk_power_off (:614) kills the machine's trigger think,
+//  restarts it unpowered, deletes the perk_hum and perk_pause()s the perk;
+//  pap_power_off (:663) notifies "Pack_A_Punch_off" and restores the dummy;
+//  door_power_off (:488) notifies the door "power_off". Nothing is
+//  reimplemented here. Stock's own devgui power button is the same single line
+//  (_zm_devgui.gsc:904), and TranZit's switch - which is a real two-way switch
+//  in stock - clears the same flag at zm_transit_power.gsc:90.
+//
+//  The client half is setclientfield( "zombie_power_on", 0 ), which is what
+//  zm_transit_power.gsc:350 does on the way down. That is what makes the perk
+//  machines go dark and quiet again and swings map ambience back (_zm.csc:56 ->
+//  "ZPO" -> zpo_listener), and it is what re-locks the Wunderfizz through
+//  wunderfizz.gsc's live gate.
+//
+//  🛑 ONLY GIVE BACK WHAT THE ROW ITSELF TOOK. Everything below is guarded on
+//  level.zmqol_no_power_turned_it_on, set only in the branch that actually
+//  turned the power on. A player who flipped the real switch keeps their power,
+//  and the row is correctly a no-op both ways on Origins, Mob, Nuketown and
+//  every survival start, where power_on was already set before it ran.
+//
+//  🛑 WHAT THIS CANNOT UNDO, AND WHY - DOORS THE ROW OPENED STAY OPEN.
+//  Stock's turn_power_on_and_open_doors() parks level.local_doors_stay_open at
+//  1, and _zm_blockers.gsc:625 / :588 make door_think() *return* on that - the
+//  thread that would ever close the door is gone, not parked. Worse, local
+//  electric doors were registered in standard_powered_items() with
+//  power_sources = 1 before the row ran, and set_global_power() skips exactly
+//  those (:374), so the flag can never reach them anyway. Closing them again
+//  would mean hand-rolling a door sweep that re-blocks doors and clears their
+//  script_flags mid-round - which can shut a zone under a player's feet - so it
+//  is deliberately NOT done. Told to the user rather than shipped half-working.
+//  ============================================================================
 qol_opt_no_power()
 {
     level endon( "end_game" );
@@ -1665,7 +1708,15 @@ qol_opt_no_power()
 
     for ( ;; )
     {
-        if ( !b_applied && getdvarintdefault( "no_power", 0 ) )
+        b_want = getdvarintdefault( "no_power", 0 );
+
+        if ( b_applied && !b_want )
+        {
+            qol_no_power_revert();
+            b_applied = 0;
+        }
+
+        if ( !b_applied && b_want )
         {
             if ( !flag( "power_on" ) )
             {
@@ -1690,6 +1741,47 @@ qol_opt_no_power()
 
         wait 0.5;
     }
+}
+
+// ----------------------------------------------------------------------------
+//  qol_no_power_revert  -  the row went off; hand the power back (v2.11.24)
+//
+//  Order matters and is stock's, not invented. The flag goes first because
+//  watch_global_power() is already parked on flag_waitopen( "power_on" ) and
+//  starts un-powering machines the moment it opens; the clientfield follows so
+//  the client's own listeners see the server state they are being told about.
+//  level.local_doors_stay_open / power_local_doors_globally are put back the
+//  way stock left them so a LATER re-apply behaves like a first apply.
+//
+//  The per-map halves hang off "zmqol_no_power_reverted" the same way the apply
+//  halves hang off "zmqol_no_power_applied": Die Rise swaps its two exploders
+//  back, TranZit clears "switches_on" and lets stock lower the reactor, Origins
+//  releases exactly the generators this row captured and no others.
+// ----------------------------------------------------------------------------
+qol_no_power_revert()
+{
+    if ( isdefined( level.zmqol_no_power_turned_it_on ) && level.zmqol_no_power_turned_it_on )
+    {
+        level.local_doors_stay_open = 0;
+        level.power_local_doors_globally = 0;
+
+        flag_clear( "power_on" );
+        level setclientfield( "zombie_power_on", 0 );
+
+        println( "[zm_qol] no_power: row switched OFF on " + level.script + " - power_on cleared, client synced, perks and Pack-a-Punch unpowered. Doors the row opened stay open (see the banner)." );
+    }
+    else
+    {
+        println( "[zm_qol] no_power: row switched OFF on " + level.script + " - the power was never this row's to take back, flag left alone" );
+    }
+
+    //  Cleared BEFORE the notify, so a map half that reads the var rather than
+    //  waiting on the notify cannot see a stale 1. The per-map halves read
+    //  zmqol_no_power_turned_it_on at APPLY time and remember it themselves,
+    //  which is why it is safe to clear it here.
+    level.zmqol_no_power_applied = 0;
+    level.zmqol_no_power_turned_it_on = 0;
+    level notify( "zmqol_no_power_reverted" );
 }
 
 // ----------------------------------------------------------------------------

@@ -1001,8 +1001,15 @@ zmqol_power_up_all_generators()
 //  same work in CLASSIC, where that function returns immediately, so the body
 //  moved here and both callers share it. No behaviour change for survival.
 // ============================================================================
+//  v2.11.24 - it also records WHICH zones it captured, in
+//  level.zmqol_last_captured_zones. NO POWER NEEDED is a toggle now and has to
+//  be able to release exactly what it took and nothing the player earned. The
+//  list is rewritten on every call; survival calls this once and never reads it
+//  back, so nothing there changes.
 zmqol_capture_every_generator()
 {
+    level.zmqol_last_captured_zones = [];
+
     if ( !isdefined( level.zone_capture ) || !isdefined( level.zone_capture.zones ) )
         return 0;
 
@@ -1020,10 +1027,68 @@ zmqol_capture_every_generator()
         zone.n_current_progress = 100;
         zone maps\mp\zm_tomb_capture_zones::generator_state_power_up();
         level setclientfield( zone.script_noteworthy, zone.n_current_progress / 100 );
+        level.zmqol_last_captured_zones[ level.zmqol_last_captured_zones.size ] = zone;
         n_done++;
         wait_network_frame();
     }
 
+    return n_done;
+}
+
+// ============================================================================
+//  zmqol_release_captured_generators  -  NO POWER NEEDED's Origins undo
+//
+//  🌟 v2.11.24. The exact inverse of the capture above, built out of stock's
+//  own pieces, and it touches ONLY the zones this row captured - a generator
+//  the player earned before or after is skipped, and so is one the zombies have
+//  already taken back.
+//
+//  🛑 set_zombie_controlled_ZONE(), NOT set_zombie_controlled_AREA(). The
+//  _area() wrapper (zm_tomb_capture_zones.gsc:1428) sets
+//  flag_set( "generator_lost_to_recapture_zombies" ) on any zone that was
+//  player-controlled, and that flag is read at :316 to withhold the
+//  "all_zones_captured_none_lost" notify for the rest of the match. The player
+//  did not lose a generator to zombies; a cheat row handed one back. So the
+//  inner _zone() is called directly and play_pap_anim( 0 ) - the only other
+//  thing _area() does - is called beside it.
+//
+//  What _zone() itself covers, so none of it is reimplemented here: the
+//  "player_controlled" ent_flag the perk gate reads, the generator HUD state,
+//  the monolith crystal, the perk-machine smoke fx, update_captured_zone_count()
+//  (which clears "all_zones_captured", and stock's pack_a_punch_think() at :298
+//  is parked on flag_waitopen of exactly that, so Pack-a-Punch disables itself),
+//  and disable_perk_machines / _random_perk_machines / _mystery_boxes_in_zone.
+//
+//  generator_state_turn_off() then plays the generator's own shutdown anim and
+//  drops it to state 0 when the anim ends (:1902-:1917), and the progress
+//  clientfield goes to 0 so the capture ring empties.
+// ============================================================================
+zmqol_release_captured_generators()
+{
+    if ( !isdefined( level.zmqol_no_power_captured_zones ) )
+        return 0;
+
+    n_done = 0;
+
+    foreach ( zone in level.zmqol_no_power_captured_zones )
+    {
+        if ( !isdefined( zone ) )
+            continue;
+
+        //  Already lost, or handed back some other way - leave it alone.
+        if ( !zone ent_flag( "player_controlled" ) )
+            continue;
+
+        zone.n_current_progress = 0;
+        zone maps\mp\zm_tomb_capture_zones::set_zombie_controlled_zone( 0 );
+        zone maps\mp\zm_tomb_capture_zones::play_pap_anim( 0 );
+        zone maps\mp\zm_tomb_capture_zones::generator_state_turn_off();
+        level setclientfield( zone.script_noteworthy, 0 );
+        n_done++;
+        wait_network_frame();
+    }
+
+    level.zmqol_no_power_captured_zones = [];
     return n_done;
 }
 
@@ -1049,17 +1114,34 @@ zmqol_capture_every_generator()
 //  Zones already captured are skipped, so flipping the row mid-game costs
 //  nothing for generators the player had already earned.
 // ============================================================================
+//  🌟 v2.11.24 - A LOOP, BECAUSE THE ROW IS A TOGGLE NOW. The generators this
+//  row captured are remembered on the way in and released on the way out; ones
+//  the player earned are never in that list and are never touched.
 zmqol_no_power_tomb_extras()
 {
     level endon( "end_game" );
 
-    if ( !( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied ) )
-        level waittill( "zmqol_no_power_applied" );
+    for ( ;; )
+    {
+        if ( !( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied ) )
+            level waittill( "zmqol_no_power_applied" );
 
-    wait_network_frame();
+        wait_network_frame();
 
-    n_done = zmqol_capture_every_generator();
-    println( "[zm_qol] no_power: Origins - " + n_done + " generator(s) captured, perk machines and boxes unlocked" );
+        n_done = zmqol_capture_every_generator();
+        level.zmqol_no_power_captured_zones = level.zmqol_last_captured_zones;
+        println( "[zm_qol] no_power: Origins - " + n_done + " generator(s) captured, perk machines and boxes unlocked" );
+
+        //  Guarded, not a bare waittill: a notify fired while this thread was
+        //  inside its apply block above (the Origins one yields on every
+        //  generator) would be missed, and the thread would park here for the
+        //  rest of the match. If the row is already off, the restore runs now.
+        if ( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied )
+            level waittill( "zmqol_no_power_reverted" );
+
+        n_back = zmqol_release_captured_generators();
+        println( "[zm_qol] no_power: Origins - " + n_back + " generator(s) released, machines locked again. Generators you captured yourself are untouched." );
+    }
 }
 
 // ============================================================================

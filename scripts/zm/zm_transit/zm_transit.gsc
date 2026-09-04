@@ -1025,26 +1025,59 @@ added_weapons()
 //  have; nothing waits on "power_event_complete" except the switch's own loop,
 //  which is parked on its trigger.
 // ============================================================================
+//  🌟 v2.11.24 - A LOOP, BECAUSE THE ROW IS A TOGGLE NOW.
+//
+//  Clearing "switches_on" is stock's own way down: zm_transit_power.gsc:90 does
+//  exactly this when a player flips the real switch back off, and powerevent()
+//  (:382) is a two-way loop parked on flag_waitopen( "switches_on" ) - so the
+//  clear plays the full 30-second reactor-lowering sequence, doors and all,
+//  with no help from this file.
+//
+//  📝 STOCK CLEARS "switches_on" FIRST AND "power_on" 30 SECONDS LATER, after
+//  "power_event_complete". This row clears power_on immediately (in
+//  qol_options.gsc) and the two run concurrently instead: a cheat row that took
+//  30 seconds to go off would read as broken. The only visible difference is
+//  that the lights die before the reactor finishes sinking. Nothing waits on
+//  that ordering - _zm_ai_avogadro and the four zm_transit_sq gates test both
+//  flags and see both clear either way.
 zmqol_no_power_transit_extras()
 {
     level endon( "end_game" );
 
-    if ( !( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied ) )
-        level waittill( "zmqol_no_power_applied" );
-
-    if ( !flag_exists( "switches_on" ) )
+    for ( ;; )
     {
-        println( "[zm_qol] no_power: switches_on does not exist on " + level.script + " - skipped" );
-        return;
-    }
+        if ( !( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied ) )
+            level waittill( "zmqol_no_power_applied" );
 
-    if ( flag( "switches_on" ) )
-    {
-        println( "[zm_qol] no_power: switches_on was already set - nothing to do" );
-        return;
-    }
+        b_did = 0;
 
-    flag_set( "switches_on" );
-    println( "[zm_qol] no_power: switches_on set - reactor event, Avogadro and the side-quest gates now agree with the power flag" );
+        if ( !flag_exists( "switches_on" ) )
+        {
+            println( "[zm_qol] no_power: switches_on does not exist on " + level.script + " - skipped" );
+        }
+        else if ( flag( "switches_on" ) )
+        {
+            println( "[zm_qol] no_power: switches_on was already set - nothing to do" );
+        }
+        else
+        {
+            flag_set( "switches_on" );
+            b_did = 1;
+            println( "[zm_qol] no_power: switches_on set - reactor event, Avogadro and the side-quest gates now agree with the power flag" );
+        }
+
+        //  Guarded, not a bare waittill: a notify fired while this thread was
+        //  inside its apply block above (the Origins one yields on every
+        //  generator) would be missed, and the thread would park here for the
+        //  rest of the match. If the row is already off, the restore runs now.
+        if ( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied )
+            level waittill( "zmqol_no_power_reverted" );
+
+        if ( b_did && flag_exists( "switches_on" ) && flag( "switches_on" ) )
+        {
+            flag_clear( "switches_on" );
+            println( "[zm_qol] no_power: switches_on cleared - stock's powerevent() lowers the reactor" );
+        }
+    }
 }
 

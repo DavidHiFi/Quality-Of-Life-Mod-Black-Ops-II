@@ -1270,21 +1270,49 @@ zmqol_locker_think()
 //  safe anywhere; the NUMBERS are what is map-specific, which is why this sits
 //  in the map's own file.
 // ============================================================================
+//  🌟 v2.11.24 - A LOOP, BECAUSE THE ROW IS A TOGGLE NOW. The restore is the
+//  same pair the other way round, and b_did is read at APPLY time: a run where
+//  the player's own switch had already lit the building restores nothing, which
+//  is the only way to avoid stripping the lighting off someone who earned it.
+//  stop_exploder() deletes the set on the clients and any server-side looper
+//  (maps\mp\_utility:1048) and does not care whether the set loops, so the pair
+//  is symmetric in both directions.
 zmqol_no_power_highrise_extras()
 {
     level endon( "end_game" );
 
-    if ( !( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied ) )
-        level waittill( "zmqol_no_power_applied" );
-
-    if ( !( isdefined( level.zmqol_no_power_turned_it_on ) && level.zmqol_no_power_turned_it_on ) )
+    for ( ;; )
     {
-        println( "[zm_qol] no_power: the player's own switch lit Die Rise - exploders left alone" );
-        return;
-    }
+        if ( !( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied ) )
+            level waittill( "zmqol_no_power_applied" );
 
-    stop_exploder( 10 );
-    exploder( 11 );
-    println( "[zm_qol] no_power: Die Rise lighting swapped - exploder 10 off, 11 on" );
+        b_did = 0;
+
+        if ( isdefined( level.zmqol_no_power_turned_it_on ) && level.zmqol_no_power_turned_it_on )
+        {
+            stop_exploder( 10 );
+            exploder( 11 );
+            b_did = 1;
+            println( "[zm_qol] no_power: Die Rise lighting swapped - exploder 10 off, 11 on" );
+        }
+        else
+        {
+            println( "[zm_qol] no_power: the player's own switch lit Die Rise - exploders left alone" );
+        }
+
+        //  Guarded, not a bare waittill: a notify fired while this thread was
+        //  inside its apply block above (the Origins one yields on every
+        //  generator) would be missed, and the thread would park here for the
+        //  rest of the match. If the row is already off, the restore runs now.
+        if ( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied )
+            level waittill( "zmqol_no_power_reverted" );
+
+        if ( b_did )
+        {
+            stop_exploder( 11 );
+            exploder( 10 );
+            println( "[zm_qol] no_power: Die Rise lighting restored - exploder 11 off, 10 on" );
+        }
+    }
 }
 
