@@ -2,27 +2,49 @@
 //  bouncingbetty.gsc  -  THE MP BOUNCING BETTY, PORTED INTO ZOMBIES   (v2.9.9)
 //
 //  User directive 2026-08-30 (task 4): the multiplayer Bouncing Betty in the
-//  mystery box. Revised the same night: **a pure ADDITION - it replaces
-//  nothing.** ("the bouncing betty needs to be an addition, not a
-//  replacement... claymores need to be the same as usual.")
+//  mystery box, as **a pure ADDITION - it replaces nothing.** ("the bouncing
+//  betty needs to be an addition, not a replacement... claymores need to be the
+//  same as usual.")
+//
+//  🛑 THAT DIRECTIVE WAS REVERSED BY THE USER ON 2026-09-04 (v2.11.20):
+//  "make sure that you can't have both claymores and bouncing betties at the
+//  same time, if you have claymores for example and then spin the mystery box
+//  and land on bouncing betties, pick them up it replaces the claymores."
+//  The Betty is now registered with register_placeable_mine_for_level(), so
+//  stock's own one-mine-at-a-time rule in weapon_give() does the swap in both
+//  directions. Read the notes at that call in init() and at
+//  zmqol_betty_max_ammo_watch(); the four points below are kept because they
+//  are still the measured record of how the give path behaves, with the two
+//  that the reversal overturned marked SUPERSEDED.
 //
 //  📝 HOW IT COEXISTS WITH EVERYTHING, each point measured:
-//    - It is deliberately NOT registered with
+//    - 🛑 SUPERSEDED v2.11.20. It WAS deliberately not registered with
 //      register_placeable_mine_for_level: that registry is what makes
 //      weapon_give's is_placeable_mine branch take your claymores away
-//      (one-mine-at-a-time). Claymores keep their slot, their D-pad 4 bind
-//      and their ammo, untouched.
+//      (one-mine-at-a-time), which is now exactly what is wanted. Registering
+//      it also hands the Betty three other stock mine rules, all claymore
+//      parity and all stated rather than discovered later: a mine hit adds
+//      level.round_number * randomintrange( 100, 200 ) to the zombie
+//      (_zm_spawner.gsc:1934 - this file already applied that number by hand,
+//      see zmqol_betty_jump_and_explode, so standard zombies now get it from
+//      both and the hand-rolled loop stays only to cover the AI that never
+//      runs enemy_death_detection); a mine cannot hurt a PLAYER at all
+//      (_zm.gsc:4152 returns 0), where the MP betty could; and holding one in
+//      hand blocks a box or perk purchase the way a held claymore does.
 //    - The give goes through stock's own per-weapon hook,
 //      level.zombie_weapons_callbacks (_zm_weapons.gsc:2448) - the
 //      data-driven form of the hardcoded claymore_zm case right above it -
 //      so the generic give path never runs for this weapon at all.
-//    - Betties bind to D-pad 2 (also key `2` on PC - read out of the user's own
-//      bindings_zm.bdg: actionslot 1/2/3/4 = DPAD_UP/DOWN/LEFT/RIGHT = 8/2/5/X).
-//      🛑 CORRECTED v2.9.11: slot 2 is NOT free on every map. Stock binds it on
+//    - 🛑 SUPERSEDED v2.11.20. Betties BOUND TO D-pad 2 (key `2` on PC - read
+//      out of the user's own bindings_zm.bdg: actionslot 1/2/3/4 =
+//      DPAD_UP/DOWN/LEFT/RIGHT = 8/2/5/X) while they had to share the inventory
+//      with claymores, and slot 2 is not free on every map: stock binds it on
 //      Buried (_zm_weap_time_bomb.gsc:2043,2055 - the Time Bomb and its
 //      detonator) and on Origins (zm_tomb_craftables.gsc:1075 - the Maxis
-//      drone). See zmqol_betty_slot_free() for how that is handled without
-//      breaking either of those stock items.
+//      drone), so on those two the bind was skipped and the Betty sat unbound.
+//      They now take the claymore's own slot 4 - see the note above
+//      zmqol_betty_max_ammo_watch() - which is free on every map exactly
+//      because the claymore is gone whenever the Betty is held.
 //    - 🛑 CORRECTED v2.9.11: the old claim that "the def is inventoryType item
 //      so weapon_give's takeweapon can never fire for it" was BACKWARDS.
 //      is_offhand_weapon() (_zm_utility.gsc:3523) reads nothing off the def -
@@ -145,6 +167,13 @@
 //    _zm_devgui.gsc:89                     dev only
 //  Answering "yes" is the truthful answer at all eight.
 //
+//  📝 v2.11.20 - stock's own is_offhand_weapon() would now answer "yes" for
+//  this weapon on its own, because is_placeable_mine() is one of its five list
+//  lookups and the Betty is in that list from init(). The replacement is kept
+//  rather than removed: it costs one string compare, it is what the eight
+//  callers above were audited against, and it keeps the answer right even if a
+//  map or gametype ever clears the mine list.
+//
 //  📝 In main(), not init(), per CLAUDE.md section 4 failure mode 4.
 main()
 {
@@ -191,6 +220,25 @@ init()
 
     include_weapon( "bouncingbetty_zm" );
     add_zombie_weapon( "bouncingbetty_zm", undefined, &"ZMWEAPON_BOUNCINGBETTY", 1000, "", "", undefined );
+
+    //  🌟 v2.11.20 - THE BETTY IS NOW A REGISTERED PLACEABLE MINE, which is
+    //  the one line that makes it and the claymore mutually exclusive. User,
+    //  2026-09-04: "make sure that you can't have both claymores and bouncing
+    //  betties at the same time... land on bouncing betties, pick them up it
+    //  replaces the claymores." That REVERSES the 2026-08-30 directive this
+    //  file was built to ("a pure addition - it replaces nothing"); the banner
+    //  above is corrected rather than left to rot.
+    //
+    //  Nothing is hand-rolled for it. weapon_give() already carries the swap
+    //  (_zm_weapons.gsc:2391): for a registered mine it takes the mine you are
+    //  holding, then records the new one -
+    //      old_mine = self get_player_placeable_mine();
+    //      if ( isdefined( old_mine ) ) { takeweapon; unacquire_weapon_toggle; }
+    //      self set_player_placeable_mine( weapon );
+    //  and every give in this mod goes through weapon_give() - the box, the
+    //  wallbuy and the .give command alike - so both directions come off the
+    //  same stock code: betty evicts claymore, claymore evicts betty.
+    register_placeable_mine_for_level( "bouncingbetty_zm" );
 
     level thread zmqol_betty_onplayerconnect();
     level thread zmqol_claymore_shot_connect();
@@ -282,37 +330,102 @@ zmqol_betty_setup()
     //  miss them. The notify/endon pair at the top of the watch makes a second
     //  thread cancel the first, so this is idempotent.
     self thread zmqol_betty_watch();
+    self thread zmqol_betty_max_ammo_watch();
 
     self giveweapon( "bouncingbetty_zm" );
 
-    if ( self zmqol_betty_slot_free() )
-        self setactionslot( 2, "weapon", "bouncingbetty_zm" );
-
+    //  Stock claymore_setup() records the mine and binds slot 4 itself even
+    //  though weapon_give() recorded the mine one call earlier; this mirrors it
+    //  line for line, which also covers any future give that does not come
+    //  through weapon_give().
+    self set_player_placeable_mine( "bouncingbetty_zm" );
+    self setactionslot( 4, "weapon", "bouncingbetty_zm" );
     self setweaponammostock( "bouncingbetty_zm", 2 );
 }
 
-//  🛑 THE ACTION-SLOT MAP, measured from the stock dump, not assumed:
+//  🛑 v2.11.20 - SLOT 4, NOT SLOT 2, AND THE OLD SLOT MAP IS NOW MOOT.
+//  While the Betty and the claymore could be held at once, the Betty had to
+//  find a free button, and slot 2 is taken by Buried's Time Bomb and Origins'
+//  Maxis drone - so on those two maps the bind was skipped and the Betty sat in
+//  the inventory unbound (zmqol_betty_slot_free(), deleted with this change).
+//  Now that the two weapons evict each other, slot 4 - the claymore's own bind
+//  on every map, and free the moment the claymore is gone - is always
+//  available, so the Betty answers on the button the weapon it replaced used.
+//  That retires the Buried/Origins hole rather than living with it.
 //     slot 1  equipment and craftables - turbine, gas mask, drone, headchopper
-//     slot 2  Buried's Time Bomb + detonator (_zm_weap_time_bomb.gsc:2043,2055)
-//             and Origins' Maxis drone (zm_tomb_craftables.gsc:1075).
-//             FREE on TranZit, Die Rise, Nuketown and Mob of the Dead.
+//     slot 2  Buried's Time Bomb + detonator, Origins' Maxis drone
 //     slot 3  "altMode" on every map (_zm.gsc:1320) + Origins' revive staff
-//     slot 4  the claymore, on every map
-//  There is no fifth slot, so on Buried and Origins the Betty and one stock
-//  item genuinely want the same button. The Betty gives way: if the player
-//  already holds that map's slot-2 item the bind is skipped and the Betty sits
-//  in the inventory unbound, rather than silently disabling a stock feature.
-//  The other order (Betty first, Time Bomb built later) resolves itself the
-//  same way round - stock re-binds slot 2 and the Betty goes quiet.
-zmqol_betty_slot_free()
+//     slot 4  the claymore, on every map  <- and now the Betty in its place
+
+// ============================================================================
+//  zmqol_betty_max_ammo_watch  -  v2.11.20. MAX AMMO REFILLS THE BETTIES.
+//
+//  User, 2026-09-04: "i just now got a max ammo and it didnt refill the ammo
+//  for the betties, so make sure that the betties arent one time".
+//
+//  🌟 STOCK ITSELF REFILLS THIS CLASS OF WEAPON OFF THE NOTIFY, NOT OFF THE
+//  POWERUP'S WEAPON LOOP. full_ammo_powerup() walks getweaponslist( 1 ) and
+//  calls givemaxammo() on each entry (_zm_powerups.gsc:1585-1604; this mod's
+//  own new_full_ammo_powerup() is that function plus the BO4 clip line).
+//  Buried's Time Bomb - a Gear offhand with clipOnly 1, exactly the Betty's
+//  shape - does not rely on that loop at all: time_bomb_inventory_slot_think()
+//  sits on `self waittill( "zmb_max_ammo" )` and restores itself
+//  (_zm_weap_time_bomb.gsc:673-690). That notify is sent to every living player
+//  by the powerup BEFORE the loop runs, so this is the earlier and more
+//  reliable half of the same event, and it catches any other max-ammo source
+//  that sends it.
+//
+//  🛑 WHY THE LOOP MISSED THE BETTY IS NOT SETTLED OFFLINE, so the probe
+//  below answers it on the next boot rather than the fix resting on a guess.
+//  What IS measured: the def is clipOnly 1 / maxAmmo 2 / clipSize 2 - identical
+//  to claymore_zm on all four - and the Betty is in neither exclusion list
+//  (level.zombie_include_equipment, level.zombie_weapons_no_max_ammo). The one
+//  field where the two defs differ is offhandSlot: every stock ZM and MP
+//  grenade def carries a NUMBER there (claymore_zm 4, bouncingbetty_mp 3) and
+//  this def carries the string "Equipment". Whether that keeps the weapon out
+//  of getweaponslist( 1 ) is an engine question no dump answers, so the probe
+//  prints whether the Betty was in that list at all.
+//
+//  The refill is three stock calls, cheapest-truest first, each one used by
+//  stock on this same weapon class:
+//    givemaxammo     _zm_weapons.gsc:2551, ammo_give's offhand branch - the
+//                    claymore wallbuy's own re-buy path
+//    givestartammo   _zm_weapons.gsc:2358, weapon_give's top-up for a weapon
+//                    you already hold
+//    setweaponammoclip( ..., 2 )
+//                    _zm_weap_claymore.gsc:448, stock's own claymore restore -
+//                    and the CLIP is what a claymore's count is read back from
+//                    (_zm_weap_claymore.gsc:238), not the stock
+//  All three are idempotent against a clipSize of 2, so running them together
+//  cannot overfill; the probe line says which one did the work.
+// ============================================================================
+zmqol_betty_max_ammo_watch()
 {
-    if ( level.script == "zm_buried" )
-        return !self hasweapon( "time_bomb_zm" ) && !self hasweapon( "time_bomb_detonator_zm" );
+    self endon( "disconnect" );
+    self notify( "zmqol_betty_max_ammo_watch" );
+    self endon( "zmqol_betty_max_ammo_watch" );
 
-    if ( level.script == "zm_tomb" )
-        return !self hasweapon( "equip_dieseldrone_zm" );
+    for (;;)
+    {
+        self waittill( "zmb_max_ammo" );
 
-    return 1;
+        if ( !self hasweapon( "bouncingbetty_zm" ) )
+            continue;
+
+        n_clip = self getweaponammoclip( "bouncingbetty_zm" );
+        n_stock = self getweaponammostock( "bouncingbetty_zm" );
+        b_listed = isinarray( self getweaponslist( 1 ), "bouncingbetty_zm" );
+
+        self givemaxammo( "bouncingbetty_zm" );
+        n_after_max = self getweaponammoclip( "bouncingbetty_zm" );
+
+        self givestartammo( "bouncingbetty_zm" );
+        n_after_start = self getweaponammoclip( "bouncingbetty_zm" );
+
+        self setweaponammoclip( "bouncingbetty_zm", 2 );
+
+        println( "[zm_qol] betty max ammo: clip " + n_clip + " stock " + n_stock + " listed=" + b_listed + " -> givemaxammo " + n_after_max + " -> givestartammo " + n_after_start + " -> setclip " + self getweaponammoclip( "bouncingbetty_zm" ) );
+    }
 }
 
 zmqol_betty_onplayerconnect()
@@ -321,6 +434,7 @@ zmqol_betty_onplayerconnect()
     {
         level waittill( "connected", player );
         player thread zmqol_betty_watch();
+        player thread zmqol_betty_max_ammo_watch();
     }
 }
 
