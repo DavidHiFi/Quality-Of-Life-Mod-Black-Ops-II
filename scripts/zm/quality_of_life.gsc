@@ -15340,6 +15340,10 @@ init_hitmarkers()
 {
     precacheshader( "damage_feedback" );
 
+    //  v2.11.20 - the two special enemies stock's callback lists never reach.
+    //  See zmqol_special_marker_install().
+    level thread zmqol_special_marker_install();
+
     //  🛑 v1.99.47 - ::do_hitmarker IS DELIBERATELY *NOT* REGISTERED HERE.
     //  It is put at the FRONT of the list below instead. See
     //  zmqol_hitmarker_callback_first().
@@ -15446,27 +15450,46 @@ updatedamagefeedback( mod, inflictor, death, crit )
 
 do_hitmarker_death()
 {
-    if ( isdefined( self.attacker ) && isplayer( self.attacker ) && self.attacker != self )
-    {
-        //  v1.99.31 - CRITS SOUND. A "crit" is a headshot kill or a melee kill,
-        //  which is what the packs were authored against. is_headshot() is
-        //  stock's own test (maps\mp\zombies\_zm_utility::is_headshot, used by
-        //  _zm.gsc:4454/4464/4497), so this agrees with what the game already
-        //  counts as a headshot rather than re-deciding it here.
-        b_crit = 0;
-
-        if ( isdefined( self.damagemod ) && self.damagemod == "MOD_MELEE" )
-            b_crit = 1;
-        else if ( isdefined( self.damageweapon ) && isdefined( self.damagelocation ) && isdefined( self.damagemod ) )
-        {
-            if ( maps\mp\zombies\_zm_utility::is_headshot( self.damageweapon, self.damagelocation, self.damagemod ) )
-                b_crit = 1;
-        }
-
-        self zmqol_ww_marker_probe( "kill" );
-        self.attacker thread updatedamagefeedback( self.damagemod, self.attacker, 1, b_crit );
-    }
+    //  v2.11.20 - the body moved to zmqol_marker_kill() so the special-enemy
+    //  fallback below can fire exactly the same kill marker and kill sound.
+    //  Stock's own field is still what this path reads.
+    self zmqol_marker_kill( self.attacker );
     return false;
+}
+
+// ============================================================================
+//  zmqol_marker_hit / zmqol_marker_kill  -  v2.11.20. THE TWO PLACES THE MARKER
+//  IS ACTUALLY RAISED. Both callback paths and both fallback paths end here, so
+//  a special enemy gets byte-for-byte the feedback a normal zombie gets.
+// ============================================================================
+zmqol_marker_hit( str_mod, e_player )
+{
+    self zmqol_ww_marker_probe( "hit" );
+    e_player thread updatedamagefeedback( str_mod, e_player, 0 );
+}
+
+zmqol_marker_kill( e_player )
+{
+    if ( !isdefined( e_player ) || !isplayer( e_player ) || e_player == self )
+        return;
+
+    //  v1.99.31 - CRITS SOUND. A "crit" is a headshot kill or a melee kill,
+    //  which is what the packs were authored against. is_headshot() is
+    //  stock's own test (maps\mp\zombies\_zm_utility::is_headshot, used by
+    //  _zm.gsc:4454/4464/4497), so this agrees with what the game already
+    //  counts as a headshot rather than re-deciding it here.
+    b_crit = 0;
+
+    if ( isdefined( self.damagemod ) && self.damagemod == "MOD_MELEE" )
+        b_crit = 1;
+    else if ( isdefined( self.damageweapon ) && isdefined( self.damagelocation ) && isdefined( self.damagemod ) )
+    {
+        if ( maps\mp\zombies\_zm_utility::is_headshot( self.damageweapon, self.damagelocation, self.damagemod ) )
+            b_crit = 1;
+    }
+
+    self zmqol_ww_marker_probe( "kill" );
+    e_player thread updatedamagefeedback( self.damagemod, e_player, 1, b_crit );
 }
 
 do_hitmarker( mod, hitloc, hitorig, player, damage )
@@ -15488,8 +15511,13 @@ do_hitmarker( mod, hitloc, hitorig, player, damage )
              self.damageweapon == level.deathmachine_weapon )
             return false;
 
-        self zmqol_ww_marker_probe( "hit" );
-        player thread updatedamagefeedback( mod, player, 0 );
+        //  v2.11.20 - stamped so the special-enemy fallback below can tell that
+        //  this frame's hit was already marked through stock's callback list.
+        //  Buried's ghost is the one enemy that reaches BOTH paths for the same
+        //  hit (its damage func calls check_zombie_damage_callbacks itself, but
+        //  only for the head chopper).
+        self.zmqol_marker_frame = gettime();
+        self zmqol_marker_hit( mod, player );
     }
     return false;
 }
@@ -15565,6 +15593,196 @@ zmqol_hitmarker_callback_first()
     level.zombie_damage_callbacks = a_new;
 
     println( "[zm_qol] hitmarker: damage callback moved to index 0 of " + a_new.size );
+}
+
+// ============================================================================
+//  zmqol_special_marker_*  -  v2.11.20. THE ENEMIES THAT NEVER REACHED THE
+//  MARKER AT ALL: TRANZIT'S DENIZENS AND BURIED'S GHOST
+//
+//  User, 2026-09-04: "make sure the hitmarkers and hitmarkers sounds work for
+//  special enemies like the denizens on tranzit, hellhounds, jumping jacks,
+//  brutus and so fourth".
+//
+//  MEASURED FIRST, AND MOST OF THAT LIST WAS ALREADY FINE. The marker rides two
+//  stock lists - level.zombie_damage_callbacks ( do_hitmarker ) and
+//  level.zombie_death_event_callbacks ( do_hitmarker_death ) - and an AI reaches
+//  them only if its own spawn function threads stock's two helpers:
+//
+//      maps\mp\zombies\_zm_spawner::enemy_death_detection   ->  the hit list
+//      maps\mp\zombies\_zm_spawner::zombie_death_event      ->  the death list
+//
+//  Grepped over the whole stock dump, exactly these thread both, each from its
+//  own per-entity spawn function:
+//
+//      normal zombies    _zm_spawner.gsc:231/236      zombie_spawn_init()
+//      hellhounds        _zm_ai_dogs.gsc:437/438      dog_init()
+//      jumping jacks     _zm_ai_leaper.gsc:176/177    leaper_init()
+//      Brutus            _zm_ai_brutus.gsc:299/300    brutus_spawn()
+//      Panzer ( mechz )  _zm_ai_mechz.gsc:552/553     mechz_spawn()
+//      Origins' scripted spawns   zm_tomb_utility.gsc:355/360 and :1292/1297
+//
+//  So hellhounds, jumping jacks, Brutus and the Panzer have had the marker and
+//  its hit / kill sounds all along.
+//
+//  🛑 THE TWO THAT DO NOT. The DENIZEN - _zm_ai_screecher.gsc contains neither
+//  helper anywhere in the file, so a denizen has never raised a marker or played
+//  a hit or kill sound. And BURIED'S GHOST - _zm_ai_ghost.gsc:652 reaches the
+//  hit list only for equip_headchopper_zm, and reaches the death list never.
+//
+//  📝 THE ONES LEFT ALONE ON PURPOSE, because a marker there would be a lie:
+//    - the AVOGADRO. avogadro_damage_func returns false for everything that is
+//      not melee, so bullets do no damage and the engine issues no notify. A
+//      marker would say a hit landed where nothing happened.
+//    - LEROY and his crawler ( sloth_damage_func / crawler_damage_func return 0
+//      on every branch a player reaches ) and the Who's Who corpse
+//      ( _zm_clone.gsc's clone_damage_func sets idamage = 0 ).
+//
+//  🌟 THE SIGNAL IS THE ENGINE'S OWN "damage" NOTIFY, NOT A DAMAGE CALLBACK.
+//  It is issued from finishactordamage AFTER self.actor_damage_func has had its
+//  say, so it fires only when damage actually landed, and it carries the amount,
+//  the attacker and the means of death. Stock's own enemy_death_detection()
+//  waits on exactly this notify - and so does the denizen's own
+//  play_screecher_damaged_yelps() ( _zm_ai_screecher.gsc:446 ), which is the
+//  proof that a denizen does receive it.
+//
+//  🌟 ATTACHED FROM THE DAMAGE CHAIN THIS MOD ALREADY OWNS - no new hook.
+//  zmqol_actor_damage_wrapper() runs for every actor damage event, before the
+//  damage is applied, and a GSC `thread` runs the new thread up to its first
+//  waittill before returning - so the watcher is already listening when the
+//  notify for THAT SAME hit arrives. One entity field decides it once; every
+//  later hit on that entity costs a single isdefined.
+//
+//  🛑 NO DEATH MACHINE EXEMPTION ON THIS PATH, deliberately. do_hitmarker()
+//  steps aside for the minigun because deathmachine_damage_response() owns that
+//  weapon's feedback - but that is a zombie DAMAGE CALLBACK, so it never runs
+//  for these two enemies either. Exempting them here would leave the Death
+//  Machine with no feedback at all on a denizen.
+//
+//  🛑 Off under `zmqol_minimal 1`, together with the rest of the chain
+//  zmqol_better_deadshot_install() installs. That dvar is a diagnostic switch.
+// ============================================================================
+//  🌟 ARMED AT SPAWN, THE WAY STOCK ARMS ITS OWN. Both AI types are spawned
+//  from a named spawner array that stock builds and hangs its own prespawn
+//  function on ( _zm_ai_screecher.gsc:33-34, _zm_ai_ghost.gsc:100-105 ), so this
+//  hangs one more on the same array through stock's own
+//  _zm_utility::add_spawn_function. The watcher is then listening a frame after
+//  the enemy exists, long before it can be shot, and nothing about the timing of
+//  a damage event has to be assumed.
+//
+//  Both arrays are plain level variables and add_spawn_function is under
+//  maps\mp\zombies, so this stays inside a root script's safe set and simply
+//  finds nothing on the maps that have neither.
+//
+//  📝 zmqol_special_marker_attach() below stays as the net for anything this
+//  misses - a spawner built after this ran, or a future AI. The entity latch
+//  means whichever gets there first is the only one that arms.
+zmqol_special_marker_install()
+{
+    flag_wait( "initial_blackscreen_passed" );
+
+    if ( isdefined( level.screecher_spawners ) && level.screecher_spawners.size > 0 )
+    {
+        foreach ( e_spawner in level.screecher_spawners )
+            e_spawner maps\mp\zombies\_zm_utility::add_spawn_function( ::zmqol_special_marker_arm );
+
+        println( "[zm_qol] special marker: armed " + level.screecher_spawners.size + " denizen spawner(s)" );
+    }
+
+    if ( isdefined( level.ghost_spawners ) && level.ghost_spawners.size > 0 )
+    {
+        foreach ( e_spawner in level.ghost_spawners )
+            e_spawner maps\mp\zombies\_zm_utility::add_spawn_function( ::zmqol_special_marker_arm );
+
+        println( "[zm_qol] special marker: armed " + level.ghost_spawners.size + " ghost spawner(s)" );
+    }
+}
+
+//  Runs as a spawn function, so self is the new enemy and its type is already
+//  known from the spawner it came out of - no field test, and so no dependence
+//  on which spawn function ran first.
+zmqol_special_marker_arm()
+{
+    if ( isdefined( self.zmqol_special_marker ) && self.zmqol_special_marker )
+        return;
+
+    self.zmqol_special_marker = 1;
+    self thread zmqol_special_marker_damage_watch();
+    self thread zmqol_special_marker_death_watch();
+}
+
+zmqol_special_marker_attach()
+{
+    //  Decided once per entity. undefined = not looked at yet, 0 = stock's own
+    //  path covers this one, 1 = the fallback below is running on it.
+    if ( isdefined( self.zmqol_special_marker ) )
+        return;
+
+    self.zmqol_special_marker = 0;
+
+    if ( !self zmqol_special_marker_needs_fallback() )
+        return;
+
+    self.zmqol_special_marker = 1;
+    self thread zmqol_special_marker_damage_watch();
+    self thread zmqol_special_marker_death_watch();
+}
+
+//  Both tests read a field stock sets on the entity itself: self.isscreecher at
+//  _zm_ai_screecher.gsc:375, self.animname = "ghost_zombie" at
+//  _zm_ai_ghost.gsc:551. No map-specific script reference, so this stays safe in
+//  a root script ( AI_CONTEXT hard rule 2 ).
+zmqol_special_marker_needs_fallback()
+{
+    if ( is_true( self.isscreecher ) )
+        return true;
+
+    if ( isdefined( self.animname ) && self.animname == "ghost_zombie" )
+        return true;
+
+    return false;
+}
+
+zmqol_special_marker_damage_watch()
+{
+    self endon( "death" );
+
+    for (;;)
+    {
+        self waittill( "damage", n_amount, e_attacker, v_dir, v_point, str_mod );
+
+        if ( !isdefined( e_attacker ) || !isplayer( e_attacker ) || e_attacker == self )
+            continue;
+
+        //  🛑 A hit that dealt nothing is not a hit. screecher_damage_func
+        //  returns 0 for a melee on a denizen that is already latched onto a
+        //  player, and the marker must not claim that one landed.
+        if ( !isdefined( n_amount ) || n_amount <= 0 )
+            continue;
+
+        //  The head chopper on Buried's ghost reaches stock's callback list AND
+        //  this notify for the same hit. One hit, one marker.
+        if ( isdefined( self.zmqol_marker_frame ) && self.zmqol_marker_frame == gettime() )
+            continue;
+
+        self zmqol_marker_hit( str_mod, e_attacker );
+    }
+}
+
+zmqol_special_marker_death_watch()
+{
+    //  🛑 THE KILLER IS THE NOTIFY'S PAYLOAD AND NOTHING ELSE - no fall back to
+    //  self.attacker. That field survives from the last player hit, and a
+    //  denizen that gives up kills ITSELF ( _zm_ai_screecher.gsc:1159,
+    //  self dodamage( self.health + 666, self.origin ), no attacker ). Reading
+    //  the stale field there would pop a red kill marker and a kill sound for a
+    //  denizen that simply left. Stock's own zombie_death_event() takes the
+    //  payload for the same reason ( _zm_spawner.gsc:2103 ).
+    self waittill( "death", e_attacker );
+
+    if ( !isdefined( self ) )
+        return;
+
+    self zmqol_marker_kill( e_attacker );
 }
 
 // ============================================================================
@@ -17407,6 +17625,13 @@ zmqol_better_deadshot_install()
 
 zmqol_actor_damage_wrapper( inflictor, attacker, damage, flags, meansofdeath, weapon, vpoint, vdir, shitloc, psoffsettime, boneindex )
 {
+    //  v2.11.20 - the special-enemy hit marker rides along here. It only ever
+    //  arms a watcher, once per entity, and it must happen BEFORE the chained
+    //  call below: that is what leads to finishactordamage and so to the
+    //  "damage" notify the watcher is waiting for. See
+    //  zmqol_special_marker_attach().
+    self zmqol_special_marker_attach();
+
     damage = zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc );
     //  v2.8.2 - ONE SHOT ONE KILL (CHEATS tab). Last, so it wins over any
     //  multiplier above it. See zmqol_one_shot_scale() below.
