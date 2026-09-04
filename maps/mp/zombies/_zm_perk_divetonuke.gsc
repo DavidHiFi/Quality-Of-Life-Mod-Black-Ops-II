@@ -199,7 +199,33 @@ divetonuke_explode( attacker, origin )
     }
     else
     {
-        radiusdamage( origin, radius, max_damage, min_damage, attacker, "MOD_GRENADE_SPLASH" );
+        //  v2.11.17 - THE SEVENTH ARGUMENT. Stock ships this call with six.
+        //  Six means the engine substitutes weapon index 255 and dereferences
+        //  whatever weaponTable[255] holds - the exact null read that crashed
+        //  Origins on a Panzer death (ERROR_CATALOGUE.md §60, fixed and
+        //  confirmed in game as v2.11.11).
+        //
+        //  This was the LAST short-form radiusdamage in a file this mod ships -
+        //  the v2.11.11 sweep only walked scripts/, not maps/, so it was missed.
+        //  It is also the most frequently reached site of the class: every PhD
+        //  dive on zm_transit, zm_nuked, zm_highrise, zm_prison and zm_buried
+        //  runs it, because level.flopper_network_optimized (the branch above)
+        //  is set ONLY by Origins' zm_tomb.gsc:181 - grepped over the whole
+        //  2,093-file stock dump - and Origins is not in this mod's PhD map list.
+        //
+        //  frag_grenade_zm is resident on all five maps (Unlinker --list over
+        //  each map ff, 2026-09-04) and matches the MOD_GRENADE_SPLASH already
+        //  being passed - the same pairing stock itself uses in
+        //  _zm_weap_cymbal_monkey.gsc:237.
+        //
+        //  Naming the weapon changes no damage: this mod's damage chain
+        //  (zmqol_actor_damage_wrapper) scales only bullet means-of-death, and
+        //  stock's gib/explode branch (_zm_spawner.gsc:2191) already fires on
+        //  MOD_GRENADE_SPLASH regardless of the weapon name.
+        //
+        //  Latent, not observed - no dive crash has ever been reported. This
+        //  makes the call deterministic; it does not fix a seen bug.
+        radiusdamage( origin, radius, max_damage, min_damage, attacker, "MOD_GRENADE_SPLASH", "frag_grenade_zm" );
     }
 
     playfx( level._effect["divetonuke_groundhit"], origin );
