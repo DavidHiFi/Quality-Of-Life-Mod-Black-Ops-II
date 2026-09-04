@@ -1582,6 +1582,78 @@ qol_opt_coop_pause()
 //  the flag would strand every door and machine you had already paid for. The
 //  row is one-way within a match, and that is a deliberate choice, not an
 //  oversight.
+//
+// ============================================================================
+//  🛑 v2.11.22 - THE FLAG ALONE WAS NEVER THE WHOLE CHEAT. AUDITED CALL BY CALL.
+//
+//  User, 2026-09-04: *"make sure that the no power needed cheat works as
+//  intended and actually bypasses power being disabled restrictions etc."*
+//
+//  v2.9.13 set flag "power_on" and stopped there. That is genuinely most of it -
+//  _zm_power.gsc's watch_global_power() picks the flag up and powers every
+//  registered item (perk machines, Pack-a-Punch, electric doors) - but a diff
+//  against what the game's OWN power switches do found five gaps, every one of
+//  them read out of the stock dump, not guessed:
+//
+//   1. 🌟 THE CLIENT WAS NEVER TOLD. Buried (zm_buried_power.gsc:31-33) and Die
+//      Rise (zm_highrise.gsc:1136) both clientnotify AND set the clientfield
+//      "zombie_power_on". Nothing in this mod did either, and the client half of
+//      power hangs entirely off it: _zm.csc:56's callback turns the field into
+//      the "ZPO" notify, zpo_listener (:580) turns THAT into "power_on", and
+//      _zm.csc:886 perk_start_up() waits on it before it will light a single
+//      perk machine. Same story for the map ambience - zm_highrise_amb.csc:141
+//      and zm_transit_amb.csc:208 both wait for it. So the machines worked while
+//      staying dark and silent, which is exactly what the user saw.
+//      (TranZit is the exception and always was: wait_for_power() at
+//      zm_transit_power.gsc:339 watches the flag server-side and sets the
+//      clientfield itself, which is why TranZit looked more correct than the
+//      others.)
+//   2. LOCAL ELECTRIC DOORS were skipped by design. set_global_power() (:365)
+//      refuses any item with power_sources == 1, and that is precisely how a
+//      local_electric_door registers unless level.power_local_doors_globally is
+//      set (:88-93). TranZit is the only map with them - its turbine doors -
+//      so the row promised "doors work without power" and left those shut.
+//   3. Doors that DID power up could close again: level.local_doors_stay_open
+//      was never set, so door_think()'s close half (:588, :625) still ran.
+//   4. Die Rise's lighting never changed - its switch ends stop_exploder(10);
+//      exploder(11) (zm_highrise.gsc:1138-1139) and the map stayed dark.
+//   5. TranZit's SECOND flag, "switches_on", was never set. It gates the reactor
+//      event (powerevent(), :382), the Avogadro's power-plant behaviour
+//      (_zm_ai_avogadro.gsc:1295) and four side-quest checks (zm_transit_sq.gsc
+//      :962, :994, :1037, :1118), all of which test it separately from power_on.
+//
+//  🌟 THE FIX IS AGAIN TREYARCH'S OWN CODE. _zm_game_module.gsc:119 is
+//  turn_power_on_and_open_doors() - the exact thing Grief and the TranZit
+//  survival sub-maps call - and it covers 1, 2 and 3 in one call:
+//      level.local_doors_stay_open = 1;
+//      level.power_local_doors_globally = 1;
+//      flag_set( "power_on" );
+//      level setclientfield( "zombie_power_on", 1 );
+//      + a direct power_on / local_power_on notify to every zombie_door
+//  It lives in maps\mp\zombies\_zm_game_module, which AI_CONTEXT rule 2 lists as
+//  globally safe from a root script (maps\mp\zombies\_zm*).
+//
+//  4 and 5 are map-specific, so they live in the map's own file and hang off the
+//  "zmqol_no_power_applied" notify this function raises:
+//      zm_highrise\zm_highrise.gsc  the two exploders
+//      zm_transit\zm_transit.gsc    flag "switches_on"
+//      zm_tomb\zm_tomb.gsc          Origins is a special case - see below
+//
+//  🛑 ORIGINS: THE ROW DID NOTHING AT ALL THERE, AND STILL WOULD.
+//  zm_tomb_standard.gsc:20 sets power_on itself the moment the blackscreen
+//  lifts, so the old code printed "already on, nothing to do" and left. Origins
+//  does not gate perks on the power flag at all: zm_tomb_capture_zones.gsc:117
+//  installs level.custom_perk_validation = ::check_perk_machine_valid, which
+//  reads the GENERATOR ZONE's own "player_controlled" ent_flag (:where the
+//  machine's str_zone_name points) and plays the "power_off" line when it is
+//  clear. So on Origins the cheat has to capture the generators, and that is
+//  what the map hook does - through stock's own set_player_controlled_area() /
+//  generator_state_power_up(), the same path a real capture takes.
+//
+//  Mob of the Dead and Nuketown also set power_on at blackscreen
+//  (zm_alcatraz_standard.gsc:20, zm_nuked_standard.gsc:21) and, unlike Origins,
+//  gate NOTHING else on it - Mob's only other references are voice lines. The
+//  row is correctly a no-op on those two, and the log says so.
 // ============================================================================
 qol_opt_no_power()
 {
@@ -1597,14 +1669,22 @@ qol_opt_no_power()
         {
             if ( !flag( "power_on" ) )
             {
-                flag_set( "power_on" );
-                println( "[zm_qol] no_power: power_on flag set on " + level.script + " - perks, Pack-a-Punch and power doors are live" );
+                //  🌟 STOCK'S OWN FUNCTION, not a hand-rolled flag flip. See the
+                //  v2.11.22 banner above for the five things it does that a bare
+                //  flag_set does not.
+                maps\mp\zombies\_zm_game_module::turn_power_on_and_open_doors();
+                level.zmqol_no_power_turned_it_on = 1;
+                println( "[zm_qol] no_power: turn_power_on_and_open_doors() run on " + level.script + " - flag, client sync, every electric door incl. local" );
             }
             else
             {
-                println( "[zm_qol] no_power: power was already on for " + level.script + ", nothing to do" );
+                println( "[zm_qol] no_power: power_on was already set on " + level.script + " - only the per-map extras apply here" );
             }
 
+            //  The per-map halves listen for this. Set the level var FIRST so a
+            //  listener that starts late still sees it - a notify fires once.
+            level.zmqol_no_power_applied = 1;
+            level notify( "zmqol_no_power_applied" );
             b_applied = 1;
         }
 

@@ -103,6 +103,7 @@ init()
 
     level thread zmqol_slipgun_prenerf_watch();
     level thread zmqol_semtex_wallbuy();
+    level thread zmqol_no_power_highrise_extras();
     zmqol_bank_sounds_init();
 }
 
@@ -1247,3 +1248,43 @@ zmqol_locker_think()
         wait 0.5;
     }
 }
+
+// ============================================================================
+//  zmqol_no_power_highrise_extras  -  NO POWER NEEDED's Die Rise half (v2.11.22)
+// ============================================================================
+//  Die Rise's switch ends with two lines the power flag knows nothing about
+//  (zm_highrise.gsc:1138-1139):
+//      stop_exploder( 10 );
+//      exploder( 11 );
+//  That pair IS the map's lit state - exploder 10 is the dark set, 11 the lit
+//  one. Without it the cheat gave you working perks in a building that still
+//  looked like the power was off.
+//
+//  🛑 GUARDED ON zmqol_no_power_turned_it_on, not on the row being on. If the
+//  player had already flipped the real switch, stock has run these two and
+//  running them again would re-spawn the lit set on top of itself. The root
+//  function sets that variable ONLY in the branch where it actually turned the
+//  power on.
+//
+//  exploder() / stop_exploder() are maps\mp\_utility (:93, :1048) - core, so
+//  safe anywhere; the NUMBERS are what is map-specific, which is why this sits
+//  in the map's own file.
+// ============================================================================
+zmqol_no_power_highrise_extras()
+{
+    level endon( "end_game" );
+
+    if ( !( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied ) )
+        level waittill( "zmqol_no_power_applied" );
+
+    if ( !( isdefined( level.zmqol_no_power_turned_it_on ) && level.zmqol_no_power_turned_it_on ) )
+    {
+        println( "[zm_qol] no_power: the player's own switch lit Die Rise - exploders left alone" );
+        return;
+    }
+
+    stop_exploder( 10 );
+    exploder( 11 );
+    println( "[zm_qol] no_power: Die Rise lighting swapped - exploder 10 off, 11 on" );
+}
+

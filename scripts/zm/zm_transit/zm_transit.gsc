@@ -218,6 +218,7 @@ init()
 
     level thread zmqol_jetgun_never_breaks();
     level thread zmqol_jetgun_real_slot();
+    level thread zmqol_no_power_transit_extras();
 
     //  ========================================================================
     //  v2.9.16 - THE PACK-A-PUNCH DOOR STAYS OPEN, user request 2026-08-31:
@@ -994,3 +995,56 @@ added_weapons()
         add_shared_ammo_weapon( "beretta93r_extclip_zm", "beretta93r_zm" );
 	}
 }
+
+// ============================================================================
+//  zmqol_no_power_transit_extras  -  NO POWER NEEDED's TranZit half (v2.11.22)
+// ============================================================================
+//  The root row (qol_options.gsc) runs stock's turn_power_on_and_open_doors(),
+//  which covers the flag, the client sync and every door. TranZit needs one
+//  more thing that no other map has: a SECOND flag.
+//
+//  zm_transit_power.gsc's electricswitch() sets "switches_on" BEFORE "power_on"
+//  (:63 then :68) and three separate systems read it on its own:
+//      powerevent()              :395  the reactor core rise - the thing that
+//                                      makes the power station look powered
+//      _zm_ai_avogadro.gsc      :1295  needs power_on AND switches_on together
+//      zm_transit_sq.gsc   :962/:994/  four side-quest gates, each testing both
+//                    :1037/:1118
+//  Leaving it clear meant the map had power while every system that asks the
+//  second question still believed it did not.
+//
+//  🛑 flag_exists() FIRST, ALWAYS. "switches_on" is flag_init()'d inside
+//  zm_transit_power.gsc:43, so it exists only once that script has run - and
+//  flag_set() on an uninitialised flag asserts. This file is TranZit-only so
+//  the flag will be there, but the guard costs nothing and the failure it
+//  prevents is a load-time assert.
+//
+//  Setting it AFTER power_on rather than before is deliberate and harmless:
+//  powerevent() is already threaded (zm_transit_power.gsc:16), so it picks the
+//  flag up and plays the full 30-second reactor sequence exactly as it would
+//  have; nothing waits on "power_event_complete" except the switch's own loop,
+//  which is parked on its trigger.
+// ============================================================================
+zmqol_no_power_transit_extras()
+{
+    level endon( "end_game" );
+
+    if ( !( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied ) )
+        level waittill( "zmqol_no_power_applied" );
+
+    if ( !flag_exists( "switches_on" ) )
+    {
+        println( "[zm_qol] no_power: switches_on does not exist on " + level.script + " - skipped" );
+        return;
+    }
+
+    if ( flag( "switches_on" ) )
+    {
+        println( "[zm_qol] no_power: switches_on was already set - nothing to do" );
+        return;
+    }
+
+    flag_set( "switches_on" );
+    println( "[zm_qol] no_power: switches_on set - reactor event, Avogadro and the side-quest gates now agree with the power flag" );
+}
+

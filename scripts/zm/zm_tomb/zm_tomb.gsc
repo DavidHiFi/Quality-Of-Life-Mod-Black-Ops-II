@@ -332,6 +332,7 @@ init()
     //  v2.10.12); v1.95.7 above records why every server-side flag flip lost.
     zmqol_register_survival_visionset();
     level thread zmqol_power_up_all_generators();
+    level thread zmqol_no_power_tomb_extras();
     level thread zmqol_disable_staff_relay_switches();
     level thread zmqol_remove_survival_ee_props();
     level thread zmqol_open_stock_barriers();
@@ -1057,18 +1058,75 @@ zmqol_power_up_all_generators()
 
     flag_wait( "start_zombie_round_logic" );
     wait_network_frame();
+    zmqol_capture_every_generator();
+}
 
+// ============================================================================
+//  zmqol_capture_every_generator  -  the body, split out in v2.11.22
+// ============================================================================
+//  Was inline in zmqol_power_up_all_generators(). NO POWER NEEDED needs the
+//  same work in CLASSIC, where that function returns immediately, so the body
+//  moved here and both callers share it. No behaviour change for survival.
+// ============================================================================
+zmqol_capture_every_generator()
+{
     if ( !isdefined( level.zone_capture ) || !isdefined( level.zone_capture.zones ) )
-        return;
+        return 0;
+
+    n_done = 0;
 
     foreach ( zone in level.zone_capture.zones )
     {
+        if ( !isdefined( zone ) )
+            continue;
+
+        if ( zone ent_flag( "player_controlled" ) )
+            continue;
+
         zone maps\mp\zm_tomb_capture_zones::set_player_controlled_area();
         zone.n_current_progress = 100;
         zone maps\mp\zm_tomb_capture_zones::generator_state_power_up();
         level setclientfield( zone.script_noteworthy, zone.n_current_progress / 100 );
+        n_done++;
         wait_network_frame();
     }
+
+    return n_done;
+}
+
+// ============================================================================
+//  zmqol_no_power_tomb_extras  -  NO POWER NEEDED's Origins half (v2.11.22)
+// ============================================================================
+//  🛑 ORIGINS IS THE ONE MAP WHERE THE ROW DID LITERALLY NOTHING.
+//  zm_tomb_standard.gsc:20 sets flag "power_on" as soon as the blackscreen
+//  lifts, so the root row found it already set and left - while every perk
+//  machine stayed locked, because Origins does not use the power flag for them
+//  at all. zm_tomb_capture_zones.gsc:117 installs
+//      level.custom_perk_validation = ::check_perk_machine_valid
+//  and that function (:1854 in _zm_perks.gsc is what calls it) returns the
+//  GENERATOR ZONE's own "player_controlled" ent_flag, playing the "power_off"
+//  line when it is clear. Generators ARE the power here.
+//
+//  So the honest way to make the row true on Origins is to capture them, and
+//  this uses stock's own capture path - set_player_controlled_area() ->
+//  set_player_controlled_zone(), which enables the perk machines, the random
+//  perk machines and the mystery boxes in the zone and raises
+//  "zone_captured_by_player" exactly as a real capture does.
+//
+//  Zones already captured are skipped, so flipping the row mid-game costs
+//  nothing for generators the player had already earned.
+// ============================================================================
+zmqol_no_power_tomb_extras()
+{
+    level endon( "end_game" );
+
+    if ( !( isdefined( level.zmqol_no_power_applied ) && level.zmqol_no_power_applied ) )
+        level waittill( "zmqol_no_power_applied" );
+
+    wait_network_frame();
+
+    n_done = zmqol_capture_every_generator();
+    println( "[zm_qol] no_power: Origins - " + n_done + " generator(s) captured, perk machines and boxes unlocked" );
 }
 
 // ============================================================================
