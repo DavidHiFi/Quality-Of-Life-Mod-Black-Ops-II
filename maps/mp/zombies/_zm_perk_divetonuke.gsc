@@ -111,16 +111,35 @@ divetonuke_perk_machine_setup( use_trigger, perk_machine, bump_trigger, collisio
     perk_machine.script_string = "divetonuke_perk";
     perk_machine.targetname = "vending_divetonuke";
 
-    if( getDvar("mapname" ) == "zm_prison" )
-    {
-        use_trigger.script_sound = "mus_perks_phd_jingle";
-        use_trigger.script_label = "mus_perks_phd_sting";
-    }
-    else 
-    {
-        use_trigger.script_sound = "mus_perks_phdflopper_jingle";
-        use_trigger.script_label = "mus_perks_phdflopper_sting";
-    }
+    //  🛑 v2.11.27 - THE zm_prison SPECIAL CASE IS GONE, AND IT WAS THE BUG.
+    //
+    //  It asked for "mus_perks_phd_sting" on Mob. That alias EXISTS NOWHERE:
+    //  absent from all six of Plutonium's runtime alias tables
+    //  (storage\t6\plutonium\soundaliaslists) AND from all six fastfile
+    //  soundbank dumps. A play on a name no bank declares is silent and logs
+    //  nothing, so PhD Flopper had no purchase sting on Mob of the Dead.
+    //
+    //  🌟 The branch bought nothing even when it worked. Measured in
+    //  zmb_alcatraz.all.aliases.csv - Mob declares BOTH jingle names and both
+    //  point at THE SAME FILE:
+    //      mus_perks_phd_jingle        -> alcatraz\perksacola\phd_jingle.flac
+    //      mus_perks_phdflopper_jingle -> alcatraz\perksacola\phd_jingle.flac
+    //  (both 14,000 ms in the runtime table). So Mob keeps its own 1930s
+    //  jingle either way, and gains the sting it never had:
+    //      mus_perks_phdflopper_sting  -> perksacola\mus_phd_sting.flac (13,995 ms)
+    //
+    //  The other four maps this mod gives PhD out on already took this branch
+    //  and are byte-for-byte unchanged. Nothing is declared in mod.all, so a
+    //  user sound pack still owns both names.
+    //
+    //  🛑 KNOWN AND DELIBERATELY NOT PAPERED OVER: on Origins both rows exist
+    //  in zmb_tomb.all with an EMPTY FileSource and Storage=streamed, so the
+    //  machine is silent there under either spelling. That is Treyarch's own
+    //  gap - stock Origins ships PhD and no PhD machine music - and closing it
+    //  needs the audio shipped in mod.all, not a rename. See the QA note in
+    //  zm_qol - dev\MOD_CATALOGUE.md.
+    use_trigger.script_sound = "mus_perks_phdflopper_jingle";
+    use_trigger.script_label = "mus_perks_phdflopper_sting";
     if ( isdefined( bump_trigger ) )
     {
         bump_trigger.script_string = "divetonuke_perk";
