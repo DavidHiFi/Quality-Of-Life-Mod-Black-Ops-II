@@ -65,15 +65,33 @@ init()
     //      self.health when ON - but with the base already at 5.9M, self.health is
     //      almost never greater, so ON and OFF behaved identically. The row only
     //      becomes a real switch once this value is sane again.
-    //  📝 SCOPE: only the 5.9M outlier is touched. outer_damage_upgraded stays at
-    //  this mod's 1000 (BO1 ships 750), as do both shatter_*_upgraded values, and
-    //  every base-gun number already matches BO1 exactly. Those are tuning, with
-    //  no defect behind them - changing them would be an unrequested rebalance.
+    //  🌟 v2.11.29 - THE LAST THREE DONOR NUMBERS NOW MATCH BO1 TOO.
+    //
+    //  v2.9.13 (above) left these alone on the grounds that changing them would be
+    //  "an unrequested rebalance". It is requested now: the user's wonder-weapon
+    //  parity directive asks for the DEFAULT state to "match BO1 stock damage
+    //  falloff", with the extra damage living behind the buff toggle instead.
+    //
+    //  All three arrived verbatim with the SRS import (f4c22d8, v1.69.0) - checked
+    //  with `git log -S` - and, unlike the Wunderwaffe's arc timing, carry NO user
+    //  instruction behind them. They were inherited, never chosen here. BO1's own
+    //  values, read out of <BO1>\raw\maps\_zombiemode_weap_freezegun.gsc:33,35,36:
+    //      outer_damage_upgraded          1000 -> 750
+    //      shatter_inner_damage_upgraded  1000 -> 750
+    //      shatter_outer_damage_upgraded  1000 -> 500
+    //  inner_damage_upgraded (1500) and shatter_range_upgraded (300) already match,
+    //  and so does every base-gun number. The whole table is BO1's now.
+    //
+    //  📝 This makes WINTERS HOWL BUFF matter MORE, not less: the row raises damage
+    //  to self.health whenever self.health > damage, so a lower base means the
+    //  toggle takes over at earlier rounds - which is the split the directive asks
+    //  for. Each value is read only by its own freezegun_get_* accessor (verified),
+    //  so nothing else moves.
     set_zombie_var( "freezegun_inner_damage_upgraded",          1500 );
-    set_zombie_var( "freezegun_outer_damage_upgraded",          1000 );
+    set_zombie_var( "freezegun_outer_damage_upgraded",          750 );
     set_zombie_var( "freezegun_shatter_range_upgraded",         300 ); // 25 feet
-    set_zombie_var( "freezegun_shatter_inner_damage_upgraded",  1000 );
-    set_zombie_var( "freezegun_shatter_outer_damage_upgraded",  1000 );
+    set_zombie_var( "freezegun_shatter_inner_damage_upgraded",  750 );
+    set_zombie_var( "freezegun_shatter_outer_damage_upgraded",  500 );
     
 
     level._effect[ "freezegun_shatter" ]                = LoadFX( "weapon/freeze_gun/fx_freezegun_shatter" );
