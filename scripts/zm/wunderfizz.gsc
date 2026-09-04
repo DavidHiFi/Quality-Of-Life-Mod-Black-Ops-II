@@ -893,6 +893,64 @@ zmqol_wf_tomb_locked( e_native )
 	return ( e_native.is_locked == 1 );
 }
 
+// ============================================================================
+//  zmqol_wf_power_locked  -  is this map's MAIN POWER still off?
+//
+//  🌟 v2.11.23 - THE POWER GATE IS LIVE NOW, NOT A ONE-SHOT.
+//
+//  User, 2026-09-04: *"the Wunderfizz machine requires power to be enabled
+//  before players can interact with or buy from it on Classic maps ... On
+//  Survival maps (where power is enabled by default at spawn), the Wunderfizz
+//  machine should be active and usable immediately."*
+//
+//  The gate itself already existed and already blocked purchases - the only
+//  `trig waittill("trigger")` in this file sits behind it - but it was a
+//  one-shot `flag_wait("power_on")`. Once it returned, the machine was open for
+//  the rest of the match no matter what power did afterwards. That is the same
+//  fault the Origins branch above was written to avoid, and it is why this
+//  reads as a live test called every pass instead of a wait.
+//
+//  🛑 WHY IT MUST BE THE FLAG AND NOTHING ELSE. "power_on" is flag_init()'d in
+//  CORE _zm.gsc:1133, so it exists on every map from load - there is no map
+//  where reading it is unsafe, and no map-type list to maintain. The SURVIVAL
+//  exception then falls out for free rather than being hardcoded: every
+//  survival start sets the flag as the blackscreen lifts, measured, not assumed
+//  - stock zm_transit_standard_station.gsc:34 (Bus Depot), _farm.gsc:34,
+//  _town.gsc:37 and zm_nuked_perks.gsc:324, plus this mod's own ported
+//  locations through scripts\zm\locs\loc_common.gsc:15. Machines are spawned
+//  from init(), so they are built before that happens and spend the blackscreen
+//  locked; the player is looking at a black screen for all of it.
+//
+//  The three maps that return early, and why each is NOT a hole:
+//    zm_tomb    Origins has no working global power flag - zm_tomb_standard.gsc:20
+//               sets it at blackscreen. Power there is per generator, and the
+//               branch above already gates on the real thing
+//               (zmqol_wf_tomb_locked). Gating on the flag as well would be a
+//               test that is always open sitting next to a test that works.
+//    zm_prison  Mob of the Dead sets power_on at blackscreen too and gates
+//    zm_nuked   nothing else on it (Nuketown is a survival map). Both are
+//               "power on by default", so both are correctly always-open.
+//               Carried unchanged from the v1.x gate; not new behaviour.
+// ============================================================================
+zmqol_wf_power_locked()
+{
+	if( !isdefined( level.wunderfizzChecksPower ) || !level.wunderfizzChecksPower )
+		return false;
+
+	if( level.script == "zm_tomb" || level.script == "zm_prison" || level.script == "zm_nuked" )
+		return false;
+
+	//  Belt and braces. flag() ASSERTS on an uninitialised flag rather than
+	//  returning false (common_scripts\utility.gsc:649-651), so it is never
+	//  called blind - even though _zm.gsc:1133 means this can only ever be true.
+	b_exists = level flag_exists( "power_on" );
+
+	if( !b_exists )
+		return false;
+
+	return !flag( "power_on" );
+}
+
 zmqol_wf_add( origin, angles, model )
 {
 	s_place = spawnstruct();
@@ -1779,7 +1837,7 @@ wunderfizzSetup(origin, angles, model)
 	//  🛑 WHY THE v1.99.91 VERSION COULD DISAGREE WITH ITSELF. It wrote the
 	//  marker from TWO event points inside the machine's think loop - the arrival
 	//  branch and the departure branch - and that loop is not entered until the
-	//  machine's power gate opens (flag_wait("power_on"), or the per-generator
+	//  machine's power gate opens (zmqol_wf_power_locked(), or the per-generator
 	//  wait on Origins). A machine that has not passed its gate yet writes
 	//  nothing at all, so while the orb sits on one of those the icon is on no
 	//  machine; and any path that leaves the loop between the two writes leaves
@@ -2088,10 +2146,18 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 
 		trig SetHintString(" ");
 	}
-	else if(level.wunderfizzChecksPower && level.script != "zm_prison" && level.script != "zm_nuked")
+	else if( zmqol_wf_power_locked() )
 	{
-		trig SetHintString("Power Must Be Activated First");
-		flag_wait("power_on");
+		//  v2.11.23 - same shape as the Origins branch above, and for the same
+		//  reason: a while-loop rather than flag_wait, so the machine can lock
+		//  again. The map and dvar tests that used to live in this condition are
+		//  inside zmqol_wf_power_locked() now, which is what the buy loop calls
+		//  too - one definition of "unpowered", two places that need it.
+		trig SetHintString( "Power Must Be Activated First" );
+
+		while( zmqol_wf_power_locked() )
+			wait 0.5;
+
 		trig SetHintString(" ");
 	}
 	else
@@ -2150,6 +2216,26 @@ wunderfizz(origin, angles, model, cost, perks, trig, wunderfizzBottle )
 				if( zmqol_wf_tomb_locked( e_native_gen ) )
 				{
 					trig SetHintString( "Activate the Generator First" );
+					wait 0.5;
+					continue;
+				}
+
+				//  🌟 v2.11.23 - RE-CHECK MAIN POWER EVERY PASS TOO, for the
+				//  identical reason the generator is re-checked above: the gate
+				//  before this loop is now a live test rather than a one-shot
+				//  flag_wait, and it is worth nothing if the machine that passed
+				//  it once can never close again. Off the classic maps this is
+				//  free - zmqol_wf_power_locked() returns false immediately on
+				//  Origins, Mob, Nuketown and on any survival start, where power
+				//  is on before the blackscreen lifts.
+				//
+				//  `continue` rather than a wait-for-power, so no
+				//  `trig waittill("trigger")` is ever armed while the map is
+				//  dark: no buy prompt, no purchase, machine visible but locked -
+				//  exactly what a stock perk machine does with no power.
+				if( zmqol_wf_power_locked() )
+				{
+					trig SetHintString( "Power Must Be Activated First" );
 					wait 0.5;
 					continue;
 				}
@@ -3279,9 +3365,14 @@ zmqol_wf_vulture_marker_watch()
 //      _zm_power::change_power_in_radius(), which only walks items registered
 //      with add_powered_item(). The Wunderfizz is spawned by this file and is
 //      not one of them, so the power sweep never saw it.
-//   2. This file's own power gate (`flag_wait("power_on")`, in wunderfizz())
-//      is a ONE-SHOT that only holds the machine before it first goes live. It
-//      never re-checks, so even losing power outright would not have closed it.
+//   2. This file's own power gate was a ONE-SHOT (`flag_wait("power_on")`) that
+//      only held the machine before it first went live, so even losing power
+//      outright would not have closed it.
+//      📝 v2.11.23 - point 2 no longer holds: the gate is a live
+//      zmqol_wf_power_locked() test, checked again on every pass of the buy
+//      loop. Point 1 still does, and this watcher is still what makes an EMP
+//      register - an EMP does not clear the "power_on" flag, so the power test
+//      alone would never see one.
 //
 //  DURATION is stock's, read from the same level.zombie_vars the EMP module
 //  sets - emp_perk_off_time, 90s - so the machine comes back exactly when the
