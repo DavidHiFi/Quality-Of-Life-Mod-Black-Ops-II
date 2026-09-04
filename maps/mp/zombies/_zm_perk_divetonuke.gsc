@@ -129,17 +129,44 @@ divetonuke_perk_machine_setup( use_trigger, perk_machine, bump_trigger, collisio
     //      mus_perks_phdflopper_sting  -> perksacola\mus_phd_sting.flac (13,995 ms)
     //
     //  The other four maps this mod gives PhD out on already took this branch
-    //  and are byte-for-byte unchanged. Nothing is declared in mod.all, so a
-    //  user sound pack still owns both names.
+    //  and are byte-for-byte unchanged. Neither mus_perks_* name is declared in
+    //  mod.all on any map, so a user sound pack still owns both of them.
     //
-    //  🛑 KNOWN AND DELIBERATELY NOT PAPERED OVER: on Origins both rows exist
-    //  in zmb_tomb.all with an EMPTY FileSource and Storage=streamed, so the
-    //  machine is silent there under either spelling. That is Treyarch's own
-    //  gap - stock Origins ships PhD and no PhD machine music - and closing it
-    //  needs the audio shipped in mod.all, not a rename. See the QA note in
-    //  zm_qol - dev\MOD_CATALOGUE.md.
-    use_trigger.script_sound = "mus_perks_phdflopper_jingle";
-    use_trigger.script_label = "mus_perks_phdflopper_sting";
+    //  🛑 ORIGINS IS THE ONE MAP THAT CANNOT USE THE STOCK NAME (v2.11.28).
+    //  zmb_tomb.all declares BOTH mus_perks_phdflopper_* rows with an EMPTY
+    //  FileSource and Storage=streamed - the alias resolves and plays nothing -
+    //  and mus_perks_phd_jingle is not in Origins' table at all. Plutonium's
+    //  runtime table agrees: 0 ms for both. So stock Origins ships PhD Flopper
+    //  and no PhD machine music, and NO rename can fix it.
+    //
+    //  🌟 So on Origins ONLY, the machine takes this mod's own copies. The
+    //  payload is Treyarch's own, lifted out of zmb_nuked_real:
+    //      zmqol_phd_jingle -> raw\sound\mus\zombie\perksacola\mus_phd_jingle.SN55...
+    //      zmqol_phd_sting  -> raw\sound\mus\zombie\perksacola\mus_phd_sting.SN55...
+    //  Both rows in mod.all.aliases.additions.csv are the zmb_nuked_real rows
+    //  copied VERBATIM with only the Name column changed (60/60 columns, same
+    //  mix, same snp_x3 duck group, same @866cadbc duck), so Origins gets the
+    //  same mix every other map gets. The .flac is byte-identical across all
+    //  four banks that carry it - md5 checked - so there is no "which copy"
+    //  question to get wrong.
+    //
+    //  🛑 THE PRIVATE NAMES ARE ORIGINS-ONLY ON PURPOSE. On the other five maps
+    //  mus_perks_phdflopper_* has real audio, and declaring those names in
+    //  mod.all would shadow the user's sound pack - the failure this project
+    //  calls "audible but the mod's flavour". zmqol_* is a name no stock bank
+    //  uses, so it shadows nothing, and no pack can supply Origins' PhD music
+    //  anyway: the alias table lives in the fastfile, which a pack does not
+    //  replace, and its row points at nothing.
+    if ( getDvar( "mapname" ) == "zm_tomb" )
+    {
+        use_trigger.script_sound = "zmqol_phd_jingle";
+        use_trigger.script_label = "zmqol_phd_sting";
+    }
+    else
+    {
+        use_trigger.script_sound = "mus_perks_phdflopper_jingle";
+        use_trigger.script_label = "mus_perks_phdflopper_sting";
+    }
     if ( isdefined( bump_trigger ) )
     {
         bump_trigger.script_string = "divetonuke_perk";
