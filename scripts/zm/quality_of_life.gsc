@@ -13162,9 +13162,119 @@ zmqol_enable_whoswho()
     if ( !isdefined( level.vsmgr_prio_visionset_zm_whos_who ) )
         level.vsmgr_prio_visionset_zm_whos_who = 123;
 
+    //  🔊 v2.11.16 - the perk's four pop sounds, silent here since the day it
+    //  was enabled off Die Rise. Full reasoning on the function.
+    zmqol_whoswho_install_sound_hooks();
+
     level thread zmqol_whoswho_verify();
     level thread zmqol_whoswho_visionset_probe();
     level thread zmqol_whoswho_overlay_connect();
+}
+
+// ============================================================================
+//  zmqol_whoswho_install_sound_hooks  -  v2.11.16. THE PERK'S FOUR POP SOUNDS.
+//
+//  Who's Who makes exactly four sounds, and off Die Rise ALL FOUR were silent.
+//  maps\mp\zombies\_zm_chugabud.gsc is Core - it loads and runs everywhere -
+//  and it plays them at four points:
+//      :394  evt_ww_disappear  at the body you leave behind   (chugabud_fake_revive)
+//      :417  evt_ww_appear     at the spot you re-appear on   (chugabud_fake_revive)
+//      :157  evt_ww_appear     at the corpse, when revived    (chugabud_corpse_cleanup)
+//      :162  evt_ww_disappear  at the corpse, when it bleeds out
+//
+//  🛑 BOTH ALIASES ARE DIE-RISE-ONLY - measured, not assumed. Plutonium's
+//  soundaliaslists (a {alias: length_ms} table per map, common banks included)
+//  carries evt_ww_appear and evt_ww_disappear under zm_highrise and under no
+//  other map. A missing alias is SILENT and logs nothing, so this shipped as four
+//  dead calls and looked like a working perk.
+//
+//  The fix is the one evt_ww_activate / evt_ww_looper already got (as
+//  zmqol_ww_activate / zmqol_ww_looper, confirmed audible in game): re-ship
+//  Treyarch's own payloads under mod-private names in this mod's own bank, so
+//  nothing anywhere is shadowed. Payloads and alias parameters are Unlinker dumps
+//  of zm_highrise.ff + zmb_highrise.all.sabl, copied row-for-row - ww_pop2 is the
+//  appear and ww_pop the disappear, which the stock alias rows state outright and
+//  the durations confirm (3382 / 2674 ms against the table's 3632 / 2924).
+//
+//  TWO HOOKS, AND NEITHER IS A GUESS ABOUT TIMING:
+//
+//  1. level._chugabud_post_respawn_override_func is TREYARCH'S OWN POINTER, called
+//     on the player with the respawn origin from inside chugabud_fake_revive()
+//     (:398-399) - after the disappear at :394, before the setorigin() at :415.
+//     Nothing in between waits (chugabud_get_spawnpoint() is pure lookup, no wait
+//     and no waittill anywhere in it), so both plays land in the same frame
+//     stock's do, at the same two positions. zm_highrise_classic.gsc:77 is the
+//     only setter in the whole game and this never runs on that map; the pointer
+//     is chained rather than clobbered anyway.
+//
+//  2. chugabud_corpse_cleanup() has no hook, so it is replaced by a verbatim copy
+//     with two lines added. It is 30 lines of straight-line code - no loops, no
+//     branches beyond the two isdefined guards - so the copy carries no risk of
+//     the kind a decompile of control flow would. The replacement is installed
+//     ONLY on the maps this mod enables the perk on, so Die Rise never sees it.
+// ============================================================================
+zmqol_whoswho_install_sound_hooks()
+{
+    if ( isdefined( level._chugabud_post_respawn_override_func ) )
+        level.zmqol_ww_prev_respawn_func = level._chugabud_post_respawn_override_func;
+
+    level._chugabud_post_respawn_override_func = ::zmqol_ww_post_respawn_sound;
+
+    replaceFunc( maps\mp\zombies\_zm_chugabud::chugabud_corpse_cleanup, ::zmqol_chugabud_corpse_cleanup );
+}
+
+//  self is the player, and at the call site they are STILL STANDING WHERE THEY
+//  WENT DOWN - setorigin( spawnpoint.origin ) is sixteen lines below it. So
+//  self.origin is stock's own disappear position and v_origin is stock's own
+//  appear position; neither is re-derived.
+zmqol_ww_post_respawn_sound( v_origin )
+{
+    playsoundatposition( "zmqol_ww_disappear", self.origin );
+    playsoundatposition( "zmqol_ww_appear", v_origin );
+
+    if ( isdefined( level.zmqol_ww_prev_respawn_func ) )
+        self [[ level.zmqol_ww_prev_respawn_func ]]( v_origin );
+}
+
+//  A verbatim copy of _zm_chugabud::chugabud_corpse_cleanup() with one added
+//  play in each branch. Stock's own evt_ww_* calls are KEPT: they cost nothing
+//  where the alias is absent, and they are the right thing to fire the day a
+//  sound pack supplies it.
+zmqol_chugabud_corpse_cleanup( corpse, was_revived )
+{
+    self notify( "chugabud_effects_cleanup" );
+
+    if ( was_revived )
+    {
+        playsoundatposition( "evt_ww_appear", corpse.origin );
+        playsoundatposition( "zmqol_ww_appear", corpse.origin );
+        playfx( level._effect["chugabud_revive_fx"], corpse.origin );
+    }
+    else
+    {
+        playsoundatposition( "evt_ww_disappear", corpse.origin );
+        playsoundatposition( "zmqol_ww_disappear", corpse.origin );
+        playfx( level._effect["chugabud_bleedout_fx"], corpse.origin );
+        self notify( "chugabud_bleedout" );
+    }
+
+    if ( isdefined( corpse.revivetrigger ) )
+    {
+        corpse notify( "stop_revive_trigger" );
+        corpse.revivetrigger delete();
+        corpse.revivetrigger = undefined;
+    }
+
+    if ( isdefined( corpse.revive_hud_elem ) )
+    {
+        corpse.revive_hud_elem destroy();
+        corpse.revive_hud_elem = undefined;
+    }
+
+    self.loadout = undefined;
+    wait 0.1;
+    corpse delete();
+    self.e_chugabud_corpse = undefined;
 }
 
 // ============================================================================
