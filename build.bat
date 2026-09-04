@@ -9,7 +9,7 @@ REM  Rebuilds mod.iwd and writes all 5 mod files to:
 REM    1) a send-ready copy:  <project>\build\zm_qol\
 REM    2) your Plutonium mods folder (skipped if Plutonium isn't installed)
 REM    3) installer\Mod Files\ - so the installer can never reinstall a stale
-REM       build over a fresh one (see [6/8]'s comment for why this exists)
+REM       build over a fresh one (see [6/9]'s comment for why this exists)
 REM  Needs only Windows + PowerShell (both built in) - no other tools.
 REM ============================================================
 setlocal EnableExtensions
@@ -137,7 +137,7 @@ echo        %PLUTO_DIR%
 call :deploy "%PLUTO_DIR%"
 if errorlevel 1 echo    [skip] couldn't write to Plutonium - the send-ready copy above is still good.
 echo.
-echo [6/8] Refreshing the installer's own bundled copy:
+echo [6/9] Refreshing the installer's own bundled copy:
 echo        %~dp0installer\Mod Files
 REM  ============================================================================
 REM  🛑 v2.3.2 - THE INSTALLER WAS SILENTLY REVERTING EVERY FIX.
@@ -163,7 +163,7 @@ REM  ===========================================================================
 call :deploy "%~dp0installer\Mod Files"
 if errorlevel 1 echo    [skip] couldn't write the installer's bundled copy.
 echo.
-echo [7/8] Cleaning this mod's LUI out of Plutonium's raw\ folder...
+echo [7/9] Cleaning this mod's LUI out of Plutonium's raw\ folder...
 REM  ============================================================================
 REM  🛑 v2.2.0 - THIS STEP USED TO *WRITE* INTO raw\. IT NOW UNDOES THAT.
 REM
@@ -214,7 +214,7 @@ set "RAW_DIR=%LOCALAPPDATA%\Plutonium\storage\t6\raw"
 set "PROJ_DIR=%~dp0"
 "%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$raw=$env:RAW_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $raw)){ Write-Host '    [skip] no raw\ folder'; exit 0 }; $restored=0; $left=0; @('ui_mp','ui') | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $proj $_) -Recurse -Filter *.lua -ErrorAction SilentlyContinue } | ForEach-Object { $rel=$_.FullName.Substring($proj.Length); $dst=Join-Path $raw $rel; if(-not (Test-Path -LiteralPath $dst)){ return }; $body=(Get-Content -LiteralPath $dst -Raw); if($body -eq $null -or -not ($body -match 'zm_qol')){ return }; $bak=@(Get-ChildItem -LiteralPath (Split-Path $dst -Parent) -Filter ((Split-Path $dst -Leaf) + '.bak-*') -ErrorAction SilentlyContinue | Sort-Object LastWriteTime); if($bak.Count -gt 0){ Copy-Item -LiteralPath $bak[0].FullName -Destination $dst -Force; Write-Host ('    [restored] ' + $rel + '  <- ' + $bak[0].Name); $restored++ } else { Copy-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [gated] ' + $rel + '  no pristine backup - refreshed to the mod-aware copy'); $left++ } }; if($restored -eq 0 -and $left -eq 0){ Write-Host '    [ok] raw\ holds none of this mod''s LUI' }" 2>nul
 echo.
-echo [8/8] Reconciling Plutonium's loose scripts\ folder...
+echo [8/9] Reconciling Plutonium's loose scripts\ folder...
 REM  🛑 THIS ONE COST SIX BOOTS AND FOUR CRASHES, 2026-08-11.
 REM
 REM  %%LOCALAPPDATA%%\Plutonium\storage\t6\scripts\ is loaded GLOBALLY and takes
@@ -235,6 +235,28 @@ REM      this same mod, and a deleted source file must not keep running
 REM  Anything outside scripts\zm\ is left alone - it is not ours to touch.
 set "LOOSE_DIR=%LOCALAPPDATA%\Plutonium\storage\t6\scripts"
 "%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$loose=$env:LOOSE_DIR; $proj=$env:PROJ_DIR; if(-not (Test-Path -LiteralPath $loose)){ Write-Host '    [skip] no loose scripts\ folder'; exit 0 }; $s=0; $d=0; Get-ChildItem -LiteralPath $loose -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.gsc','.csc' } | ForEach-Object { $rel=$_.FullName.Substring($loose.Length+1); $src=Join-Path (Join-Path $proj 'scripts') $rel; if(Test-Path -LiteralPath $src){ Copy-Item -LiteralPath $src -Destination $_.FullName -Force; $s++ } elseif($rel -like 'zm\*'){ Remove-Item -LiteralPath $_.FullName -Force; Write-Host ('    [stale] removed ' + $rel); $d++ } }; Write-Host ('    ' + $s + ' refreshed, ' + $d + ' stale removed')" 2>nul
+
+echo.
+echo [9/9] Quarantining FOREIGN scripts in Plutonium's raw\ folder...
+REM  ============================================================================
+REM  🛑 THIS IS WHAT KILLED DIE RISE ON 2026-09-04 (ERROR_CATALOGUE 65).
+REM
+REM  %%LOCALAPPDATA%%\Plutonium\storage\t6\raw\ is loaded GLOBALLY, for EVERY mod,
+REM  whatever fs_game says. Another mod - Zombies Declassified / dlc5 - installs 60
+REM  files there when it launches: 57 zzz_*.gsc written for BO1 maps (23 of them
+REM  run for(;;) + wait 0.05 loops), a full replacement clientscripts\mp\zombies\
+REM  _zm.csc, and two stock dog animscripts. They then load on top of THIS mod.
+REM
+REM  Measured: the 10:07 and 11:04 sessions loaded 0 of them and Die Rise was fine;
+REM  the 11:45 session loaded all 60 and died with
+REM  CL_CGameNeedsServerCommand: EXE_ERR_RELIABLE_CYCLED_OUT.
+REM
+REM  So every build parks them. NOTHING IS DELETED - they move, whole, into
+REM  backups\raw-foreign-parked\, which carries RESTORE-for-dlc5.ps1 to put them
+REM  back before playing that mod. Plutonium's OWN two ranked.gsc stay put.
+REM  ============================================================================
+set "PARK_DIR=%LOCALAPPDATA%\Plutonium\storage\t6\backups\raw-foreign-parked"
+"%PS%" -NoProfile -ExecutionPolicy Bypass -Command "$raw=$env:RAW_DIR; $park=$env:PARK_DIR; if(-not (Test-Path -LiteralPath $raw)){ Write-Host '    [skip] no raw\ folder'; exit 0 }; $keep=@('scripts\mp\ranked.gsc','scripts\zm\ranked.gsc'); $n=0; Get-ChildItem -LiteralPath $raw -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.gsc','.csc' } | ForEach-Object { $rel=$_.FullName.Substring($raw.Length+1); if($keep -contains $rel){ return }; $dst=Join-Path $park $rel; $dir=Split-Path $dst -Parent; if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Force $dir | Out-Null }; Move-Item -LiteralPath $_.FullName -Destination $dst -Force; Write-Host ('    [parked] ' + $rel); $n++ }; if($n -eq 0){ Write-Host '    [ok] raw\ holds no foreign script' } else { Write-Host ('    ' + $n + ' foreign script(s) parked in backups\raw-foreign-parked - run its RESTORE-for-dlc5.ps1 before playing that mod') }" 2>nul
 
 echo.
 echo Done.
