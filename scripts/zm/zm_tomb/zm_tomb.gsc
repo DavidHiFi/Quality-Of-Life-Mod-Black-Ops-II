@@ -293,7 +293,6 @@ zmqol_register_survival_visionset()
 init()
 {
     level thread zmqol_hide_native_wunderfizz();
-    level thread zmqol_probe_capture_zones();
 
     //  🛑 v1.95.7 - zmqol_ring_hud_visibility() IS NO LONGER STARTED, and the
     //  whole hud_visible approach is abandoned. It shipped in v1.95.4, it
@@ -587,35 +586,26 @@ zmqol_capture_objectives_on_connect()
     }
 }
 
-//  zmqol_probe_capture_zones  -  CLASSIC ORIGINS ONLY, diagnostic, remove later
+// ============================================================================
+//  ✅ THE ORIGINS CAPTURE RING IS FIXED - PROBE REMOVED IN v2.11.22
+// ============================================================================
+//  zmqol_probe_capture_zones() lived here from v1.82.0 to v2.11.21. It was
+//  the diagnostic for the capture ring never drawing, and on 2026-09-04 it
+//  finally reported: 65 lines during a generator_start_bunker capture,
+//  progress climbing 3.33 -> 53, decaying whenever the player stepped out,
+//  contested=1 throughout, obj=0 - and obj 0 is a REAL index, not a default
+//  (zm_tomb_capture_zones.gsc:82 declares it as ZM_TOMB_OBJ_CAPTURE_1). So
+//  the server half was always perfect, exactly as the probe's own decision
+//  rule predicted, and the user confirmed the ring itself in the same game:
+//  *"yeah origins generator is fine"*.
 //
-//  Reported: starting generator 1 in the spawn area shows no progress indicator.
-//  The user's read was that leftover custom-survival code is still interfering.
-//  That is not supported by anything I can check offline, and the checks were
-//  not cheap, so they are recorded here rather than repeated:
+//  The fix that did it is NOT here - it is the LUI wrap in
+//  ui_mp\t6\zombie\hudcraftablestombzombie.lua, which raises the ring menu
+//  that CoD.GametypeBase.new() leaves at alpha 0. Full history:
+//  zm_qol - dev\.agents\checkpoint_225.md and QUEUE.md (2026-09-04).
 //
-//    - every Origins-specific function this file adds returns immediately on
-//      is_classic() - power_up_all_generators, disable_staff_relay_switches,
-//      remove_survival_ee_props, open_stock_barriers, and both clientfield
-//      registrations. None of them execute in classic.
-//    - the capture HUD is driven by WORLD-scope clientfields
-//      (zone_capture_hud_generator_N, zc_change_progress_bar_color, via
-//      setupclientfieldcodecallbacks in zm_tomb_capture_zones.csc:17-32). The
-//      mod registers no world-scope clientfield anywhere, so it cannot be
-//      shifting that layout.
-//    - the HUD's LUI is ui_mp\t6\zombie\tombcapturezonedisplay.lua and
-//      capturezonewheeltombdisplay.lua, both in zm_tomb_patch.ff. mod.ff
-//      contains no .lua at all, so nothing is shadowing them. The one in-game
-//      LUI this mod does override, hudpowerupszombie.lua, has no capture or
-//      generator symbols in either the stock or the modded copy.
-//    - our zm_tomb.csc replaces only include_weapons; the stock client-side
-//      capture init (init_cz_animtree / init_structs / init_custom_pap,
-//      zm_tomb.csc:103-126) is untouched.
-//
-//  So this prints whether the SERVER half is running, which splits the problem
-//  in half: if progress climbs here while nothing draws, it is client/LUI; if
-//  progress never moves, it is server-side and the zone objects are the place to
-//  look.
+//  🛑 Do not re-add a for(;;) probe here casually - this one printed 65
+//  lines per capture for the whole match.
 // ============================================================================
 // ============================================================================
 //  zmqol_tomb_mp40_stalker_wallbuys  -  Origins' MP40 wall-buys give the same
@@ -992,63 +982,6 @@ zmqol_hide_native_wunderfizz()
     }
 
     println( "[zm_qol] origins wunderfizz: hid " + n_hidden + " of " + a_native.size + " native machine(s) - the mod's own replace them" );
-}
-
-zmqol_probe_capture_zones()
-{
-    if ( !is_classic() )
-        return;
-
-    flag_wait( "start_zombie_round_logic" );
-    wait_network_frame();
-
-    if ( !isdefined( level.zone_capture ) || !isdefined( level.zone_capture.zones ) )
-    {
-        println( "[zm_qol] capture probe: level.zone_capture MISSING - server side never initialised" );
-        return;
-    }
-
-    println( "[zm_qol] capture probe: " + level.zone_capture.zones.size + " zone(s) registered" );
-
-    // 🛑 THE OLD LOOP COULD NEVER PRINT, AND THAT IS WHY TEN ORIGINS BOOTS
-    //    PRODUCED ONLY THE HEADER LINE ABOVE.
-    //
-    //    It walked `level.zone_capture.zones[i]` with a numeric i. Stock builds
-    //    that array STRING-KEYED - zm_tomb_capture_zones.gsc:init_capture_zone()
-    //    ends with
-    //        level.zone_capture.zones[self.script_noteworthy] = self;
-    //    so `.size` reports 6 (hence "6 zone(s) registered" every boot) while
-    //    every [i] lookup returns undefined and hits the `continue`. Zero data
-    //    from every run. Fixed by iterating with foreach over the real keys.
-    a_last = [];
-
-    for ( ;; )
-    {
-        foreach ( str_key, zone in level.zone_capture.zones )
-        {
-            if ( !isdefined( zone ) || !isdefined( zone.n_current_progress ) )
-                continue;
-
-            if ( isdefined( a_last[str_key] ) && a_last[str_key] == zone.n_current_progress )
-                continue;
-
-            // The objective index IS the ring - the mid-screen capture meter is
-            // LUI's TCZWaypoint (ui_mp/t6/zombie/tombcapturezonedisplay.lua),
-            // which inherits ObjectiveWaypoint and is picked by OBJECTIVE NAME
-            // (ZM_TOMB_OBJ_CAPTURE_1). So if progress climbs while obj is a real
-            // index and the zone is contested, the server did everything it is
-            // supposed to and the failure is purely client-side.
-            str_obj = "unset";
-
-            if ( isdefined( zone.n_objective_index ) )
-                str_obj = "" + zone.n_objective_index;
-
-            println( "[zm_qol] capture probe: zone " + str_key + " progress " + zone.n_current_progress + " obj=" + str_obj + " contested=" + zone ent_flag( "zone_contested" ) + " player_controlled=" + zone ent_flag( "player_controlled" ) + " inzone=" + zone maps\mp\zm_tomb_capture_zones::get_players_in_capture_zone().size );
-            a_last[str_key] = zone.n_current_progress;
-        }
-
-        wait 0.5;
-    }
 }
 
 zmqol_power_up_all_generators()
