@@ -1070,12 +1070,20 @@ zmqol_play_chalk_fx( effect, origin, angles )
 //  User, 2026-09-04: "just fix the locker as well".
 //
 //  _zm_weapon_locker.gsc plays evt_fridge_locker_close when you stash a gun
-//  ( :177 ) and evt_fridge_locker_open when you take it back ( :242 ). Both
-//  aliases exist ONLY in zm_transit's table - they are the TranZit fridge's -
-//  so on Die Rise both calls name nothing and are silent with no error. The
-//  payloads live in zmb_common.all, which every map loads, but a payload with
-//  no alias pointing at it can never be played. Same shape as the bank
-//  ( zmqol_bank_sounds_init above ); both are written up in STOCK_REFERENCE.md.
+//  ( :177 ) and evt_fridge_locker_open when you take it back ( :242 ). Neither
+//  alias is in Die Rise's own table - zmb_highrise.all, dumped straight out of
+//  zm_highrise.ff, is 9,953 rows and evt_fridge_locker_ is in 0 of them - so
+//  both calls name nothing and are silent with no error. There is no shared
+//  payload to fall back on either: Green Run and Buried each point those two
+//  names at a recording of their own, the diner fridge there and putin /
+//  takeout here. Same shape as the bank ( zmqol_bank_sounds_init above ); both
+//  are written up in STOCK_REFERENCE.md.
+//
+//  v2.11.19 - THE ROWS ARE BURIED'S, FIELD FOR FIELD. v2.11.15 shipped the
+//  TranZit fridge FLACs on a row modelled on another alias ( guessed volume,
+//  pan and storage ). Die Rise's weapon locker is a locker, not a fridge door,
+//  and zmb_buried.all carries Treyarch's real rows for exactly this trigger, so
+//  those ship instead, renamed and otherwise untouched.
 //
 //  🛑 WHY THIS ONE NEEDS A COPY AND THE BANK DID NOT. The bank has Treyarch's
 //  own level.custom_bank_*_vo pointers to hang audio off. The locker has no
