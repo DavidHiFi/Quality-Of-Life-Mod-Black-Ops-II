@@ -627,35 +627,69 @@ zmqol_loadmovie_probe()
 //        makedvarserverinfo( "sv_hostname" );
 //  No Discord code anywhere in that repo - this dvar IS its "custom RPC".
 //
-//  Why the guard: stock gametypes_zm\_serversettings.gsc:6-11 sets sv_hostname
-//  to "CoDHost" whenever it is empty, so that (or "") is what a solo game
-//  carries and the only thing worth replacing. Anything else is a name a
-//  server owner or a player chose, and it is left alone - which doubles as the
-//  opt-out: set your own sv_hostname and the mod never touches it. Stock's own
-//  5-second updateserversettings() loop only READS sv_hostname (:64-68), so
-//  nothing fights this back.
+//  Why the guard: three values mean "nobody chose this name", and only those are
+//  replaced.
+//        ""               nothing set yet
+//        "CoDHost"        stock gametypes_zm\_serversettings.gsc:6-11, which
+//                         writes it whenever sv_hostname is empty
+//        "Private Match"  🌟 what PLUTONIUM itself puts there for a private
+//                         match - measured 2026-09-05 in the user's own dvar
+//                         dump (console_zm.log: sv_hostname "Private Match")
+//  Anything else is a server owner's or a player's own name and is left alone,
+//  which doubles as the opt-out. Stock's 5-second updateserversettings() loop
+//  only READS sv_hostname (:64-68), so nothing fights this back.
 //
-//  🛑 DEPLOYED, NOT YET VERIFIED: what a Discord profile shows for a PRIVATE
-//  match is the one part no offline check on this machine can settle - the
-//  presence binary is Themida-packed, and the docs' only screenshot is a T4
-//  match showing "Private Match" where the hostname would sit. The println
-//  below lands in console_zm.log either way, so a boot proves the dvar stuck
-//  even if Discord turns out to ignore it in solo.
+//  🛑 v2.12.2 SHIPPED WITHOUT THE "Private Match" CASE AND DID NOTHING AT ALL.
+//  The user's profile still read "Private Match" and the log said
+//  `sv_hostname is already 'Private Match' - left alone`. That log line is also
+//  the proof this route works: the third line of a Discord profile is
+//  sv_hostname VERBATIM - "Private Match" was never a Discord label, it was the
+//  dvar's value. Write the mod's name there and the mod's name is what shows.
 // ============================================================================
 zmqol_discord_presence()
 {
+    if ( zmqol_presence_set() )
+        println( "[zm_qol] discord presence: sv_hostname = '" + getdvar( "sv_hostname" ) + "'" );
+    else
+        println( "[zm_qol] discord presence: sv_hostname is already '" + getdvar( "sv_hostname" ) + "' - left alone" );
+
+    level thread zmqol_presence_watch();
+}
+
+//  Writes the name only over the three "nobody chose this" values, and reports
+//  whether it wrote. Once the name IS "Quality Of Life" this returns 0 without
+//  touching anything, so the watcher below costs one string compare every five
+//  seconds and never spams the log.
+zmqol_presence_set()
+{
     host = getdvar( "sv_hostname" );
 
-    if ( isdefined( host ) && host != "" && host != "CoDHost" )
-    {
-        println( "[zm_qol] discord presence: sv_hostname is already '" + host + "' - left alone" );
-        return;
-    }
+    if ( isdefined( host ) && host != "" && host != "CoDHost" && host != "Private Match" )
+        return 0;
 
     setdvar( "sv_hostname", "Quality Of Life" );
     makedvarserverinfo( "sv_hostname" );
+    return 1;
+}
 
-    println( "[zm_qol] discord presence: sv_hostname = '" + getdvar( "sv_hostname" ) + "'" );
+//  Why a watcher and not just the one write: "Private Match" is PLUTONIUM's
+//  value, not the game's, and nothing on this machine can prove when it is
+//  assigned relative to this script's init() - the dvar dump in the 2026-09-05
+//  log sits BEFORE the mod's own line, so it only proves the value was there
+//  first, never that it cannot be written again. Five seconds of re-assert
+//  closes that whole question; a name the user or a server owner set still
+//  wins, because zmqol_presence_set() refuses to overwrite it.
+zmqol_presence_watch()
+{
+    level endon( "end_game" );
+
+    for ( ;; )
+    {
+        wait 5;
+
+        if ( zmqol_presence_set() )
+            println( "[zm_qol] discord presence: sv_hostname was overwritten - re-set to 'Quality Of Life'" );
+    }
 }
 
 init()
