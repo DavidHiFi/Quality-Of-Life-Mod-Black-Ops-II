@@ -11,18 +11,19 @@ rem
 rem  Closing this window does not uninstall anything - it just stops watching.
 rem
 rem  Needs the installer's ReShade option to have been run at least once
-rem  ("Windows Install.bat" -> ReShade). If it hasn't, this will say so.
+rem  ("Windows Install.bat", one folder up -> ReShade). If it hasn't, this
+rem  will say so.
 rem ============================================================================
 
 chcp 65001 >nul 2>&1
 title Quality Of Life - ReShade watchdog
 cd /d "%~dp0"
 
-set "PS1=%~dp0Mod Files\reshade-watchdog.ps1"
+set "PS1=%~dp0reshade-watchdog.ps1"
 
 if not exist "%PS1%" (
   echo.
-  echo   The "Mod Files" folder is missing.
+  echo   reshade-watchdog.ps1 is missing from this folder.
   echo   Unzip the whole download and keep the folders as they came,
   echo   then run this again.
   echo.

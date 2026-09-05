@@ -75,6 +75,8 @@ Install Plutonium and run it once so its folders exist, then close it.
 
 Arrow keys to move, **Enter** to choose, **Q** to quit. No admin rights, nothing left running, and no game file is touched — everything goes inside Plutonium's own folder. The installer can also fetch the optional extras: the HD texture and custom sound packs, controller icons, ReShade, backups, and a full uninstaller.
 
+**Start menu shortcuts** are one of its options — pick it and you can reach **Quality Of Life Mod** (this installer) and **Plutonium ReShade Watcher** by pressing the Windows key and typing. They point at the folder you unzipped to, so keep it somewhere you're happy to leave it; the uninstall list removes them again.
+
 ### Standalone downloads
 
 Neither needs the mod installed:
@@ -103,7 +105,7 @@ On **Linux** (Wine, Proton, Lutris, Bottles) there is no automated installer —
 ## Notes
 
 > [!IMPORTANT]
-> **Plutonium deletes ReShade every time it starts** — it clears anything it doesn't recognise out of its own `bin` folder. Launch with **`Play BO2 with ReShade.bat`** and leave its window open while you play; it puts ReShade back each time. Closing the window uninstalls nothing.
+> **Plutonium deletes ReShade every time it starts** — it clears anything it doesn't recognise out of its own `bin` folder. Launch with **`Play BO2 with ReShade.bat`** (inside `Mod Files`, or as the **Plutonium ReShade Watcher** Start menu shortcut) and leave its window open while you play; it puts ReShade back each time. Closing the window uninstalls nothing.
 
 > [!NOTE]
 > **Still in beta.** Some of the newest features haven't had a full play-through yet. Anything that turns out broken gets fixed or pulled.

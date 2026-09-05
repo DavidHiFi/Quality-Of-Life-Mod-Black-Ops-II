@@ -2,9 +2,11 @@
 ================================================================================
   Quality Of Life (zm_qol) - ReShade watchdog for Plutonium T6
 
-  Added 2026-08-26. Launched by "..\Play BO2 with ReShade.bat", which sits next
-  to "Windows Install.bat". Leave that window open for as long as you want
-  ReShade active, then start Plutonium and play as normal.
+  Added 2026-08-26. Launched by "Play BO2 with ReShade.bat" in this same
+  "Mod Files" folder (moved here 2026-09-05), by the Start menu shortcut
+  "Plutonium ReShade Watcher", and by the installer's own watchdog row.
+  Leave its window open for as long as you want ReShade active, then start
+  Plutonium and play as normal.
 
   WHY THIS EXISTS: Plutonium's own launcher clears any file out of its "bin"
   folder that it does not recognise, every time it starts - and ReShade's

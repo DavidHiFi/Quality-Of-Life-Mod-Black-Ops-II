@@ -2,9 +2,10 @@
 ================================================================================
   Quality Of Life (zm_qol) - one-click LAN launch, mod already loaded
 
-  Added 2026-08-26. Launched by "..\Play BO2 with mod (LAN).bat" or
-  "..\Play BO2 with mod + ReShade (LAN).bat", both of which sit next to
-  "Windows Install.bat", and by the installer's own LAUNCH menu option.
+  Added 2026-08-26. Launched by "Play BO2 with mod (LAN).bat" or
+  "Play BO2 with mod + ReShade (LAN).bat" - both sit in this same "Mod
+  Files" folder (moved here 2026-09-05; "Windows Install.bat" stays one
+  level up) - and by the installer's own LAUNCH menu option.
 
   WHY LAN MODE: an asset mod (mod.ff/mod.iwd) can only be auto-loaded with
   the engine's fs_game mechanism, and Plutonium's bootstrapper refuses

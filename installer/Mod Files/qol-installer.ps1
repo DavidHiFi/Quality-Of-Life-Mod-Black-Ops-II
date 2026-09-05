@@ -62,6 +62,28 @@ $OLDBACKUPS = Join-Path $STATE 'backups'
 $RESHADEVAULT = Join-Path $STATE 'reshade-vault'
 $LOGFILE  = Join-Path $HERE 'installer.log'
 
+# 🛑 v2.12.7, 2026-09-05 - THE START MENU GROUP. Read from Windows rather than
+# built out of %APPDATA%: a roamed, redirected or non-English profile moves this
+# folder, and a hand-built constant would then write two .lnk files somewhere
+# Windows never looks. GetFolderPath('Programs') is the PER-USER group, which is
+# what keeps this installer's "nothing needs administrator rights" promise true -
+# the all-users copy under C:\ProgramData would not.
+# -Root exists so a test run can point the whole installer at a fake tree; it
+# covers this too, so testing shortcuts never writes into a real Start menu.
+if ($Root) {
+    $PROGRAMS = Join-Path $Root 'StartMenu'
+} else {
+    $PROGRAMS = ''
+    try { $PROGRAMS = [Environment]::GetFolderPath('Programs') } catch { $PROGRAMS = '' }
+    # GetFolderPath answers '' rather than throwing when the shell folder cannot
+    # be resolved. Join-Path on '' throws, and a menu row must never be the thing
+    # that kills the run, so fall back to the path it almost always returns.
+    if ([string]::IsNullOrWhiteSpace($PROGRAMS)) {
+        $PROGRAMS = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
+    }
+}
+$SMDIR = Join-Path $PROGRAMS $MODNAME
+
 $script:Log = New-Object System.Collections.Generic.List[string]
 
 # ---------------------------------------------------------------------------
@@ -1550,6 +1572,24 @@ function Get-Status {
         $s.ReShade = 'not installed'; $s.ReShadeOn = $false
     }
 
+    #  v2.12.7 - the Start menu row. Four states, and the third is the one that
+    #  actually happens: someone unzips, adds the shortcuts, then moves or
+    #  deletes the download folder. A shortcut whose target is gone is still a
+    #  file on disk, so only following it says whether it works.
+    $sc = Get-ShortcutState
+    if ($sc.Present -eq 0) {
+        $s.Shortcuts = 'not added'; $s.ShortcutsOn = $false
+    } elseif ($sc.Broken -gt 0) {
+        #  Kept short on purpose: the status column starts at 43 and an 80-column
+        #  console truncates anything past ~36 characters with an ellipsis. The
+        #  row's Hint has the room to explain; this only has to raise the flag.
+        $s.Shortcuts = 'added, but the folder moved'; $s.ShortcutsOn = $true; $s.ShortcutsBroken = $true
+    } elseif ($sc.Present -eq $sc.Total) {
+        $s.Shortcuts = "$($sc.Present) in your Start menu"; $s.ShortcutsOn = $true
+    } else {
+        $s.Shortcuts = "$($sc.Present) of $($sc.Total) in your Start menu"; $s.ShortcutsOn = $true
+    }
+
     $s.Settings = (Test-Path $CFGDIR)
 
     $n = 0
@@ -1563,7 +1603,7 @@ function Get-Status {
     #  whether there is anything to uninstall at all, because that row no longer
     #  shows the five individual statuses that used to answer it on sight.
     $installed = 0
-    foreach ($on in @($s.ModOn, $s.ImagesOn, $s.SoundsOn, $s.ReShadeOn, $s.ControllerOn)) {
+    foreach ($on in @($s.ModOn, $s.ImagesOn, $s.SoundsOn, $s.ReShadeOn, $s.ControllerOn, $s.ShortcutsOn)) {
         if ($on) { $installed++ }
     }
     if ($installed -eq 0) { $s.RemoveHint = 'nothing installed' }
@@ -2318,6 +2358,244 @@ function Act-RemoveController {
     Pause-Key
 }
 
+# =============================================================================
+#  START MENU SHORTCUTS  -  v2.12.7
+# -----------------------------------------------------------------------------
+#  User, 2026-09-05: *"in the install script for my mod add an option to add a
+#  shortcut into the windows start menu folder so that way people can hit their
+#  windows key and search for "Quality Of Lfe Mod" in their start menu ... also
+#  an option for the reshade watcher called "Plutonium ReShade Watcher" for the
+#  start menu"*, with an .ico named for each.
+#
+#  Two .lnk files in one program group, the way every other Windows app does it:
+#      Start Menu\Programs\Quality Of Life\Quality Of Life Mod.lnk
+#      Start Menu\Programs\Quality Of Life\Plutonium ReShade Watcher.lnk
+#  Start-menu search matches the FILE NAME, so those two names are the whole
+#  feature and must not be "tidied" into something shorter.
+#
+#  🌟 THE GROUP FOLDER IS NOT COSMETIC - IT IS WHAT MAKES REMOVAL SAFE.
+#  Remove-ByManifest deletes the files a manifest names and then prunes EVERY
+#  empty directory underneath the folder it was handed. Handed the Start menu
+#  root, that would reach into program groups this installer has nothing to do
+#  with. The shortcuts live in a folder of their own so that prune can only ever
+#  touch ours. (Measured on the author's PC before choosing this: a shortcut
+#  inside a program group is found by Start-menu search exactly like a loose one
+#  - Narrator, Magnify and Discord all sit in subfolders there.)
+#
+#  🛑 THE SHORTCUTS POINT AT THIS FOLDER, so moving or deleting the unzipped
+#  download breaks them. That is not fixable - both targets ARE files in this
+#  folder - so instead: the screen says it plainly, the status row reports a
+#  target that has gone rather than claiming they work, and running the row
+#  again from the folder's new home rewrites them.
+# =============================================================================
+$SHORTCUTS = @(
+    @{ Key   = 'mod'
+       File  = 'Quality Of Life Mod.lnk'
+       Label = 'Quality Of Life Mod'
+       Bat   = 'Windows Install.bat'
+       InParent = $true          # it sits next to "Mod Files", not inside it
+       Ps1   = 'qol-installer.ps1'
+       Icon  = 'qol_installer.ico'
+       Desc  = 'Install, update or remove the Quality Of Life mod for Black Ops II Zombies' },
+    @{ Key   = 'reshade'
+       File  = 'Plutonium ReShade Watcher.lnk'
+       Label = 'Plutonium ReShade Watcher'
+       Bat   = 'Play BO2 with ReShade.bat'
+       InParent = $false
+       Ps1   = 'reshade-watchdog.ps1'
+       Icon  = 'reshade_watcher.ico'
+       Desc  = 'Puts ReShade back whenever Plutonium clears it out - leave it open while you play' }
+)
+
+#  What a shortcut should actually launch. The .bat is the target whenever it is
+#  there, because it is the same thing the user would double-click: it sets the
+#  UTF-8 code page and the console title, and it pauses on an error instead of
+#  the window vanishing. The .ps1 fallback is for a download that was unpacked
+#  oddly - "Mod Files" copied out on its own, say - where a shortcut that works
+#  beats no shortcut at all.
+function Resolve-ShortcutTarget {
+    param($S)
+    $dir = $HERE
+    if ($S.InParent) { $dir = Split-Path -Parent $HERE }
+    $bat = Join-Path $dir $S.Bat
+    if (Test-Path -LiteralPath $bat) { return @{ Target = $bat; Arguments = ''; WorkDir = $dir } }
+
+    $ps1 = Join-Path $HERE $S.Ps1
+    if (-not (Test-Path -LiteralPath $ps1)) { return $null }
+    #  A full path, not a bare "powershell.exe": a .lnk stores whatever it is
+    #  given and resolving it later depends on the PATH of whoever opens it.
+    $exe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    if (-not (Test-Path -LiteralPath $exe)) { $exe = 'powershell.exe' }
+    return @{ Target    = $exe
+              Arguments = ('-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $ps1)
+              WorkDir   = $HERE }
+}
+
+#  Writes one .lnk. Returns 'ok' / 'missing' / 'dryrun' / 'failed' - the caller
+#  decides what to say, exactly like Start-ReShadeWatchdogProcess.
+function Write-Shortcut {
+    param($S)
+    $t = Resolve-ShortcutTarget $S
+    if (-not $t) { return 'missing' }
+    if ($DryRun) { return 'dryrun' }
+    try {
+        if (-not (Test-Path -LiteralPath $SMDIR)) { New-Item -ItemType Directory -Force -Path $SMDIR | Out-Null }
+        $sh = New-Object -ComObject WScript.Shell
+        try {
+            $lnk = $sh.CreateShortcut((Join-Path $SMDIR $S.File))
+            $lnk.TargetPath       = $t.Target
+            $lnk.Arguments        = $t.Arguments
+            $lnk.WorkingDirectory = $t.WorkDir
+            #  The tooltip. IShellLink caps this at 260 characters; both of the
+            #  strings in $SHORTCUTS are well under 100, so keep them that way.
+            $lnk.Description      = $S.Desc
+            #  No icon is not a failure - the shortcut then shows the .bat's own,
+            #  which is still a working shortcut. Only the picture is missing.
+            $ico = Join-Path $HERE $S.Icon
+            if (Test-Path -LiteralPath $ico) { $lnk.IconLocation = "$ico,0" }
+            $lnk.Save()
+        }
+        finally { try { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($sh) } catch { } }
+        Write-Log "shortcut: $($S.File) -> $($t.Target)"
+        return 'ok'
+    }
+    catch {
+        Write-Log "shortcut failed: $($S.File) - $($_.Exception.Message)" 'warn'
+        return 'failed'
+    }
+}
+
+#  🛑 PRESENCE ON DISK DECIDES, NOT THE MANIFEST - the same rule v2.2.7 had to
+#  learn for the ReShade row. A manifest records that a file was written once; a
+#  Start-menu shortcut is one right-click from being deleted, and a folder that
+#  has moved leaves the .lnk sitting there pointing at nothing. Both of those
+#  read as "installed" from a manifest and neither of them works.
+function Get-ShortcutState {
+    $r = @{ Present = 0; Broken = 0; Total = $SHORTCUTS.Count; Keys = @() }
+    foreach ($S in $SHORTCUTS) {
+        $p = Join-Path $SMDIR $S.File
+        if (-not (Test-Path -LiteralPath $p)) { continue }
+        $r.Present++
+        $r.Keys += $S.Key
+        $tgt = $null
+        #  NOT $args - that is a PowerShell automatic variable, and the $C/$c
+        #  shadowing bug noted in Set-ReShadeFont is what this file learned from.
+        $lnkArgs = ''
+        try {
+            $sh = New-Object -ComObject WScript.Shell
+            try {
+                $l       = $sh.CreateShortcut($p)
+                $tgt     = $l.TargetPath
+                $lnkArgs = [string]$l.Arguments
+            }
+            finally { try { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($sh) } catch { } }
+        } catch { $tgt = $null }
+
+        $alive = ($tgt -and (Test-Path -LiteralPath $tgt))
+        #  🛑 THE TARGET ALONE IS NOT ENOUGH ON THE FALLBACK SHAPE. There the
+        #  target is powershell.exe - which is always there - and the thing that
+        #  can go missing is the script named in -File. On the .bat shape there
+        #  is no -File at all, so this simply does not fire.
+        if ($alive -and $lnkArgs -match '-File\s+"([^"]+)"') {
+            if (-not (Test-Path -LiteralPath $Matches[1])) { $alive = $false }
+        }
+        if (-not $alive) { $r.Broken++ }
+    }
+    return $r
+}
+
+function Act-InstallShortcuts {
+    param([int] $Pick = -1)
+
+    $group = Split-Path -Leaf $SMDIR
+    $intro = @(
+        "Adds shortcuts to your Start menu, in a group called `"$group`", so",
+        "~pressing the Windows key and typing the name opens them:",
+        '',
+        "~   Quality Of Life Mod         -  this installer",
+        "~   Plutonium ReShade Watcher   -  the ReShade helper",
+        '',
+        "~They are yours only, so nothing needs administrator rights, and the",
+        "~uninstall list takes them off again.",
+        '',
+        "!⚠️   THEY POINT AT THIS FOLDER. Move or delete the unzipped download",
+        "~     and they stop working. Run this row again from wherever you",
+        "~     moved it to and they are rewritten."
+    )
+
+    $items = @(
+        @{ Key='both';    Label='Add both';                         Status='recommended'; StatusColour=$C.Good },
+        @{ Key='mod';     Label='Just  Quality Of Life Mod' },
+        @{ Key='reshade'; Label='Just  Plutonium ReShade Watcher' },
+        @{ Key='back';    Label='Cancel' }
+    )
+    if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'Start menu shortcuts' $items -Intro $intro }
+    if (-not $sel -or $sel.Key -eq 'back') { return }
+
+    Draw-Header 'Start menu shortcuts'
+    Write-Log "action: start menu shortcuts ($($sel.Key))"
+
+    $want = $SHORTCUTS
+    if ($sel.Key -ne 'both') { $want = @($SHORTCUTS | Where-Object { $_.Key -eq $sel.Key }) }
+
+    #  The manifest is added to, never replaced: picking "just the watcher" after
+    #  having added both must not make removal forget the other one.
+    $man  = @(Read-Manifest 'shortcuts')
+    $made = 0
+    foreach ($S in $want) {
+        switch (Write-Shortcut $S) {
+            'ok'      { Say "Added   $($S.Label)" $C.Good
+                        $made++
+                        if ($man -notcontains $S.File) { $man += $S.File } }
+            'dryrun'  { Say "Would add   $($S.Label)" $C.Dim }
+            'missing' { Say "Skipped $($S.Label) - $($S.Bat) is not in this download." $C.Warn }
+            default   { Say "Couldn't create $($S.Label) - Windows refused it. See Details and log." $C.Warn }
+        }
+    }
+    if ($made -gt 0) { Write-Manifest 'shortcuts' $man }
+
+    Write-Host ''
+    if ($made -gt 0) {
+        Say "Press the Windows key and start typing the name." $C.Text
+        Say "They are also under  All apps  →  $group" $C.Dim
+    } elseif (-not $DryRun) {
+        Say "Nothing was added." $C.Dim
+    }
+    Pause-Key
+}
+
+function Act-RemoveShortcuts {
+    param([int] $Pick = -1)
+    $intro = @(
+        "Takes the Start menu entries back off, and the group folder with them.",
+        "~Nothing else changes - the mod, ReShade and this download all stay",
+        "~exactly where they are."
+    )
+    $items = @(
+        @{ Key='go';   Label='Remove them' },
+        @{ Key='back'; Label='Cancel' }
+    )
+    if ($Pick -ge 0) { $sel = $items[$Pick] } else { $sel = Show-Menu 'Remove the Start menu shortcuts' $items -Intro $intro }
+    if (-not $sel -or $sel.Key -eq 'back') { return }
+
+    Draw-Header 'Remove the Start menu shortcuts'
+    Write-Log 'action: remove start menu shortcuts'
+    $did = Remove-ByManifest 'shortcuts' $SMDIR
+
+    #  Remove-ByManifest prunes empty folders INSIDE the one it is given, never
+    #  that folder itself - and an empty program group left sitting in the Start
+    #  menu is exactly the leftover this row exists to clear. Only if it really
+    #  is empty: anything else in there is the user's, not ours.
+    if (-not $DryRun -and (Test-Path -LiteralPath $SMDIR)) {
+        if (@(Get-ChildItem -LiteralPath $SMDIR -Force -ErrorAction SilentlyContinue).Count -eq 0) {
+            Remove-Item -LiteralPath $SMDIR -Force -Recurse -ErrorAction SilentlyContinue
+        }
+    }
+    Write-Host ''
+    if ($did) { Say "✅  Done." $C.Good } else { Say "Nothing to do." $C.Dim }
+    Pause-Key
+}
+
 function Act-RemoveImages {
     param([int] $Pick = -1)
     $hasB = Has-Backup 'images'
@@ -2540,7 +2818,8 @@ function Act-RemoveEverything {
 
     $intro = @(
         "Removes every part of this package, one after the other:",
-        "~   HD textures  ·  custom sounds  ·  controller icons  ·  ReShade  ·  the mod",
+        "~   HD textures  ·  custom sounds  ·  controller icons  ·  ReShade",
+        "~   Start menu shortcuts  ·  the mod",
         '',
         "~Only files this installer put there are deleted. Anything that was",
         "~already in those folders is left exactly where it is, and your game",
@@ -2583,6 +2862,7 @@ function Act-RemoveEverything {
         Act-RemoveImages  -Pick $imgPick
         Act-RemoveSounds  -Pick $sndPick
         Act-RemoveController -Pick $dsPick
+        Act-RemoveShortcuts -Pick 0
         Act-RemoveReShade -Pick 0
         Act-RemoveMod     -Pick 0
     }
@@ -2596,6 +2876,7 @@ function Act-RemoveEverything {
         @{ n='HD texture pack'; v=$st.Images;  on=$st.ImagesOn },
         @{ n='Custom sounds';   v=$st.Sounds;  on=$st.SoundsOn },
         @{ n='Controller icons'; v=$st.Controller; on=$st.ControllerOn },
+        @{ n='Start menu';      v=$st.Shortcuts; on=$st.ShortcutsOn },
         @{ n='ReShade';         v=$st.ReShade; on=$st.ReShadeOn },
         @{ n='The mod';         v=$st.Mod;     on=$st.ModOn }
     )
@@ -2609,7 +2890,7 @@ function Act-RemoveEverything {
     Write-Host ''
     if ($st.ModOn) { Say "The mod is still installed - see Details and log." $C.Bad -NoLog }
     else { Say "Your settings were kept. Backups -> the mod -> put back imports them." $C.Dim -NoLog }
-    Write-Log "remove everything finished: mod=$($st.ModOn) images=$($st.ImagesOn) sounds=$($st.SoundsOn) reshade=$($st.ReShadeOn)"
+    Write-Log "remove everything finished: mod=$($st.ModOn) images=$($st.ImagesOn) sounds=$($st.SoundsOn) reshade=$($st.ReShadeOn) shortcuts=$($st.ShortcutsOn)"
     Pause-Key
 }
 
@@ -2869,6 +3150,7 @@ function Act-Details {
     Say "Textures       $IMGDIR" $C.Text -NoLog
     Say "Sounds         $ZONEDIR" $C.Text -NoLog
     Say "ReShade        $BINDIR" $C.Text -NoLog
+    Say "Start menu     $SMDIR" $C.Text -NoLog
     Say "Your settings  $CFGDIR" $C.Text -NoLog
     $src = Find-ModSource
     Say "This package   $(if($src){$src}else{'no mod files found next to this script'})" $C.Text -NoLog
@@ -2879,6 +3161,7 @@ function Act-Details {
     Say "Sounds         $($st.Sounds)" $C.Text -NoLog
     Say "Controller     $($st.Controller)" $C.Text -NoLog
     Say "ReShade        $($st.ReShade)" $C.Text -NoLog
+    Say "Start menu     $($st.Shortcuts)" $C.Text -NoLog
     Say "Backups        $(if(Test-Path $BACKUPS){$BACKUPS}else{'none taken yet'})" $C.Text -NoLog
     Write-Host ''
     Write-Host '   THIS SESSION' -ForegroundColor $C.Dim
@@ -2936,6 +3219,12 @@ function Act-InstallEverything {
         #  spring on someone silently, so it is its own row now.
         "~ReShade is its own row below - it needs a small helper left running",
         "~while you play, so it is not bundled into a one-tap install.",
+        '',
+        #  v2.12.7 - and Start menu shortcuts stay out for the plainest reason
+        #  of the three: writing into somebody's Start menu is their call, not
+        #  something a "just install it" row should decide for them.
+        "~Start menu shortcuts are their own row too - they write into your",
+        "~Start menu, so they are only ever added if you ask.",
         '',
         "~Any part whose files are not in this download - and cannot be fetched",
         "~from GitHub - is reported and skipped. Nothing else stops.",
@@ -2995,6 +3284,9 @@ function Act-InstallEverything {
     }
     Say 'ReShade was not part of this - pick that row if you want it (it needs a' $C.Dim -NoLog
     Say 'small helper left running while you play).' $C.Dim -NoLog
+    if (-not $st.ShortcutsOn) {
+        Say 'Start menu shortcuts were not part of this either - there is a row for them.' $C.Dim -NoLog
+    }
     Write-Host ''
     if ($st.ModOn) { Say "Plutonium T6 → Zombies → Mods → $MODNAME" $C.Dim -NoLog }
     else { Say "The mod itself did not install - see Details and log." $C.Bad -NoLog }
@@ -3041,6 +3333,8 @@ function Remove-Menu {
         $rshColour = $C.Dim; if ($st.ReShadeOn) { $rshColour = $C.Good }
         if ($st.ReShadeGone) { $rshColour = $C.Warn }   # v2.2.7 - a record with no files is not "installed"
         $dsColour  = $C.Dim; if ($st.ControllerOn) { $dsColour = $C.Good }
+        $scColour  = $C.Dim; if ($st.ShortcutsOn) { $scColour = $C.Good }
+        if ($st.ShortcutsBroken) { $scColour = $C.Warn }
 
         $intro = @(
             'Only what is actually installed can be removed - a greyed status',
@@ -3060,6 +3354,8 @@ function Remove-Menu {
                Hint='Deletes ReShade and its presets. Nothing else is affected.' },
             @{ Key='rcontroller'; Label='Remove the controller icons'; Status=$st.Controller; StatusColour=$dsColour
                Hint='Puts the standard Xbox button prompts back.' },
+            @{ Key='rshortcuts'; Label='Remove the Start menu shortcuts'; Status=$st.Shortcuts; StatusColour=$scColour
+               Hint='Takes both Start menu entries off again. Nothing else changes.' },
             @{ Key='rmod';    Label='Remove the mod';               Status=$st.Mod;     StatusColour=$modColour
                Hint='Deletes the mod. Your saved menu settings and stats are kept.' },
             @{ Key='back';    Label='Back'
@@ -3075,6 +3371,7 @@ function Remove-Menu {
             'rsounds'     { Act-RemoveSounds }
             'rreshade'    { Act-RemoveReShade }
             'rcontroller' { Act-RemoveController }
+            'rshortcuts'  { Act-RemoveShortcuts }
             'rmod'        { Act-RemoveMod }
         }
     }
@@ -3111,6 +3408,8 @@ function Main-Menu {
         $rshColour = $C.Dim; if ($st.ReShadeOn) { $rshColour = $C.Good }
         if ($st.ReShadeGone) { $rshColour = $C.Warn }   # v2.2.7 - a record with no files is not "installed"
         $dsColour  = $C.Dim; if ($st.ControllerOn) { $dsColour = $C.Good }
+        $scColour  = $C.Dim; if ($st.ShortcutsOn) { $scColour = $C.Good }
+        if ($st.ShortcutsBroken) { $scColour = $C.Warn }   # same rule as ReShade above
 
         # -------------------------------------------------------------------
         #  v2.2.6 - EVERY ROW NOW SAYS WHAT IT DOES, IN ONE PLAIN SENTENCE.
@@ -3154,6 +3453,8 @@ function Main-Menu {
                Hint='Improves the visuals for every Plutonium game - BO1, MW3, WaW and BO2.' },
             @{ Key='controller';Section='INSTALL'; Label='Controller icons';      Status=$st.Controller; StatusColour=$dsColour
                Hint='Swaps the on-screen button prompts to PlayStation, Xbox or Switch. Pick one.' },
+            @{ Key='shortcuts';Section='INSTALL'; Label='Start menu shortcuts';   Status=$st.Shortcuts; StatusColour=$scColour
+               Hint='Puts "Quality Of Life Mod" and "Plutonium ReShade Watcher" in your Start menu.' },
 
             @{ Key='playlan';Section='PLAY';       Label='Play now (LAN, mod already loaded)'
                Hint='One click, straight into Zombies with the mod running.' },
@@ -3184,6 +3485,7 @@ function Main-Menu {
             'sounds'   { Act-InstallSounds }
             'reshade'  { Act-InstallReShade }
             'controller' { Act-InstallController }
+            'shortcuts' { Act-InstallShortcuts }
             'playlan'  { Act-PlayLan }
             'watchdog' { Act-StartWatchdog }
             'remove'   { Remove-Menu }
@@ -3207,6 +3509,7 @@ if ($Action) {
         'sounds'   { Act-InstallSounds  -Pick $Choice }
         'reshade'  { Act-InstallReShade -Pick $Choice }
         'controller' { Act-InstallController -Pick $Choice }
+        'shortcuts' { Act-InstallShortcuts -Pick $Choice }
         'playlan'  { Act-PlayLan -Pick $Choice }
         'watchdog' { Act-StartWatchdog -Pick $Choice }
         'rall'     { Act-RemoveEverything -Pick $Choice }
@@ -3214,6 +3517,7 @@ if ($Action) {
         'rsounds'  { Act-RemoveSounds   -Pick $Choice }
         'rreshade' { Act-RemoveReShade  -Pick $Choice }
         'rcontroller' { Act-RemoveController -Pick $Choice }
+        'rshortcuts' { Act-RemoveShortcuts -Pick $Choice }
         'rmod'     { Act-RemoveMod      -Pick $Choice }
         'backups'  { Act-Backups        -Pick $Choice }
         'backup'   { [void](Backup-Thing $Extra) }

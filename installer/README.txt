@@ -35,6 +35,21 @@ Black Ops II Zombies  ·  Plutonium T6
    ·  You never need to open anything in the "Mod Files" folder.
       Windows Install.bat does all of it for you.
 
+   ·  START MENU SHORTCUTS are an option in the menu. Pick it and
+      you get two entries you can reach by pressing the Windows
+      key and typing:
+
+          Quality Of Life Mod         opens this installer
+          Plutonium ReShade Watcher   opens the ReShade helper
+
+      They are yours alone - no administrator rights - and the
+      uninstall list takes them off again.
+
+      They point AT THIS FOLDER, so keep the unzipped download
+      somewhere you are happy to leave it. If you do move it,
+      run that option once more from the new place and the
+      shortcuts are rewritten.
+
    ·  No game file is ever touched. Everything is written inside
       Plutonium's own folder, and anything that would overwrite
       files of yours offers to back them up first.
@@ -62,13 +77,14 @@ Black Ops II Zombies  ·  Plutonium T6
       you can switch effects on in the overlay without hunting
       files down first.
 
-      Four presets are installed, one per Plutonium game:
-      BO2.ini, BO1.ini, MW3.ini and WAW.ini. Plutonium runs all
-      four games through the same program folder, so they share
-      one ReShade and one settings file - which is why the
-      installer ASKS which preset to start on rather than
-      detecting the game. Ctrl+Shift+PgUp / PgDn steps between
-      them in game, and End opens the overlay.
+      It opens on the Cinematic Colour Grading preset, and the
+      per-game presets BO2.ini, BO1.ini, MW3.ini and WAW.ini are
+      installed alongside it. Plutonium runs all four games
+      through the same program folder, so they share one ReShade
+      and one settings file - it cannot tell which game you are
+      about to start, so you pick in game rather than up front.
+      Ctrl+Shift+PgUp / PgDn steps between the presets, and End
+      opens the overlay.
 
       Black Ops, MW3 and World at War are DirectX 9 games and
       Black Ops II is DirectX 11, so their presets use different
@@ -78,7 +94,7 @@ Black Ops II Zombies  ·  Plutonium T6
       ReShade is NOT part of "EVERYTHING - the whole package" -
       it is its own row, because it needs one more thing:
 
-   ·  PLAY BO2 WITH RESHADE.BAT, next to Windows Install.bat.
+   ·  PLAY BO2 WITH RESHADE.BAT, inside the "Mod Files" folder.
       Plutonium deletes any file in its own bin folder it does
       not recognise every time it starts, and that includes
       ReShade. Installing it gets it working right away, but a
@@ -90,6 +106,11 @@ Black Ops II Zombies  ·  Plutonium T6
       puts ReShade straight back the moment it sees Plutonium
       clear it out. Closing that window does not uninstall
       anything; it just stops watching.
+
+      Easier: add the START MENU SHORTCUTS above and open
+      "Plutonium ReShade Watcher" from the Start menu instead.
+      The installer's own menu can start it too - "Start
+      ReShade watchdog only", under PLAY.
 
    ·  Everything can be removed again from the same menu, one
       piece at a time.

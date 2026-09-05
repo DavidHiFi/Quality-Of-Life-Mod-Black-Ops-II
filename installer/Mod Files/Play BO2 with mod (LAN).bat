@@ -9,19 +9,20 @@ rem  start Plutonium normally and pick "Quality Of Life" from Zombies -> Mods
 rem  instead.
 rem
 rem  Needs the installer's "The mod" option to have been run at least once
-rem  ("Windows Install.bat" -> The mod). If it hasn't, Plutonium just won't
-rem  find anything at mods/zm_qol and will boot without it.
+rem  ("Windows Install.bat", one folder up -> The mod). If it hasn't,
+rem  Plutonium just won't find anything at mods/zm_qol and will boot
+rem  without it.
 rem ============================================================================
 
 chcp 65001 >nul 2>&1
 title Quality Of Life - LAN launch
 cd /d "%~dp0"
 
-set "PS1=%~dp0Mod Files\lan-launch.ps1"
+set "PS1=%~dp0lan-launch.ps1"
 
 if not exist "%PS1%" (
   echo.
-  echo   The "Mod Files" folder is missing.
+  echo   lan-launch.ps1 is missing from this folder.
   echo   Unzip the whole download and keep the folders as they came,
   echo   then run this again.
   echo.
