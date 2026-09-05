@@ -12540,13 +12540,15 @@ zmqol_bs_announcer_watch()
         //  The probe that tells a boot apart from a silent alias. Same shape as
         //  the [zm_qol] vox: line above; the prefix is certainly set by now,
         //  because a power-up cannot be grabbed before the announcer inits.
-        str_alias = "";
-
         if ( isdefined( game[ "zmbdialog" ] ) && isdefined( game[ "zmbdialog" ][ "prefix" ] ) )
+        {
             str_alias = game[ "zmbdialog" ][ "prefix" ] + "_qol_powerup_bonfire_sale";
 
-        println( "[zm_qol] bonfire sale: announcer " + str_alias + "  exists=" +
-                 soundexists( str_alias ) + "  _0=" + soundexists( str_alias + "_0" ) );
+            println( "[zm_qol] bonfire sale: announcer " + str_alias + "  exists=" +
+                     soundexists( str_alias ) + "  _0=" + soundexists( str_alias + "_0" ) );
+        }
+        else
+            println( "[zm_qol] bonfire sale: announcer SKIPPED - game[zmbdialog][prefix] is not set" );
 
         level thread zmqol_play_announcer_line( "qol_powerup_bonfire_sale" );
     }
