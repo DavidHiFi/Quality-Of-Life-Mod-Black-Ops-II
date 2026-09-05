@@ -603,9 +603,65 @@ zmqol_loadmovie_probe()
         println( "[zm_qol] loadmovie probe: <unset> - the menu hook did not run" );
 }
 
+// ============================================================================
+//  zm_qol: DISCORD RICH PRESENCE - THE MOD'S NAME ON THE PLAYER'S PROFILE
+//
+//  User request, 2026-09-05: *"add custom discord rpc just like how the bo2
+//  reimagined mod does, but for my Quality of life mod ... this way if someone
+//  is using my mod people can see based off viewing their profile on discord."*
+//
+//  There is NO Discord API in GSC and none in LUI, and Plutonium's own rich
+//  presence cannot be replaced by a mod. What it CAN be fed is the server name.
+//  Measured 2026-09-05 out of plutonium-bootstrapper-win32.exe: the presence
+//  code's string block is
+//        cl_enableStreamerMode | mapname | g_gametype | sv_hostname |
+//        sv_maxclients | cl_ingame | \^\d|\^:|\^; | %s on %s | loopback | Main menu
+//  - five dvars, a colour-code stripper, and "<gametype> on <map>". The line
+//  UNDER that one on a Discord profile is sv_hostname, so writing the mod's
+//  name there is what puts "Quality Of Life" in front of anyone who looks.
+//
+//  🌟 THE WORKING PRECEDENT, and the mod the user pointed at:
+//  BO2-Reimagined\scripts\zm\_zm_reimagined.gsc:855-856, set_dvars(), called
+//  from that file's own init():
+//        setDvar( "sv_hostname", "Reimagined" );
+//        makedvarserverinfo( "sv_hostname" );
+//  No Discord code anywhere in that repo - this dvar IS its "custom RPC".
+//
+//  Why the guard: stock gametypes_zm\_serversettings.gsc:6-11 sets sv_hostname
+//  to "CoDHost" whenever it is empty, so that (or "") is what a solo game
+//  carries and the only thing worth replacing. Anything else is a name a
+//  server owner or a player chose, and it is left alone - which doubles as the
+//  opt-out: set your own sv_hostname and the mod never touches it. Stock's own
+//  5-second updateserversettings() loop only READS sv_hostname (:64-68), so
+//  nothing fights this back.
+//
+//  🛑 DEPLOYED, NOT YET VERIFIED: what a Discord profile shows for a PRIVATE
+//  match is the one part no offline check on this machine can settle - the
+//  presence binary is Themida-packed, and the docs' only screenshot is a T4
+//  match showing "Private Match" where the hostname would sit. The println
+//  below lands in console_zm.log either way, so a boot proves the dvar stuck
+//  even if Discord turns out to ignore it in solo.
+// ============================================================================
+zmqol_discord_presence()
+{
+    host = getdvar( "sv_hostname" );
+
+    if ( isdefined( host ) && host != "" && host != "CoDHost" )
+    {
+        println( "[zm_qol] discord presence: sv_hostname is already '" + host + "' - left alone" );
+        return;
+    }
+
+    setdvar( "sv_hostname", "Quality Of Life" );
+    makedvarserverinfo( "sv_hostname" );
+
+    println( "[zm_qol] discord presence: sv_hostname = '" + getdvar( "sv_hostname" ) + "'" );
+}
+
 init()
 {
     zmqol_loadmovie_probe();
+    zmqol_discord_presence();   // mod name on the Discord profile (v2.12.2)
     zmqol_restore_perk_bottles_on_survival();
     zmqol_register_divetonuke_visionset();
     zmqol_register_vulture_visionset();
