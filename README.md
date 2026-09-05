@@ -140,10 +140,9 @@ Use a `.`, `!` or `/` prefix, or bind them to keys. Type `.help` in game for the
 
 ---
 
-## Sponsor This Project
+## Contribute To Support Development
 
-The mod is free and always will be. If it has given you a few good nights of Zombies and you
-want to put something back, you can buy me a coffee — it goes straight into the time this takes.
+The mod is free and always will be. Any amount of support is greatly appreciate, and I do sincerely hope you enjoy my little project. :-)
 
 [![Support DavidHiFi on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/davidhifi)
 
