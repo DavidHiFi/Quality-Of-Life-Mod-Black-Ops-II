@@ -150,14 +150,14 @@ The mod is free and always will be. Any amount of support is greatly appreciate,
 
 ## Credits
 
-**Made by DavidHiFi & Synarxis.**
+**Made by DavidHiFi.**
 
 | Who | What |
 |---|---|
-| **sehteria** — *T6-ZM-Expanded* | The mod this one grew out of — BO4 Max Ammo, instant Pack-a-Punch, the high-round fix, no perk limit, animated camos, hitmarkers, the area notifier, the Cold War round HUD and secret song survival. |
+| **Synarxis** — *Inspiration* | This project wouldn't exist without their kindness & support. |
+| **sehteria** — *T6-ZM-Expanded* | The mod this one grew out of — extra weapons & perks on all maps. |
 | **SadSlothXL** | The Death Machine power-up — the drop, the weapon swap and its sounds. |
 | **Logo2K** — [Zombies Declassified](https://github.com/Logo-2K/zombies-declassified) | The native T6 Wave Gun package — Treyarch's DLC5 models, animations, effects, weapon defs, sounds and script. |
-| *ZM Dark Matter* (Plutonium forums) | The animated Pack-a-Punch camo textures. |
 | **Jbleezy** — [BO2-Reimagined](https://github.com/Jbleezy/BO2-Reimagined) | The extra Survival locations and the Bouncing Betty carry animations. |
 | **5and5** — [BO2-Remix](https://github.com/5and5/BO2-Remix) | The Die Rise weapon changes — the Sliquifier's pre-nerf behaviour and the Semtex wall buy. |
 | **Fraaagaaa** — [Strat Tester](https://github.com/Fraaagaaa/Strat-Tester-BO2) | Every destination in the teleport list except Nuketown's three, which are the map's own respawn points. |
