@@ -409,6 +409,18 @@ REM  loaded at the tail it can only supply names no zombies fastfile above offer
 REM  Its one shared name, mc/mtl_zombie_teleporter_glow, resolves from the existing
 REM  owner for that reason. A/B the asset list if it moves. (Replaced the v2.9.18
 REM  zapgun_donor - the ezz package's 4 converted models - which is retired.)
+REM
+REM  🌟 zone_source\bonfire_donor\mod.ff (v2.12.0) is the same idea, two assets wide: the
+REM  BONFIRE SALE pickup model zombie_pickup_bonfire and the HUD countdown material
+REM  zom_icon_bonfire, copied out of Zombies Declassified's zm_pentagon.ff ("Five" - the only
+REM  map in any Call of Duty that ships this power-up) with the patched OAT in H:\Claude\oat-dlc5.
+REM  Recipe in zone_source\bonfire_donor\how_this_was_built.zone.txt.
+REM  🛑 BOTH NAMES ARE ABSENT FROM ALL EIGHT ZOMBIES FASTFILES - measured 2026-09-05 with
+REM  Unlinker --list over zm_transit, zm_nuked, zm_highrise, zm_prison, zm_buried, zm_tomb,
+REM  common_zm and patch_zm - so loaded here at the tail this donor can only ADD names and
+REM  cannot take an asset away from anything. Its third asset, the model's own skin
+REM  mc/mtl_x2icon_gold, is a REFERENCE (leading comma): common_zm.ff owns it and loads on
+REM  every map, so first-load-wins keeps it there. A/B the asset list if this moves.
 REM  🌟 zone_source\fx_donor\mod.ff is LAST, and that placement is the whole
 REM  safety argument for it. It is the fastfile of the "T5 Winter's Howl Port"
 REM  module, added so mod_freezefx.zone can reach the 19 fx MATERIALS the ported
@@ -449,6 +461,7 @@ REM  target "REM".
   --load "%BO2_DIR%\zone\all\code_post_gfx.ff" ^
   --load "%PROJ%\zone_source\fx_donor\mod.ff" ^
   --load "%PROJ%\zone_source\wavegun_donor\mod.ff" ^
+  --load "%PROJ%\zone_source\bonfire_donor\mod.ff" ^
   --load "%BO2_DIR%\zone\all\nicaragua.ff" ^
   --load "%BO2_DIR%\zone\all\so_cmp_afghanistan.ff" ^
   --load "%BO2_DIR%\zone\all\patch_ui_zm.ff" ^

@@ -1,0 +1,14 @@
+// Call Of Duty: Black Ops II
+>game,T6
+
+// bonfire_donor - the two Bonfire Sale assets BO2 retail never shipped, copied verbatim out of
+// Zombies Declassified BETA 1 zm_pentagon.ff (Logo2K's PC port of the cancelled BO2 DLC5). The zone
+// is a Treyarch-linked dev zone and needs the patched OAT in H:\Claude\oat-dlc5 to read - see
+// how_this_was_built.zone.txt beside this file. v2.12.0, 2026-09-05.
+//
+// Both names are absent from ALL EIGHT zombies fastfiles (zm_transit, zm_nuked, zm_highrise,
+// zm_prison, zm_buried, zm_tomb, common_zm, patch_zm - Unlinker --list, 2026-09-05), so loading
+// this donor last cannot take an asset away from anything.
+
+xmodel,zombie_pickup_bonfire
+material,zom_icon_bonfire

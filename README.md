@@ -46,6 +46,8 @@ More guns in the box, the BO1 wonder weapons, the cut Survival maps, and a setti
 
 **Instant Pack-a-Punch.** No upgrade wait. Switch it back to the stock machine if you prefer.
 
+**Bonfire Sale.** BO1's Pack-a-Punch power-up, from *Five*. Pick it up and Pack-a-Punch costs 1,000 points instead of 5,000 for thirty seconds. Part of the **Custom Power-Ups** option, on Green Run and Die Rise.
+
 ---
 
 ## Presentation

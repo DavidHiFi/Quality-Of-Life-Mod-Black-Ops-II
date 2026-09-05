@@ -1,0 +1,35 @@
+bonfire_donor\mod.ff - HOW IT WAS BUILT (2026-09-05, v2.12.0)
+
+Source:   Zombies Declassified BETA 1 (Logo2K's PC port of the cancelled BO2 DLC5), file
+          storage\t6\zone\zm_pentagon.ff - the T6 build of "Five", the one map in any Call of Duty
+          that ships Bonfire Sale. It is a Treyarch-linked DEV zone that the stock OAT cannot read.
+Tool:     H:\Claude\oat-dlc5\Linker.exe - OpenAssetTools main@7d027e8 (v0.33) built from source with
+          the block-type and allocation patches described in H:\Claude\oat-dlc5\README.txt.
+Command (Git Bash):
+          export MSYS2_ARG_CONV_EXCL='*' OAT_MIN_BLOCK_MB=384
+          /h/Claude/oat-dlc5/Linker.exe \
+            --load "H:/Claude/Copy of ZombiesDeclassified_BETA1 (1)-002/ZombiesDeclassified_BETA1/storage/t6/zone/zm_pentagon.ff" \
+            --base-folder "<this folder>" --add-source-search-path "<this folder>" \
+            --output-folder "<this folder>/out" mod
+          then move out\mod.ff here.
+Result:   10,240 bytes, 5 entries, 0 warnings / 0 errors:
+              material, ,mc/mtl_x2icon_gold      REFERENCE - the model's skin. common_zm.ff OWNS it
+                                                 and loads on every zombies map, so it resolves at
+                                                 runtime and mod.ff never takes ownership.
+              xmodel, zombie_pickup_bonfire      the pickup itself
+              techniqueset, ,trivial_9z33feqw    reference, pulled by the material below
+              image, zom_icon_bonfire            HEADER only - see below
+              material, zom_icon_bonfire         the HUD countdown icon
+
+🛑 THE IMAGE HEADER IN HERE IS NOT ENOUGH. A T6 fastfile never stores pixels. The real texture is
+   zone_assets\images\zom_icon_bonfire.iwi, converted from Black Ops 1's own
+   F:\SteamLibrary\...\Call of Duty Black Ops\raw\images\zom_icon_bonfire.iwi:
+       ImageConverter.exe --t5 zom_icon_bonfire.iwi      (T5 v13 .iwi -> .dds)
+       ImageConverter.exe --t6 zom_icon_bonfire.dds      (.dds -> T6 v27 .iwi)
+   Result 1,456 B, header "IWi" v27, format 13 (DXT5), 32x32 - the same shape as every other .iwi
+   this project ships. A raw file in zone_assets\ BEATS every --load, so the header the Linker
+   writes is built from THIS file and cannot disagree with the pixels mod.iwd serves.
+
+Why a donor and not a --load of zm_pentagon.ff in build_ff.bat: the stock Linker cannot read the
+   DLC5 zone, and a full load of a 60 MB map zone into every mod build would shadow shared names.
+   The donor is tiny and is loaded LAST, so it can only supply names nothing above it offers.

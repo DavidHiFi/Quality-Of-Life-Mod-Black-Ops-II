@@ -63,6 +63,10 @@ main()
 	// CLIENT HALF OF FIRE SALE. Missing since v1.54.0 - see the block below.
 	zmqol_enable_fire_sale();
 
+	// CLIENT HALF OF BONFIRE SALE (v2.12.0) - see the block below. The map list
+	// MUST match the server twin exactly or it is EXE_CLIENT_FIELD_MISMATCH.
+	zmqol_enable_bonfire_sale();
+
 	// CLIENT HALF OF BLOOD MONEY - see the block below.
 	zmqol_enable_blood_money();
 
@@ -306,6 +310,72 @@ zmqol_enable_fire_sale()
 		return;     // the other four include it themselves, on both sides
 
 	clientscripts\mp\zombies\_zm_utility::include_powerup( "fire_sale" );
+}
+
+// ============================================================================
+//  BONFIRE SALE (CLIENT)  -  EXACT TWIN of
+//  quality_of_life.gsc::zmqol_bonfire_sale_enabled() /
+//  ::zmqol_enable_bonfire_sale()                                     (v2.12.0)
+//
+//  🛑 THE MAP LIST BELOW MUST MATCH THE SERVER'S CHARACTER FOR CHARACTER.
+//  One clientfield is at stake - toplayer/powerup_bon_fire, 2 bits - and BOTH
+//  sides register it as a side effect of add_zombie_powerup(), which is gated on
+//  level.zombie_include_powerups. That array is per-VM, so including the
+//  power-up on one side only makes exactly one side register the field and
+//  every player is dropped with EXE_CLIENT_FIELD_MISMATCH before the map starts.
+//  This is the same failure Fire Sale's twin above exists to prevent.
+//
+//    server _zm_powerups.gsc:101  passes client_field_name "powerup_bon_fire",
+//                                 registered at :449 as ("toplayer", name, 1, 2, "int")
+//    client _zm_powerups.csc:11   passes the same name, registered at :57 as
+//                                 ("toplayer", name, 1, 2, "int", undefined, 0, 1)
+//
+//  WHY EACH MAP - the full reasoning is in the server twin's block comment:
+//    zm_nuked   no Pack-a-Punch machine exists on the map (0 "specialty_weapupgrade"
+//               entities in its mapents), so the sale would be a dud drop.
+//    zm_prison  toplayer clientfield set is full - Mob classic runs at 63/63 with
+//    zm_buried  this mod's additions, Buried classic is 63 stock. 63 is the only
+//               total ever seen to boot. Two more bits stops the map loading.
+//    zm_tomb    the same, by 2 bits: Origins classic is 61 stock and perks() sets
+//               perk_tombstone there by name, which is exactly 2. 63/63.
+//    the rest   TranZit ~54 and Die Rise ~56 once this mod's own additions are
+//               counted in - real headroom on both.
+//
+//  📝 The client's add_zombie_powerup precaches NOTHING - unlike the server's,
+//  which precaches zombie_pickup_bonfire (shipped in zone_source\mod_bonfire.zone).
+//  So this half needs no asset of its own.
+//
+//  📝 include_powerup() belongs in main(), like Fire Sale's and Blood Money's
+//  twins: it only writes level.zombie_include_powerups, which add_zombie_powerup
+//  reads as its own gate, and writing it early cannot lose the map's own entries
+//  (include_zombie_powerup is purely additive).
+// ============================================================================
+zmqol_bonfire_sale_enabled()
+{
+	// 🛑 EXACT TWIN of quality_of_life.gsc::zmqol_bonfire_sale_enabled().
+	map = getDvar( "mapname" );
+
+	if ( map == "zm_nuked" )
+		return 0;
+
+	if ( map == "zm_prison" )
+		return 0;
+
+	if ( map == "zm_buried" )
+		return 0;
+
+	if ( map == "zm_tomb" )
+		return 0;
+
+	return 1;
+}
+
+zmqol_enable_bonfire_sale()
+{
+	if ( !zmqol_bonfire_sale_enabled() )
+		return;
+
+	clientscripts\mp\zombies\_zm_utility::include_powerup( "bonfire_sale" );
 }
 
 // ============================================================================

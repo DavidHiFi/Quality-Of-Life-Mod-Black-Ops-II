@@ -148,6 +148,7 @@ main()
 
     perks();
     zmqol_enable_fire_sale();
+    zmqol_enable_bonfire_sale();    // BONFIRE SALE (v2.12.0)
 
     // --- secretsongsurvival ---
     precachemodel( "zombie_teddybear" );
@@ -623,6 +624,7 @@ init()
     level thread zmqol_perk_slot_connect();
     level thread zmqol_blood_money_natural_drop();
     level thread zmqol_fire_sale_custom_gate();  // FIRE SALE under CUSTOM POWER-UPS (v2.0.5)
+    level thread zmqol_bonfire_sale_custom_gate();  // BONFIRE SALE under CUSTOM POWER-UPS (v2.12.0)
     level thread zmqol_register_announcer_vox();
     level thread zmqol_powerup_timer_think();   // POWER-UP TIMERS (v1.99.1)
     level thread zmqol_dof_repoint_spawnintermission();  // DOF full fix, item 48
@@ -3412,7 +3414,7 @@ new_pap_trigger()
         trigger = spawn( "trigger_radius", perk_machine.origin, 1, 35, 80 );
     }
     Trigger SetCursorHint( "HINT_NOICON" );
-    Trigger sethintstring( "			Hold ^3&&1^7 for Pack-a-Punch [Cost: " + getDvarInt("pap_price") + "]" );
+    Trigger sethintstring( "			Hold ^3&&1^7 for Pack-a-Punch [Cost: " + zmqol_pap_cost("pap_price") + "]" );
     Trigger usetriggerrequirelookat();
     perk_machine thread maps\mp\zombies\_zm_perks::activate_packapunch();
     //  v1.99.30 - hand the machine to whichever mode the switch is in RIGHT NOW,
@@ -3438,10 +3440,10 @@ new_pap_trigger()
         else
         {
             is_upgraded = is_weapon_upgraded( current_weapon );
-            cost = getDvarInt( "pap_price" );
+            cost = zmqol_pap_cost( "pap_price" );
             if ( is_upgraded )
             {
-                cost = getDvarInt( "repap_price" );
+                cost = zmqol_pap_cost( "repap_price" );
                 Trigger sethintstring( "			Hold ^3&&1^7 for Repack-a-Punch [Cost: " + cost + "]" );
             }
             else
@@ -3510,10 +3512,10 @@ new_pap_trigger()
             }
             else
             {
-                cost = getDvarInt( "pap_price" );
+                cost = zmqol_pap_cost( "pap_price" );
                 if ( is_weapon_upgraded( current_weapon ) )
                 {
-                    cost = getDvarInt( "repap_price" );
+                    cost = zmqol_pap_cost( "repap_price" );
                     Trigger sethintstring( "			Hold ^3&&1^7 for Repack-a-Punch [Cost: " + cost + "]" );
                 }
                 else
@@ -12099,6 +12101,293 @@ zmqol_fire_sale_custom_gate()
 
         wait 0.05;
     }
+}
+
+// ============================================================================
+//  BONFIRE SALE  -  "Five"'s Pack-a-Punch sale, under CUSTOM POWER-UPS
+//                                                                   (v2.12.0)
+//
+//  User, 2026-09-05: *"add the bonfire sale power up from the t6 declassified
+//  mod into my mod as apart of the custom power ups option."*  Their context:
+//  it comes from Five, dropped by the Pentagon Thief when he is killed before
+//  he steals a weapon.
+//
+//  🌟 IT IS ALREADY IN BO2. NOTHING ABOUT THE BEHAVIOUR IS WRITTEN HERE.
+//  Bonfire Sale is complete, shipped, dormant core T6 code - every piece of it,
+//  on both sides, on every map. Verified line by line in the stock dump:
+//
+//    _zm_powerups.gsc:101   add_zombie_powerup( "bonfire_sale",
+//                             "zombie_pickup_bonfire", &"ZOMBIE_POWERUP_MAX_AMMO",
+//                             ::func_should_never_drop, 0, 0, 0, undefined,
+//                             "powerup_bon_fire", "zombie_powerup_bonfire_sale_time",
+//                             "zombie_powerup_bonfire_sale_on" );
+//    _zm_powerups.csc:11    add_zombie_powerup( "bonfire_sale", "powerup_bon_fire" );
+//    _zm_powerups.gsc:1043  case "bonfire_sale": level thread start_bonfire_sale( self );
+//                                               players[i] thread powerup_vo( "firesale" );
+//    _zm_powerups.gsc:1182  start_bonfire_sale() - 30 s, zmb_double_point_loop
+//                             while it runs, zmb_points_loop_off at the end.
+//    _zm_perks.gsc:682      vending_weapon_upgrade_cost() ALREADY waits on
+//                             "powerup bonfire sale" and drops Pack-a-Punch from
+//                             5000 to 1000 (attachments 2000 -> 1000), restoring
+//                             both on "bonfire_sale_off".
+//
+//  So this is three things and no invention: switch the power-up on
+//  (include_powerup), let it drop (the predicate re-point every custom power-up
+//  in this mod uses), and teach the mod's OWN Pack-a-Punch trigger about the
+//  sale, because stock's discount only reaches stock's trigger. The 5000 -> 1000
+//  number is Treyarch's, not a choice made here.
+//
+//  🛑 THE ART WAS THE ONLY THING MISSING, and it had to be shipped. Unlinker
+//  --list over all eight zombies fastfiles (zm_transit, zm_nuked, zm_highrise,
+//  zm_prison, zm_buried, zm_tomb, common_zm, patch_zm), 2026-09-05:
+//        xmodel   zombie_pickup_bonfire   absent from every one
+//        material zom_icon_bonfire        absent from every one
+//  add_zombie_powerup() precaches the model for every INCLUDED power-up, so
+//  including it without the model is fatal at load - the trap Fire Sale and
+//  Blood Money both hit. Both assets now ship in mod.ff; see
+//  zone_source\mod_bonfire.zone and zone_source\bonfire_donor\.
+//
+//  🌟 AND IT FIXES A STOCK ERROR ON THE WAY. _zm_powerups.gsc:30 calls
+//  precacheshader( "zom_icon_bonfire" ) unconditionally on every map, so retail
+//  BO2 prints  Could not load material "zom_icon_bonfire".  on every zombies
+//  boot - six times in the user's own console_zm.log. Owning the name silences
+//  it everywhere.
+// ============================================================================
+//  zmqol_bonfire_sale_enabled  -  WHICH MAPS, AND WHY EACH ONE
+//
+//  🛑 THE CLIENT TWIN IS zm_expanded.csc::zmqol_bonfire_sale_enabled() AND IT
+//  MUST AGREE MAP FOR MAP. include_powerup() decides whether
+//  add_zombie_powerup() survives its early-return, and that call registers
+//  toplayer/powerup_bon_fire (2 bits) on BOTH sides. Disagree on any map and
+//  every player is dropped with EXE_CLIENT_FIELD_MISMATCH before it starts.
+//
+//  zm_nuked  - EXCLUDED: NUKETOWN HAS NO PACK-A-PUNCH. Measured, not assumed:
+//              its mapents (T6-Data-Archive ZM\Mapents\zm_nuked.d3dbsp) contain
+//              ZERO entities with script_noteworthy "specialty_weapupgrade",
+//              against 1 on Origins and Die Rise and 3 on TranZit, and
+//              zm_nuked.gsc says nothing about a machine beyond setting
+//              level.zombiemode_using_pack_a_punch. A Pack-a-Punch sale on a map
+//              with no Pack-a-Punch is a dud drop; it is also 2 clientfield bits
+//              spent on nothing.
+//
+//  zm_prison - EXCLUDED: the toplayer clientfield set is FULL. Mob classic is
+//  zm_buried   50 stock bits and this mod's additions put it at 63; Buried
+//              classic is the fullest map in the game at 63 stock and v2.9.30
+//              already gave back all five of the mod's bits to get it there. 63
+//              is the only total ever seen to boot (ERROR_CATALOGUE section 2:
+//              63 boots, 66 fails, 71 fails), so there is no room for 2 more on
+//              either map, and taking them would stop the map loading outright.
+//              🛑 Do NOT "just try it" - that failure is fatal and silent about
+//              its real cause (the field named in the error is whichever asks
+//              last, usually a stock one).
+//
+//  zm_tomb   - EXCLUDED, for the same reason, and this one is a near miss worth
+//              writing down. Origins classic is 61 stock toplayer bits and this
+//              mod adds exactly 2: perk_tombstone, set for zm_tomb by name in
+//              perks() ("there's one perk missing tombstone cola", user,
+//              2026-08-07). Everything else of this mod's is already off there -
+//              Vulture returns 0 for zm_tomb, Zombie Blood and Electric Cherry
+//              are native, Who's Who was cut in v2.9.30 to get Origins back down
+//              from 66, and zm_tomb.gsc's own registrations are all behind
+//              `if ( is_classic() ) return;`. So Origins sits at 61 + 2 = 63
+//              EXACTLY, which is the proven-safe total and leaves no room at all.
+//              🛑 An earlier draft of this file included Origins on the strength
+//              of "the mod adds zero there"; that was wrong, and the Tombstone
+//              line is the thing it missed. 63 + 2 = 65 is inside the untested
+//              [64,65] band and 66 has failed on this very map.
+//              📝 The only way Origins could have it is a TRADE - Tombstone (2)
+//              for Bonfire Sale (2). That is the user's call, not this file's.
+//
+//  zm_transit  - INCLUDED. 38 stock toplayer bits on classic and 27 on every
+//  zm_highrise   survival location; Die Rise classic is 33. Counting this mod's
+//                own additions field by field puts TranZit near 54 and Die Rise
+//                near 56, so both have real headroom for 2 more.
+// ============================================================================
+zmqol_bonfire_sale_enabled()
+{
+    map = getDvar( "mapname" );
+
+    //  No Pack-a-Punch on the map at all.
+    if ( map == "zm_nuked" )
+        return 0;
+
+    //  toplayer clientfield set is full - see the block above.
+    if ( map == "zm_prison" )
+        return 0;
+
+    if ( map == "zm_buried" )
+        return 0;
+
+    //  Origins is at 63/63 too - its 2 mod bits are Tombstone.
+    if ( map == "zm_tomb" )
+        return 0;
+
+    return 1;
+}
+
+// ============================================================================
+//  zmqol_enable_bonfire_sale  -  called from main()
+//
+//  🛑 TIMING, and it is the same argument as Fire Sale's and Blood Money's.
+//  include_powerup() only writes level.zombie_include_powerups[name];
+//  _zm_powerups::init() reads it later when it calls add_zombie_powerup for each
+//  entry. main() is inside Plutonium's precache window and runs ahead of every
+//  ::init() and of the map's own main(), so writing here is early enough. It is
+//  purely additive (include_zombie_powerup creates the array only if undefined
+//  and never clears it), so a map populating its own list afterwards cannot
+//  clobber this entry.
+//
+//  🛑 THIS IS GATED ON A MAP, NEVER ON THE CUSTOM POWER-UPS DVAR. Gating a
+//  registration on a live option is what caused EXE_CLIENT_FIELD_MISMATCH in
+//  v1.99.83; the dvar is read in the DROP PREDICATE instead, where it takes
+//  effect on the very next drop and moves no clientfield. See
+//  zmqol_custom_powerups_enabled().
+// ============================================================================
+zmqol_enable_bonfire_sale()
+{
+    if ( !zmqol_bonfire_sale_enabled() )
+        return;
+
+    maps\mp\zombies\_zm_utility::include_powerup( "bonfire_sale" );
+}
+
+// ============================================================================
+//  zmqol_bs_pap_usable  -  "is there a Pack-a-Punch worth having a sale on"
+//
+//  The Bonfire Sale equivalent of stock's own Fire Sale gate, which refuses the
+//  drop while the mystery box has never moved (func_should_drop_fire_sale, the
+//  level.chest_moves clause). A sale on a machine nobody can reach is a wasted
+//  drop, and stock declines those rather than spending one.
+//
+//  Everything here is a CORE signal, so it is safe from a root script and needs
+//  no per-map special case:
+//    - level.zombiemode_using_pack_a_punch  set by all six maps' main().
+//    - getent( "vending_packapunch", "targetname" )  the machine itself.
+//      🌟 It is spawned at runtime by _zm_perks::perk_machine_spawn_init() from
+//      the map's "zm_perk_machine" structs, so this is true wherever a machine
+//      really exists and false on the survival locations that have none - which
+//      is why no location list is hard-coded here.
+//    - flag( "power_on" )  flag_init'd in core _zm.gsc:1133, so it exists on
+//      every map, and every map sets it on its own power path. On Origins it is
+//      set by zm_tomb_capture_zones::pack_a_punch_enable() at the exact moment
+//      the Pack-a-Punch trigger is switched on, which is precisely right.
+//
+//  🛑 TRANZIT CLASSIC ALSO HAS TO BUILD IT. Power is not enough there - the
+//  machine is a buildable, and the mod's own new_pap_trigger() waits on
+//  "pap_built" for that same reason.
+// ============================================================================
+zmqol_bs_pap_usable()
+{
+    if ( !isdefined( level.zombiemode_using_pack_a_punch ) || !level.zombiemode_using_pack_a_punch )
+        return false;
+
+    if ( !isdefined( getent( "vending_packapunch", "targetname" ) ) )
+        return false;
+
+    if ( !flag( "power_on" ) )
+        return false;
+
+    if ( getDvar( "mapname" ) == "zm_transit" && is_classic() )
+    {
+        if ( !isdefined( level.buildables_built ) || !is_true( level.buildables_built[ "pap" ] ) )
+            return false;
+    }
+
+    return true;
+}
+
+// ============================================================================
+//  zmqol_bs_should_drop  -  the drop predicate, and where CUSTOM POWER-UPS is
+//                           enforced
+//
+//  Stock hands Bonfire Sale ::func_should_never_drop, which is why it has never
+//  appeared outside Five: get_valid_powerup() calls this function on every drop
+//  attempt (_zm_powerups.gsc:337) and skips the power-up when it returns false.
+//  Re-pointing that ONE struct field is the whole "make it drop" change - the
+//  same route Blood Money and Fire Sale already use here.
+//
+//  Because it is read live, the CUSTOM POWER-UPS row takes effect on the very
+//  next drop with no registration moving underneath it.
+// ============================================================================
+zmqol_bs_should_drop()
+{
+    if ( !zmqol_custom_powerups_enabled() )
+        return false;
+
+    //  One sale at a time - stock's own first refusal for Fire Sale.
+    if ( isdefined( level.zombie_vars ) &&
+         isdefined( level.zombie_vars[ "zombie_powerup_bonfire_sale_on" ] ) &&
+         level.zombie_vars[ "zombie_powerup_bonfire_sale_on" ] == 1 )
+        return false;
+
+    if ( !zmqol_bs_pap_usable() )
+        return false;
+
+    return true;
+}
+
+// ============================================================================
+//  zmqol_bonfire_sale_custom_gate  -  the re-point itself
+//
+//  🛑 MUST RUN AFTER _zm_powerups::init(), because that is what creates the
+//  struct. This init() is not ordered against it (_zm_powerups::init() is
+//  reached from _zm::init(), threaded by the MAP's main()), so it polls for the
+//  struct rather than assuming - identical to zmqol_fire_sale_custom_gate() and
+//  zmqol_blood_money_natural_drop() above. Capped at 30 s so a map that never
+//  registers the power-up cannot leave a thread spinning all game.
+// ============================================================================
+zmqol_bonfire_sale_custom_gate()
+{
+    if ( !zmqol_bonfire_sale_enabled() )
+        return;
+
+    for ( i = 0; i < 600; i++ )
+    {
+        if ( isdefined( level.zombie_powerups ) &&
+             isdefined( level.zombie_powerups[ "bonfire_sale" ] ) )
+        {
+            level.zombie_powerups[ "bonfire_sale" ].func_should_drop_with_regular_powerups =
+                ::zmqol_bs_should_drop;
+            return;
+        }
+
+        wait 0.05;
+    }
+}
+
+// ============================================================================
+//  zmqol_pap_cost  -  the sale price, for the mod's OWN Pack-a-Punch trigger
+//
+//  🛑 WITHOUT THIS THE POWER-UP WOULD DO NOTHING IN THE DEFAULT CONFIGURATION,
+//  and that is the one part of Bonfire Sale this mod has to write itself.
+//  Stock's discount lives in _zm_perks::vending_weapon_upgrade_cost(), which
+//  sets self.cost on STOCK's Pack-a-Punch trigger. INSTANT PAP (create_dvar
+//  "instant_pap", default 1) sinks that trigger and answers the use key with the
+//  mod's own trigger in new_pap_trigger(), which prices itself from the
+//  "pap_price" / "repap_price" dvars. So on a default game the player would hear
+//  the announcer, see the timer, and be charged 5000 anyway.
+//
+//  📝 THE NUMBER IS STOCK'S, NOT A BALANCE CHOICE. _zm_perks.gsc:697-698 sets
+//  cost = 1000 and attachment_cost = 1000 for the duration, restoring 5000/2000
+//  on "bonfire_sale_off". The mod's dvars default to exactly those two values
+//  (create_dvar "pap_price" 5000, "repap_price" 2000), so a default game gets
+//  Treyarch's behaviour to the point.
+//
+//  📝 The min() is for the players who have already lowered the price in the
+//  GAME tab: a "sale" must never make Pack-a-Punch cost MORE than it did a
+//  second ago.
+// ============================================================================
+zmqol_pap_cost( str_dvar )
+{
+    n_cost = getDvarInt( str_dvar );
+
+    if ( isdefined( level.zombie_vars ) &&
+         isdefined( level.zombie_vars[ "zombie_powerup_bonfire_sale_on" ] ) &&
+         level.zombie_vars[ "zombie_powerup_bonfire_sale_on" ] == 1 &&
+         n_cost > 1000 )
+        n_cost = 1000;
+
+    return n_cost;
 }
 
 zmqol_enable_blood_money()

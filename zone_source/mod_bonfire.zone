@@ -1,0 +1,55 @@
+// ============================================================================
+//  mod_bonfire.zone  -  BONFIRE SALE's two missing assets                v2.12.0
+// ----------------------------------------------------------------------------
+//  Bonfire Sale is NOT a new power-up. It is fully implemented in stock BO2
+//  core script and simply never switched on by any map:
+//      _zm_powerups.gsc:101   add_zombie_powerup( "bonfire_sale",
+//                               "zombie_pickup_bonfire", &"ZOMBIE_POWERUP_MAX_AMMO",
+//                               ::func_should_never_drop, 0, 0, 0, undefined,
+//                               "powerup_bon_fire", "zombie_powerup_bonfire_sale_time",
+//                               "zombie_powerup_bonfire_sale_on" );
+//      _zm_powerups.csc:11    add_zombie_powerup( "bonfire_sale", "powerup_bon_fire" );
+//      _zm_powerups.gsc:1182  start_bonfire_sale()  - 30 s timer
+//      _zm_perks.gsc:682      vending_weapon_upgrade_cost() already waits on
+//                             "powerup bonfire sale" and drops Pack-a-Punch from
+//                             5000 to 1000 (attachments 2000 -> 1000).
+//
+//  🛑 WHAT STOCK DID NOT SHIP IS THE ART. Measured 2026-09-05, Unlinker --list
+//  over zm_transit, zm_nuked, zm_highrise, zm_prison, zm_buried, zm_tomb,
+//  common_zm and patch_zm - all eight:
+//      xmodel    zombie_pickup_bonfire   absent from every one
+//      material  zom_icon_bonfire        absent from every one
+//  add_zombie_powerup() precaches the model for every INCLUDED power-up, so
+//  including it without shipping the model is fatal at load - the same trap Fire
+//  Sale and Blood Money hit (see mod_locations.zone).
+//
+//  🌟 AND THE MISSING MATERIAL IS A PRE-EXISTING STOCK BUG THIS FIXES.
+//  _zm_powerups.gsc:30 calls precacheshader( "zom_icon_bonfire" ) unconditionally
+//  on EVERY map, so retail BO2 prints
+//      Could not load material "zom_icon_bonfire".
+//  on every zombies boot - it is in the user's own console_zm.log six times.
+//  Owning the name here silences that on all six maps, and can regress nothing,
+//  because nothing else in the game provides it.
+//
+//  WHERE THEY COME FROM
+//    xmodel + material   zone_source\bonfire_donor\mod.ff, copied verbatim out of
+//                        Zombies Declassified BETA 1's zm_pentagon.ff with the
+//                        patched OAT in H:\Claude\oat-dlc5 (recipe beside it).
+//                        The model's own material, mc/mtl_x2icon_gold, is left a
+//                        REFERENCE - common_zm.ff owns it and loads on every map.
+//    image pixels        zone_assets\images\zom_icon_bonfire.iwi, converted from
+//                        Black Ops 1's own raw\images\zom_icon_bonfire.iwi
+//                        (T5 v13 -> DDS -> T6 v27, ImageConverter). 32x32 DXT5.
+//
+//  🛑 THE IMAGE MUST EXIST AS A RAW FILE, not just in the donor. A T6 fastfile
+//  stores only the image HEADER; the pixels come from a loose .iwi at runtime.
+//  build.bat syncs zone_assets\images\ -> images\ -> mod.iwd. Ship only the
+//  header and the icon draws BLACK. (ERROR_CATALOGUE section 13.)
+//  Verified the name is not ipak-backed: absent from image_names.csv's 32,213
+//  rows, so a loose file wins.
+// ============================================================================
+>game,T6
+
+image,zom_icon_bonfire
+material,zom_icon_bonfire
+xmodel,zombie_pickup_bonfire
