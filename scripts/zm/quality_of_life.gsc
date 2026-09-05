@@ -715,6 +715,7 @@ init()
     level thread zmqol_blood_money_natural_drop();
     level thread zmqol_fire_sale_custom_gate();  // FIRE SALE under CUSTOM POWER-UPS (v2.0.5)
     level thread zmqol_bonfire_sale_custom_gate();  // BONFIRE SALE under CUSTOM POWER-UPS (v2.12.0)
+    level thread zmqol_bs_announcer_watch();     // ...and the announcer line stock never wired (v2.12.6)
     level thread zmqol_register_announcer_vox();
     level thread zmqol_powerup_timer_think();   // POWER-UP TIMERS (v1.99.1)
     level thread zmqol_dof_repoint_spawnintermission();  // DOF full fix, item 48
@@ -12462,6 +12463,92 @@ zmqol_bonfire_sale_custom_gate()
         }
 
         wait 0.05;
+    }
+}
+
+// ============================================================================
+//  zmqol_bs_announcer_watch  -  THE ANNOUNCER LINE BONFIRE SALE NEVER HAD
+//                                                                    (v2.12.6)
+//
+//  User, 2026-09-05: *"i gave myself the bonfire sale power up and it had no
+//  announcer line, so make sure thats sorted out."*
+//
+//  🌟 THE SILENCE IS STOCK'S, AND IT IS TWO OMISSIONS, NOT ONE. Both read out
+//  of the 2,093-file dump, neither inferred:
+//
+//    1. _zm_audio_announcer::init() registers ten announcer voxes at :13-22 -
+//       carpenter, insta_kill, double_points, nuke, full_ammo, fire_sale,
+//       minigun, zombie_blood, boxmove, dogstart. There is NO createvox for
+//       "bonfire_sale". _zm_powerups.gsc:1147 announces every grabbed power-up
+//       generically with leaderdialog( self.powerup_name ), so for this one it
+//       asks for a key nobody registered and returns having played nothing.
+//    2. start_fire_sale() opens with
+//           level thread _zm_audio_announcer::leaderdialog( "fire_sale" )
+//       (_zm_powerups.gsc:1167). start_bonfire_sale() (:1182) has no equivalent
+//       - it goes straight to the loop sound and the 30 s timer.
+//
+//  What DOES fire is only the character line, powerup_vo( "firesale" ) at
+//  :1042 - a survivor shouting "fire sale" 2-2.5 s after the grab. The
+//  announcer half was never wired up at all. That character line is left
+//  exactly as stock has it; this adds the missing half in front of it, which is
+//  the same pairing a real Fire Sale already gives.
+//
+//  🌟 AND THE REAL RECORDING IS ALREADY IN BLACK OPS II. BO1 always had this
+//  line - <BO1>\raw\maps\_zombiemode_audio.gsc:33
+//      level.devil_vox["powerup"]["bonfire_sale"] = "bonfiresale";
+//  under prefix "zmb_vox_ann_", i.e. zmb_vox_ann_bonfiresale. That alias is
+//  shipped in T6: it is in zmb_highrise.english (Die Rise), 3.0 s of real
+//  audio (48 kHz stereo, 275,636 B FLAC), and grep says it has ZERO references
+//  across all 2,093 stock scripts - recorded, shipped, never called. The same
+//  find as the Death Machine line this mod already re-ships, out of the same
+//  bank and the same english\sound\vox\scripted\zmb\announcer\ folder, and its
+//  60 alias fields are byte-identical to that row's. Nothing here is invented.
+//  📝 The dumped death_machine payload compares byte-identical to the copy
+//  already in sound\zmb\qol\, so this exact route is proven, not assumed.
+//
+//  Ships as vox_zmba_qol_powerup_bonfire_sale, plus the vox_zmba_sam_ twin that
+//  Nuketown's announcer prefix needs and the _0 variant of each - the same
+//  four-row shape zmqol_register_announcer_vox() documents above, all four
+//  pointing at the one payload.
+//
+//  🛑 DELIBERATELY NOT REGISTERED WITH createvox. That would route the line
+//  through leaderdialogonplayer(), which drops it outright whenever
+//  self.zmbdialogactive is already 1 - the bug that silenced Blood Money on
+//  Nuketown (v2.8.8). zmqol_play_announcer_line() is the route that was
+//  measured to work; registering the vox as well would give the line twice on
+//  the grabs where stock's path does fire.
+//
+//  🛑 HOOKED ON THE NOTIFY, NOT BY replaceFunc. start_bonfire_sale() opens with
+//  level notify( "powerup bonfire sale" ) (:1184), and that notify appears
+//  nowhere else in the dump, so waiting on it fires exactly once per sale and
+//  copies none of Treyarch's body - there is nothing here that can drift out of
+//  step with stock. The thread re-arms in the same frame it wakes, so a second
+//  Bonfire Sale grabbed during the first is announced too, which is what stock's
+//  own announce-on-every-grab path at :1147 would have done.
+// ============================================================================
+zmqol_bs_announcer_watch()
+{
+    if ( !zmqol_bonfire_sale_enabled() )
+        return;
+
+    level endon( "end_game" );
+
+    for ( ;; )
+    {
+        level waittill( "powerup bonfire sale" );
+
+        //  The probe that tells a boot apart from a silent alias. Same shape as
+        //  the [zm_qol] vox: line above; the prefix is certainly set by now,
+        //  because a power-up cannot be grabbed before the announcer inits.
+        str_alias = "";
+
+        if ( isdefined( game[ "zmbdialog" ] ) && isdefined( game[ "zmbdialog" ][ "prefix" ] ) )
+            str_alias = game[ "zmbdialog" ][ "prefix" ] + "_qol_powerup_bonfire_sale";
+
+        println( "[zm_qol] bonfire sale: announcer " + str_alias + "  exists=" +
+                 soundexists( str_alias ) + "  _0=" + soundexists( str_alias + "_0" ) );
+
+        level thread zmqol_play_announcer_line( "qol_powerup_bonfire_sale" );
     }
 }
 
