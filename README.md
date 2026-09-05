@@ -128,6 +128,9 @@ The mod is free and always will be. Any amount of support is greatly appreciated
   * Wunderwaffe DG-2
   * Winter's Howl
 
+* **Bouncing Betties:**
+  * The multiplayer proximity mine, in the Mystery Box on every map except Origins and Buried. They sit alongside your Claymores rather than replacing them, and use their own equipment button.
+
 * **Jet Gun clean-up:**
   * It's carried as a normal primary that cycles with your other guns instead of living in an equipment slot, so it costs a real weapon slot and respects Mule Kick. Still overheats, never breaks.
 
