@@ -721,6 +721,7 @@ init()
     level thread zmqol_dof_onplayerconnect();            // DOF full fix, item 48
     level thread zmqol_perma_perks_watch();              // PERMA-PERKS, queue item 29
     level thread zmqol_no_walkers_watch();               // NO WALKERS, user request 2026-08-30
+    level thread zmqol_no_denizens_watch();              // NO DENIZENS, user request 2026-09-05
     level thread zmqol_no_limited_weapons_watch();        // NO BOX LIMITS reaches the ported wonder weapons (v2.9.15)
     level thread zmqol_dim_cherry_arcs();                // Electric Cherry kill arc -> secondary (v2.9.30)
 
@@ -19910,6 +19911,66 @@ zmqol_perma_perks_end_game()
                     player maps\mp\zombies\_zm_stats::zero_client_stat( level.pers_upgrades[str_name].stat_names[j], 0 );
             }
         }
+    }
+}
+
+// ============================================================================
+//  zmqol_no_denizens_watch  -  NO DENIZENS                        (v2.12.5)
+//
+//  User request, 2026-09-05, the new GAME 3 tab: *"add an option to turn
+//  tranzit denizens on/off (enabled/disabled), disabled is standard vanilla
+//  behaviour, setting it to enabled makes no denizens spawn in the fog so they
+//  wont annoy the player."*
+//
+//  🌟 STOCK ALREADY HAS THE SWITCH. maps\mp\zombies\_zm_ai_screecher.gsc:85,
+//  inside screecher_spawning_logic()'s main loop:
+//
+//        while ( getdvarint( #"scr_screecher_ignore_player" ) )
+//            wait 0.1;
+//
+//  The loop parks there BEFORE it reads level.zombie_screecher_locations or
+//  picks a spawn point, so with the dvar set nothing spawns at all. That is
+//  why this row drives that dvar instead of deleting spawn points or killing
+//  denizens after they arrive: a player must never see one flicker in and
+//  disappear, and the spawner entities are left exactly as the map built them.
+//
+//  🛑 VERIFIED NOT A DEV BLOCK. The /# #/ pairs in that function are :64-67
+//  and :74-76; line 85 is plain retail code. A grep of the whole gsc-dump
+//  finds no other reader of the name, so the row has no side effect to
+//  inherit. (The two scr_screecher_ignore_SCORE reads at :1111 and :1164 are a
+//  different dvar and both ARE inside dev blocks.)
+//
+//  📝 Polled rather than written once, so the row is live in both directions
+//  mid-match, and it only writes when the value actually differs - the same
+//  shape as zmqol_no_walkers_watch() below.
+//
+//  🛑 A DENIZEN THAT IS ALREADY OUT IS LEFT ALONE, and the row says so. It
+//  stops spawning; it does not despawn. Removing a live one means unpicking
+//  screecher_detach()/the attached-player state, which is a different change
+//  and a risk to a player who is mid-grab - not something to fold in quietly.
+//
+//  📝 TranZit only, because the screecher script is a zm_transit script. The
+//  gate is a runtime level.script test and the dvar name is a string, so no
+//  map-specific symbol is referenced from this root file (AI_CONTEXT rule 2).
+// ============================================================================
+zmqol_no_denizens_watch()
+{
+    level endon( "end_game" );
+
+    if ( !isdefined( level.script ) || level.script != "zm_transit" )
+        return;
+
+    for ( ;; )
+    {
+        n_want = 0;
+
+        if ( getdvarintdefault( "no_denizens", 0 ) )
+            n_want = 1;
+
+        if ( getdvarintdefault( "scr_screecher_ignore_player", 0 ) != n_want )
+            setdvar( "scr_screecher_ignore_player", n_want );
+
+        wait 1;
     }
 }
 

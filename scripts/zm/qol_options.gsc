@@ -273,6 +273,43 @@ init()
     //  directly). Live in both directions mid-match, not just at map load.
     qol_opt_dvar( "no_lava_damage", "0" );
 
+    //  v2.12.5 - NO DENIZENS, user request 2026-09-05, the new GAME 3 tab.
+    //  *"add an option to turn tranzit denizens on/off (enabled/disabled),
+    //  disabled is standard vanilla behaviour, setting it to enabled makes no
+    //  denizens spawn in the fog so they wont annoy the player."*
+    //
+    //  OFF (0) = stock: denizens spawn in the fog exactly as Treyarch shipped.
+    //  ON (1) = none ever spawn.
+    //
+    //  🌟 IT DRIVES A STOCK DVAR, AND THAT DVAR HAS EXACTLY ONE READER IN THE
+    //  WHOLE GAME. maps\mp\zombies\_zm_ai_screecher.gsc:85, inside
+    //  screecher_spawning_logic()'s main loop:
+    //        while ( getdvarint( #"scr_screecher_ignore_player" ) )
+    //            wait 0.1;
+    //  While it is non-zero the spawn loop parks before it ever picks a spawn
+    //  point, so nothing is spawned and nothing is killed off afterwards - the
+    //  player never sees a denizen appear and vanish. A grep of the entire
+    //  gsc-dump finds that line and no other use of the name (the two
+    //  scr_screecher_ignore_SCORE reads at :1111 and :1164 are a different
+    //  dvar, and both sit inside /# #/ dev blocks), so there is no side effect
+    //  to inherit.
+    //
+    //  🛑 THAT LINE IS NOT IN A DEV BLOCK. The /# #/ pairs in that function are
+    //  at :64-67 and :74-76 only; :85 is plain retail code. Checked explicitly,
+    //  because a stock call that turned out to be dev-only is exactly how the
+    //  .fog toggle shipped doing nothing (CLAUDE.md's pre-mortem rule).
+    //
+    //  📝 The write is a plain setdvar of a name stock reads hashed. Stock does
+    //  the same thing to itself - gametypes_zm\_serversettings.gsc reads
+    //  getdvar( #"sv_hostname" ) at :6 and writes setdvar( "sv_hostname", ... )
+    //  at :11, and reads #"g_allowVote" at :22 while writing "g_allowvote" at
+    //  :27 - so the hashed and string forms address one dvar, case included.
+    //
+    //  Mirrored onto the stock dvar once a second by
+    //  quality_of_life.gsc::zmqol_no_denizens_watch(), which is TranZit-only
+    //  and live in both directions mid-match.
+    qol_opt_dvar( "no_denizens", "0" );
+
     //  v2.7.2 - 3 HIT DOWN, user request 2026-08-28, the PATCHES tab. OFF =
     //  stock. Read on every zombie melee hit by
     //  quality_of_life.gsc::zmqol_three_hit_down_scale(), chained through the

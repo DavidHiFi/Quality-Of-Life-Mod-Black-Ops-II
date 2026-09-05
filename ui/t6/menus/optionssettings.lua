@@ -1581,8 +1581,10 @@ end
 --  past both ends of its container, over the tab strip above and the ESC
 --  prompt below. That is the whole of the reported "scuffed-ness".
 --
---  The mod's own tabs, as of v2.8.2: GAME 13.5, HUD 13.0, PATCHES 15.0,
---  CHEATS 14.0. The stock tabs this file also builds: ADVANCED 15.0 (full).
+--  The mod's own tabs, as of v2.12.5: GAME 1 15.0, GAME 2 15.0, GAME 3 1.0,
+--  HUD 13.0, CHEATS 14.0. (GAME 1 and GAME 2 are the tabs called GAME and
+--  PATCHES before v2.12.5; both were already at the ceiling, which is why
+--  GAME 3 exists.) The stock tabs this file also builds: ADVANCED 15.0 (full).
 --  🛑 PATCHES IS NOW AT THE 15.0 CEILING - the next row has to displace one.
 --  🛑 IF YOU ADD A ROW, ADD IT TO THE SHORTEST TAB IT HONESTLY BELONGS IN.
 --
@@ -2162,6 +2164,43 @@ CoD.OptionsSettings.CreateQolPatchesTab = function (QolPatchesTab, LocalClientIn
 	return QolPatchesContainer                                      -- 15 total
 end
 
+-- ============================================================================
+--  v2.12.5 - THE "GAME 3" TAB. User request, 2026-09-05.
+--
+--  *"rename GAME to GAME 1, PATCHES to GAME 2, then add a new tab right after
+--  GAME 2 named GAME 3 ... In the 3rd GAME tab add an option to turn tranzit
+--  denizens on/off (enabled/disabled), disabled is standard vanilla behaviour,
+--  setting it to enabled makes no denizens spawn in the fog so they wont annoy
+--  the player."*
+--
+--  🌟 THE TAB EXISTS BECAUSE THE OTHER TWO ARE MEASURABLY FULL, not as a
+--  preference. CreateQolTab returns 15.0 row-pitches and CreateQolPatchesTab
+--  returns 15.0, and 15.0 is the ceiling derived in the note above CreateQolTab
+--  from the user's own overflow screenshots. A 16th row on either one is the
+--  reported bug, not a risk of it.
+--
+--  📝 ROOM LEFT: 14 more rows before this tab reaches the same ceiling. When
+--  the next option needs a home, it belongs here rather than on GAME 1 or 2.
+--
+--  📝 The label reads NO DENIZENS rather than DENIZENS so that ENABLED is the
+--  state that changes something, which is how every other row in this menu
+--  works (NO WALKERS, NO LAVA DAMAGE, NO BARRIER ATTACKS). DISABLED is stock,
+--  exactly as asked.
+-- ============================================================================
+CoD.OptionsSettings.CreateQolGame3Tab = function (QolGame3Tab, LocalClientIndex)
+	local QolGame3Container = LUI.UIContainer.new()
+	local QolGame3Buttons = CoD.Options.CreateButtonList()
+	QolGame3Tab.buttonList = QolGame3Buttons
+	QolGame3Container:addElement(QolGame3Buttons)
+
+	local T = CoD.OptionsSettings.QolToggle
+
+	--                                                                  1 row
+	T(QolGame3Buttons, LocalClientIndex, "NO DENIZENS", "no_denizens", "TranZit. No denizens spawn in the fog. Any already out are left alone.")
+
+	return QolGame3Container                          -- 1 row + 0 spacers = 1.0
+end
+
 CoD.OptionsSettings.CreateQolCheatsTab = function (QolCheatsTab, LocalClientIndex)
 	local QolCheatsContainer = LUI.UIContainer.new()
 	local QolCheatsButtons = CoD.Options.CreateButtonList()
@@ -2495,7 +2534,34 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	--  v2.2.0 - 900 is the EIGHT-tab width. With no zm_qol tabs the strip is
 	--  stock's four, so it takes stock's own 500 - measured the same way, and it
 	--  is the number in the pristine .bak-before-gametab copy.
-	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, (ZmQolLoaded and 900) or 500)
+	--
+	-- 🌟 v2.12.5 - 900 -> 1020, BECAUSE THE NINTH TAB (GAME 3) LANDS HERE AND
+	-- TWO LABELS CHANGE LENGTH. Re-derived from the SAME 2560x1440 scan quoted
+	-- above rather than nudged, because that scan is the only measured source
+	-- this file has. From it: 911 px of glyphs over 51 characters = 17.9 px per
+	-- character, and (2101-457) - 911 = 733 px over 7 gaps = 104.7 px per gap.
+	-- Both hold at 2 px per LUI unit.
+	--
+	-- The nine labels are now
+	--     GRAPHICS(8) ADVANCED(8) SOUND(5) VOICE CHAT(10)
+	--     GAME 1(6) GAME 2(6) GAME 3(6) HUD(3) CHEATS(6)   = 58 characters
+	--     58 x 18 px glyphs           = 1044 px
+	--     8 x 104.7 px gaps           =  838 px
+	--     strip                       = 1882 px = 941 units
+	-- Stock leaves ~34 units of margin per side, so the minimum is 941 + 68 =
+	-- 1009. 1020 leaves 39.5 units (79 px) per side - the same clearance 900
+	-- gave the eight-tab strip, and biased wide for the reason stated above:
+	-- too narrow is the REPORTED bug (v1.93.0, v1.95.0, v2.0.2), too wide has
+	-- never been reported.
+	--
+	-- 📝 The container is centred, so 1020 puts its edges - and therefore the
+	-- two navigation arrows - at 130 and 1150 of the 1280-unit screen, while
+	-- the labels span 169.5..1110.5. Nothing else draws in that band.
+	--
+	-- 🛑 RENAMING IS NOT FREE. GAME -> "GAME 1" adds two characters and
+	-- PATCHES -> "GAME 2" removes one; a rename that changes the strip's width
+	-- has to come back through this arithmetic, exactly like adding a tab does.
+	local SettingsTabs = CoD.Options.SetupTabManager(OptionsSettingsWidget, (ZmQolLoaded and 1020) or 500)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_GRAPHICS_CAPS", CoD.OptionsSettings.CreateGraphicsTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_ADVANCED_CAPS", CoD.OptionsSettings.CreateAdvancedTab)
 	SettingsTabs:addTab(LocalClientIndex, "MENU_SOUND_CAPS", CoD.OptionsSettings.CreateSoundTab)
@@ -2520,9 +2586,32 @@ LUI.createMenu.OptionsSettingsMenu = function (LocalClientIndex)
 	-- Engine.Localize falls back to the literal when a key does not exist, which
 	-- is how this renders as "QUALITY OF LIFE" with no new localize entry;
 	-- Plutonium's own line for FOV SENSITIVITY relies on the same behaviour.
-	SettingsTabs:addTab(LocalClientIndex, "GAME", CoD.OptionsSettings.CreateQolTab)
-	-- v1.99.93 - PATCHES, directly after GAME as asked.
-	SettingsTabs:addTab(LocalClientIndex, "PATCHES", CoD.OptionsSettings.CreateQolPatchesTab)
+	-- 🌟 v2.12.5 - "GAME" IS NOW "GAME 1", "PATCHES" IS NOW "GAME 2", AND
+	-- "GAME 3" IS NEW. User request, 2026-09-05: *"rename GAME to GAME 1,
+	-- PATCHES to GAME 2, then add a new tab right after GAME 2 named GAME 3 ...
+	-- the reasoning for adding the 3rd new tab is because there wouldn't be
+	-- enough space on either the current GAME or PATCHES tab to add this option
+	-- without it causing a collision issue"*.
+	--
+	-- 🌟 THAT REASONING IS CORRECT AND THIS FILE ALREADY SAID SO. Both existing
+	-- tabs return exactly 15.0 row-pitches, which is the measured ceiling in the
+	-- note above CreateQolTab; the comment at the end of each one has said "do
+	-- not add a 16th row without moving one off" since v2.8.6. A third tab is
+	-- the only way to add a row without displacing one.
+	--
+	-- 📝 NO DVAR IS RENAMED BY ANY OF THIS. The labels are display strings and
+	-- nothing else; every row keeps the dvar it already has, so no player's
+	-- archived setting moves. Same rule as the v1.99.52 BACKSPEED PATCH relabel.
+	--
+	-- 📝 Engine.Localize falls back to the literal for a key it does not know,
+	-- which is how "GAME"/"PATCHES"/"HUD"/"CHEATS" have always rendered here -
+	-- "GAME 1" and the rest go through the same path, space and digit included.
+	SettingsTabs:addTab(LocalClientIndex, "GAME 1", CoD.OptionsSettings.CreateQolTab)
+	-- v1.99.93 - the PATCHES tab, directly after GAME as asked then; renamed
+	-- GAME 2 in v2.12.5, contents untouched.
+	SettingsTabs:addTab(LocalClientIndex, "GAME 2", CoD.OptionsSettings.CreateQolPatchesTab)
+	-- v2.12.5 - GAME 3, directly after GAME 2 as asked.
+	SettingsTabs:addTab(LocalClientIndex, "GAME 3", CoD.OptionsSettings.CreateQolGame3Tab)
 	-- v1.95.1 - the visuals and HUD half, named "HUD" at the user's request
 	-- (2026-08-14), with the first tab renamed back to "GAME". Split so neither
 	-- tab overflows - see the note above CreateQolTab.
