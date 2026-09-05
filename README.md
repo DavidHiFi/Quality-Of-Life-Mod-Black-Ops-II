@@ -4,7 +4,7 @@
 
 # Quality Of Life
 
-**An extensive overhaul mod for Call Of Duty: Black Ops II - Zombies on [Plutonium](https://plutonium.pw).**
+**An extensive overhaul mod for Call of Duty: Black Ops II - Zombies on [Plutonium](https://plutonium.pw).**
 
 Almost all Campaign weapons and every single Multiplayer weapon in the Mystery Box, 4 wonder weapons ported straight from the unreleased DLC5, bonus Survival maps, and a user-friendly Settings menu that you can configure to your heart's content in-game.
 
@@ -156,7 +156,7 @@ The mod is free and always will be. Any amount of support is greatly appreciated
   * Carry as many as you like by default, or set a cap of 1–12 from the pre-game lobby.
 
 * **Instant Pack-a-Punch:**
-  * Instant Pack-a-Punch, like in Call Of Duty: Black Ops Cold War - Zombies. It can be turned on or off in the settings menu.
+  * Instant Pack-a-Punch, like in Call of Duty: Black Ops Cold War - Zombies. It can be turned on or off in the settings menu.
 
 * **Bonfire Sale:**
   * BO1's Pack-a-Punch power-up, from *Five*. Pick it up and Pack-a-Punch costs 1,000 points instead of 5,000 for thirty seconds. Part of the **Custom Power-Ups** option, on every map except Mob of the Dead and Buried.
@@ -206,7 +206,7 @@ Built on [**Plutonium**](https://plutonium.pw), with **OpenAssetTools** and **xe
 
 **Disclaimers/Other Information:**
 
-This mod's code is mostly made using **Claude Code AI**; however, **ANY** and **ALL** artwork is human-made. I understand how controversial the usage of AI in any form is perceived to be; as such, I understand that this will come as a disappointment to some, and any criticism is understandable — I am not a coder, nor have I ever claimed to be. This project's initial intention was for it to be used by me, and me only. I have decided to open this project up as I understand that this could be quite resourceful.
+This mod's code is mostly made using **Claude Code AI**; however, **ANY** and **ALL** artwork is human-made. I understand how controversial the usage of AI in any form is perceived to be, and that this will come as a disappointment to some; any criticism is understandable — I am not a coder, nor have I ever claimed to be. This project's initial intention was for it to be used by me, and me only. I have decided to open this project up as I understand that this could be quite resourceful.
 
 <div align="center">
 <br>
