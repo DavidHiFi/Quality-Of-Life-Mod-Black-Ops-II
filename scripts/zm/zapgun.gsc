@@ -161,6 +161,7 @@ init()
         a_players[i] thread wait_for_microwavegun_fired();
 
     level thread microwavegun_on_player_connect();
+    level thread zmqol_ww_screecher_zap_hook();   // denizens (v2.12.5)
 }
 
 add_microwaveable_object( ent )
@@ -288,6 +289,113 @@ zmqol_ww_sizzle_target_list()
     }
 
     return a_out;
+}
+
+// ============================================================================
+//  zmqol_ww_screecher_zap_hook  -  THE ZAP HALF NOW KILLS DENIZENS  (v2.12.5)
+// ============================================================================
+//  User, 2026-09-05, TranZit: *"the wave gun for some reason deals no damage to
+//  denizens"* - the SECOND report of this. v2.11.26's fix directly above is real
+//  and still in place, but it only ever covered the ALT fire.
+//
+//  🌟 MEASURED, from the mod's own weapon defs (weapons\zm\):
+//        microwavegundw_zm   primary, what you hold    damage 1, explosion 0/0
+//        microwavegun_zm     altmode, the wave         damage 0, explosion 0/0
+//  NEITHER gun kills anything with its own damage. The alt fire kills through
+//  the sizzle cone (target list fixed in v2.11.26); the gun in your hands kills
+//  through a damage CALLBACK, registered in init() with
+//        _zm_spawner::register_zombie_damage_callback( ::microwavegun_zombie_damage_response )
+//  so against a denizen every shot was landing its literal 1 point of damage.
+//
+//  🛑 AND A DENIZEN NEVER RUNS THAT CALLBACK. The chain that reaches it is
+//        enemy_death_detection()             _zm_spawner.gsc:118, waittill "damage"
+//          -> player_attacks_enemy()         :136
+//          -> level.global_damage_func       = _zm_spawner::zombie_damage
+//          -> check_zombie_damage_callbacks() :2025
+//  and `enemy_death_detection` is threaded in exactly TWO places in the whole
+//  stock dump: `zombie_spawn_init()` (_zm_spawner.gsc:236) for ordinary zombies,
+//  and `_zm_ai_dogs.gsc:438` for the hellhounds. A denizen is set up by
+//  `_zm_ai_screecher::screecher_prespawn` - hung on the map's own spawners at
+//  _zm_ai_screecher.gsc:34 - which calls NEITHER. So NO registered damage
+//  callback of any kind has ever fired for a denizen.
+//
+//  The fix threads the missing watcher on denizens ONLY, through the very
+//  mechanism stock uses to give them their spawn function (add_spawn_function
+//  on level.screecher_spawners), and routes a zap hit into the same response an
+//  ordinary zombie already gets. No other AI is touched, ordinary zombies keep
+//  going through stock's chain, and a denizen hit by anything else is unchanged.
+//
+//  📝 Spawn functions are THREADED, not called - `run_spawn_functions()`
+//  (_zm_utility.gsc:283) dispatches each through single_thread() - so parking in
+//  a waittill loop here cannot stall a spawn.
+//
+//  📝 Points: the response awards "death" points, and stock gives a denizen kill
+//  NONE (screecher_death_func returns true and deletes the body, so
+//  zombie_death_animscript's zombie_death_points never runs). Kept anyway,
+//  because v2.11.26's sizzle half already awards them and the two halves of one
+//  gun must not disagree. Say the word and both go silent.
+// ============================================================================
+zmqol_ww_screecher_zap_hook()
+{
+    level endon( "end_game" );
+
+    //  level.screecher_spawners is built in _zm_ai_screecher::init(), TranZit
+    //  only - hence the isdefined() rather than a map name. Waiting for the
+    //  blackscreen puts this after every map init and still long before a
+    //  denizen can exist: screecher_spawning_logic() parks on flag
+    //  "spawn_zombies", which is later again.
+    flag_wait( "initial_blackscreen_passed" );
+
+    if ( !isdefined( level.screecher_spawners ) || !level.screecher_spawners.size )
+        return;
+
+    array_thread( level.screecher_spawners, maps\mp\zombies\_zm_utility::add_spawn_function, ::zmqol_ww_screecher_zap_watch );
+
+    println( "[zm_qol] zapgun: denizen zap watcher armed on " + level.screecher_spawners.size + " spawner(s)" );
+}
+
+zmqol_ww_screecher_zap_watch()
+{
+    self endon( "death" );
+
+    for ( ;; )
+    {
+        self waittill( "damage", n_amount, e_attacker );
+
+        if ( !isdefined( e_attacker ) || !isplayer( e_attacker ) )
+            continue;
+
+        //  The same predicate the registered callback uses, over the same
+        //  engine-set fields: self.damageweapon and self.damagemod are never
+        //  assigned anywhere in the stock dump, so the engine fills them in
+        //  before this notify.
+        if ( !self is_microwavegun_dw_damage() )
+            continue;
+
+        if ( is_magic_bullet_shield_enabled( self ) )
+            continue;
+
+        //  🛑 NOT microwavegun_dw_zombie_hit_response_internal(). That function
+        //  is written for something zombie_spawn_init() has set up: it reads
+        //  self.isdog, self.has_legs, self.a.nodeath and hasanimstatefromasd(),
+        //  and a denizen runs NONE of that init - it is built by
+        //  screecher_prespawn(), which sets has_legs and nothing else on that
+        //  list. Its own deathfunction (_zm_ai_screecher.gsc:1128) plays the
+        //  denizen's death anim, unlinks it from whoever it was riding and
+        //  deletes the body, so the death animation was never ours to choose.
+        //  What is left is exactly the two lines that matter, in the order that
+        //  survives: garnish first (threaded, so a rig without J_SpineUpper or
+        //  J_Eyeball_LE costs the fx and never the kill), then the kill.
+        self.microwavegun_dw_death = 1;
+
+        if ( !isdefined( self.isdog ) )
+            self.isdog = 0;
+
+        self thread microwavegun_zap_death_fx( self.damageweapon );
+        self dodamage( self.health + 666, self.origin, e_attacker );
+        e_attacker maps\mp\zombies\_zm_score::player_add_points( "death", "", "" );
+        return;
+    }
 }
 
 microwavegun_get_enemies_in_range( upgraded, microwaveable_objects )
