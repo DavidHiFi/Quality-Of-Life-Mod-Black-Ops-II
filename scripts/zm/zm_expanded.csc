@@ -331,13 +331,16 @@ zmqol_enable_fire_sale()
 //                                 ("toplayer", name, 1, 2, "int", undefined, 0, 1)
 //
 //  WHY EACH MAP - the full reasoning is in the server twin's block comment:
-//    zm_nuked   no Pack-a-Punch machine exists on the map (0 "specialty_weapupgrade"
-//               entities in its mapents), so the sale would be a dud drop.
 //    zm_prison  toplayer clientfield set is full - Mob classic runs at 63/63 with
 //    zm_buried  this mod's additions, Buried classic is 63 stock. 63 is the only
 //               total ever seen to boot. Two more bits stops the map loading.
-//    zm_tomb    the same, by 2 bits: Origins classic is 61 stock and perks() sets
-//               perk_tombstone there by name, which is exactly 2. 63/63.
+//    zm_tomb    INCLUDED as of v2.12.1, by TRADE: the user asked for Tombstone to
+//               come off Origins, which frees exactly the 2 bits this needs. The
+//               removal is in perks() below and MUST stay in step with this list.
+//    zm_nuked   INCLUDED as of v2.12.1. v2.12.0 excluded it on a mapents grep that
+//               found no Pack-a-Punch; Nuketown builds its machines from script
+//               (zm_nuked_perks.gsc:37-40), so the grep could not see it. 18 stock
+//               bits - the emptiest map in the game.
 //    the rest   TranZit ~54 and Die Rise ~56 once this mod's own additions are
 //               counted in - real headroom on both.
 //
@@ -355,16 +358,10 @@ zmqol_bonfire_sale_enabled()
 	// 🛑 EXACT TWIN of quality_of_life.gsc::zmqol_bonfire_sale_enabled().
 	map = getDvar( "mapname" );
 
-	if ( map == "zm_nuked" )
-		return 0;
-
 	if ( map == "zm_prison" )
 		return 0;
 
 	if ( map == "zm_buried" )
-		return 0;
-
-	if ( map == "zm_tomb" )
 		return 0;
 
 	return 1;
@@ -804,10 +801,17 @@ perks()
 	//  Only the flag - NOT the divetonuke enable or the vending threads above.
 	//  Origins already has dive-to-nuke, marathon, deadshot and
 	//  additional-primary natively; Tombstone is its only real gap.
-	if ( getDvar( "mapname" ) == "zm_tomb" )
-	{
-		level.zombiemode_using_tombstone_perk = 1;
-	}
+	//  🛑 v2.12.1 - REMOVED, and this is a TRADE the user asked for, not a
+	//  regression: *"Get rid of tombstone from origins then"* (2026-09-05),
+	//  told that Tombstone's 2 toplayer bits were exactly what Bonfire Sale
+	//  needed on that map. Origins classic is 61 stock + 2 = 63 either way.
+	//  🛑 EXACT TWIN of the removal in quality_of_life.gsc::perks() - both
+	//  sides gate registerclientfield( "toplayer", "perk_tombstone" ) on this
+	//  flag, so leaving it set here alone is EXE_CLIENT_FIELD_MISMATCH. The
+	//  full note, and how to put it back, is in the server twin.
+	//
+	//      if ( getDvar( "mapname" ) == "zm_tomb" )
+	//          level.zombiemode_using_tombstone_perk = 1;
 
 	zmqol_enable_electric_cherry();
 	zmqol_enable_vulture();

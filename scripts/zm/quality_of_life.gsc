@@ -11444,10 +11444,39 @@ perks()
     //
     //  🛑 The twin in scripts\zm\zm_expanded.csc::perks() MUST match this
     //  exactly, for the same reason the block above says so.
-    if ( getDvar( "mapname" ) == "zm_tomb" )
-    {
-        level.zombiemode_using_tombstone_perk = 1;
-    }
+    //
+    // ========================================================================
+    //  🛑 v2.12.1 - ORIGINS NO LONGER GETS TOMBSTONE. THIS IS A TRADE THE USER
+    //  ASKED FOR, NOT A REGRESSION.
+    //
+    //  User, 2026-09-05, after being told Origins was 2 bits short of Bonfire
+    //  Sale and that Tombstone was exactly those 2 bits: *"Get rid of tombstone
+    //  from origins then"*.
+    //
+    //  The arithmetic is unchanged from the block above, just spent differently:
+    //  Origins classic is 61 stock toplayer bits, this mod adds exactly 2, and 63
+    //  is the only total ever seen to boot. perk_tombstone WAS those 2 bits; now
+    //  powerup_bon_fire is. Origins still lands on 63 either way - one perk out,
+    //  one power-up in, no third option.
+    //
+    //  WHAT ORIGINS LOSES, precisely: Tombstone stops being offered by the
+    //  Wunderfizz (wunderfizz.gsc:1712 reads this same flag) and drops out of
+    //  getPerks(). Origins has no Tombstone MACHINE - it never did - so nothing
+    //  visible is removed from the map, and every other use of the flag is an
+    //  isdefined() guard that simply skips.
+    //
+    //  🛑 THE TWIN IN zm_expanded.csc::perks() CARRIES THE IDENTICAL REMOVAL.
+    //  Both sides gate registerclientfield( "toplayer", "perk_tombstone" ) on
+    //  this flag; leave it set on one side only and the set is one field wider
+    //  there and every player is dropped with EXE_CLIENT_FIELD_MISMATCH.
+    //
+    //  TO PUT IT BACK: restore the two lines below on BOTH sides and add
+    //  `if ( map == "zm_tomb" ) return 0;` to BOTH zmqol_bonfire_sale_enabled()
+    //  twins in the same edit. Never one without the other.
+    //
+    //      if ( getDvar( "mapname" ) == "zm_tomb" )
+    //          level.zombiemode_using_tombstone_perk = 1;
+    // ========================================================================
 
     zmqol_enable_electric_cherry();
     zmqol_enable_vulture();
@@ -12161,15 +12190,6 @@ zmqol_fire_sale_custom_gate()
 //  toplayer/powerup_bon_fire (2 bits) on BOTH sides. Disagree on any map and
 //  every player is dropped with EXE_CLIENT_FIELD_MISMATCH before it starts.
 //
-//  zm_nuked  - EXCLUDED: NUKETOWN HAS NO PACK-A-PUNCH. Measured, not assumed:
-//              its mapents (T6-Data-Archive ZM\Mapents\zm_nuked.d3dbsp) contain
-//              ZERO entities with script_noteworthy "specialty_weapupgrade",
-//              against 1 on Origins and Die Rise and 3 on TranZit, and
-//              zm_nuked.gsc says nothing about a machine beyond setting
-//              level.zombiemode_using_pack_a_punch. A Pack-a-Punch sale on a map
-//              with no Pack-a-Punch is a dud drop; it is also 2 clientfield bits
-//              spent on nothing.
-//
 //  zm_prison - EXCLUDED: the toplayer clientfield set is FULL. Mob classic is
 //  zm_buried   50 stock bits and this mod's additions put it at 63; Buried
 //              classic is the fullest map in the game at 63 stock and v2.9.30
@@ -12181,45 +12201,44 @@ zmqol_fire_sale_custom_gate()
 //              its real cause (the field named in the error is whichever asks
 //              last, usually a stock one).
 //
-//  zm_tomb   - EXCLUDED, for the same reason, and this one is a near miss worth
-//              writing down. Origins classic is 61 stock toplayer bits and this
-//              mod adds exactly 2: perk_tombstone, set for zm_tomb by name in
-//              perks() ("there's one perk missing tombstone cola", user,
-//              2026-08-07). Everything else of this mod's is already off there -
-//              Vulture returns 0 for zm_tomb, Zombie Blood and Electric Cherry
-//              are native, Who's Who was cut in v2.9.30 to get Origins back down
-//              from 66, and zm_tomb.gsc's own registrations are all behind
-//              `if ( is_classic() ) return;`. So Origins sits at 61 + 2 = 63
-//              EXACTLY, which is the proven-safe total and leaves no room at all.
-//              🛑 An earlier draft of this file included Origins on the strength
-//              of "the mod adds zero there"; that was wrong, and the Tombstone
-//              line is the thing it missed. 63 + 2 = 65 is inside the untested
-//              [64,65] band and 66 has failed on this very map.
-//              📝 The only way Origins could have it is a TRADE - Tombstone (2)
-//              for Bonfire Sale (2). That is the user's call, not this file's.
-//
 //  zm_transit  - INCLUDED. 38 stock toplayer bits on classic and 27 on every
-//  zm_highrise   survival location; Die Rise classic is 33. Counting this mod's
-//                own additions field by field puts TranZit near 54 and Die Rise
-//                near 56, so both have real headroom for 2 more.
+//  zm_highrise   survival location; Die Rise classic is 33; Nuketown is 18, the
+//  zm_nuked      emptiest map in the game. Counting this mod's own additions in
+//                puts them near 54 / 56 / 40, so all three have real headroom.
+//
+//  🛑 NUKETOWN WAS WRONGLY EXCLUDED IN v2.12.0, and the mistake is worth keeping
+//  written down because the measurement LOOKED conclusive. v2.12.0 grepped the
+//  map's static mapents (T6-Data-Archive ZM\Mapents\zm_nuked.d3dbsp) for
+//  script_noteworthy "specialty_weapupgrade", found ZERO against 1 on Origins
+//  and Die Rise and 3 on TranZit, and concluded Nuketown has no Pack-a-Punch.
+//  The user corrected it, and they are right: NUKETOWN BUILDS ITS PERK MACHINES
+//  FROM SCRIPT, NOT FROM MAPENTS -
+//        zm_nuked_perks.gsc:37-40   level.nuked_perks[4].model =
+//                                     "p6_anim_zm_buildable_pap";
+//                                   level.nuked_perks[4].script_noteworthy =
+//                                     "specialty_weapupgrade";
+//                                   level.nuked_perks[4].turn_on_notify =
+//                                     "Pack_A_Punch_on";
+//        zm_nuked_perks.gsc:46/100  level.override_perk_targetname =
+//                                     "zm_perk_machine_override";
+//  so the machine is the fifth entry of the perk-arrival vehicle and its struct
+//  never existed in the .d3dbsp at all. The override_perk_targetname branch is
+//  right there in _zm_perks::perk_machine_spawn_init() and v2.12.0 had already
+//  read it. 🛑 A GREP THAT FINDS NOTHING IS NOT A MEASUREMENT UNTIL YOU HAVE
+//  ASKED WHETHER THE THING COULD EXIST SOMEWHERE THE GREP CANNOT SEE.
+//  📝 zmqol_bs_pap_usable() would have declined the drop by itself if Nuketown
+//  really had no machine, so the gate was never the risk - only the 2 wasted
+//  bits, and Nuketown has 45 spare.
 // ============================================================================
 zmqol_bonfire_sale_enabled()
 {
     map = getDvar( "mapname" );
-
-    //  No Pack-a-Punch on the map at all.
-    if ( map == "zm_nuked" )
-        return 0;
 
     //  toplayer clientfield set is full - see the block above.
     if ( map == "zm_prison" )
         return 0;
 
     if ( map == "zm_buried" )
-        return 0;
-
-    //  Origins is at 63/63 too - its 2 mod bits are Tombstone.
-    if ( map == "zm_tomb" )
         return 0;
 
     return 1;
