@@ -1,0 +1,140 @@
+// ===========================================================================
+//  metalstorm_donor  ->  zone_source\metalstorm_donor\mod.ff
+//
+//  Built by build_metalstorm.bat out of BO2-Reimagined's shipped copy of the
+//  CAMPAIGN weapon package  zone\all\weapons!metalstorm_mms_sp.ff.
+//
+//  WHY AN INTERMEDIATE INSTEAD OF LOADING THAT FILE DIRECTLY
+//    1. build_ff.bat runs under EnableDelayedExpansion, where a '!' in a
+//       quoted argument is eaten by cmd - and the donor's real filename
+//       carries one. It cannot simply be renamed: a T6 fastfile's internal
+//       zone name has to match its filename or OAT fails with "inflate of
+//       stream N failed: invalid block type" (see build_ff.bat's header).
+//    2. Every other donor in this project is a mod.ff in its own folder.
+//       This is that same shape, so nothing new has to be learned to read it.
+//
+//  🛑 THE CAMPAIGN IS NOT INSTALLED ON THIS MACHINE and this package is not in
+//  retail's zone\all - measured 2026-09-06 across all 226 files there. Only
+//  la_1b.ff (world model + storm materials) and frontend.ff (the HUD icon)
+//  carry any of it; the VIEW model, all 24 view anims and the sound-alias
+//  table exist in no retail fastfile, so Reimagined's shipped copy is the
+//  only source. CLAUDE.md's no-import rule is explicitly overridden for
+//  BO2-Reimagined, which is what makes this route legitimate here.
+// ===========================================================================
+>game,T6
+
+techniqueset,mc_sw4_3d_reticle_static_35866wj0
+techniqueset,mc_sw4_3d_wpn_storm_charge_eef23z3q
+techniqueset,mc_unlit_blend_588ewzff
+techniqueset,mc_sw4_3d_sonar_attachment_lens_grid_8e617j9j
+techniqueset,mc_sw4_3d_viewmodel_unlit_q44141fe
+image,~~-gmtl_t6_wpn_special_storm_~0a7fc009
+image,mtl_t6_wpn_special_storm_nml
+image,~mtl_t6_wpn_special_storm_ao-~0f30bd84
+image,~-gmtl_t6_wpn_special_storm_col
+image,~_mtl_t6_wpn_base_ir-rrb
+material,mc/mtl_t6_wpn_special_storm_thermal
+material,mc/mtl_t6_wpn_special_storm
+image,mtl_t6_wpn_storm_scope_reticle_sp
+material,mc/mtl_t6_wpn_storm_scope_reticle_sp
+image,mtl_t6_wpn_storm_scope_lens_nml
+image,~-gmtl_t6_wpn_storm_scope_lens_spc
+image,~-gmtl_t6_wpn_storm_scope_lens_col
+image,~-rmtl_t6_wpn_storm_scope_len~26907f3e
+material,mc/mtl_t6_wpn_storm_scope_lens
+image,~-gmtl_t6_wpn_storm_charge
+image,~-gmtl_t6_wpn_storm_used
+image,~-gmtl_t6_wpn_storm_ready
+material,mc/mtl_t6_wpn_storm_charge_temp
+image,~-gmtl_t6_wpn_storm_charge_display
+material,mc/mtl_t6_wpn_storm_charge_display
+image,~~-gmtl_t6_wpn_special_storm_~acae36dc
+image,mtl_t6_wpn_special_storm_scope_nml
+image,~mtl_t6_wpn_special_storm_sco~a223dc9a
+image,~-gmtl_t6_wpn_special_storm_scope_col
+material,mc/mtl_t6_wpn_special_storm_scope_thermal
+material,mc/mtl_t6_wpn_special_storm_scope
+image,~~-gmtl_t6_wpn_storm_charge_l~e9c6b902
+image,mtl_t6_wpn_storm_charge_lens_nml
+image,~-gmtl_t6_wpn_storm_charge_lens_col
+material,mc/mtl_t6_wpn_storm_charge_lens
+image,test_grid_white
+image,~sonar_attachment_lookup_puls~4187f661
+material,mc/mtl_t6_attach_scanner_lens
+image,mtl_t6_attach_mms_burn
+material,mc/mtl_t6_attach_scanner_burn
+xmodel,t6_wpn_special_storm_view_sp
+techniqueset,effect_23712j0e
+material,gfx_fxt_gas_flash_blnd
+material,gfx_fxt_fire_flame_vert_e_blnd
+fx,weapon/muzzleflashes/fx_muz_md_gas_flash_1p
+fx,weapon/muzzleflashes/fx_muz_md_smk
+fx,weapon/muzzleflashes/fx_muz_break_sm_4_sqr
+fx,weapon/muzzleflashes/fx_muz_mstorm_flash_1p_sm
+fx,weapon/muzzleflashes/fx_muz_sm_gas_flash_3p
+fx,weapon/muzzleflashes/fx_muz_md_smk_3p
+fx,weapon/muzzleflashes/fx_muz_break_md_4_sqr
+fx,weapon/muzzleflashes/fx_muz_mstorm_flash_3p_sm
+image,~-gmtl_t6_wpn_launch_xm25_c
+material,mc/mtl_t6_wpn_launch_xm25
+physpreset,weapon
+xmodel,t6_wpn_special_storm_world
+tracer,assaultrifle
+xanim,viewmodel_storm_idle
+xanim,viewmodel_storm_fire
+xanim,viewmodel_storm_rechamber
+xanim,viewmodel_storm_reload_empty
+xanim,viewmodel_storm_pullout
+xanim,viewmodel_storm_first_raise
+xanim,viewmodel_storm_putaway
+xanim,viewmodel_storm_pullout_quick
+xanim,viewmodel_storm_putaway_quick
+xanim,viewmodel_storm_sprint_in
+xanim,viewmodel_storm_sprint_loop
+xanim,viewmodel_storm_sprint_out
+xanim,viewmodel_storm_crawl_in
+xanim,viewmodel_storm_crawl_forward
+xanim,viewmodel_storm_crawl_back
+xanim,viewmodel_storm_crawl_right
+xanim,viewmodel_storm_crawl_left
+xanim,viewmodel_storm_crawl_out
+xanim,viewmodel_storm_ads_fire
+xanim,viewmodel_storm_d2p_in
+xanim,viewmodel_storm_d2p_loop
+xanim,viewmodel_storm_d2p_out
+xanim,viewmodel_storm_ads_sp_up
+xanim,viewmodel_storm_ads_sp_down
+image,side_small_glow
+material,reticle_side_small_glow
+image,menu_mp_weapons_metalstorm
+material,menu_mp_weapons_metalstorm
+tracer,mstorm_2
+tracer,mstorm_enemy_2
+image,fxt_fx_shimmer
+material,gfx_fxt_fx_shimmer
+image,fxt_fx_thundergun_ring
+material,gfx_fxt_fx_thundergun_ring
+fx,weapon/muzzleflashes/fx_muz_mstorm_flash_1p_md
+fx,weapon/muzzleflashes/fx_muz_md_gas_flash_3p
+fx,weapon/muzzleflashes/fx_muz_break_lg_4_sqr
+fx,weapon/muzzleflashes/fx_muz_mstorm_flash_3p_md
+tracer,mstorm_3
+fx,weapon/muzzleflashes/fx_muz_xlg_gas_flash_1p
+image,distortion_ring
+material,gfx_distortion_ring_heavy
+material,gfx_fxt_smk_light_ds128_top
+fx,weapon/muzzleflashes/fx_muz_mstorm_flash_1p_lg_sp
+fx,weapon/muzzleflashes/fx_muz_xlg_gas_flash_3p
+material,gfx_fxt_smk_trail_grf_88_90
+fx,trail/fx_mstorm_bullet_trail
+fx,weapon/muzzleflashes/fx_muz_mstorm_flash_3p_lg_sp
+tracer,mstorm_5
+soundbank,wpn_metalstormsnp.all
+
+// 🛑 THE SIX CAMPAIGN weapon DEFS AND THEIR keyvaluepairs/rawfile ARE
+// DELIBERATELY NOT CARRIED. They are the _sp (single-player) defs; this mod
+// ships its own _zm defs raw in weapons\zm\ instead, which is the route this
+// project has already proven (a raw def under 20,480 B beats even the map's
+// own fastfile - see CLAUDE.md). Dropping them also sidesteps the Linker
+// weapon-copy hazard entirely. Every asset those defs referenced is still
+// listed above by name, so nothing the gun draws or plays is lost.

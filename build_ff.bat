@@ -462,6 +462,7 @@ REM  target "REM".
   --load "%PROJ%\zone_source\fx_donor\mod.ff" ^
   --load "%PROJ%\zone_source\wavegun_donor\mod.ff" ^
   --load "%PROJ%\zone_source\bonfire_donor\mod.ff" ^
+  --load "%PROJ%\zone_source\metalstorm_donor\mod.ff" ^
   --load "%BO2_DIR%\zone\all\nicaragua.ff" ^
   --load "%BO2_DIR%\zone\all\so_cmp_afghanistan.ff" ^
   --load "%BO2_DIR%\zone\all\patch_ui_zm.ff" ^

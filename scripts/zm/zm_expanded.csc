@@ -82,6 +82,12 @@ main()
 	//  changes; see the block comment at the bottom of this file. Threaded last
 	//  so nothing above it can be delayed by it.
 	level thread zmqol_testsound_watch();
+
+	//  CLIENT HALF OF THE STORM PSR'S CHARGE SOUND (v2.12.7). Threaded, not
+	//  called: it has to install AFTER the map's own client script, because on
+	//  Origins that script owns the same pointer for the elemental staffs.
+	//  See the block comment on zmqol_chargeshot_install() below.
+	level thread zmqol_chargeshot_install();
 }
 
 // ============================================================================
@@ -162,6 +168,13 @@ zmqol_mp_weapons_init()
 	//  v2.9.18 - the campaign SPAS-12. Raw def in mod.iwd like the Dragunov, so
 	//  no map gate is needed; server twin is zmqol_add_mp_weapon( "spas_zm" ... ).
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "spas_zm" );
+	//  v2.12.7 - the campaign STORM PSR. Raw def in mod.iwd like the Dragunov
+	//  and the SPAS, so the def exists on every map and no map gate is needed.
+	//  Server twin: zmqol_add_mp_weapon( "metalstorm_mms_zm", ... ).
+	//  📝 Only stage ONE is listed. The four later charge stages are included
+	//  server-side with in_box 0 and are never a box result, and this list is
+	//  what the client draws over the box - so they do not belong here.
+	clientscripts\mp\zombies\_zm_weapons::include_weapon( "metalstorm_mms_zm" );
 	clientscripts\mp\zombies\_zm_weapons::include_weapon( "bouncingbetty_zm" );
 
 	//  v2.9.13 - THE EMP GRENADE. Server twin: quality_of_life.gsc's
@@ -3095,4 +3108,126 @@ zmqol_vulture_marker_perk_watch()
 			e_player zmqol_vulture_machines_enable( c );
 		}
 	}
+}
+
+// ============================================================================
+//  THE STORM PSR'S CHARGE SOUND  (CLIENT)                            v2.12.7
+// ----------------------------------------------------------------------------
+//  The Storm PSR charges through five stages while the trigger is held. The
+//  charge whine is NOT in the weapon def - the engine announces each stage to
+//  the client through one callback and the script has to play the sound:
+//
+//      _callbacks.csc:473  chargeshotweaponsoundnotify( localclientnum, weaponname, chargeshotlevel )
+//                            if ( isdefined( level.sndchargeshot_func ) )
+//                                self [[ level.sndchargeshot_func ]]( ... )
+//
+//  That is CORE zombies client code and runs on all six maps. Without a handler
+//  the gun charges in complete silence - no error, nothing in the log, exactly
+//  the "a missing sound is silent, never an error" class.
+//
+//  🛑 AND ORIGINS ALREADY OWNS THAT POINTER. zm_tomb_amb.csc:210 sets
+//  level.sndchargeshot_func = ::sndchargeshot for the four elemental staffs, and
+//  its handler DEFAULTS to the fire staff for any weapon it does not recognise:
+//
+//      alias = "wpn_firestaff_charge_";
+//      if ( weaponname == "staff_water_upgraded_zm" ) ...
+//
+//  So clobbering the pointer would kill all four staff charge sounds, and simply
+//  leaving Origins alone would make the Storm PSR play the FIRE STAFF's charge
+//  whine there. Both are regressions. This chains instead: metalstorm is handled
+//  here, everything else is passed to whatever was installed first - which is
+//  stock's own handler on Origins and nothing at all on the other five maps.
+//
+//  🛑 INSTALLED ON A THREAD, NOT IN main(). The mod's root scripts run BEFORE the
+//  map's on both sides (see the animtree note at the top of this file), so a
+//  pointer written in main() is simply overwritten when zm_tomb_amb.csc runs.
+//  This waits for the map to install its own first, then wraps it.
+//
+//  📝 The aliases are the CAMPAIGN's own - wpn_metalstormsnp_charge_loop and
+//  wpn_metalstormsnp_charge_plr_1..5 - and this mod declares none of them. They
+//  come from the soundbank asset mod.ff now carries, and all 35 of that bank's
+//  audio payloads already live in cmn_root.all.sabl, which loads on every map.
+//  Verified 2026-09-06 by hashing every FileSource with the engine's own snd_id:
+//  35/35 present, in retail's cmn_root AND in the user's custom sound pack.
+// ============================================================================
+zmqol_chargeshot_install()
+{
+	//  Give the map's own client script time to claim the pointer. Origins is
+	//  the only stock map that ever does. Polling rather than one flat wait so
+	//  the wrap happens as soon as it is safe, and a map that never sets it
+	//  costs at most this timeout before the Storm PSR's sound is live.
+	n_waited = 0;
+
+	while ( n_waited < 5 )
+	{
+		if ( isdefined( level.sndchargeshot_func ) )
+			break;
+
+		wait 0.25;
+		n_waited += 0.25;
+	}
+
+	//  Never chain to self - a second call would recurse on the first shot.
+	if ( isdefined( level.zmqol_prev_chargeshot ) )
+		return;
+
+	if ( isdefined( level.sndchargeshot_func ) )
+		level.zmqol_prev_chargeshot = level.sndchargeshot_func;
+
+	level.sndchargeshot_func = ::zmqol_sndchargeshot;
+}
+
+zmqol_sndchargeshot( localclientnum, weaponname, chargeshotlevel )
+{
+	if ( isdefined( weaponname ) && issubstr( weaponname, "metalstorm" ) )
+	{
+		self zmqol_metalstorm_chargeshot( localclientnum, chargeshotlevel );
+		return;
+	}
+
+	//  Anything else is the map's business - the four Origins staffs, and any
+	//  future charge weapon a map adds.
+	if ( isdefined( level.zmqol_prev_chargeshot ) )
+		self [[ level.zmqol_prev_chargeshot ]]( localclientnum, weaponname, chargeshotlevel );
+}
+
+//  Body mirrors stock's own staff handler (zm_tomb_amb.csc:897) and
+//  BO2-Reimagined's metalstorm copy, with mod-private field names so the two
+//  handlers can never tread on each other's state on Origins.
+zmqol_metalstorm_chargeshot( localclientnum, chargeshotlevel )
+{
+	self.zmqol_ms_charge = chargeshotlevel;
+
+	if ( !isdefined( self.zmqol_ms_loopent ) )
+		self.zmqol_ms_loopent = spawn( 0, ( 0, 0, 0 ), "script_origin" );
+
+	self thread zmqol_metalstorm_chargeshot_stop();
+
+	if ( !isdefined( self.zmqol_ms_lastcharge ) || self.zmqol_ms_charge != self.zmqol_ms_lastcharge )
+	{
+		alias = "wpn_metalstormsnp_charge_";
+
+		//  The loop starts once, at stage one, and runs under the per-stage
+		//  one-shots until the trigger is released.
+		if ( self.zmqol_ms_charge == 1 )
+			self.zmqol_ms_loopent playloopsound( alias + "loop", 1.5 );
+
+		playsound( localclientnum, alias + "plr_" + self.zmqol_ms_charge, ( 0, 0, 0 ) );
+		self.zmqol_ms_lastcharge = self.zmqol_ms_charge;
+	}
+}
+
+//  The engine stops calling the notify the moment the trigger is released, so
+//  "no call for one frame" is what ends the charge. Re-threaded on every stage;
+//  the notify cancels the previous copy so only the last one survives to fire.
+zmqol_metalstorm_chargeshot_stop()
+{
+	level notify( "zmqol_ms_chargestop" );
+	level endon( "zmqol_ms_chargestop" );
+
+	wait 0.05;
+
+	self.zmqol_ms_loopent stoploopsound();
+	self.zmqol_ms_charge = 0;
+	self.zmqol_ms_lastcharge = undefined;
 }

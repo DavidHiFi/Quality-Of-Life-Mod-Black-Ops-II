@@ -205,4 +205,66 @@ LANG_ENGLISH        "SPAS-12"
 REFERENCE           ZOMBIE_SPAS_UPGRADED
 LANG_ENGLISH        "SPAZ-24"
 
+// ============================================================================
+//  v2.12.7 - THE THREE ZOMBIES CONTROL-BIND LABELS (user, 2026-09-06).
+//
+//  These three rows in the CONTROLS list are multiplayer leftovers: Zombies has
+//  no scorestreaks, so the stock text described nothing the buttons do. Renamed
+//  to what the bound action slot actually is.
+//
+//  🛑 THESE ARE STOCK KEYS THIS MOD IS NOW OVERRIDING - the first time this file
+//  has done that on purpose, so the mechanism was measured rather than assumed:
+//    * localize is a PER-KEY asset type in T6, not one blob. `Unlinker --list
+//      mod.ff` prints 30 `localize, <KEY>` rows, exactly the 30 REFERENCEs in
+//      this file, so `localize,mod` in mod_wonderweapons.zone already turns each
+//      entry below into its own asset. No .zone edit is needed to add one.
+//    * All three keys are owned by en_code_post_gfx_zm.ff (every zombies map
+//      loads it) and again by en_patch.ff - dumped both with
+//      `Unlinker --include-assets localize` and matched the REFERENCE.
+//    * A mod fastfile's copy WINS. The precedent is BO2-Reimagined, which
+//      overrides 14 keys that en_code_post_gfx_zm also owns, with different
+//      text - including PLATFORM_PICKUPNEWWEAPON and GAME_BUTTON_TO_REVIVE_PLAYER
+//      (the same PLATFORM_* prompt class as these) and MENU_RESTART_LEVEL_CAPS
+//      -> "RESTART GAME", which is this exact kind of menu-label change.
+//
+//  📝 The label-to-slot pairing is the USER'S OWN READING of their controls
+//  screen and could NOT be settled offline - BO2's keybind table is code-side,
+//  not in any fastfile. Corroboration, not proof: BO1's controls menu
+//  (raw/ui/options_shoot_pc.menu:117) binds "@PLATFORM_USE_EQUIPMENT_CAPS" to
+//  "+actionslot 1", and slot 1 is where this mod puts the Jet Gun
+//  (zm_transit.gsc) - so slot 1 = equipment holds in both games.
+//  🛑 IF THE RENAMED ROWS TURN OUT TO SIT ON THE WRONG BINDS, the other
+//  candidate set is BO2's own PLATFORM_GROUND_SUPPORT_CAPS / _AIR_SUPPORT_ /
+//  _USE_GEAR_ / _USE_EQUIPMENT_CAPS, which read "SPECIAL ACTION 1".."4".
+// ============================================================================
+
+REFERENCE           PLATFORM_NEXT_SCORE_STREAK_CAPS
+LANG_ENGLISH        "EQUIPMENT"
+
+REFERENCE           PLATFORM_PREVIOUS_SCORE_STREAK_CAPS
+LANG_ENGLISH        "MELEE WEAPON"
+
+REFERENCE           PLATFORM_ACTIVATE_SCORE_STREAK_CAPS
+LANG_ENGLISH        "PLACEABLE MINE"
+
+// ============================================================================
+//  v2.12.7 - THE STORM PSR (internal name metalstorm_mms).
+//
+//  Only the PACK-A-PUNCH name is shipped here. The base name is NOT ours and
+//  must not be redeclared: localize WEAPON_METALSTORM already resolves from
+//  en_code_post_gfx_zm.ff, which the game loads on every zombies map -
+//  verified 2026-09-06 with Unlinker --list (WEAPON_METALSTORM,
+//  WEAPON_METALSTORM_DESC, WEAPON_METALSTORM_DESC_MP are all there). Same
+//  situation as WEAPON_AS50, noted in quality_of_life.gsc.
+//
+//  "Tempest PTR" is BO2-Reimagined's own upgraded name for this gun, read
+//  from english\localizedstrings\reimagined.str:1255. The Storm PSR was
+//  never a stock zombies weapon, so no official Treyarch Pack-a-Punch name
+//  exists to use instead - unlike the Dragunov, whose "D115 Disassembler"
+//  came out of BO1's own string table.
+// ============================================================================
+
+REFERENCE           ZMWEAPON_METALSTORM_UPGRADED
+LANG_ENGLISH        "Tempest PTR"
+
 ENDMARKER

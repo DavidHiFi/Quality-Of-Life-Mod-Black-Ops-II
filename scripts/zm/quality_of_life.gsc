@@ -101,6 +101,9 @@ main()
     // --- zm_wallbuy_fills_clip ---
     replaceFunc( maps\mp\zombies\_zm_weapons::ammo_give, ::new_ammo_give );
 
+    // --- THE STORM PSR'S CHARGE CHAIN (v2.12.7) - see zmqol_get_nonalternate_weapon() ---
+    replaceFunc( maps\mp\zombies\_zm_weapons::get_nonalternate_weapon, ::zmqol_get_nonalternate_weapon );
+
     // --- INSTANT NUKE (v1.99.48, user request 2026-08-18) ---
     //  See zmqol_nuke_powerup() for the whole of it. Hooked in main() next to
     //  the others; the target only ever runs when a nuke is picked up, long
@@ -9896,6 +9899,44 @@ zmqol_mp_weapons_init()
     //  what zmqol_add_mp_weapon() does by default.
     zmqol_add_mp_weapon( "fnp45_zm",       "fnp45_upgraded_zm",       &"WEAPON_FNP45",              500,  "" );
 
+    //  v2.12.7 - the campaign STORM PSR, weapon 14. User request, 2026-09-06:
+    //  "add the storm psr from the campaign into my mod as another weapon in the
+    //  mystery box, the bo2 reimagined mod already does this so just get it from
+    //  their".
+    //
+    //  🌟 The def is `metalstorm_mms` and the gun is the Storm PSR - Treyarch's
+    //  development name again, exactly like the XPR-50's `as50` and the Tac-45's
+    //  `fnp45`. 🛑 NOT the campaign's Metal Storm DRONE (drone_metalstorm /
+    //  metalstorm_gun_turret), which is a vehicle and shares only the word.
+    //
+    //  🛑 IT IS A FIVE-STAGE CHARGE WEAPON AND THAT DECIDES WHAT GOES IN THE BOX.
+    //  Holding fire charges it; each stage is its OWN weapon def, chained by
+    //  altWeapon:
+    //      metalstorm_mms_zm -> metalstorm2 -> metalstorm3 -> metalstorm4 -> metalstorm5
+    //  with damage 1000/2000/3000/4000/5000 (doubled Pack-a-Punched), a bigger
+    //  muzzle flash each stage, and tracers mstorm_2 / _3 / _5. ONLY stage one may
+    //  be a box result; the other eight defs are included below as variants, the
+    //  same shape as the Titus-6's alt-fire half. Box a later stage and the player
+    //  starts holding a gun that cannot charge from the beginning.
+    //
+    //  Cost 1000 and vox "sniper" - the identical reasoning to the XPR-50 and the
+    //  Dragunov above: there is no wpck_metalstorm (it was never a zombies gun),
+    //  "sniper" is stock's own class key (_zm_audio.gsc:130), and 1000 is what
+    //  Reimagined charges for it (_zm_reimagined.gsc:2059) AND what the other
+    //  ported snipers cost here.
+    //
+    //  📝 WEAPON_METALSTORM is NOT shipped in mod.str: it already resolves from
+    //  en_code_post_gfx_zm.ff, which loads on every zombies map. Only the
+    //  Pack-a-Punch name ("Tempest PTR") is ours. Same as WEAPON_AS50 above.
+    //
+    //  📝 Reimagined adds it to TranZit ONLY, and as a limited weapon (one per
+    //  match). Here it goes in the box on every map like the other thirteen -
+    //  which is what zmqol_add_mp_weapon() does - because that is what was asked
+    //  for and because every asset it needs now rides in mod.ff, so no map can
+    //  be missing a piece of it.
+    zmqol_add_mp_weapon( "metalstorm_mms_zm", "metalstorm_mms_upgraded_zm", &"WEAPON_METALSTORM", 1000, "sniper" );
+
+
     // Reachable only via a PaP attachment or as a projectile - never a box
     // result, but they must be included or their owner cannot resolve them.
     zmqol_include_variant( "vector_extclip_zm" );
@@ -9918,7 +9959,21 @@ zmqol_mp_weapons_init()
     //  m1911lh_upgraded_zm behind Mustang & Sally.
     zmqol_include_variant( "fnp45lh_upgraded_zm" );
 
-    println( "[zm_qol] mp_weapons: 12 registered for the box on " + getdvar( "mapname" ) );
+    //  The Storm PSR's four later charge stages, base and Pack-a-Punched. NEVER a
+    //  box result - the engine swaps the player onto them as the trigger is held
+    //  and back down when it is released, through each def's altWeapon field. They
+    //  must exist on the level or the chain cannot resolve and the gun stops
+    //  charging at stage one.
+    zmqol_include_variant( "metalstorm2_mms_zm" );
+    zmqol_include_variant( "metalstorm3_mms_zm" );
+    zmqol_include_variant( "metalstorm4_mms_zm" );
+    zmqol_include_variant( "metalstorm5_mms_zm" );
+    zmqol_include_variant( "metalstorm2_mms_upgraded_zm" );
+    zmqol_include_variant( "metalstorm3_mms_upgraded_zm" );
+    zmqol_include_variant( "metalstorm4_mms_upgraded_zm" );
+    zmqol_include_variant( "metalstorm5_mms_upgraded_zm" );
+
+    println( "[zm_qol] mp_weapons: 13 registered for the box on " + getdvar( "mapname" ) );
 }
 
 // ============================================================================
@@ -10277,6 +10332,70 @@ zmqol_include_variant( str_weapon )
 {
     precacheitem( str_weapon );
     include_weapon( str_weapon, 0 );
+}
+
+// ============================================================================
+//  get_nonalternate_weapon  -  THE STORM PSR'S FIVE CHARGE STAGES MUST REPORT
+//                              AS ONE GUN                              v2.12.7
+// ----------------------------------------------------------------------------
+//  Stock (_zm_weapons.gsc:189) maps an alt-mode weapon back to its primary. It
+//  cannot cope with the Storm PSR, and the reason is measured rather than
+//  assumed:
+//
+//    * is_alt_weapon() (_zm_utility.gsc:3208) returns true ONLY for names
+//      starting "gl_", "sf_" or "dualoptic_". Every metalstorm stage is
+//      inventoryType `primary`, so stock returns the name UNCHANGED.
+//    * and the generic path could not fix it anyway: the stages are chained
+//      by altWeapon, so weaponaltweaponname("metalstorm3_mms_zm") answers
+//      "metalstorm4_mms_zm" - the NEXT stage up, not the base gun.
+//
+//  Callers that then get the wrong answer are stock's own:
+//      maps\mp\zombies\_zm_perks.gsc:429            the perk / Mule Kick path
+//      maps\mp\zombies\_zm_weapon_locker.gsc:110,127  Buried, Die Rise, TranZit
+//  A player who reaches one of those while the gun is part-charged would have
+//  a stage-three def stored or handed back - a weapon registered with in_box 0
+//  that was never meant to be held on its own.
+//
+//  🌟 THE FIX IS BO2-REIMAGINED'S, line for line (_zm_weapons.gsc:1236): collapse
+//  any metalstorm name to stage one, keeping the upgraded/base distinction. The
+//  rest of this function is stock's body, unchanged, so every other weapon in
+//  the game behaves exactly as it did.
+// ============================================================================
+zmqol_get_nonalternate_weapon( altweapon )
+{
+    //  Reimagined's rule, first: any charge stage answers as stage one.
+    if ( isdefined( altweapon ) && issubstr( altweapon, "metalstorm" ) )
+    {
+        if ( issubstr( altweapon, "upgraded" ) )
+            return "metalstorm_mms_upgraded_zm";
+
+        return "metalstorm_mms_zm";
+    }
+
+    //  --- from here down this is stock's own body, copied verbatim ---
+    if ( maps\mp\zombies\_zm_utility::is_alt_weapon( altweapon ) )
+    {
+        alt = weaponaltweaponname( altweapon );
+
+        if ( alt == "none" )
+        {
+            primaryweapons = self getweaponslistprimaries();
+            alt = primaryweapons[0];
+
+            foreach ( weapon in primaryweapons )
+            {
+                if ( weaponaltweaponname( weapon ) == altweapon )
+                {
+                    alt = weapon;
+                    break;
+                }
+            }
+        }
+
+        return alt;
+    }
+
+    return altweapon;
 }
 
 zmqol_box_wonder_weapon_weights_init()
@@ -18154,8 +18273,15 @@ zmqol_better_deadshot_scale( damage, attacker, meansofdeath, weapon, shitloc )
             return damage;
     }
 
-    //  The Peacekeeper's metalstorm variants report as rifle bullets but fire in
-    //  bursts that would stack the multiplier.
+    //  The Storm PSR's charge stages are excluded, and this is Reimagined's own
+    //  rule (_zm.gsc:1760/1775 excludes issubstr(weapon,"metalstorm") from both
+    //  Double Tap and Deadshot). The gun already carries its damage in the def -
+    //  1000 through 5000 by charge stage - so a headshot multiplier on top would
+    //  stack on a number that is already the balance decision.
+    //  📝 v2.12.7 corrected the comment that used to sit here: it credited these
+    //  names to the Peacekeeper, which was simply wrong. `metalstorm` is the
+    //  Storm PSR's internal name; before v2.12.7 no weapon in this mod matched
+    //  this test at all, so the line had never done anything.
     if ( issubstr( weapon, "metalstorm" ) )
         return damage;
 

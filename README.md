@@ -28,6 +28,8 @@ More guns in the box, the BO1 wonder weapons, the cut Survival maps, and a setti
 
 **Campaign SPAS-12 and Dragunov.** The SPAS packs into the *SPAZ-24* with BO1 ammo balancing; the Dragunov becomes the *D115 Disassembler*.
 
+**Campaign Storm PSR.** The charge-shot railgun, with all five charge stages, its charge whine and Treyarch's own muzzle flashes and tracers. Packs into the *Tempest PTR*.
+
 **BO1 wonder weapons.** The Wave Gun, Thundergun, Wunderwaffe DG-2 and Winter's Howl, each with Pack-a-Punch support. On Mob of the Dead they handle Brutus properly — first hit takes the helmet, second kills.
 
 **Bouncing Betties.** Added to the box with proper viewmodels and deploy animations. They take the Claymore's place rather than sitting beside it, they answer on the Claymore's button, and Max Ammo refills them.
