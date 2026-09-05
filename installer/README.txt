@@ -77,19 +77,23 @@ Black Ops II Zombies  ·  Plutonium T6
       you can switch effects on in the overlay without hunting
       files down first.
 
-      It opens on the Cinematic Colour Grading preset, and the
-      per-game presets BO2.ini, BO1.ini, MW3.ini and WAW.ini are
-      installed alongside it. Plutonium runs all four games
-      through the same program folder, so they share one ReShade
-      and one settings file - it cannot tell which game you are
-      about to start, so you pick in game rather than up front.
-      Ctrl+Shift+PgUp / PgDn steps between the presets, and End
-      opens the overlay.
+      Five presets are installed. It opens on Cinematic Colour
+      Grading, which is the one tuned for Black Ops II.
 
       Black Ops, MW3 and World at War are DirectX 9 games and
-      Black Ops II is DirectX 11, so their presets use different
-      effects on purpose. Do not point a DirectX 9 game at the
-      BO2 preset - half of it cannot run there.
+      Black Ops II is DirectX 11, so BO1.ini, MW3.ini and WAW.ini
+      are the same look with the one effect DirectX 9 cannot run
+      taken out. Every effect left in them is confirmed to work
+      there. BO2.ini is an older DirectX 11 preset kept as an
+      alternative.
+
+      ON BLACK OPS, MW3 OR WORLD AT WAR, SWITCH PRESET ONCE.
+      Plutonium runs all four games through the same program
+      folder, so they share one ReShade and one settings file -
+      it cannot tell which game you are starting, and it always
+      opens on the Black Ops II preset. Press Ctrl+Shift+PgDn
+      until you reach your game's preset; ReShade remembers it
+      until you switch again. End opens the overlay.
 
       ReShade is NOT part of "EVERYTHING - the whole package" -
       it is its own row, because it needs one more thing:

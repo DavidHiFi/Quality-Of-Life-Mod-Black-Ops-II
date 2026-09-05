@@ -1983,8 +1983,12 @@ function Act-StartWatchdog {
 #  above) - the choice only decided which preset ReShade opened on first,
 #  and Ctrl+Shift+PgUp / PgDn already switches between all four in one
 #  keypress. A four-way choice with one real outcome is exactly the kind of
-#  menu that should not exist. It always starts on BO2 now, the same default
-#  that was already marked "recommended".
+#  menu that should not exist.
+#
+#  🛑 CORRECTED 2026-09-06 - this comment used to end "it always starts on BO2
+#  now". It does not, and has not since v2.9.4: the shipped ReShade.ini says
+#  PresetPath=.\Cinematic Colour Grading.ini, so that is what every game opens
+#  on. Read the ini before repeating this claim.
 #
 #  The wall of explanatory text above the old picker is condensed for the
 #  same reason - it was justifying a choice that no longer exists. The DX9/
