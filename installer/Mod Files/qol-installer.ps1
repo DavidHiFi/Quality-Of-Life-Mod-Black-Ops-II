@@ -1809,6 +1809,18 @@ function Act-InstallSounds {
 #  (AddonPath and IntermediateCachePath are deliberately NOT carried: measured
 #  on the author's own config, both held exactly ReShade's own defaults - the
 #  module folder and %TEMP%\ReShade - just written out in full.)
+#
+#  🛑 v2.12.7 - "NOT CARRIED" WAS RIGHT AND STILL LEFT A BUG, because the value
+#  was not carried FORWARD but it was SHIPPED. The payload's ReShade.ini went
+#  out holding the author's literal C:\Users\<them>\...\Temp\ReShade, a path
+#  that exists on one PC. Being only a compile cache, it never threw - it just
+#  quietly cost every other player their shader cache. The payload is blank
+#  now and Act-InstallReShade writes this machine's own %TEMP%\ReShade after
+#  the copy. Same story, same fix, for Font / EditorFont.
+#
+#  📝 THE LESSON, because it is not specific to ReShade: a config file copied
+#  out of a working install carries that machine inside it. Grep any shipped
+#  config for the author's user name before it goes in a release.
 # ---------------------------------------------------------------------------
 function Get-IniValue {
     param([string] $Key)
@@ -1859,9 +1871,24 @@ function Set-ReShadeFont {
     }
     if ($DryRun) { Say "Would point the UI font at $font" $C.Dim; return }
     $lines = [System.IO.File]::ReadAllLines($ini)
+    # -----------------------------------------------------------------------
+    #  🛑 v2.12.7 - MATCH THE KEY, NOT THE EMPTY VALUE.
+    #
+    #  This used to require the line to be EXACTLY "Font=". The shipped
+    #  ReShade.ini then drifted to carry the author's own font path, that exact
+    #  match stopped firing, and this whole function silently became a no-op -
+    #  so every install kept a path from someone else's PC. The payload is
+    #  blank again, but a prefix match means the same drift cannot disable it
+    #  a second time.
+    #
+    #  📝 Safe to overwrite unconditionally: Act-InstallReShade only calls this
+    #  when Get-IniValue found NO font of the user's to carry across, so
+    #  whatever is in the file at this moment came from the payload and is
+    #  never the player's own choice.
+    # -----------------------------------------------------------------------
     for ($i = 0; $i -lt $lines.Count; $i++) {
-        if ($lines[$i] -eq 'Font=')       { $lines[$i] = "Font=$font" }
-        if ($lines[$i] -eq 'EditorFont=') { $lines[$i] = "EditorFont=$font" }
+        if ($lines[$i] -like 'Font=*')       { $lines[$i] = "Font=$font" }
+        if ($lines[$i] -like 'EditorFont=*') { $lines[$i] = "EditorFont=$font" }
     }
     [System.IO.File]::WriteAllLines($ini, $lines, (New-Object System.Text.UTF8Encoding($false)))
     Say "UI font found and set." $C.Dim
@@ -2058,6 +2085,27 @@ function Act-InstallReShade {
         if ($keepShots) { Set-ReShadeValue 'SavePath' $keepShots; Say "Kept your screenshot folder: $keepShots" $C.Dim }
         if ($keepFont)  { Set-ReShadeValue 'Font' $keepFont; Set-ReShadeValue 'EditorFont' $keepFont; Say "Kept your overlay font." $C.Dim }
         else            { Set-ReShadeFont $src }
+
+        # -------------------------------------------------------------------
+        #  🛑 v2.12.7 - THE SHADER CACHE PATH IS WRITTEN PER MACHINE, NOT SHIPPED.
+        #
+        #  The payload's ReShade.ini used to carry the author's own
+        #  C:\Users\<them>\AppData\Local\Temp\ReShade, which exists on exactly
+        #  one PC on earth. It is only a compile cache, so the cost was slow
+        #  first loads rather than a crash - which is precisely why it survived
+        #  unnoticed through every release.
+        #
+        #  🌟 The value is ReShade's own default, %TEMP%\ReShade - confirmed by
+        #  the shape of the author's line, whose prefix is exactly their $TEMP.
+        #  So this reproduces the default on whatever machine is installing,
+        #  rather than guessing what ReShade does with the key left empty.
+        #  ReShade.ini now ships with it blank; this is what fills it in.
+        # -------------------------------------------------------------------
+        if ($env:TEMP) {
+            $cache = Join-Path $env:TEMP 'ReShade'
+            Set-ReShadeValue 'IntermediateCachePath' $cache
+            Write-Log "reshade cache path: $cache"
+        }
 
         # -------------------------------------------------------------------
         #  v2.6.9 - STRAY ADD-ON BINARIES REMOVED. Plutonium's bin folder is
