@@ -2274,8 +2274,83 @@ qol_opt_tint( e_hud, v_color )
     e_hud.color = v_color;
 }
 
-//  Current zone name. Built on level.zones / self.zone_name, which _zm_zonemgr
-//  maintains on every map, so there is no map-specific reference here.
+// ----------------------------------------------------------------------------
+//  ZONE NAME  -  the permanent location readout, above the perk row
+// ----------------------------------------------------------------------------
+//  User, 2026-09-05, with a screenshot: *"make the location indicator hud
+//  option for my mod always show up here, above the perks just like how the
+//  strat tester mod does, but not in yellow, in white like how it is currently,
+//  and make sure it doesn't fade away off screen."*
+//
+//  🛑 THIS ROW HAS NEVER DRAWN A SINGLE CHARACTER, AND THAT IS THE REAL BUG.
+//  It used to read `self.zone_name`, and a PLAYER never has one. Measured, not
+//  assumed - the only assignments to that field in the whole 2,093-file stock
+//  dump are
+//        _zm_spawner.gsc:2689      self.zone_name = spot.zone_name;   (an AI)
+//        _zm_zonemgr.gsc:216, 355  spots[i].zone_name = ...           (a struct)
+//  and there is not one assignment anywhere in this mod's own tree either. So
+//  isdefined( self.zone_name ) was always false, str_zone was always "", and
+//  this element has sat in the bottom-left corner rendering an empty string for
+//  every version it has existed. The old header comment claiming _zm_zonemgr
+//  "maintains" it on every map was wrong: it maintains it on zombies.
+//
+//  🌟 SO THE ONLY LOCATION READOUT THE USER HAS EVER SEEN is the centre-screen
+//  pop-up in quality_of_life.gsc::zonecheck(), which is white
+//  (show_grief_hud_msg sets color ( 1, 1, 1 )) and fades out after 3.25 s
+//  (fadeovertime( 1 ) -> alpha 0). That is exactly the "white" and the "fades
+//  away" of the request, so what is being asked for is: make the permanent
+//  readout actually work, and put it where the strat tester's one is.
+//  📝 The pop-up is left alone - it was not part of the ask, and both it and
+//  this row are governed by the same hud_zone switch.
+//
+//  -- THE POSITION -----------------------------------------------------------
+//  Strat-Tester-BO2's own zone HUD (scripts\zm\strattester\hud.gsc:301-318) is
+//        x 8, horzalign "user_left"       y -95, vertalign "user_bottom"
+//        alignx "left", aligny "bottom",  +15 on Buried, +10 on Origins
+//  and those numbers ARE the measurement - the user named that mod and pointed
+//  at where it draws. NOTHING IS IMPORTED: six field assignments are a position,
+//  not an asset - the same call already made for the compass below. The old
+//  spot was setpoint( "LEFT", "BOTTOM_LEFT", -45, -24 ), 24 units above the
+//  bottom, which is down among the perk icons rather than above them.
+//
+//  🛑 THEIR FONT IS NOT COPIED. hud.gsc:306 asks for "hudsmall", which is not a
+//  T6 font - the engine rejects it with  "hudsmall" is not a valid value for
+//  hudelem field "font"  and silently falls back to the default. This project
+//  has already paid for that exact error once, on the zombie counter
+//  (quality_of_life.gsc, createfontstring( "small", 1.2 ) and the long note
+//  above it). "small" is a name from the engine's own list, so it stays.
+//
+//  🛑 AND THEIR FADE IS NOT COPIED EITHER, which is the third part of the ask:
+//  hud.gsc:334-341 fades the text to alpha 0, re-texts it and fades it back in
+//  on every zone change. This element is created at alpha 1 and nothing ever
+//  writes its alpha again - qol_opt_show() is deliberately never called on it,
+//  and qol_opt_tint() only touches .color.
+//
+//  📝 WHITE COSTS NO CODE. hud_color defaults to "1 1 1", the watcher above
+//  already tints this element from it, and a fresh hudelem is white anyway - so
+//  "white like how it is currently" is the state both paths already produce,
+//  and the colour stays user-configurable instead of being hardcoded here.
+//
+//  -- WHERE THE NAME COMES FROM ----------------------------------------------
+//  self.currentzone, which quality_of_life.gsc::zonecheck() already maintains
+//  per player every 0.2 s out of its own get_zone_name() - the friendly names
+//  ("Bus Depot", "Diner", "The Crazy Place"), map by map, for all six maps.
+//
+//  🌟 REUSING THAT CACHE RATHER THAN CALLING get_zone_name() HERE IS THE POINT.
+//  get_zone_name() -> _zm_zonemgr::get_player_zone() walks every zone key and
+//  istouching()es every volume of each one. This function is called from
+//  qol_opt_hud_watcher()'s permanent 0.25 s loop, so calling it here would run
+//  that whole walk a second time, four times a second, for a value another loop
+//  already holds. It also keeps this file free of a cross-file call.
+//
+//  📝 A NAME CONTAINING "_" IS SKIPPED AND THE LAST GOOD ONE STAYS ON SCREEN.
+//  Unnamed pockets read as their raw key ("zone_diner_roof"). zonecheck() only
+//  writes currentzone for friendly names while hud_zone is ON, but its
+//  hud_zone-OFF branch writes the raw key unfiltered - so someone who switches
+//  the row on while standing in one of those pockets would otherwise get
+//  "zone_diner_roof" in the corner. Holding the previous text is also simply
+//  better for a permanent readout: "Diner" stays up while you are on the diner
+//  roof.
 qol_opt_zone_hud( b_on )
 {
     if ( !b_on )
@@ -2293,38 +2368,49 @@ qol_opt_zone_hud( b_on )
     {
         self.qol_hud_zone = self createfontstring( "small", 1.2 );
 
-        //  -19 -> -24, v1.77.0. Moves in lockstep with the zombie counter
-        //  (quality_of_life.gsc::zombiecounter(), -7 -> -12) so the 12-unit gap
-        //  between the two is unchanged. Both shifted up by 5, the height of the
-        //  shield bar that now sits below them. Move one without the other and
-        //  they overlap.
-        self.qol_hud_zone setpoint( "LEFT", "BOTTOM_LEFT", -45, -24 );
+        //  🛑 ASSIGNED DIRECTLY, NOT THROUGH setpoint(). setpoint() can only
+        //  ever produce horzalign/vertalign "left"/"bottom" (_hud_util.gsc:
+        //  171-177), and the perk row is anchored to the SAFE AREA, so this has
+        //  to be as well. quality_of_life.gsc::qol_health_hud_create() sets the
+        //  same fields the same way on its own bars.
+        self.qol_hud_zone.alignx    = "left";
+        self.qol_hud_zone.aligny    = "bottom";
+        self.qol_hud_zone.horzalign = "user_left";
+        self.qol_hud_zone.vertalign = "user_bottom";
+        self.qol_hud_zone.x = 8;
+        self.qol_hud_zone.y = -95;
+
+        //  Strat-Tester's own two per-map nudges, carried over because they are
+        //  the only measurement anyone here has of those two maps' perk rows
+        //  sitting lower than the other four.
+        if ( level.script == "zm_buried" )
+            self.qol_hud_zone.y = self.qol_hud_zone.y + 15;
+        else if ( level.script == "zm_tomb" )
+            self.qol_hud_zone.y = self.qol_hud_zone.y + 10;
+
+        //  Never faded, never hidden. That is the whole row.
+        self.qol_hud_zone.alpha = 1;
         self.qol_hud_zone.hidewheninmenu = 1;
     }
 
-    str_zone = "";
+    str_zone = self.currentzone;
 
-    if ( isdefined( self.zone_name ) )
-        str_zone = self.zone_name;
+    //  Nothing known yet (the first fraction of a second of a match), or a raw
+    //  zone key - leave whatever is already on screen where it is.
+    if ( !isdefined( str_zone ) || str_zone == "" || issubstr( str_zone, "_" ) )
+        return;
 
-    //  🛑 v1.95.1 - WRITTEN ONLY ON CHANGE. This is called from
-    //  qol_opt_hud_watcher()'s permanent 0.25s loop, and settext() is ONE
-    //  RELIABLE SERVER COMMAND PER CALL - so with hud_zone on this was a
-    //  permanent 4/sec stream against a 128-entry ring, which is the exact
-    //  defect ERROR_CATALOGUE section 7b is about and the exact thing the health
-    //  HUD was fixed for in v1.65.3. A player standing in one zone was sending
-    //  four commands a second to report that nothing had changed.
+    //  🛑 WRITTEN ONLY ON CHANGE, v1.95.1. settext() is ONE RELIABLE SERVER
+    //  COMMAND PER CALL, and this runs four times a second off
+    //  qol_opt_hud_watcher(), so an unconditional write is a permanent stream
+    //  against a 128-entry ring - the defect ERROR_CATALOGUE section 7b is
+    //  about, and what the health HUD was fixed for in v1.65.3.
     //
-    //  📝 This is NOT claimed to be the Origins crash. The dvar dump from that
-    //  session reads hud_zone "0", so this loop was not running there. It is a
-    //  real unbounded emitter found while looking for that one, and it is fixed
-    //  on its own merits.
-    //
-    //  🌟 THE CACHE LIVES ON THE HUDELEM, for the same reason the health one
-    //  does: the block above destroys and re-creates this element whenever
-    //  hud_zone is toggled, and a local would survive that and leave the fresh
-    //  element permanently blank. A new element carries no .qol_last_zone, so
-    //  the first pass after any re-create writes the text again.
+    //  🌟 THE CACHE LIVES ON THE HUDELEM, because the block above destroys and
+    //  re-creates this element whenever hud_zone is toggled; a local would
+    //  survive that and leave the fresh element permanently blank. A new
+    //  element carries no .qol_last_zone, so the first pass after any re-create
+    //  writes the text again.
     if ( !isdefined( self.qol_hud_zone.qol_last_zone ) || self.qol_hud_zone.qol_last_zone != str_zone )
     {
         self.qol_hud_zone settext( str_zone );
